@@ -1,0 +1,3 @@
+[submodule "ion-functions"]
+	path = ion-functions
+	url = https://github.com/ooici/ion-functions
