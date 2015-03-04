@@ -65,6 +65,10 @@ def validate_parameter_row(row):
     if not row.get('id').startswith('PD'):
         return False
 
+    scenario = row.get('scenario')
+    if scenario is not None and 'VOID' in scenario:
+        return False
+
     return True
 
 
@@ -75,6 +79,10 @@ def validate_stream_row(row):
             return False
 
     if not row.get('id').startswith('DICT'):
+        return False
+
+    scenario = row.get('scenario')
+    if scenario is not None and 'VOID' in scenario:
         return False
 
     return True
@@ -89,11 +97,14 @@ def validate_parameter_func_row(row):
     if not row.get('id').startswith('PFID'):
         return False
 
+    scenario = row.get('scenario')
+    if scenario is not None and 'VOID' in scenario:
+        return False
+
     return True
 
 
 def get_function(pfid):
-    #return db.session.query(ParameterFunction).get(pfid)
     return ParameterFunction.query.get(pfid)
 
 

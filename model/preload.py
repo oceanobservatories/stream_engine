@@ -85,6 +85,42 @@ class Parameter(db.Model):
     description = db.Column(db.String(4096))
     streams = db.relationship('Stream', secondary='stream_parameter')
 
+    def parse_pdid(self, pdid_string):
+        return int(pdid_string.split()[0][2:])
+
+    def needs(self):
+        needed = []
+        if self.parameter_type.value == 'function':
+            for value in self.parameter_function_map.values():
+                if value.startswith('PD'):
+                    try:
+                        pdid = self.parse_pdid(value)
+                        sub_param = Parameter.query.get(pdid)
+                        needed.extend(sub_param.needs())
+                    except ValueError:
+                        needed.append('MISSING: ' + value)
+
+        needed.append(self)
+
+        return needed
+
+    def needs_cc(self):
+        needed = []
+        if self.parameter_type.value == 'function':
+            for value in self.parameter_function_map.values():
+                if value.startswith('PD'):
+                    try:
+                        pdid = self.parse_pdid(value)
+                        sub_param = Parameter.query.get(pdid)
+                        needed.extend(sub_param.needs_cc())
+                    except ValueError:
+                        pass
+
+                if value.startswith('CC'):
+                    needed.append(value)
+
+        return needed
+
 
 class StreamParameter(db.Model):
     __tablename__ = 'stream_parameter'
