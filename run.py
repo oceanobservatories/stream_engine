@@ -10,13 +10,18 @@
 from tornado.wsgi import WSGIContainer
 from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
+import tornado.log
 from engine import routes
+import logging
 
 
 def main():
+
+    tornado.log.enable_pretty_logging()
     server = HTTPServer(WSGIContainer(routes.app))
     server.bind(5000)
     server.start(0)
+    logging.getLogger('tornado.application').setLevel(logging.DEBUG)
     IOLoop.current().start()
 
 if __name__ == '__main__':

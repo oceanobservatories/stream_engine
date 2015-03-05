@@ -2,47 +2,52 @@
 import json
 import os
 import gdata.spreadsheet.service as service
-from routes import db
+from engine import db, app
 from model.preload import Stream, ParameterFunction, FunctionType, Parameter, ParameterType, ValueEncoding, CodeSet, \
     Unit, FillValue
 
 
-key = '1jIiBKpVRBMU5Hb1DJqyR16XCkiX-CuTsn1Z1VnlRV4I'
+key = app.config['SPREADSHEET_KEY']
+use_cache = app.config['USE_CACHED_SPREADSHEET']
 cachedir = '.cache'
 
 
 def sheet_generator(name):
     cache_path = os.path.join(cachedir, name)
     rows = []
-    if os.path.exists(cache_path):
+    if use_cache and os.path.exists(cache_path):
         try:
             rows.extend(json.load(open(cache_path)))
             print 'used cache'
+            for row in rows:
+                yield row
+            return
         except:
             pass
 
-    if len(rows) == 0:
-        print 'fetching from google'
-        client = service.SpreadsheetsService()
-        for sheet in client.GetWorksheetsFeed(key, visibility='public', projection='basic').entry:
-            title = sheet.title.text
-            rowid = sheet.id.text.split('/')[-1]
+    print 'fetching from google'
+    client = service.SpreadsheetsService()
+    for sheet in client.GetWorksheetsFeed(key, visibility='public', projection='basic').entry:
+        title = sheet.title.text
+        rowid = sheet.id.text.split('/')[-1]
 
-            if title == name:
-                for x in client.GetListFeed(key, rowid, visibility='public', projection='values').entry:
-                    d = {}
-                    for k, v in x.custom.items():
-                        if v.text is not None:
-                            d[k] = v.text.strip()
-                        else:
-                            d[k] = None
-                    rows.append(d)
-        if not os.path.exists(cachedir):
-            os.makedirs(cachedir)
+        if title == name:
+            for x in client.GetListFeed(key, rowid, visibility='public', projection='values').entry:
+                d = {}
+                for k, v in x.custom.items():
+                    if v.text is not None:
+                        d[k] = v.text.strip()
+                    else:
+                        d[k] = None
+
+                rows.append(d)
+                yield d
+
+    if use_cache and not os.path.exists(cachedir):
+        os.makedirs(cachedir)
+    if use_cache:
+        print 'Caching data for future runs'
         json.dump(rows, open(cache_path, 'wb'))
-
-    for row in rows:
-        yield row
 
 
 def get_simple_field(field_class, value):
@@ -180,6 +185,7 @@ def process_streams(sheet):
     db.session.commit()
 
 if __name__ == '__main__':
+    db.drop_all()
     db.create_all()
     process_parameter_funcs(sheet_generator('ParameterFunctions'))
     process_parameters(sheet_generator('ParameterDefs'))

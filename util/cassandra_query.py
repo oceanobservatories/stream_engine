@@ -38,6 +38,7 @@ class DataParameter(object):
         self.data = None
         self.shape = None
         self.times = None
+        self.dtype = None
 
     def __eq__(self, other):
         return self.parameter.id == other.parameter.id
@@ -89,12 +90,13 @@ class FunctionParameter(object):
 
 
 class StreamRequest(object):
-    def __init__(self):
-        self.subsite = None
-        self.node = None
-        self.sensor = None
-        self.stream = None
-        self.method = None
+    def __init__(self, subsite, node, sensor, method, stream, parameters):
+        self.subsite = subsite
+        self.node = node
+        self.sensor = sensor
+        self.stream = stream
+        self.method = method
+        self.parameters = parameters
         self.data = []
         self.coeffs = []
         self.functions = []
@@ -123,7 +125,7 @@ def log_timing(func):
         start = time.time()
         results = func(*args, **kwargs)
         elapsed = time.time() - start
-        app.logger.debug('Completed method: %s in %.2f', func, elapsed)
+        app.logger.info('Completed method: %s in %.2f', func, elapsed)
         return results
 
     return inner
@@ -139,7 +141,7 @@ def parse_pdid(pdid_string):
 
 @log_timing
 def find_needed_params(subsite, node, sensor, stream, method, parameters):
-    stream_request = StreamRequest()
+    stream_request = StreamRequest(subsite, node, sensor, method, stream, parameters)
     needed = []
     needed_cc = []
 
@@ -168,6 +170,7 @@ def find_needed_params(subsite, node, sensor, stream, method, parameters):
                 stream_request.data.append(DataParameter(subsite, node, sensor, stream.name, method, parameter))
 
         else:
+            app.logger.debug('NEED PARAMETER FROM OTHER STREAM: %s', parameter.name)
             sensor1, stream1 = find_stream(subsite, node, sensor, method, parameter.streams, distinct_sensors)
             if not any([sensor1 is None, stream1 is None]):
                 stream_request.data.append(DataParameter(subsite, node, sensor1, stream1.name, method, parameter))
@@ -218,6 +221,7 @@ def get_stream(subsite, node, sensor, stream, method, parameters, start, stop, c
     stream = Stream.query.filter(Stream.name == stream).first()
     stream_request = find_needed_params(subsite, node, sensor, stream, method, parameters)
     get_data(stream_request, start, stop)
+    interpolate(stream_request)
     execute_dpas(stream_request, coefficients)
     data = to_msgpack(stream_request, parameters)
     return data
@@ -225,11 +229,25 @@ def get_stream(subsite, node, sensor, stream, method, parameters, start, stop, c
 
 @log_timing
 def fetch_data(subsite, node, sensor, stream, method, start, stop, limit=5):
+    base_query = "select %%ss from %s where subsite='%s' and node='%s' and method='%s'" % (stream, subsite, node, method)
+    # attempt to find one data point beyond the requested start/stop times
+    first = session.execute(
+        'select time from %s where subsite=%%s and node=%%s and sensor=%%s and method=%%s and time<%%s limit 1' % stream,
+        (subsite, node, sensor, method, start))
+    last = session.execute(
+        'select time from %s where subsite=%%s and node=%%s and sensor=%%s and method=%%s and time>%%s limit 1' % stream,
+        (subsite, node, sensor, method, stop))
+    if first:
+        start = first[0].time
+    if last:
+        stop = last[0].time
+
     query = SimpleStatement(
         'select * from %s where subsite=%%s and node=%%s and sensor=%%s and method=%%s and time>%%s and time<%%s'
         % stream, fetch_size=100)
-    app.logger.debug('Executing cassandra query: %s', query)
+    app.logger.info('Executing cassandra query: %s', query)
     results = session.execute(query, (subsite, node, sensor, method, start, stop))
+
     return results
 
 
@@ -251,7 +269,8 @@ def pack_data(result_set):
     for row in result_set:
         for index, value in enumerate(row):
             data[index].append(value)
-    return {fields[i]: data[i] for i, _ in enumerate(fields)}
+    d = {field: data[i] for i, field in enumerate(fields)}
+    return d
 
 
 @log_timing
@@ -289,8 +308,30 @@ def get_data(stream_request, start, stop):
                         mydata = mydata.reshape(shape)
                     else:
                         mydata = numpy.array(mydata)
+                    each.dtype = mydata.dtype
                     each.data = mydata
                     each.times = mytime
+
+
+@log_timing
+def interpolate(stream_request):
+    # first, find times from the primary stream
+    times = None
+    for each in stream_request.data:
+        if stream_request.stream.name == each.stream:
+            times = each.times
+            break
+
+    if times is not None:
+        # found primary time source, interpolate remaining records
+        for each in stream_request.data:
+            if stream_request.stream.name != each.stream:
+                try:
+                    interp_data = numpy.interp(times, each.times, each.data)
+                    each.times = times
+                    each.data = interp_data
+                except Exception as e:
+                    app.logger.warn('%s %s %s', each.parameter.name, each.data, e)
 
 
 @log_timing
@@ -299,9 +340,13 @@ def execute_dpas(stream_request, coefficients):
     for each in stream_request.data + stream_request.functions:
         parameter_data_map[each.parameter.id] = each
 
+    needed = range(len(stream_request.functions))
     for execute_pass in range(5):
+        if not needed:
+            break
         app.logger.info('Pass %d - attempt to create derived products', execute_pass)
-        for each in stream_request.functions:
+        for index in needed:
+            each = stream_request.functions[index]
             app.logger.info('Create %s', each.parameter.name)
             if each.data is not None:
                 app.logger.info('Already computed %s, skipping', each.parameter.name)
@@ -343,6 +388,8 @@ def execute_dpas(stream_request, coefficients):
                         app.logger.debug('dtype: %s', each.data.dtype)
                 except Exception as e:
                     app.logger.error('Exception creating derived product: %s %s %s', func.owner, func.function, e)
+                finally:
+                    needed.remove(index)
 
 
 @log_timing
