@@ -1,6 +1,7 @@
-from cassandra.cluster import Cluster
+import os
 from flask import Flask
 from flask.ext.sqlalchemy import SQLAlchemy
+
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -8,6 +9,5 @@ app.config.from_object('config')
 # preload database handle
 db = SQLAlchemy(app)
 
-# cassandra database handle
-cluster = Cluster()
-session = cluster.connect('ooi2')
+pid = os.getpid()
+print pid

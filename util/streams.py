@@ -1,6 +1,6 @@
 import itertools
 from werkzeug.exceptions import abort
-from app import app, session
+from engine import app, session
 from model.preload import Stream, Parameter
 from util import cassandra_query
 

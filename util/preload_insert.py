@@ -2,13 +2,14 @@
 import json
 import os
 import gdata.spreadsheet.service as service
-from app.main import db
+from routes import db
 from model.preload import Stream, ParameterFunction, FunctionType, Parameter, ParameterType, ValueEncoding, CodeSet, \
     Unit, FillValue
 
 
 key = '1jIiBKpVRBMU5Hb1DJqyR16XCkiX-CuTsn1Z1VnlRV4I'
 cachedir = '.cache'
+
 
 def sheet_generator(name):
     cache_path = os.path.join(cachedir, name)
@@ -25,10 +26,10 @@ def sheet_generator(name):
         client = service.SpreadsheetsService()
         for sheet in client.GetWorksheetsFeed(key, visibility='public', projection='basic').entry:
             title = sheet.title.text
-            id = sheet.id.text.split('/')[-1]
+            rowid = sheet.id.text.split('/')[-1]
 
             if title == name:
-                for x in client.GetListFeed(key, id, visibility='public', projection='values').entry:
+                for x in client.GetListFeed(key, rowid, visibility='public', projection='values').entry:
                     d = {}
                     for k, v in x.custom.items():
                         if v.text is not None:

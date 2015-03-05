@@ -1,5 +1,5 @@
 import json
-from app import db
+from engine import db
 
 
 class ParameterType(db.Model):

@@ -5,14 +5,19 @@ import struct
 import sys
 import time
 from functools import wraps
+from cassandra.cluster import Cluster
 
 from cassandra.query import SimpleStatement
 import msgpack
 import numexpr
 import numpy
 
-from app import app, session
+from engine import app
 from model.preload import Stream, Parameter
+
+# cassandra database handle
+cluster = Cluster(app.config['CASSANDRA_CONTACT_POINTS'])
+session = cluster.connect(app.config['CASSANDRA_KEYSPACE'])
 
 
 sys.path.append('ion-functions')
@@ -244,7 +249,6 @@ def pack_data(result_set):
         data.append([value])
 
     for row in result_set:
-        print row
         for index, value in enumerate(row):
             data[index].append(value)
     return {fields[i]: data[i] for i, _ in enumerate(fields)}
@@ -332,11 +336,11 @@ def execute_dpas(stream_request, coefficients):
                         module = importlib.import_module(func.owner)
                         each.data = getattr(module, func.function)(**args)
                         each.shape = each.data.shape
-                        app.logger.warn('dtype: %s', each.data.dtype)
+                        app.logger.debug('dtype: %s', each.data.dtype)
                     elif func.function_type.value == 'NumexprFunction':
                         each.data = numexpr.evaluate(func.function, args)
                         each.shape = each.data.shape
-                        app.logger.warn('dtype: %s', each.data.dtype)
+                        app.logger.debug('dtype: %s', each.data.dtype)
                 except Exception as e:
                     app.logger.error('Exception creating derived product: %s %s %s', func.owner, func.function, e)
 

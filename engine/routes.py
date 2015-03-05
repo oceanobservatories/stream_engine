@@ -3,10 +3,13 @@ from flask import request, Response
 import ntplib
 import time
 from werkzeug.exceptions import abort
-from app import app
-from util import cassandra_query
-from util.streams import NeededStream
+from engine import app
 
+
+
+@app.route('/')
+def hello():
+    return 'hello world!'
 
 @app.route('/calculate', methods=['POST'])
 def calculate():
@@ -36,6 +39,8 @@ def calculate():
 
     :return: JSON object:
     """
+    from util import cassandra_query
+
     input_data = request.get_json()
     if input_data is None:
         app.logger.warn('Received null request')
@@ -103,6 +108,8 @@ def needs():
             ]
     }
     """
+    from util.streams import NeededStream
+
     output_data = {'streams': []}
     input_data = request.get_json()
 
