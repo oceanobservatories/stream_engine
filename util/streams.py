@@ -1,8 +1,9 @@
-import itertools
 from werkzeug.exceptions import abort
-from engine import app, session
+from engine import app
 from model.preload import Stream, Parameter
 from util import cassandra_query
+
+session = cassandra_query.session
 
 STREAM_EXISTS_PS = session.prepare(
     '''
