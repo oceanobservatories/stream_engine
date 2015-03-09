@@ -2,7 +2,6 @@ import base64
 import importlib
 import json
 import struct
-import sys
 import time
 from functools import wraps
 from cassandra.cluster import Cluster
@@ -16,15 +15,21 @@ from engine import app
 from model.preload import Stream, Parameter
 
 # cassandra database handle
-cluster = Cluster(app.config['CASSANDRA_CONTACT_POINTS'])
-session = cluster.connect(app.config['CASSANDRA_KEYSPACE'])
+session = None
 
-
-sys.path.append('ion-functions')
-
-distinct_sensors_ps = session.prepare('SELECT DISTINCT subsite, node, sensor FROM stream_metadata')
-metadata_refdes_ps = session.prepare('SELECT * FROM STREAM_METADATA where SUBSITE=? and NODE=? and SENSOR=? and METHOD=?')
 FUNCTION = 'function'
+
+
+def get_session():
+    global session
+    global distinct_sensors_ps
+    global metadata_refdes_ps
+    if session is None:
+        cluster = Cluster(app.config['CASSANDRA_CONTACT_POINTS'])
+        session = cluster.connect(app.config['CASSANDRA_KEYSPACE'])
+        distinct_sensors_ps = session.prepare('SELECT DISTINCT subsite, node, sensor FROM stream_metadata')
+        metadata_refdes_ps = session.prepare('SELECT * FROM STREAM_METADATA where SUBSITE=? and NODE=? and SENSOR=? and METHOD=?')
+    return session
 
 
 class DataParameter(object):
@@ -180,7 +185,7 @@ def find_needed_params(subsite, node, sensor, stream, method, parameters):
 
 @log_timing
 def get_distinct_sensors():
-    rows = session.execute(distinct_sensors_ps)
+    rows = get_session().execute(distinct_sensors_ps)
     return [(row.subsite, row.node, row.sensor) for row in rows]
 
 
@@ -195,14 +200,14 @@ def find_stream(subsite, node, sensor, method, streams, distinct_sensors):
     stream_map = {s.name: s for s in streams}
 
     # check our specific reference designator first
-    for row in session.execute(metadata_refdes_ps, (subsite, node, sensor, method)):
+    for row in get_session().execute(metadata_refdes_ps, (subsite, node, sensor, method)):
         if row.stream in stream_map:
             return sensor, stream_map[row.stream]
 
     # check other reference designators in the same family
     for subsite1, node1, sensor in distinct_sensors:
         if subsite1 == subsite and node1 == node:
-            for row in session.execute(metadata_refdes_ps, (subsite, node, sensor, method)):
+            for row in get_session().execute(metadata_refdes_ps, (subsite, node, sensor, method)):
                 if row.stream in stream_map:
                     return sensor, stream_map[row.stream]
 
@@ -223,7 +228,7 @@ def get_stream(subsite, node, sensor, stream, method, parameters, start, stop, c
     get_data(stream_request, start, stop)
     interpolate(stream_request)
     execute_dpas(stream_request, coefficients)
-    data = to_msgpack(stream_request, parameters)
+    data = msgpack_all(stream_request, parameters)
     return data
 
 
@@ -231,10 +236,10 @@ def get_stream(subsite, node, sensor, stream, method, parameters, start, stop, c
 def fetch_data(subsite, node, sensor, stream, method, start, stop, limit=5):
     base_query = "select %%ss from %s where subsite='%s' and node='%s' and method='%s'" % (stream, subsite, node, method)
     # attempt to find one data point beyond the requested start/stop times
-    first = session.execute(
+    first = get_session().execute(
         'select time from %s where subsite=%%s and node=%%s and sensor=%%s and method=%%s and time<%%s limit 1' % stream,
         (subsite, node, sensor, method, start))
-    last = session.execute(
+    last = get_session().execute(
         'select time from %s where subsite=%%s and node=%%s and sensor=%%s and method=%%s and time>%%s limit 1' % stream,
         (subsite, node, sensor, method, stop))
     if first:
@@ -246,7 +251,7 @@ def fetch_data(subsite, node, sensor, stream, method, start, stop, limit=5):
         'select * from %s where subsite=%%s and node=%%s and sensor=%%s and method=%%s and time>%%s and time<%%s'
         % stream, fetch_size=100)
     app.logger.info('Executing cassandra query: %s', query)
-    results = session.execute(query, (subsite, node, sensor, method, start, stop))
+    results = get_session().execute(query, (subsite, node, sensor, method, start, stop))
 
     return results
 
@@ -270,6 +275,7 @@ def pack_data(result_set):
         for index, value in enumerate(row):
             data[index].append(value)
     d = {field: data[i] for i, field in enumerate(fields)}
+    app.logger.warn(d)
     return d
 
 
@@ -393,22 +399,23 @@ def execute_dpas(stream_request, coefficients):
 
 
 @log_timing
-def to_msgpack(stream_request, parameters):
+def msgpack_one(item):
+    if isinstance(item, DataParameter):
+        source = item.stream_key
+    else:
+        source = 'derived'
+
+    return {
+        'data': base64.b64encode(msgpack.packb(list(item.data.flatten()))),
+        'shape': item.data.shape,
+        'name': item.parameter.name,
+        'source': source
+    }
+
+
+@log_timing
+def msgpack_all(stream_request, parameters):
     d = {}
-    for each in stream_request.data:
-        if each.data is not None and (len(parameters) == 0 or each.parameter.id in parameters):
-            d[each.parameter.id] = {
-                'data': base64.b64encode(msgpack.packb(list(each.data.flatten()))),
-                'shape': each.data.shape,
-                'name': each.parameter.name,
-                'source': each.stream_key
-            }
-    for each in stream_request.functions:
-        if each.data is not None and (len(parameters) == 0 or each.parameter.id in parameters):
-            d[each.parameter.id] = {
-                'data': base64.b64encode(msgpack.packb(list(each.data.flatten()))),
-                'shape': each.shape,
-                'name': each.parameter.name,
-                'source': 'derived'
-            }
+    for each in stream_request.data + stream_request.functions:
+        d[each.parameter.id] = msgpack_one(each)
     return d

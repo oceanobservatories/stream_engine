@@ -184,9 +184,13 @@ def process_streams(sheet):
 
     db.session.commit()
 
-if __name__ == '__main__':
+
+def create_db():
     db.drop_all()
     db.create_all()
     process_parameter_funcs(sheet_generator('ParameterFunctions'))
     process_parameters(sheet_generator('ParameterDefs'))
     process_streams(sheet_generator('ParameterDictionary'))
+
+if __name__ == '__main__':
+    create_db()

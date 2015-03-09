@@ -1,10 +1,10 @@
-from engine import routes
-routes.app.run(debug=True)
+from engine import app
+app.run(debug=True)
 
 # from gevent.wsgi import WSGIServer
 # from engine import routes
 #
-# http_server = WSGIServer(('', 5000), routes.app)
+# http_server = WSGIServer(('', 5000), app)
 # http_server.serve_forever()
 
 # from tornado.wsgi import WSGIContainer
@@ -18,7 +18,7 @@ routes.app.run(debug=True)
 # def main():
 #
 #     tornado.log.enable_pretty_logging()
-#     server = HTTPServer(WSGIContainer(routes.app))
+#     server = HTTPServer(WSGIContainer(app))
 #     server.bind(5000)
 #     server.start(0)
 #     logging.getLogger('tornado.application').setLevel(logging.DEBUG)

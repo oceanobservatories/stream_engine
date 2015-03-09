@@ -89,35 +89,34 @@ class Parameter(db.Model):
         return int(pdid_string.split()[0][2:])
 
     def needs(self):
-        needed = []
+        needed = set()
         if self.parameter_type.value == 'function':
             for value in self.parameter_function_map.values():
                 if value.startswith('PD'):
                     try:
                         pdid = self.parse_pdid(value)
                         sub_param = Parameter.query.get(pdid)
-                        needed.extend(sub_param.needs())
+                        needed = needed.union(sub_param.needs())
                     except ValueError:
-                        needed.append('MISSING: ' + value)
+                        needed.add('MISSING: ' + value)
 
-        needed.append(self)
-
+        needed.add(self)
         return needed
 
     def needs_cc(self):
-        needed = []
+        needed = set()
         if self.parameter_type.value == 'function':
             for value in self.parameter_function_map.values():
                 if value.startswith('PD'):
                     try:
                         pdid = self.parse_pdid(value)
                         sub_param = Parameter.query.get(pdid)
-                        needed.extend(sub_param.needs_cc())
+                        needed = needed.union(sub_param.needs_cc())
                     except ValueError:
                         pass
 
                 if value.startswith('CC'):
-                    needed.append(value)
+                    needed.add(value)
 
         return needed
 

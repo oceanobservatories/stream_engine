@@ -29,6 +29,19 @@ d = {
     "stop": 3634043605
 }
 
+d = { 
+    "streams": [ 
+        { 
+            "subsite":"XX00XXXX", 
+            "node":"XX00X", 
+            "sensor":"00-CTDPFW100", 
+            "method":"recovered", 
+            "stream":"ctdpf_ckl_wfp_instrument_recovered", 
+            "parameters": [ 1959 ] 
+        } 
+    ] 
+} 
+
 headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
 data = requests.post('http://localhost:5000/calculate', data=json.dumps(d), headers=headers).json()
 
