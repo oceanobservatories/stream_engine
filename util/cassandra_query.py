@@ -406,7 +406,7 @@ def msgpack_one(item):
         source = 'derived'
 
     return {
-        'data': base64.b64encode(msgpack.packb(list(item.data.flatten()))),
+        'data': base64.b64encode(msgpack.packb(item.data.flatten().tolist())),
         'shape': item.data.shape,
         'name': item.parameter.name,
         'source': source
