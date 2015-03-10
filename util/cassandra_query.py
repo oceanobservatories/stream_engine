@@ -5,7 +5,6 @@ import struct
 import time
 from functools import wraps
 from cassandra.cluster import Cluster
-
 from cassandra.query import SimpleStatement
 import msgpack
 import numexpr
@@ -77,7 +76,7 @@ class CalibrationParameter(object):
     def __repr__(self):
         return json.dumps({
             'name': self.name,
-            'value': self.value
+            'value': repr(self.value)
         })
 
 
@@ -112,6 +111,10 @@ class StreamRequest(object):
         parameter_data_map = {}
         for each in self.data + self.functions:
             parameter_data_map[each.parameter.id] = each
+
+        for each in self.coeffs:
+            parameter_data_map[each.name] = each
+
         return parameter_data_map
 
     def add_parameter(self, p, subsite, node, sensor, stream, method):
@@ -347,9 +350,13 @@ def interpolate(stream_request):
                 except Exception as e:
                     app.logger.warn('%s %s %s', each.parameter.name, each.data, e)
 
+        for each in stream_request.coeffs:
+            if each.times is None:
+                each.value = numpy.tile(each.value, len(times))
+
 
 @log_timing
-def execute_dpas(stream_request, coefficients):
+def execute_dpas(stream_request):
     parameter_data_map = stream_request.get_data_map()
 
     needed = range(len(stream_request.functions))
@@ -361,7 +368,7 @@ def execute_dpas(stream_request, coefficients):
         for index in needed[:]:
             try:
                 pf = stream_request.functions[index]
-                kwargs = build_func_map(pf, parameter_data_map, coefficients)
+                kwargs = build_func_map(pf, parameter_data_map)
                 execute_one_dpa(pf, kwargs)
             except DataUnavailableException:
                 # we will never be able to compute this
@@ -391,7 +398,8 @@ def execute_one_dpa(pf, kwargs):
 
 
 @log_timing
-def build_func_map(parameter_function, data_map, coefficients):
+def build_func_map(parameter_function, data_map):
+
     func_map = parameter_function.parameter.parameter_function_map
     args = {}
     for key in func_map:
@@ -409,8 +417,8 @@ def build_func_map(parameter_function, data_map, coefficients):
 
         elif func_map[key].startswith('CC'):
             name = func_map[key]
-            if name in coefficients:
-                args[key] = coefficients.get(name)
+            if name in data_map:
+                args[key] = data_map.get(name).value
             else:
                 raise CoefficientUnavailableException(name)
     return args

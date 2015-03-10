@@ -63,7 +63,8 @@ def calculate():
     start = input_data.get('start', 1)
     stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
 
-    return cassandra_query.calculate(streams[0], start, stop, input_data.get('coefficients', []))
+    return Response(cassandra_query.calculate(streams[0], start, stop, input_data.get('coefficients', [])),
+                    mimetype='application/json')
 
 
 @app.route('/needs', methods=['POST'])

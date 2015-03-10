@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from engine import app
 app.run(debug=True)
 
