@@ -332,7 +332,7 @@ def interpolate(stream_request):
     # first, find times from the primary stream
     times = None
     for each in stream_request.data:
-        if stream_request.stream.name == each.stream:
+        if stream_request.stream.name == each.stream and each.times is not None:
             times = each.times
             break
 
@@ -366,6 +366,7 @@ def execute_dpas(stream_request, coefficients):
             except DataUnavailableException:
                 # we will never be able to compute this
                 needed.remove(index)
+                continue
             except DataNotReadyException:
                 continue
 
