@@ -25,7 +25,8 @@ def get_session():
     global distinct_sensors_ps
     global metadata_refdes_ps
     if session is None:
-        cluster = Cluster(app.config['CASSANDRA_CONTACT_POINTS'])
+        cluster = Cluster(app.config['CASSANDRA_CONTACT_POINTS'],
+                          control_connection_timeout=app.config['CASSANDRA_CONNECT_TIMEOUT'])
         session = cluster.connect(app.config['CASSANDRA_KEYSPACE'])
         distinct_sensors_ps = session.prepare('SELECT DISTINCT subsite, node, sensor FROM stream_metadata')
         metadata_refdes_ps = session.prepare('SELECT * FROM STREAM_METADATA where SUBSITE=? and NODE=? and SENSOR=? and METHOD=?')
@@ -49,9 +50,12 @@ class DataParameter(object):
         return self.parameter.id == other.parameter.id
 
     def __repr__(self):
+        data = None
+        if self.data is not None:
+            data = self.data.tolist()
         return json.dumps({
             'name': self.parameter.name,
-            'data': self.data
+            'data': data
         })
 
 
@@ -77,21 +81,8 @@ class CalibrationParameter(object):
         })
 
 
-class FunctionParameter(object):
-    def __init__(self, parameter):
-        self.parameter = parameter
-        self.data = None
-        self.shape = None
-
-    def __eq__(self, other):
-        return self.parameter.id == other.parameter.id
-
-    def __repr__(self):
-        return json.dumps({
-            'name': self.parameter.name,
-            'data': self.data,
-            'shape': self.shape
-        })
+class FunctionParameter(DataParameter):
+    pass
 
 
 class StreamRequest(object):
@@ -117,6 +108,18 @@ class StreamRequest(object):
             if each not in self.functions:
                 self.functions.append(each)
 
+    def get_data_map(self):
+        parameter_data_map = {}
+        for each in self.data + self.functions:
+            parameter_data_map[each.parameter.id] = each
+        return parameter_data_map
+
+    def add_parameter(self, p, subsite, node, sensor, stream, method):
+        if p.parameter_type.value == FUNCTION:
+            self.functions.append(FunctionParameter(subsite, node, sensor, stream, method, p))
+        else:
+            self.data.append(DataParameter(subsite, node, sensor, stream, method, p))
+
     def __repr__(self):
         return json.dumps({'data': str(self.data),
                            'coeffs': str(self.coeffs),
@@ -130,7 +133,7 @@ def log_timing(func):
         start = time.time()
         results = func(*args, **kwargs)
         elapsed = time.time() - start
-        app.logger.info('Completed method: %s in %.2f', func, elapsed)
+        app.logger.debug('Completed method: %s in %.2f', func, elapsed)
         return results
 
     return inner
@@ -170,7 +173,7 @@ def find_needed_params(subsite, node, sensor, stream, method, parameters):
     for parameter in needed:
         if parameter in stream.parameters:
             if parameter.parameter_type.value == FUNCTION:
-                stream_request.functions.append(FunctionParameter(parameter))
+                stream_request.functions.append(FunctionParameter(subsite, node, sensor, stream.name, method, parameter))
             else:
                 stream_request.data.append(DataParameter(subsite, node, sensor, stream.name, method, parameter))
 
@@ -321,6 +324,11 @@ def get_data(stream_request, start, stop):
 
 @log_timing
 def interpolate(stream_request):
+    """
+    Interpolate all data contained in stream_request to the master stream
+    :param stream_request:
+    :return:
+    """
     # first, find times from the primary stream
     times = None
     for each in stream_request.data:
@@ -342,60 +350,69 @@ def interpolate(stream_request):
 
 @log_timing
 def execute_dpas(stream_request, coefficients):
-    parameter_data_map = {}
-    for each in stream_request.data + stream_request.functions:
-        parameter_data_map[each.parameter.id] = each
+    parameter_data_map = stream_request.get_data_map()
 
     needed = range(len(stream_request.functions))
     for execute_pass in range(5):
         if not needed:
             break
         app.logger.info('Pass %d - attempt to create derived products', execute_pass)
-        for index in needed:
-            each = stream_request.functions[index]
-            app.logger.info('Create %s', each.parameter.name)
-            if each.data is not None:
-                app.logger.info('Already computed %s, skipping', each.parameter.name)
+
+        for index in needed[:]:
+            try:
+                pf = stream_request.functions[index]
+                kwargs = build_func_map(pf, parameter_data_map, coefficients)
+                execute_one_dpa(pf, kwargs)
+            except DataUnavailableException:
+                # we will never be able to compute this
+                needed.remove(index)
+            except DataNotReadyException:
                 continue
 
-            func = each.parameter.parameter_function
-            func_map = each.parameter.parameter_function_map
+            needed.remove(index)
 
-            args = {}
-            for key in func_map:
-                if func_map[key].startswith('PD'):
-                    pdid = parse_pdid(func_map[key])
 
-                    if pdid not in parameter_data_map:
-                        app.logger.error('Unable to execute function: %s missing value: PD%d', func.name, pdid)
-                        break
+@log_timing
+def execute_one_dpa(pf, kwargs):
+    func = pf.parameter.parameter_function
+    func_map = pf.parameter.parameter_function_map
 
-                    data_item = parameter_data_map[pdid]
-                    if data_item.data is not None:
-                        args[key] = data_item.data
+    if len(kwargs) == len(func_map):
+        if func.function_type.value == 'PythonFunction':
+            module = importlib.import_module(func.owner)
+            pf.data = getattr(module, func.function)(**kwargs)
+            pf.shape = pf.data.shape
+            app.logger.debug('dtype: %s', pf.data.dtype)
+        elif func.function_type.value == 'NumexprFunction':
+            pf.data = numexpr.evaluate(func.function, kwargs)
+            pf.shape = pf.data.shape
+            app.logger.debug('dtype: %s', pf.data.dtype)
 
-                elif func_map[key].startswith('CC'):
-                    name = func_map[key]
-                    if name in coefficients:
-                        args[key] = coefficients.get(name)
-                    else:
-                        app.logger.warn('Missing CC: %s', name)
 
-            if len(args) == len(func_map):
-                try:
-                    if func.function_type.value == 'PythonFunction':
-                        module = importlib.import_module(func.owner)
-                        each.data = getattr(module, func.function)(**args)
-                        each.shape = each.data.shape
-                        app.logger.debug('dtype: %s', each.data.dtype)
-                    elif func.function_type.value == 'NumexprFunction':
-                        each.data = numexpr.evaluate(func.function, args)
-                        each.shape = each.data.shape
-                        app.logger.debug('dtype: %s', each.data.dtype)
-                except Exception as e:
-                    app.logger.error('Exception creating derived product: %s %s %s', func.owner, func.function, e)
-                finally:
-                    needed.remove(index)
+@log_timing
+def build_func_map(parameter_function, data_map, coefficients):
+    func_map = parameter_function.parameter.parameter_function_map
+    args = {}
+    for key in func_map:
+        if func_map[key].startswith('PD'):
+            pdid = parse_pdid(func_map[key])
+
+            if pdid not in data_map:
+                raise DataUnavailableException(pdid)
+
+            data_item = data_map[pdid]
+            if data_item.data is None:
+                raise DataNotReadyException(pdid)
+
+            args[key] = data_item.data
+
+        elif func_map[key].startswith('CC'):
+            name = func_map[key]
+            if name in coefficients:
+                args[key] = coefficients.get(name)
+            else:
+                raise CoefficientUnavailableException(name)
+    return args
 
 
 @log_timing
@@ -415,7 +432,20 @@ def msgpack_one(item):
 
 @log_timing
 def msgpack_all(stream_request, parameters):
+    # TODO, filter based on parameters
     d = {}
     for each in stream_request.data + stream_request.functions:
         d[each.parameter.id] = msgpack_one(each)
     return d
+
+
+class DataUnavailableException(Exception):
+    pass
+
+
+class DataNotReadyException(Exception):
+    pass
+
+
+class CoefficientUnavailableException(Exception):
+    pass
