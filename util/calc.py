@@ -154,7 +154,7 @@ def find_needed_params(subsite, node, sensor, stream, method, parameters, coeffi
 
     else:
         for parameter in parameters:
-            parameter = Parameter.query.filter(Parameter.id == parameter).first()
+            parameter = Parameter.query.get(parameter)
             if parameter is not None and parameter in stream.parameters:
                 if parameter.parameter_type.value == FUNCTION:
                     needed.extend(parameter.needs())
@@ -399,7 +399,9 @@ def msgpack_all(stream_request, parameters):
     # TODO, filter based on parameters
     d = {}
     for each in stream_request.data + stream_request.functions:
-        if each.data is not None:
+        if each.data is None:
+            continue
+        if not parameters or each.parameter.id in parameters:
             d[each.parameter.id] = msgpack_one(each)
     return d
 

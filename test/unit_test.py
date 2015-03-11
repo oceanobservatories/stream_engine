@@ -21,8 +21,7 @@ sys.path.append('../ion-functions')
 from ion_functions.data import ctd_functions, sfl_functions
 
 METADATA_TABLE = \
-    '''
-CREATE TABLE stream_metadata (
+    '''CREATE TABLE stream_metadata (
   subsite text,
   node text,
   sensor text,
@@ -31,12 +30,10 @@ CREATE TABLE stream_metadata (
   count bigint,
   first double,
   last double,
-  PRIMARY KEY ((subsite, node, sensor), method, stream))
-'''
+  PRIMARY KEY ((subsite, node, sensor), method, stream))'''
 
 CTDBP_NO_SAMPLE_TABLE = \
-    '''
-CREATE TABLE ctdbp_no_sample (
+    '''CREATE TABLE ctdbp_no_sample (
   subsite text,
   node text,
   sensor text,
@@ -57,8 +54,69 @@ CREATE TABLE ctdbp_no_sample (
   provenance int,
   quality_flag text,
   temperature int,
-  PRIMARY KEY ((subsite, node, sensor), method, time, id))
-'''
+  PRIMARY KEY ((subsite, node, sensor), method, time, id))'''
+
+CTDBP_NO_CALIBRATION_COEFFICIENTS_TABLE = \
+    '''CREATE TABLE ctdbp_no_calibration_coefficients (
+  subsite text,
+  node text,
+  sensor text,
+  method text,
+  time double,
+  id uuid,
+  calibration_date_conductivity text,
+  calibration_date_pressure text,
+  calibration_date_temperature text,
+  cond_coeff_cg double,
+  cond_coeff_ch double,
+  cond_coeff_ci double,
+  cond_coeff_cj double,
+  cond_coeff_cpcor double,
+  cond_coeff_cslope double,
+  cond_coeff_ctcor double,
+  cond_sensor_serial_number int,
+  driver_timestamp double,
+  ext_freq_sf double,
+  ext_volt0_offset double,
+  ext_volt0_slope double,
+  ext_volt1_offset double,
+  ext_volt1_slope double,
+  ext_volt2_offset double,
+  ext_volt2_slope double,
+  ext_volt3_offset double,
+  ext_volt3_slope double,
+  ext_volt4_offset double,
+  ext_volt4_slope double,
+  ext_volt5_offset double,
+  ext_volt5_slope double,
+  ingestion_timestamp double,
+  internal_timestamp double,
+  port_timestamp double,
+  preferred_timestamp text,
+  press_coeff_pc1 double,
+  press_coeff_pc2 double,
+  press_coeff_pc3 double,
+  press_coeff_pd1 double,
+  press_coeff_pd2 double,
+  press_coeff_poffset double,
+  press_coeff_pslope double,
+  press_coeff_pt1 double,
+  press_coeff_pt2 double,
+  press_coeff_pt3 double,
+  press_coeff_pt4 double,
+  press_serial_number int,
+  pressure_sensor_range int,
+  provenance int,
+  quality_flag text,
+  serial_number int,
+  temp_coeff_offset double,
+  temp_coeff_ta0 double,
+  temp_coeff_ta1 double,
+  temp_coeff_ta2 double,
+  temp_coeff_ta3 double,
+  temp_sensor_serial_number int,
+  PRIMARY KEY ((subsite, node, sensor), method, time, id)
+)'''
 
 
 class StreamUnitTestMixin(object):
@@ -91,6 +149,68 @@ class StreamUnitTestMixin(object):
             'provenance': 0,
             'quality_flag': "ok",
             'temperature': 418687,
+        }
+
+    @classmethod
+    def get_ctdbp_no_calibration_coefficients_data(cls):
+        return {
+            'calibration_date_conductivity': u'07-Dec-13',
+            'calibration_date_pressure': u'05-Dec-13',
+            'calibration_date_temperature': u'07-Dec-13',
+            'cond_coeff_cg': -0.9788709,
+            'cond_coeff_ch': 0.1512588,
+            'cond_coeff_ci': -0.0003713968,
+            'cond_coeff_cj': 5.045781e-05,
+            'cond_coeff_cpcor': -9.57e-08,
+            'cond_coeff_cslope': 1.0,
+            'cond_coeff_ctcor': 3.25e-06,
+            'cond_sensor_serial_number': 1907248,
+            'driver_timestamp': 1,
+            'ext_freq_sf': 0.9999914,
+            'ext_volt0_offset': -0.04811895,
+            'ext_volt0_slope': 1.249131,
+            'ext_volt1_offset': -0.04744,
+            'ext_volt1_slope': 1.24839,
+            'ext_volt2_offset': -0.04766632,
+            'ext_volt2_slope': 1.248002,
+            'ext_volt3_offset': -0.04679579,
+            'ext_volt3_slope': 1.248234,
+            'ext_volt4_offset': -0.04870526,
+            'ext_volt4_slope': 1.248589,
+            'ext_volt5_offset': -0.04749474,
+            'ext_volt5_slope': 1.24836,
+            'id': 0,
+            'ingestion_timestamp': 1,
+            'internal_timestamp': 1,
+            'method': cls.method,
+            'node': cls.node,
+            'port_timestamp': 1,
+            'preferred_timestamp': u'port_timestamp',
+            'press_coeff_pc1': 999.0941,
+            'press_coeff_pc2': -0.00556102,
+            'press_coeff_pc3': -0.000130274,
+            'press_coeff_pd1': 0.03038,
+            'press_coeff_pd2': 0.0,
+            'press_coeff_poffset': 0.0,
+            'press_coeff_pslope': 1.0,
+            'press_coeff_pt1': 27.70606,
+            'press_coeff_pt2': -0.000104193,
+            'press_coeff_pt3': 1.06286e-06,
+            'press_coeff_pt4': 1.56172e-09,
+            'press_serial_number': 125046,
+            'pressure_sensor_range': 200,
+            'provenance': 0,
+            'quality_flag': u'ok',
+            'sensor': cls.sensor,
+            'serial_number': 1907248,
+            'subsite': cls.subsite,
+            'temp_coeff_offset': 0.0,
+            'temp_coeff_ta0': 0.001268802,
+            'temp_coeff_ta1': 0.0002709596,
+            'temp_coeff_ta2': -8.126484e-07,
+            'temp_coeff_ta3': 1.699432e-07,
+            'temp_sensor_serial_number': 1907248,
+            'time': 1
         }
 
     def get_ctdpf_ckl_items(self):
@@ -215,11 +335,11 @@ class StreamUnitTestMixin(object):
         return numpy.array([
             # [1.930,	1.000,	2.38, 12.0, 1.806, -50., 0.440, 4.095, 4.095],
             # [1.926,	1.288,	2.47, 17.1, 1.541, -116., 0.320, 4.095, 4.095],
-            [1.926,	1.305,	2.47, 2.1, 1.810, -48., 0.184, 0.915, 4.064],
-            [1.926,	1.305,	2.47, 2.1, 1.810, -48., 0.184, 0.915, 4.064],
-            [1.926,	1.305,	2.47, 2.1, 1.810, -48., 0.184, 0.915, 4.064],
-            [1.928,	1.319,	2.43, 69.5, 0.735, -317., 0.198, 1.002, 4.095],
-            [1.929,	1.318,	2.40, 77.5, 0.745, -315., 0.172, 0.857, 4.082],
+            [1.926, 1.305, 2.47, 2.1, 1.810, -48., 0.184, 0.915, 4.064],
+            [1.926, 1.305, 2.47, 2.1, 1.810, -48., 0.184, 0.915, 4.064],
+            [1.926, 1.305, 2.47, 2.1, 1.810, -48., 0.184, 0.915, 4.064],
+            [1.928, 1.319, 2.43, 69.5, 0.735, -317., 0.198, 1.002, 4.095],
+            [1.929, 1.318, 2.40, 77.5, 0.745, -315., 0.172, 0.857, 4.082],
         ])
 
     def get_trhph_stream_request(self):
@@ -271,6 +391,7 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         session.set_keyspace(app.config['CASSANDRA_KEYSPACE'])
         session.execute(METADATA_TABLE)
         session.execute(CTDBP_NO_SAMPLE_TABLE)
+        session.execute(CTDBP_NO_CALIBRATION_COEFFICIENTS_TABLE)
 
         d = cls.get_ctdbp_no_data()
         for x in range(1, 10):
@@ -280,6 +401,16 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
             values = [d[k] for k in keys]
             stmt = 'insert into ctdbp_no_sample (%s) values (%s)' % (','.join(keys), ','.join(['%s' for _ in keys]))
             session.execute(stmt, values)
+
+        d = cls.get_ctdbp_no_calibration_coefficients_data()
+        d['id'] = uuid.uuid4()
+        keys = sorted(d.keys())
+        values = [d[k] for k in keys]
+        stmt = 'insert into ctdbp_no_calibration_coefficients (%s) values (%s)' % (','.join(keys), ','.join(['%s' for _ in keys]))
+        session.execute(stmt, values)
+
+        session.execute('insert into stream_metadata (subsite, node, sensor, method, stream, count, first, last) values (%s, %s, %s, %s, %s, %s, %s, %s)',
+                        (cls.subsite, cls.node, cls.sensor, cls.method, 'ctdbp_no_calibration_coefficients', 1, 1, 1))
 
     def test_parameters(self):
         """
@@ -321,7 +452,7 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
             # self.assertIsNotNone(parameter)
             # self.assertEqual(parameter.name, pmap[pdid]['name'])
             # self.assertEqual(parameter.id, pdid)
-            #     self.assertEqual(parameter.parameter_type.value, pmap[pdid]['ptype'])
+            # self.assertEqual(parameter.parameter_type.value, pmap[pdid]['ptype'])
             #     self.assertEqual(parameter.value_encoding.value, pmap[pdid]['encoding'])
             #     self.assertEqual(sorted([p.id for p in parameter.needs()]), pmap[pdid]['needs'])
             #     self.assertEqual(sorted(parameter.needs_cc()), pmap[pdid]['cc'])
@@ -491,7 +622,7 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
             "sensor": self.sensor,
             "method": self.method,
             "stream": "ctdbp_no_sample",
-            "parameters": []
+            "parameters": [3651]
         }
         coefficients = {
             "CC_a0": 1.0,
@@ -503,8 +634,30 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         }
 
         result = json.loads(calculate(request, 1, 10, coefficients))
-        for each in result:
-            data = result[each]['data']
-            data = base64.b64decode(data)
-            data = msgpack.unpackb(data)
-            #print data, result[each]['dtype']
+
+        # do the results contain our target product?
+        key = u'3651'
+        self.assertIn(key, result)
+
+        # is it properly encoded as a dict?
+        data = result[key]
+        self.assertIsInstance(data, dict)
+
+        # is the underlying data type a double?
+        dtype = data['dtype']
+        self.assertEqual(dtype, '<f8')
+
+        # is the shape correct?
+        self.assertEqual(data['shape'], [9])
+
+        # can we decode the data back to a list
+        self.assertIsInstance(data['data'], unicode)
+
+        data = base64.b64decode(data['data'])
+        self.assertIsInstance(data, str)
+
+        data = msgpack.unpackb(data)
+        self.assertIsInstance(data, list)
+
+        # do the datatypes match?
+        self.assertEqual(numpy.array(data).dtype.str, dtype)
