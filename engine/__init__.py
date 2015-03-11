@@ -17,8 +17,6 @@ def hello():
     return 'hello world!'
 
 
-
-
 @app.route('/calculate', methods=['POST'])
 def calculate():
     """
@@ -47,8 +45,7 @@ def calculate():
 
     :return: JSON object:
     """
-    from util import cassandra_query
-
+    import util.calc
     input_data = request.get_json()
     if input_data is None:
         app.logger.warn('Received null request')
@@ -66,7 +63,7 @@ def calculate():
     start = input_data.get('start', 1)
     stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
 
-    return Response(cassandra_query.calculate(streams[0], start, stop, input_data.get('coefficients', [])),
+    return Response(util.calc.calculate(streams[0], start, stop, input_data.get('coefficients', [])),
                     mimetype='application/json')
 
 
@@ -117,8 +114,7 @@ def needs():
             ]
     }
     """
-    from util.streams import NeededStream
-
+    import util.streams
     output_data = {'streams': []}
     input_data = request.get_json()
 
@@ -135,7 +131,7 @@ def needs():
         if not isinstance(each, dict):
             abort(400)
 
-        needed = NeededStream(each)
+        needed = util.streams.NeededStream(each)
         output_data['streams'].append(needed.as_dict())
 
     return Response(json.dumps(output_data), mimetype='application/json')

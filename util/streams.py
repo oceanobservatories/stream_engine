@@ -1,17 +1,7 @@
 from werkzeug.exceptions import abort
 from engine import app
 from model.preload import Stream, Parameter
-from util import cassandra_query
-
-session = cassandra_query.session
-
-STREAM_EXISTS_PS = session.prepare(
-    '''
-    select *
-    from stream_metadata
-    where subsite=? and node=? and sensor=? and method=? and stream=?
-    '''
-)
+from util import cass
 
 
 class NeededStream(object):
@@ -41,8 +31,7 @@ class NeededStream(object):
             abort(404)
 
     def _available(self):
-        rows = session.execute(STREAM_EXISTS_PS, (self.subsite, self.node, self.sensor, self.method, self.stream))
-        return len(rows) == 1
+        return cass.stream_exists(self.subsite, self.node, self.sensor, self.method, self.stream)
 
     def _compute(self):
         if len(self.params) == 0:
@@ -61,7 +50,7 @@ class NeededStream(object):
 
         # to avoid getting this data multiple times, we will obtain and reuse
         # the list of distinct sensors from cassandra
-        distinct_sensors = cassandra_query.get_distinct_sensors()
+        distinct_sensors = cass.get_distinct_sensors()
 
         # pass two, determine needed external values for derived parameters
         needs_map = {}
@@ -86,7 +75,7 @@ class NeededStream(object):
             # see if we have any streams available from this sensor or node
             # which provide this parameter
             app.logger.debug('NEED PARAMETER: %d %s STREAMS: %s', need.id, need.name, [s.name for s in need.streams])
-            sensor, stream = cassandra_query.find_stream(self.subsite, self.node, self.sensor,
+            sensor, stream = cass.find_stream(self.subsite, self.node, self.sensor,
                                                          need.streams, distinct_sensors)
             if stream is not None:
                 self.needed_streams.append((self.subsite, self.node, sensor, stream.name))

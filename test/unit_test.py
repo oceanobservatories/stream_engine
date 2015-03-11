@@ -1,12 +1,17 @@
 import base64
+import json
 import os
 import unittest
+import uuid
+from cassandra.cluster import Cluster
+from cassandra.protocol import ConfigurationException
 import msgpack
 import numpy
 from engine import app
 from model.preload import Parameter, Stream
-from util.cassandra_query import DataParameter, msgpack_one, FunctionParameter, build_func_map, execute_one_dpa, \
-    StreamRequest, execute_dpas, msgpack_all, interpolate, CalibrationParameter
+from util.calc import DataParameter, FunctionParameter, StreamRequest, CalibrationParameter, msgpack_one, interpolate, \
+    build_func_map, execute_one_dpa, execute_dpas, calculate
+from util.cass import fetch_data, global_cassandra_state
 from util.preload_insert import create_db
 
 import sys
@@ -15,6 +20,46 @@ sys.path.append('../ion-functions')
 
 from ion_functions.data import ctd_functions, sfl_functions
 
+METADATA_TABLE = \
+    '''
+CREATE TABLE stream_metadata (
+  subsite text,
+  node text,
+  sensor text,
+  method text,
+  stream text,
+  count bigint,
+  first double,
+  last double,
+  PRIMARY KEY ((subsite, node, sensor), method, stream))
+'''
+
+CTDBP_NO_SAMPLE_TABLE = \
+    '''
+CREATE TABLE ctdbp_no_sample (
+  subsite text,
+  node text,
+  sensor text,
+  method text,
+  time double,
+  id uuid,
+  conductivity int,
+  driver_timestamp double,
+  ingestion_timestamp double,
+  internal_timestamp double,
+  oxy_calphase int,
+  oxy_temp int,
+  oxygen int,
+  port_timestamp double,
+  preferred_timestamp text,
+  pressure int,
+  pressure_temp int,
+  provenance int,
+  quality_flag text,
+  temperature int,
+  PRIMARY KEY ((subsite, node, sensor), method, time, id))
+'''
+
 
 class StreamUnitTestMixin(object):
     subsite = 'SUBSITE'
@@ -22,6 +67,31 @@ class StreamUnitTestMixin(object):
     sensor = 'SENSOR'
     method = 'METHOD'
     stream = 'STREAM'
+
+    @classmethod
+    def get_ctdbp_no_data(cls):
+        return {
+            'subsite': cls.subsite,
+            'node': cls.node,
+            'sensor': cls.sensor,
+            'method': cls.method,
+            'time': 1,
+            'id': None,
+            'conductivity': 1396258,
+            'driver_timestamp': 1,
+            'ingestion_timestamp': 1,
+            'internal_timestamp': 1,
+            'oxy_calphase': 34407,
+            'oxy_temp': 23002,
+            'oxygen': 1724210,
+            'port_timestamp': 1,
+            'preferred_timestamp': "port_timestamp",
+            'pressure': 8597725,
+            'pressure_temp': 28282,
+            'provenance': 0,
+            'quality_flag': "ok",
+            'temperature': 418687,
+        }
 
     def get_ctdpf_ckl_items(self):
         stream = Stream.query.filter(Stream.name == 'ctdpf_ckl_wfp_instrument_recovered').first()
@@ -51,7 +121,7 @@ class StreamUnitTestMixin(object):
         conductivity.times = times
         pressure.times = times
 
-        stream_request = StreamRequest(self.subsite, self.node, self.sensor, self.method, stream, parameters)
+        stream_request = StreamRequest(self.subsite, self.node, self.sensor, self.method, stream, parameters, {})
         stream_request.data = [temperature, conductivity, pressure]
         stream_request.functions = [ctdpf_ckl_seawater_pressure, ctdpf_ckl_seawater_temperature,
                                     ctdpf_ckl_seawater_conductivity, ctdpf_ckl_sci_water_pracsal,
@@ -68,7 +138,7 @@ class StreamUnitTestMixin(object):
     def create_stream_request(self, stream_name):
         stream = Stream.query.filter(Stream.name == stream_name).first()
         parameters = stream.parameters
-        stream_request = StreamRequest(self.subsite, self.node, self.sensor, self.method, stream, parameters)
+        stream_request = StreamRequest(self.subsite, self.node, self.sensor, self.method, stream, parameters, {})
         for parameter in parameters:
             stream_request.add_parameter(parameter, self.subsite, self.node, self.sensor, stream_name, self.method)
 
@@ -141,13 +211,13 @@ class StreamUnitTestMixin(object):
 
     def get_trhph_sample_data(self):
         # TODO: these values produce output out of range, get better data
-        #   V_ts, V_tc, T_ts, T, V, ORP, v_r1, v_r2, v_r3, temp, chl [mmol/kg]
+        # V_ts, V_tc, T_ts, T, V, ORP, v_r1, v_r2, v_r3, temp, chl [mmol/kg]
         return numpy.array([
-            [1.506,	0.000,	12.01,	12.0,  1.806,   -50., 0.440,  4.095,  4.095,  105.4,    59.0],
-            [1.479,	0.015,	12.67,	17.1,  1.541,  -116., 0.320,  4.095,  4.095,  374.2,    60.0],
-            [1.926,	0.001,	2.47,	2.1,   1.810,   -48., 0.184,  0.915,  4.064,  105.4,   175.0],
-            [1.932,	0.274,	2.34,	69.5,  0.735,  -317., 0.198,  1.002,  4.095,  241.9,    71.0],
-            [1.927,	0.306,	2.45,	77.5,  0.745,  -315., 0.172,  0.857,  4.082,  374.2,   132.0],
+            [1.506, 0.000, 12.01, 12.0, 1.806, -50., 0.440, 4.095, 4.095, 105.4, 59.0],
+            [1.479, 0.015, 12.67, 17.1, 1.541, -116., 0.320, 4.095, 4.095, 374.2, 60.0],
+            [1.926, 0.001, 2.47, 2.1, 1.810, -48., 0.184, 0.915, 4.064, 105.4, 175.0],
+            [1.932, 0.274, 2.34, 69.5, 0.735, -317., 0.198, 1.002, 4.095, 241.9, 71.0],
+            [1.927, 0.306, 2.45, 77.5, 0.745, -315., 0.172, 0.857, 4.082, 374.2, 132.0],
         ])
 
     def get_trhph_stream_request(self):
@@ -180,14 +250,35 @@ class StreamUnitTestMixin(object):
 
 
 class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         if not os.path.exists(app.config['DBFILE_LOCATION']):
             create_db()
 
         app.config['CASSANDRA_KEYSPACE'] = 'stream_engine_test'
+        cluster = Cluster(app.config['CASSANDRA_CONTACT_POINTS'],
+                          control_connection_timeout=app.config['CASSANDRA_CONNECT_TIMEOUT'])
+        global_cassandra_state['cluster'] = cluster
+        session = cluster.connect()
+        try:
+            session.execute('drop keyspace %s' % app.config['CASSANDRA_KEYSPACE'])
+        except ConfigurationException:
+            pass
+        session.execute("create keyspace %s with replication = { 'class' : 'SimpleStrategy', 'replication_factor' : 1}"
+                        % app.config['CASSANDRA_KEYSPACE'])
 
-    def tearDown(self):
-        pass
+        session.set_keyspace(app.config['CASSANDRA_KEYSPACE'])
+        session.execute(METADATA_TABLE)
+        session.execute(CTDBP_NO_SAMPLE_TABLE)
+
+        d = cls.get_ctdbp_no_data()
+        for x in range(1, 10):
+            d['time'] = float(x)
+            d['id'] = uuid.uuid4()
+            keys = sorted(d.keys())
+            values = [d[k] for k in keys]
+            stmt = 'insert into ctdbp_no_sample (%s) values (%s)' % (','.join(keys), ','.join(['%s' for _ in keys]))
+            session.execute(stmt, values)
 
     def test_parameters(self):
         """
@@ -226,9 +317,9 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
             # by name (FAILS, parameter names are not unique!)
             # for pdid in pmap:
             # parameter = Parameter.query.filter(Parameter.name == pmap[pdid]['name']).first()
-            #     self.assertIsNotNone(parameter)
-            #     self.assertEqual(parameter.name, pmap[pdid]['name'])
-            #     self.assertEqual(parameter.id, pdid)
+            # self.assertIsNotNone(parameter)
+            # self.assertEqual(parameter.name, pmap[pdid]['name'])
+            # self.assertEqual(parameter.id, pdid)
             #     self.assertEqual(parameter.parameter_type.value, pmap[pdid]['ptype'])
             #     self.assertEqual(parameter.value_encoding.value, pmap[pdid]['encoding'])
             #     self.assertEqual(sorted([p.id for p in parameter.needs()]), pmap[pdid]['needs'])
@@ -257,6 +348,7 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         p = DataParameter(self.subsite, self.node, self.sensor, self.stream, self.method, parameter)
         p.data = numpy.array([[1, 2, 3], [4, 5, 6]])
         p.shape = p.data.shape
+        p.dtype = p.data.dtype
 
         packed = msgpack_one(p)
         unpacked = msgpack.unpackb(base64.b64decode(packed['data']))
@@ -330,7 +422,8 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         data_map = stream_request.get_data_map()
         execute_dpas(stream_request)
         expected_vfltemp = sfl_functions.sfl_trhph_vfltemp(data_map.get(428).data, data_map.get(430).data,
-                                                   data_map.get('CC_tc_slope').value, data_map.get('CC_ts_slope').value)
+                                                           data_map.get('CC_tc_slope').value,
+                                                           data_map.get('CC_ts_slope').value)
         expected_vflchlor = sfl_functions.sfl_trhph_chloride(data_map.get(421).data, data_map.get(422).data,
                                                              data_map.get(423).data, expected_vfltemp)
         expected_vflorp = sfl_functions.sfl_trhph_vflorp(data_map.get(427).data, data_map.get('CC_offset').value,
@@ -385,3 +478,32 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         self.assertTrue(numpy.allclose(parameter.data, [[1, 2, 3, 4, 5],
                                                         [1.5, 2.5, 3.5, 4.5, 5.5],
                                                         [2, 3, 4, 5, 6]]))
+
+    def test_fetch_data(self):
+        data = fetch_data(self.subsite, self.node, self.sensor, self.method, 'ctdbp_no_sample', 1, 9)
+        self.assertTrue(len(data) == 9)
+
+    def test_calculate(self):
+        request = {
+            "subsite": self.subsite,
+            "node": self.node,
+            "sensor": self.sensor,
+            "method": self.method,
+            "stream": "ctdbp_no_sample",
+            "parameters": []
+        }
+        coefficients = {
+            "CC_a0": 1.0,
+            "CC_a1": 1.0,
+            "CC_a2": 1.0,
+            "CC_a3": 1.0,
+            "CC_lat": 1.0,
+            "CC_lon": 1.0
+        }
+
+        result = json.loads(calculate(request, 1, 10, coefficients))
+        for each in result:
+            data = result[each]['data']
+            data = base64.b64decode(data)
+            data = msgpack.unpackb(data)
+            print data, result[each]['dtype']

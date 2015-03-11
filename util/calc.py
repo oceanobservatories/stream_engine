@@ -1,36 +1,16 @@
 import base64
 import importlib
 import json
-import struct
-import time
-from functools import wraps
-from cassandra.cluster import Cluster
-from cassandra.query import SimpleStatement
 import msgpack
 import numexpr
 import numpy
 from scipy.interpolate import griddata
-
-from engine import app
+import struct
+import engine
 from model.preload import Stream, Parameter
-
-# cassandra database handle
-session = None
-
-FUNCTION = 'function'
-
-
-def get_session():
-    global session
-    global distinct_sensors_ps
-    global metadata_refdes_ps
-    if session is None:
-        cluster = Cluster(app.config['CASSANDRA_CONTACT_POINTS'],
-                          control_connection_timeout=app.config['CASSANDRA_CONNECT_TIMEOUT'])
-        session = cluster.connect(app.config['CASSANDRA_KEYSPACE'])
-        distinct_sensors_ps = session.prepare('SELECT DISTINCT subsite, node, sensor FROM stream_metadata')
-        metadata_refdes_ps = session.prepare('SELECT * FROM STREAM_METADATA where SUBSITE=? and NODE=? and SENSOR=? and METHOD=?')
-    return session
+from util.cass import fetch_data, get_distinct_sensors, get_streams
+from util.common import log_timing, FUNCTION, CoefficientUnavailableException, DataNotReadyException, \
+    DataUnavailableException, parse_pdid
 
 
 class DataParameter(object):
@@ -112,7 +92,7 @@ class FunctionParameter(DataParameter):
 
 
 class StreamRequest(object):
-    def __init__(self, subsite, node, sensor, method, stream, parameters):
+    def __init__(self, subsite, node, sensor, method, stream, parameters, coefficients):
         self.subsite = subsite
         self.node = node
         self.sensor = sensor
@@ -122,6 +102,8 @@ class StreamRequest(object):
         self.data = []
         self.coeffs = []
         self.functions = []
+        for each in coefficients:
+            self.add_coefficient(each, coefficients[each])
 
     def update(self, other):
         for each in other.data:
@@ -150,36 +132,17 @@ class StreamRequest(object):
         else:
             self.data.append(DataParameter(subsite, node, sensor, stream, method, p))
 
+    def add_coefficient(self, name, value):
+        self.coeffs.append(CalibrationParameter(self.subsite, self.node, self.sensor, name, value))
+
     def __repr__(self):
         return json.dumps({'data': str(self.data),
                            'coeffs': str(self.coeffs),
                            'functions': str(self.functions)})
 
-
-def log_timing(func):
-    @wraps(func)
-    def inner(*args, **kwargs):
-        app.logger.debug('Entered method: %s', func)
-        start = time.time()
-        results = func(*args, **kwargs)
-        elapsed = time.time() - start
-        app.logger.debug('Completed method: %s in %.2f', func, elapsed)
-        return results
-
-    return inner
-
-
-def parse_pdid(pdid_string):
-    try:
-        return int(pdid_string.split()[0][2:])
-    except ValueError:
-        app.logger.warn('Unable to parse PDID: %s', pdid_string)
-        return None
-
-
 @log_timing
-def find_needed_params(subsite, node, sensor, stream, method, parameters):
-    stream_request = StreamRequest(subsite, node, sensor, method, stream, parameters)
+def find_needed_params(subsite, node, sensor, stream, method, parameters, coefficients):
+    stream_request = StreamRequest(subsite, node, sensor, method, stream, parameters, coefficients)
     needed = []
     needed_cc = []
 
@@ -208,18 +171,12 @@ def find_needed_params(subsite, node, sensor, stream, method, parameters):
                 stream_request.data.append(DataParameter(subsite, node, sensor, stream.name, method, parameter))
 
         else:
-            app.logger.debug('NEED PARAMETER FROM OTHER STREAM: %s', parameter.name)
+            engine.app.logger.debug('NEED PARAMETER FROM OTHER STREAM: %s', parameter.name)
             sensor1, stream1 = find_stream(subsite, node, sensor, method, parameter.streams, distinct_sensors)
             if not any([sensor1 is None, stream1 is None]):
                 stream_request.data.append(DataParameter(subsite, node, sensor1, stream1.name, method, parameter))
 
     return stream_request
-
-
-@log_timing
-def get_distinct_sensors():
-    rows = get_session().execute(distinct_sensors_ps)
-    return [(row.subsite, row.node, row.sensor) for row in rows]
 
 
 def find_stream(subsite, node, sensor, method, streams, distinct_sensors):
@@ -233,14 +190,14 @@ def find_stream(subsite, node, sensor, method, streams, distinct_sensors):
     stream_map = {s.name: s for s in streams}
 
     # check our specific reference designator first
-    for row in get_session().execute(metadata_refdes_ps, (subsite, node, sensor, method)):
+    for row in get_streams(subsite, node, sensor, method):
         if row.stream in stream_map:
             return sensor, stream_map[row.stream]
 
     # check other reference designators in the same family
     for subsite1, node1, sensor in distinct_sensors:
         if subsite1 == subsite and node1 == node:
-            for row in get_session().execute(metadata_refdes_ps, (subsite, node, sensor, method)):
+            for row in get_streams(subsite, node, sensor, method):
                 if row.stream in stream_map:
                     return sensor, stream_map[row.stream]
 
@@ -257,37 +214,12 @@ def calculate(request, start, stop, coefficients):
 @log_timing
 def get_stream(subsite, node, sensor, stream, method, parameters, start, stop, coefficients):
     stream = Stream.query.filter(Stream.name == stream).first()
-    stream_request = find_needed_params(subsite, node, sensor, stream, method, parameters)
+    stream_request = find_needed_params(subsite, node, sensor, stream, method, parameters, coefficients)
     get_data(stream_request, start, stop)
     interpolate(stream_request)
-    execute_dpas(stream_request, coefficients)
+    execute_dpas(stream_request)
     data = msgpack_all(stream_request, parameters)
     return data
-
-
-@log_timing
-def fetch_data(subsite, node, sensor, stream, method, start, stop, limit=5):
-    base_query = "select %%ss from %s where subsite='%s' and node='%s' and method='%s'" % (stream, subsite, node, method)
-    # attempt to find one data point beyond the requested start/stop times
-    first = get_session().execute(
-        'select time from %s where subsite=%%s and node=%%s and sensor=%%s and method=%%s and time<%%s limit 1' % stream,
-        (subsite, node, sensor, method, start))
-    last = get_session().execute(
-        'select time from %s where subsite=%%s and node=%%s and sensor=%%s and method=%%s and time>%%s limit 1' % stream,
-        (subsite, node, sensor, method, stop))
-    if first:
-        start = first[0].time
-    if last:
-        stop = last[0].time
-
-    query = SimpleStatement(
-        'select * from %s where subsite=%%s and node=%%s and sensor=%%s and method=%%s and time>%%s and time<%%s'
-        % stream, fetch_size=100)
-    app.logger.info('Executing cassandra query: %s', query)
-    results = get_session().execute(query, (subsite, node, sensor, method, start, stop))
-
-    return results
-
 
 @log_timing
 def pack_data(result_set):
@@ -308,7 +240,6 @@ def pack_data(result_set):
         for index, value in enumerate(row):
             data[index].append(value)
     d = {field: data[i] for i, field in enumerate(fields)}
-    app.logger.warn(d)
     return d
 
 
@@ -318,7 +249,7 @@ def get_data(stream_request, start, stop):
 
     for stream_key in needed_streams:
         subsite, node, sensor, stream, method = stream_key
-        data = pack_data(fetch_data(subsite, node, sensor, stream, method, start, stop))
+        data = pack_data(fetch_data(subsite, node, sensor, method, stream, start, stop))
         if data:
             for each in stream_request.data:
                 if each.stream_key == stream_key:
@@ -340,7 +271,7 @@ def get_data(stream_request, start, stop):
                             format_string = 'd'
                             count = len(mydata) / 8
                         else:
-                            app.log.error('Unknown encoding: %s', encoding)
+                            engine.app.log.error('Unknown encoding: %s', encoding)
                             continue
 
                         mydata = numpy.array(struct.unpack('>%d%s' % (count, format_string), mydata))
@@ -373,7 +304,7 @@ def interpolate(stream_request):
                 try:
                     each.interpolate(times)
                 except Exception as e:
-                    app.logger.warn('%s %s %s', each.parameter.name, each.data, e)
+                    engine.app.logger.warn('%s %s %s', each.parameter.name, each.data, e)
 
         for each in stream_request.coeffs:
             if each.times is None:
@@ -388,7 +319,7 @@ def execute_dpas(stream_request):
     for execute_pass in range(5):
         if not needed:
             break
-        app.logger.info('Pass %d - attempt to create derived products', execute_pass)
+        engine.app.logger.info('Pass %d - attempt to create derived products', execute_pass)
 
         for index in needed[:]:
             try:
@@ -414,12 +345,10 @@ def execute_one_dpa(pf, kwargs):
         if func.function_type.value == 'PythonFunction':
             module = importlib.import_module(func.owner)
             pf.data = getattr(module, func.function)(**kwargs)
-            pf.shape = pf.data.shape
-            app.logger.debug('dtype: %s', pf.data.dtype)
         elif func.function_type.value == 'NumexprFunction':
             pf.data = numexpr.evaluate(func.function, kwargs)
-            pf.shape = pf.data.shape
-            app.logger.debug('dtype: %s', pf.data.dtype)
+        pf.dtype = pf.data.dtype
+        pf.shape = pf.data.shape
 
 
 @log_timing
@@ -458,6 +387,7 @@ def msgpack_one(item):
 
     return {
         'data': base64.b64encode(msgpack.packb(item.data.flatten().tolist())),
+        'dtype': item.dtype.str,
         'shape': item.data.shape,
         'name': item.parameter.name,
         'source': source
@@ -469,17 +399,7 @@ def msgpack_all(stream_request, parameters):
     # TODO, filter based on parameters
     d = {}
     for each in stream_request.data + stream_request.functions:
-        d[each.parameter.id] = msgpack_one(each)
+        if each.data is not None:
+            d[each.parameter.id] = msgpack_one(each)
     return d
 
-
-class DataUnavailableException(Exception):
-    pass
-
-
-class DataNotReadyException(Exception):
-    pass
-
-
-class CoefficientUnavailableException(Exception):
-    pass
