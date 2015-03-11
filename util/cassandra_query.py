@@ -9,6 +9,7 @@ from cassandra.query import SimpleStatement
 import msgpack
 import numexpr
 import numpy
+from scipy.interpolate import griddata
 
 from engine import app
 from model.preload import Stream, Parameter
@@ -56,6 +57,32 @@ class DataParameter(object):
             'name': self.parameter.name,
             'data': data
         })
+
+    def interpolate(self, times):
+        try:
+            self.data = self.data.astype('f64')
+            self.data = griddata(self.times, self.data, times, method='linear')
+        except ValueError:
+            self.data = self.last_seen(times)
+
+    def last_seen(self, times):
+        if len(self.times) == 1:
+            return numpy.tile(self.data, len(times))
+        time_index = 0
+        last = self.data[0]
+        next_time = self.times[1]
+        new_data = []
+        for t in times:
+            while t >= next_time:
+                time_index += 1
+                if time_index+1 < len(self.times):
+                    next_time = self.times[time_index+1]
+                    last = self.data[time_index]
+                else:
+                    last = self.data[time_index]
+                    break
+            new_data.append(last)
+        return numpy.array(new_data)
 
 
 class CalibrationParameter(object):
@@ -344,9 +371,7 @@ def interpolate(stream_request):
         for each in stream_request.data:
             if stream_request.stream.name != each.stream:
                 try:
-                    interp_data = numpy.interp(times, each.times, each.data)
-                    each.times = times
-                    each.data = interp_data
+                    each.interpolate(times)
                 except Exception as e:
                     app.logger.warn('%s %s %s', each.parameter.name, each.data, e)
 

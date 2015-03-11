@@ -16,6 +16,9 @@ db = SQLAlchemy(app)
 def hello():
     return 'hello world!'
 
+
+
+
 @app.route('/calculate', methods=['POST'])
 def calculate():
     """

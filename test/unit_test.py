@@ -342,7 +342,7 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         self.assertTrue(numpy.array_equal(stream_request.get_data_map().get(967).data, expected_vflorp))
         self.assertTrue(numpy.array_equal(stream_request.get_data_map().get(2623).data, expected_vflthermtemp))
 
-    def test_interpolate(self):
+    def test_multiple_streams(self):
         """
 
         :return:
@@ -358,3 +358,30 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
 
         for each in thpsh_stream_request.functions:
             self.assertIsNotNone(each.data)
+
+    def test_interpolate(self):
+        parameter = DataParameter(self.subsite, self.sensor, self.node,
+                                  self.stream, self.method, Parameter.query.get(195))
+        orig_times = [1, 2, 4, 5]
+        new_times = [1, 2, 3, 4, 5]
+        parameter.data = numpy.array([1, 2, 4, 5])
+        parameter.times = orig_times
+        parameter.interpolate(new_times)
+
+        self.assertTrue(numpy.allclose(parameter.data, [1., 2., 3., 4., 5.]))
+
+        parameter.data = numpy.array(['a', 'b', 'd', 'e'])
+        parameter.interpolate(new_times)
+        self.assertTrue(numpy.array_equal(parameter.data, ['a', 'b', 'b', 'd', 'e']))
+
+        parameter.data = numpy.array(['a'])
+        parameter.times = [1.0]
+        parameter.interpolate(new_times)
+        self.assertTrue(numpy.array_equal(parameter.data, ['a', 'a', 'a', 'a', 'a']))
+
+        parameter.data = numpy.array([[1, 2, 3, 4, 5], [2, 3, 4, 5, 6]])
+        parameter.times = numpy.array([1.0, 3.0])
+        parameter.interpolate(numpy.array([1., 2., 3.]))
+        self.assertTrue(numpy.allclose(parameter.data, [[1, 2, 3, 4, 5],
+                                                        [1.5, 2.5, 3.5, 4.5, 5.5],
+                                                        [2, 3, 4, 5, 6]]))
