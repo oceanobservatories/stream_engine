@@ -42,8 +42,58 @@ d2 = {
     ] 
 } 
 
+d3 = {
+    "streams": [
+        {
+            "subsite":"RS00ENGC", 
+            "node":"XX00X", 
+            "sensor":"00-ADCPSK002", 
+            "method":"streamed", 
+            "stream":"adcp_pd0_beam_parsed", 
+            "parameters": [ ] 
+        } 
+    ], 
+    "coefficients": {
+        "CC_lat": 1.0,
+        "CC_lon": 1.0
+    },
+} 
+
+d4 = {
+    "streams": [
+        {
+            "subsite":"RS00ENGC", 
+            "node":"XX00X", 
+            "sensor":"00-CTDPFA002", 
+            "method":"streamed", 
+            "stream":"ctdpf_sbe43_sample", 
+            "parameters": [ 908, 909, 910, 911, 912 ] 
+        } 
+    ], 
+    "coefficients": {
+        "CC_lat": 1.0,
+        "CC_lon": 1.0
+    },
+}
+
+d5 = {
+    "streams": [
+        {
+            "subsite":"RS00ENGC", 
+            "node":"XX00X", 
+            "sensor":"00-VELPTD002", 
+            "method":"streamed", 
+            "stream":"velpt_velocity_data", 
+        } 
+    ], 
+    "coefficients": {
+        "CC_lat": 1.0,
+        "CC_lon": 1.0
+    },
+}
+
 headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
-data = requests.post('http://localhost:5000/calculate', data=json.dumps(d), headers=headers).json()
+data = requests.post('http://localhost:5000/calculate', data=json.dumps(d5), headers=headers).json()
 
 for id in data:
 	print '%5s %35s %s' % (id, data[id]['name'], msgpack.unpackb(base64.b64decode(data[id]['data']))[:5])

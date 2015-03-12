@@ -20,10 +20,12 @@ app.run(debug=True)
 # def main():
 #
 #     tornado.log.enable_pretty_logging()
+#     logging.getLogger().setLevel(logging.DEBUG)
+#
 #     server = HTTPServer(WSGIContainer(app))
 #     server.bind(5000)
 #     server.start(0)
-#     logging.getLogger('tornado.application').setLevel(logging.DEBUG)
+#
 #     IOLoop.current().start()
 #
 # if __name__ == '__main__':

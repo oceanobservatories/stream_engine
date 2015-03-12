@@ -36,3 +36,7 @@ class DataNotReadyException(Exception):
 
 class CoefficientUnavailableException(Exception):
     pass
+
+
+class UnknownEncodingException(Exception):
+    pass

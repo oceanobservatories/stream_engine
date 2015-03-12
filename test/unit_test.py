@@ -612,7 +612,8 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
                                                         [2, 3, 4, 5, 6]]))
 
     def test_fetch_data(self):
-        data = fetch_data(self.subsite, self.node, self.sensor, self.method, 'ctdbp_no_sample', 1, 9)
+        future = fetch_data(self.subsite, self.node, self.sensor, self.method, 'ctdbp_no_sample', 1, 9)
+        data = future.result()
         self.assertTrue(len(data) == 9)
 
     def test_calculate(self):

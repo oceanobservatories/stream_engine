@@ -167,13 +167,14 @@ def process_parameter_funcs(sheet):
 
 def process_streams(sheet):
     print 'Processing streams'
+    common_fields = [7, 10, 11, 12, 16, 863]
     for row in sheet:
         if validate_stream_row(row):
             stream = Stream()
             stream.id = int(row.get('id')[4:])
             stream.name = row.get('name')
             params = row.get('parameterids').split(',')
-            params = [int(p.strip()[2:]) for p in params if p.startswith('PD')]
+            params = common_fields + [int(p.strip()[2:]) for p in params if p.startswith('PD')]
             params = sorted(list(set(params)))
             for each in params:
                 parameter = get_parameter(each)

@@ -1,6 +1,7 @@
 from functools import wraps
 from cassandra.cluster import Cluster
 from cassandra.query import SimpleStatement
+from cassandra.io.libevreactor import LibevConnection
 import engine
 from util.common import log_timing
 
@@ -39,7 +40,8 @@ def get_session():
     if global_cassandra_state.get('cluster') is None:
         engine.app.logger.debug('Creating cassandra session')
         global_cassandra_state['cluster'] = Cluster(engine.app.config['CASSANDRA_CONTACT_POINTS'],
-                          control_connection_timeout=engine.app.config['CASSANDRA_CONNECT_TIMEOUT'])
+                          control_connection_timeout=engine.app.config['CASSANDRA_CONNECT_TIMEOUT'],
+                          protocol_version=3, compression=True, connection_class=LibevConnection)
     if global_cassandra_state.get('session') is None:
         session = global_cassandra_state['cluster'].connect(engine.app.config['CASSANDRA_KEYSPACE'])
         global_cassandra_state['session'] = session
@@ -87,10 +89,10 @@ def fetch_data(subsite, node, sensor, method, stream, start, stop, session=None,
     # if last:
     #     stop = last[0].time
 
-    query = SimpleStatement(base + ' and time>=%s and time<=%s', fetch_size=100)
+    query = SimpleStatement(base + ' and time>=%s and time<=%s', fetch_size=1000)
     engine.app.logger.info('Executing cassandra query: %s %s', query, (subsite, node, sensor, method, start, stop))
-    results = session.execute(query, (subsite, node, sensor, method, start, stop))
-    return results
+    future = session.execute_async(query, (subsite, node, sensor, method, start, stop))
+    return future
 
 
 @cassandra_session

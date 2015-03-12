@@ -2,15 +2,54 @@ import base64
 import importlib
 import json
 import msgpack
+from multiprocessing import Event
 import numexpr
 import numpy
 from scipy.interpolate import griddata
 import struct
+from werkzeug.exceptions import abort
 import engine
 from model.preload import Stream, Parameter
 from util.cass import fetch_data, get_distinct_sensors, get_streams
 from util.common import log_timing, FUNCTION, CoefficientUnavailableException, DataNotReadyException, \
-    DataUnavailableException, parse_pdid
+    DataUnavailableException, parse_pdid, UnknownEncodingException
+
+
+class PagedResultHandler(object):
+    def __init__(self, future):
+        self.error = None
+        self.finished_event = Event()
+        self.future = future
+        self.data = []
+        self.fields = []
+        self.future.add_callbacks(
+            callback=self.handle_page,
+            errback=self.handle_error)
+
+    def handle_page(self, rows):
+        if not self.fields:
+            if len(rows) > 0:
+                row = rows[0]
+
+                self.fields = row._fields
+                for _ in enumerate(row):
+                    self.data.append([])
+
+        for row in rows:
+            for index, value in enumerate(row):
+                self.data[index].append(value)
+
+        if self.future.has_more_pages:
+            self.future.start_fetching_next_page()
+        else:
+            self.finished_event.set()
+
+    def handle_error(self, exc):
+        self.error = exc
+        self.finished_event.set()
+
+    def get_data(self):
+        return self.fields, self.data
 
 
 class DataParameter(object):
@@ -146,7 +185,7 @@ def find_needed_params(subsite, node, sensor, stream, method, parameters, coeffi
     needed = []
     needed_cc = []
 
-    if len(parameters) == 0:
+    if parameters is None or len(parameters) == 0:
         for parameter in stream.parameters:
             if parameter.parameter_type.value == FUNCTION:
                 needed.extend(parameter.needs())
@@ -206,8 +245,19 @@ def find_stream(subsite, node, sensor, method, streams, distinct_sensors):
 
 @log_timing
 def calculate(request, start, stop, coefficients):
-    data = get_stream(request['subsite'], request['node'], request['sensor'],
-                      request['stream'], request['method'], request['parameters'], start, stop, coefficients)
+    subsite = request.get('subsite')
+    node = request.get('node')
+    sensor = request.get('sensor')
+    stream = request.get('stream')
+    method = request.get('method')
+    parameters = request.get('parameters', [])
+    if any([subsite is None,
+            node is None,
+            sensor is None,
+            stream is None,
+            method is None]):
+        abort(400)
+    data = get_stream(subsite, node, sensor, stream, method, parameters, start, stop, coefficients)
     return json.dumps(data, indent=2)
 
 
@@ -215,72 +265,72 @@ def calculate(request, start, stop, coefficients):
 def get_stream(subsite, node, sensor, stream, method, parameters, start, stop, coefficients):
     stream = Stream.query.filter(Stream.name == stream).first()
     stream_request = find_needed_params(subsite, node, sensor, stream, method, parameters, coefficients)
-    get_data(stream_request, start, stop)
+    get_all_data(stream_request, start, stop)
     interpolate(stream_request)
     execute_dpas(stream_request)
     data = msgpack_all(stream_request, parameters)
     return data
 
+
 @log_timing
-def pack_data(result_set):
-    if isinstance(result_set, list):
-        if len(result_set) == 0:
-            return {}
-        row = result_set[0]
-        result_set = result_set[1:]
+def handle_bytebuffer(data, encoding, shape):
+    if encoding in ['int8', 'int16', 'int32', 'uint8', 'uint16']:
+        format_string = 'i'
+        count = len(data) / 4
+    elif encoding in ['uint32', 'int64']:
+        format_string = 'l'
+        count = len(data) / 8
+    elif 'float' in encoding:
+        format_string = 'd'
+        count = len(data) / 8
     else:
-        row = result_set.next()
+        engine.app.log.error('Unknown encoding: %s', encoding)
+        raise UnknownEncodingException()
 
-    fields = row._fields
-    data = []
-    for index, value in enumerate(row):
-        data.append([value])
-
-    for row in result_set:
-        for index, value in enumerate(row):
-            data[index].append(value)
-    d = {field: data[i] for i, field in enumerate(fields)}
-    return d
+    data = numpy.array(struct.unpack('>%d%s' % (count, format_string), data))
+    data = data.reshape(shape)
+    return data
 
 
 @log_timing
-def get_data(stream_request, start, stop):
+def get_data(stream_key, start, stop):
+    subsite, node, sensor, stream, method = stream_key
+    future = fetch_data(subsite, node, sensor, method, stream, start, stop)
+    handler = PagedResultHandler(future)
+    handler.finished_event.wait()
+    return handler.get_data()
+
+
+@log_timing
+def fill_stream_request(stream_key, stream_request, fields, data):
+    mytime = data[fields.index('time')]
+    for each in stream_request.data:
+        if each.stream_key == stream_key:
+            # this stream contains this data, fetch it
+            index = fields.index(each.parameter.name)
+            mydata = data[index]
+
+            shape_name = each.parameter.name + '_shape'
+            if shape_name in fields:
+                shape_index = fields.index(each.parameter.name + '_shape')
+                shape = [len(mytime)] + data[shape_index][0]
+                encoding = each.parameter.value_encoding.value
+                mydata = ''.join(mydata)
+                mydata = handle_bytebuffer(mydata, encoding, shape)
+
+            else:
+                mydata = numpy.array(mydata)
+            each.dtype = mydata.dtype
+            each.data = mydata
+            each.times = mytime
+
+
+@log_timing
+def get_all_data(stream_request, start, stop):
     needed_streams = {each.stream_key for each in stream_request.data}
-
     for stream_key in needed_streams:
-        subsite, node, sensor, stream, method = stream_key
-        data = pack_data(fetch_data(subsite, node, sensor, method, stream, start, stop))
-        if data:
-            for each in stream_request.data:
-                if each.stream_key == stream_key:
-                    # this stream contains this data, fetch it
-                    mytime = data['time']
-                    mydata = data[each.parameter.name]
-                    shape = data.get(each.parameter.name + '_shape')
-                    if shape is not None:
-                        shape = [len(mytime)] + shape[0]
-                        encoding = each.parameter.value_encoding.value
-                        mydata = ''.join(mydata)
-                        if encoding in ['int8', 'int16', 'int32', 'uint8', 'uint16']:
-                            format_string = 'i'
-                            count = len(mydata) / 4
-                        elif encoding in ['uint32', 'int64']:
-                            format_string = 'l'
-                            count = len(mydata) / 8
-                        elif 'float' in encoding:
-                            format_string = 'd'
-                            count = len(mydata) / 8
-                        else:
-                            engine.app.log.error('Unknown encoding: %s', encoding)
-                            continue
-
-                        mydata = numpy.array(struct.unpack('>%d%s' % (count, format_string), mydata))
-                        mydata = mydata.reshape(shape)
-                    else:
-                        mydata = numpy.array(mydata)
-                    each.dtype = mydata.dtype
-                    each.data = mydata
-                    each.times = mytime
+        fields, data = get_data(stream_key, start, stop)
+        fill_stream_request(stream_key, stream_request, fields, data)
 
 
 @log_timing
@@ -328,6 +378,10 @@ def execute_dpas(stream_request):
                 execute_one_dpa(pf, kwargs)
             except DataUnavailableException:
                 # we will never be able to compute this
+                needed.remove(index)
+                continue
+            except CoefficientUnavailableException as e:
+                engine.app.logger.error('Unable to generate data product, missing CC: %s', e)
                 needed.remove(index)
                 continue
             except DataNotReadyException:
