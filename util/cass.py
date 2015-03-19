@@ -13,19 +13,19 @@ METADATA_FOR_REFDES_PS = 'metadata_for_refdes'
 DISTINCT_PS = 'distinct'
 
 STREAM_EXISTS_RAW = \
-'''
+    '''
 select * from STREAM_METADATA
 where SUBSITE=? and NODE=? and SENSOR=? and METHOD=? and STREAM=?
 '''
 
 METADATA_FOR_REFDES_RAW = \
-'''
+    '''
 SELECT * FROM STREAM_METADATA
 where SUBSITE=? and NODE=? and SENSOR=? and METHOD=?
 '''
 
 DISTINCT_RAW = \
-'''
+    '''
 SELECT DISTINCT subsite, node, sensor FROM stream_metadata
 '''
 
@@ -40,8 +40,9 @@ def get_session():
     if global_cassandra_state.get('cluster') is None:
         engine.app.logger.debug('Creating cassandra session')
         global_cassandra_state['cluster'] = Cluster(engine.app.config['CASSANDRA_CONTACT_POINTS'],
-                          control_connection_timeout=engine.app.config['CASSANDRA_CONNECT_TIMEOUT'],
-                          protocol_version=3, compression=True, connection_class=LibevConnection)
+                                            control_connection_timeout=engine.app.config['CASSANDRA_CONNECT_TIMEOUT'],
+                                            protocol_version=3, compression=True,
+                                            connection_class=LibevConnection)
     if global_cassandra_state.get('session') is None:
         session = global_cassandra_state['cluster'].connect(engine.app.config['CASSANDRA_KEYSPACE'])
         global_cassandra_state['session'] = session
@@ -59,6 +60,7 @@ def cassandra_session(func):
         kwargs['session'] = session
         kwargs['prepared'] = preps
         return func(*args, **kwargs)
+
     return inner
 
 
@@ -77,21 +79,27 @@ def get_streams(subsite, node, sensor, method, session=None, prepared=None):
 
 @log_timing
 @cassandra_session
-def fetch_data(subsite, node, sensor, method, stream, start, stop, session=None, prepared=None):
+def fetch_data(stream_key, time_range, session=None, prepared=None):
     # attempt to find one data point beyond the requested start/stop times
-    # TODO - I don't believe this works as written, as it will return the very first record
-    # TODO - not the first record before the start time
-    base = 'select * from %s where subsite=%%s and node=%%s and sensor=%%s and method=%%s' % stream
-    # first = session.execute(base + ' and time<%s limit 1', (subsite, node, sensor, method, start))
-    # last = session.execute(base + ' and time>%s limit 1', (subsite, node, sensor, method, stop))
-    # if first:
-    #     start = first[0].time
-    # if last:
-    #     stop = last[0].time
+    start = time_range.start
+    stop = time_range.stop
+    base = 'select * from %s where subsite=%%s and node=%%s and sensor=%%s and method=%%s' % stream_key.stream.name
+    first = session.execute(base + ' and time<%s order by method desc limit 1', (stream_key.subsite, stream_key.node,
+                                                                                 stream_key.sensor, stream_key.method,
+                                                                                 start))
+    last = session.execute(base + ' and time>%s limit 1', (stream_key.subsite, stream_key.node, stream_key.sensor,
+                                                           stream_key.method, stop))
+    if first:
+        start = first[0].time
+    if last:
+        stop = last[0].time
 
-    query = SimpleStatement(base + ' and time>=%s and time<=%s', fetch_size=1000)
-    engine.app.logger.info('Executing cassandra query: %s %s', query, (subsite, node, sensor, method, start, stop))
-    future = session.execute_async(query, (subsite, node, sensor, method, start, stop))
+    query = SimpleStatement(base + ' and time>=%s and time<=%s', fetch_size=5000)
+    engine.app.logger.info('Executing cassandra query: %s %s', query, (stream_key.subsite, stream_key.node,
+                                                                       stream_key.sensor, stream_key.method,
+                                                                       start, stop))
+    future = session.execute_async(query, (stream_key.subsite, stream_key.node, stream_key.sensor,
+                                           stream_key.method, start, stop))
     return future
 
 

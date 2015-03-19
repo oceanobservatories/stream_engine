@@ -88,35 +88,47 @@ class Parameter(db.Model):
     def parse_pdid(self, pdid_string):
         return int(pdid_string.split()[0][2:])
 
-    def needs(self):
-        needed = set()
+    def needs(self, needed=None):
+        if needed is None:
+            needed = []
+
+        if self in needed:
+            return
+
         if self.parameter_type.value == 'function':
             for value in self.parameter_function_map.values():
                 if value.startswith('PD'):
                     try:
                         pdid = self.parse_pdid(value)
                         sub_param = Parameter.query.get(pdid)
-                        needed = needed.union(sub_param.needs())
-                    except ValueError:
-                        needed.add('MISSING: ' + value)
-
-        needed.add(self)
-        return needed
-
-    def needs_cc(self):
-        needed = set()
-        if self.parameter_type.value == 'function':
-            for value in self.parameter_function_map.values():
-                if value.startswith('PD'):
-                    try:
-                        pdid = self.parse_pdid(value)
-                        sub_param = Parameter.query.get(pdid)
-                        needed = needed.union(sub_param.needs_cc())
-                    except ValueError:
+                        if sub_param in needed:
+                            continue
+                        sub_param.needs(needed)
+                    except (ValueError, AttributeError):
                         pass
 
-                if value.startswith('CC'):
-                    needed.add(value)
+        if self not in needed:
+            needed.append(self)
+        return needed
+
+    def needs_cc(self, needed=None):
+        if needed is None:
+            needed = []
+
+        if self.parameter_type.value == 'function':
+            for value in self.parameter_function_map.values():
+                if value.startswith('PD'):
+                    try:
+                        pdid = self.parse_pdid(value)
+                        sub_param = Parameter.query.get(pdid)
+                        if sub_param in needed:
+                            continue
+                        sub_param.needs_cc(needed)
+                    except (ValueError, AttributeError):
+                        pass
+
+                if value.startswith('CC') and value not in needed:
+                    needed.append(value)
 
         return needed
 

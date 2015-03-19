@@ -1,25 +1,35 @@
 import base64
+import copy
 import importlib
 import json
 import msgpack
 from multiprocessing import Event
+from Queue import Queue
 import numexpr
 import numpy
 from scipy.interpolate import griddata
 import struct
 from werkzeug.exceptions import abort
 import engine
-from model.preload import Stream, Parameter
 from util.cass import fetch_data, get_distinct_sensors, get_streams
 from util.common import log_timing, FUNCTION, CoefficientUnavailableException, DataNotReadyException, \
-    DataUnavailableException, parse_pdid, UnknownEncodingException
+    DataUnavailableException, parse_pdid, UnknownEncodingException, StreamKey, TimeRange, \
+    CachedParameter, UnknownFunctionTypeException
+from util.streams import StreamRequest2
 
 
 class PagedResultHandler(object):
+    """
+    This class handles the results from an asynchronous cassandra query
+    As each page of data retrieved it is placed in a Queue. These results
+    can be retrieved from this queue from the main thread as they arrive
+    or the can be retrieved in bulk with the get_data method.
+    """
     def __init__(self, future):
         self.error = None
         self.finished_event = Event()
         self.future = future
+        self.queue = Queue()
         self.data = []
         self.fields = []
         self.future.add_callbacks(
@@ -27,39 +37,65 @@ class PagedResultHandler(object):
             errback=self.handle_error)
 
     def handle_page(self, rows):
-        if not self.fields:
-            if len(rows) > 0:
-                row = rows[0]
-
-                self.fields = row._fields
-                for _ in enumerate(row):
-                    self.data.append([])
-
-        for row in rows:
-            for index, value in enumerate(row):
-                self.data[index].append(value)
-
+        """
+        Append a single page of data into the queue, request the next page.
+        We put the retrieved rows into the queue prior to requesting the next page
+        to ensure results are returned in order.
+        """
+        self.queue.put(rows)
         if self.future.has_more_pages:
             self.future.start_fetching_next_page()
         else:
             self.finished_event.set()
 
     def handle_error(self, exc):
+        """
+        Terminate on error, store the error for handling outside this class.
+        """
         self.error = exc
         self.finished_event.set()
 
+    def get_chunk(self):
+        rows = []
+        data = []
+        chunk = self.queue.get_nowait()
+        if hasattr(chunk, '_asdict'):
+            rows.append(chunk)
+        else:
+            rows.extend(chunk)
+
+        return rows
+
     def get_data(self):
+        """
+        Block until all results are retrieved, then return the field names and data.
+        """
+        rows = []
+        # make sure we've finished
+        self.finished_event.wait()
+
+        while not self.queue.empty():
+            rows.extend(self.get_chunk())
+
+        self.fields = rows[0]._fields
+        # for _ in self.fields:
+        #     self.data.append([])
+        #
+        # for row in rows:
+        #     for index, value in enumerate(row):
+        #         self.data[index].append(value)
+
+        data = numpy.array(rows)
+        for i, _ in enumerate(self.fields):
+            self.data.append(numpy.array(data[:, i]).tolist())
+
         return self.fields, self.data
 
 
 class DataParameter(object):
-    def __init__(self, subsite, node, sensor, stream, method, parameter):
+    def __init__(self, stream_key, parameter):
         self.parameter = parameter  # parameter definition from preload
-        self.subsite = subsite
-        self.node = node
-        self.sensor = sensor
-        self.stream = stream
-        self.stream_key = (subsite, node, sensor, stream, method)
+        self.stream_key = stream_key
         self.data = None
         self.shape = None
         self.times = None
@@ -69,24 +105,49 @@ class DataParameter(object):
         return self.parameter.id == other.parameter.id
 
     def __repr__(self):
-        data = None
-        if self.data is not None:
-            data = self.data.tolist()
         return json.dumps({
             'name': self.parameter.name,
-            'data': data
+            'data': repr(self.data)
         })
 
+    def stretch(self, times):
+        """
+        If necessary, stretch the edges of this block of data to match the new time series
+        """
+        temp_data = self.data
+        temp_times = self.times
+        if times[0] < temp_times[0] or times[-1] > temp_times[-1]:
+            temp_data = self.data.tolist()
+            if times[0] < temp_times[0]:
+                temp_times.insert(0, times[0])
+                temp_data.insert(0, temp_data[0])
+            if times[-1] > self.times[-1]:
+                temp_times.append(times[-1])
+                temp_data.append(temp_data[-1])
+            temp_data = numpy.array(temp_data)
+        return temp_data, temp_times
+
     def interpolate(self, times):
+        if len(self.data) == 1:
+            engine.app.logger.warn('One element dataset %s, tiling to new time series', self.parameter.name)
+            self.data = numpy.tile(self.data, len(times))
+            self.times = times
+            return
+
+        temp_data, temp_times = self.stretch(times)
         try:
-            self.data = self.data.astype('f64')
-            self.data = griddata(self.times, self.data, times, method='linear')
+            temp_data = temp_data.astype('f64')
+
         except ValueError:
+            engine.app.logger.warn('Unable to cast %s to f64 for interpolation, using last seen', self.parameter.name)
             self.data = self.last_seen(times)
+            self.times = times
+            return
+
+        self.data = griddata(temp_times, temp_data, times, method='linear')
+        self.times = times
 
     def last_seen(self, times):
-        if len(self.times) == 1:
-            return numpy.tile(self.data, len(times))
         time_index = 0
         last = self.data[0]
         next_time = self.times[1]
@@ -131,12 +192,9 @@ class FunctionParameter(DataParameter):
 
 
 class StreamRequest(object):
-    def __init__(self, subsite, node, sensor, method, stream, parameters, coefficients):
-        self.subsite = subsite
-        self.node = node
-        self.sensor = sensor
-        self.stream = stream
-        self.method = method
+    def __init__(self, stream_key, parameters, coefficients):
+        self.stream_key = stream_key
+        self.supporting_streams = []
         self.parameters = parameters
         self.data = []
         self.coeffs = []
@@ -165,78 +223,76 @@ class StreamRequest(object):
 
         return parameter_data_map
 
-    def add_parameter(self, p, subsite, node, sensor, stream, method):
-        if p.parameter_type.value == FUNCTION:
-            self.functions.append(FunctionParameter(subsite, node, sensor, stream, method, p))
+    def add_parameter(self, p, stream_key):
+        if p.parameter_type == FUNCTION:
+            self.functions.append(FunctionParameter(stream_key, p))
         else:
-            self.data.append(DataParameter(subsite, node, sensor, stream, method, p))
+            self.data.append(DataParameter(stream_key, p))
 
     def add_coefficient(self, name, value):
-        self.coeffs.append(CalibrationParameter(self.subsite, self.node, self.sensor, name, value))
+        self.coeffs.append(CalibrationParameter(self.stream_key.subsite, self.stream_key.node,
+                                                self.stream_key.sensor, name, value))
 
     def __repr__(self):
         return json.dumps({'data': str(self.data),
                            'coeffs': str(self.coeffs),
                            'functions': str(self.functions)})
 
+
 @log_timing
-def find_needed_params(subsite, node, sensor, stream, method, parameters, coefficients):
-    stream_request = StreamRequest(subsite, node, sensor, method, stream, parameters, coefficients)
+def find_needed_params(stream_key, parameters, coefficients):
+    stream_request = StreamRequest(stream_key, parameters, coefficients)
     needed = []
     needed_cc = []
 
     if parameters is None or len(parameters) == 0:
-        for parameter in stream.parameters:
-            if parameter.parameter_type.value == FUNCTION:
-                needed.extend(parameter.needs())
-                needed_cc.extend(parameter.needs_cc())
-
+        parameters = stream_key.stream.parameters
     else:
-        for parameter in parameters:
-            parameter = Parameter.query.get(parameter)
-            if parameter is not None and parameter in stream.parameters:
-                if parameter.parameter_type.value == FUNCTION:
-                    needed.extend(parameter.needs())
-                    needed_cc.extend(parameter.needs_cc())
+        parameters = [p for p in stream_key.stream.parameters if p.id in parameters]
+
+    for parameter in parameters:
+        if parameter is not None:
+            if parameter.parameter_type == FUNCTION:
+                needed.extend([CachedParameter.from_id(pdid) for pdid in parameter.needs])
+                needed_cc.extend(parameter.needs_cc)
+            else:
+                needed.append(parameter)
 
     needed = set(needed)
     distinct_sensors = get_distinct_sensors()
 
     for parameter in needed:
-        if parameter in stream.parameters:
-            if parameter.parameter_type.value == FUNCTION:
-                stream_request.functions.append(FunctionParameter(subsite, node, sensor, stream.name, method, parameter))
-            else:
-                stream_request.data.append(DataParameter(subsite, node, sensor, stream.name, method, parameter))
+        if parameter in stream_key.stream.parameters:
+            stream_request.add_parameter(parameter, stream_key)
 
         else:
             engine.app.logger.debug('NEED PARAMETER FROM OTHER STREAM: %s', parameter.name)
-            sensor1, stream1 = find_stream(subsite, node, sensor, method, parameter.streams, distinct_sensors)
+            sensor1, stream1 = find_stream(stream_key, parameter.streams, distinct_sensors)
             if not any([sensor1 is None, stream1 is None]):
-                stream_request.data.append(DataParameter(subsite, node, sensor1, stream1.name, method, parameter))
+                new_stream_key = StreamKey(stream_key.subsite, stream_key.node, sensor1,
+                                           stream_key.method, stream1.name)
+                stream_request.data.append(DataParameter(new_stream_key, parameter))
 
     return stream_request
 
 
-def find_stream(subsite, node, sensor, method, streams, distinct_sensors):
+def find_stream(stream_key, streams, distinct_sensors):
     """
     Attempt to find a "related" sensor which provides one of these streams
-    :param subsite:
-    :param node:
-    :param streams:
+    :param stream_key
     :return:
     """
     stream_map = {s.name: s for s in streams}
 
     # check our specific reference designator first
-    for row in get_streams(subsite, node, sensor, method):
+    for row in get_streams(stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method):
         if row.stream in stream_map:
-            return sensor, stream_map[row.stream]
+            return stream_key.sensor, stream_map[row.stream]
 
     # check other reference designators in the same family
     for subsite1, node1, sensor in distinct_sensors:
-        if subsite1 == subsite and node1 == node:
-            for row in get_streams(subsite, node, sensor, method):
+        if subsite1 == stream_key.subsite and node1 == stream_key.node:
+            for row in get_streams(stream_key.subsite, stream_key.node, sensor, stream_key.method):
                 if row.stream in stream_map:
                     return sensor, stream_map[row.stream]
 
@@ -244,7 +300,7 @@ def find_stream(subsite, node, sensor, method, streams, distinct_sensors):
 
 
 @log_timing
-def calculate(request, start, stop, coefficients):
+def calculate(request, start, stop, coefficients, particles=False):
     subsite = request.get('subsite')
     node = request.get('node')
     sensor = request.get('sensor')
@@ -257,19 +313,34 @@ def calculate(request, start, stop, coefficients):
             stream is None,
             method is None]):
         abort(400)
-    data = get_stream(subsite, node, sensor, stream, method, parameters, start, stop, coefficients)
+    if particles:
+        data = get_particles(subsite, node, sensor, stream, method, parameters, start, stop, coefficients)
+    else:
+        data = get_stream(subsite, node, sensor, stream, method, parameters, start, stop, coefficients)
     return json.dumps(data, indent=2)
 
 
 @log_timing
 def get_stream(subsite, node, sensor, stream, method, parameters, start, stop, coefficients):
-    stream = Stream.query.filter(Stream.name == stream).first()
-    stream_request = find_needed_params(subsite, node, sensor, stream, method, parameters, coefficients)
+    stream_key = StreamKey(subsite, node, sensor, method, stream)
+    stream_request = find_needed_params(stream_key, parameters, coefficients)
     get_all_data(stream_request, start, stop)
     interpolate(stream_request)
     execute_dpas(stream_request)
     data = msgpack_all(stream_request, parameters)
     return data
+
+
+@log_timing
+def get_particles(streams, start, stop, coefficients):
+    stream_keys = [StreamKey.from_dict(d) for d in streams]
+    parameters = []
+    for s in streams:
+        for p in s.get('parameters', []):
+            parameters.append(CachedParameter.from_id(p))
+    time_range = TimeRange(start, stop)
+    stream_request = StreamRequest2(stream_keys, parameters, coefficients, time_range)
+    return stream_request.particle_generator()
 
 
 @log_timing
@@ -293,21 +364,20 @@ def handle_bytebuffer(data, encoding, shape):
 
 
 @log_timing
-def get_data(stream_key, start, stop):
-    subsite, node, sensor, stream, method = stream_key
-    future = fetch_data(subsite, node, sensor, method, stream, start, stop)
+def get_data(stream_key, time_range):
+    future = fetch_data(stream_key, time_range)
     handler = PagedResultHandler(future)
-    handler.finished_event.wait()
-    return handler.get_data()
+    return handler
 
 
 @log_timing
 def fill_stream_request(stream_key, stream_request, fields, data):
     mytime = data[fields.index('time')]
+
     for each in stream_request.data:
         if each.stream_key == stream_key:
             # this stream contains this data, fetch it
-            index = fields.index(each.parameter.name)
+            index = fields.index(each.parameter.name.lower())
             mydata = data[index]
 
             shape_name = each.parameter.name + '_shape'
@@ -322,14 +392,19 @@ def fill_stream_request(stream_key, stream_request, fields, data):
                 mydata = numpy.array(mydata)
             each.dtype = mydata.dtype
             each.data = mydata
-            each.times = mytime
+            each.times = copy.copy(mytime)
 
 
 @log_timing
 def get_all_data(stream_request, start, stop):
     needed_streams = {each.stream_key for each in stream_request.data}
+    handlers = {}
     for stream_key in needed_streams:
-        fields, data = get_data(stream_key, start, stop)
+        time_range = TimeRange(start, stop)
+        handlers[stream_key] = get_data(stream_key, time_range)
+
+    for stream_key in handlers:
+        fields, data = handlers[stream_key].get_data()
         fill_stream_request(stream_key, stream_request, fields, data)
 
 
@@ -343,18 +418,15 @@ def interpolate(stream_request):
     # first, find times from the primary stream
     times = None
     for each in stream_request.data:
-        if stream_request.stream.name == each.stream and each.times is not None:
+        if stream_request.stream_key == each.stream_key and each.times is not None:
             times = each.times
             break
 
     if times is not None:
         # found primary time source, interpolate remaining records
         for each in stream_request.data:
-            if stream_request.stream.name != each.stream:
-                try:
-                    each.interpolate(times)
-                except Exception as e:
-                    engine.app.logger.warn('%s %s %s', each.parameter.name, each.data, e)
+            if stream_request.stream_key != each.stream_key:
+                each.interpolate(times)
 
         for each in stream_request.coeffs:
             if each.times is None:
@@ -396,11 +468,13 @@ def execute_one_dpa(pf, kwargs):
     func_map = pf.parameter.parameter_function_map
 
     if len(kwargs) == len(func_map):
-        if func.function_type.value == 'PythonFunction':
+        if func.function_type == 'PythonFunction':
             module = importlib.import_module(func.owner)
             pf.data = getattr(module, func.function)(**kwargs)
-        elif func.function_type.value == 'NumexprFunction':
+        elif func.function_type == 'NumexprFunction':
             pf.data = numexpr.evaluate(func.function, kwargs)
+        else:
+            raise UnknownFunctionTypeException(func.function_type)
         pf.dtype = pf.data.dtype
         pf.shape = pf.data.shape
 
@@ -413,6 +487,7 @@ def build_func_map(parameter_function, data_map):
     for key in func_map:
         if func_map[key].startswith('PD'):
             pdid = parse_pdid(func_map[key])
+
 
             if pdid not in data_map:
                 raise DataUnavailableException(pdid)
@@ -435,7 +510,7 @@ def build_func_map(parameter_function, data_map):
 @log_timing
 def msgpack_one(item):
     if isinstance(item, DataParameter):
-        source = item.stream_key
+        source = str(item.stream_key)
     else:
         source = 'derived'
 
@@ -458,4 +533,3 @@ def msgpack_all(stream_request, parameters):
         if not parameters or each.parameter.id in parameters:
             d[each.parameter.id] = msgpack_one(each)
     return d
-

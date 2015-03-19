@@ -12,9 +12,11 @@ from model.preload import Parameter, Stream
 from util.calc import DataParameter, FunctionParameter, StreamRequest, CalibrationParameter, msgpack_one, interpolate, \
     build_func_map, execute_one_dpa, execute_dpas, calculate
 from util.cass import fetch_data, global_cassandra_state
+from util.common import StreamKey, TimeRange
 from util.preload_insert import create_db
 
 import sys
+from util.streams import StreamRequest2
 
 sys.path.append('../ion-functions')
 
@@ -125,6 +127,7 @@ class StreamUnitTestMixin(object):
     sensor = 'SENSOR'
     method = 'METHOD'
     stream = 'STREAM'
+    stream_key = StreamKey(subsite, node, sensor, method, stream)
 
     @classmethod
     def get_ctdbp_no_data(cls):
@@ -216,22 +219,14 @@ class StreamUnitTestMixin(object):
     def get_ctdpf_ckl_items(self):
         stream = Stream.query.filter(Stream.name == 'ctdpf_ckl_wfp_instrument_recovered').first()
         parameters = stream.parameters
-        temperature = DataParameter(self.subsite, self.node, self.sensor,
-                                    self.stream, self.method, Parameter.query.get(193))
-        conductivity = DataParameter(self.subsite, self.node, self.sensor,
-                                     self.stream, self.method, Parameter.query.get(194))
-        pressure = DataParameter(self.subsite, self.node, self.sensor,
-                                 self.stream, self.method, Parameter.query.get(195))
-        ctdpf_ckl_seawater_pressure = FunctionParameter(self.subsite, self.node, self.sensor,
-                                                        self.stream, self.method, Parameter.query.get(1959))
-        ctdpf_ckl_seawater_temperature = FunctionParameter(self.subsite, self.node, self.sensor,
-                                                           self.stream, self.method, Parameter.query.get(1960))
-        ctdpf_ckl_seawater_conductivity = FunctionParameter(self.subsite, self.node, self.sensor,
-                                                            self.stream, self.method, Parameter.query.get(1961))
-        ctdpf_ckl_sci_water_pracsal = FunctionParameter(self.subsite, self.node, self.sensor,
-                                                        self.stream, self.method, Parameter.query.get(1962))
-        ctdpf_ckl_seawater_density = FunctionParameter(self.subsite, self.node, self.sensor,
-                                                       self.stream, self.method, Parameter.query.get(1963))
+        temperature = DataParameter(self.stream_key, Parameter.query.get(193))
+        conductivity = DataParameter(self.stream_key, Parameter.query.get(194))
+        pressure = DataParameter(self.stream_key, Parameter.query.get(195))
+        ctdpf_ckl_seawater_pressure = FunctionParameter(self.stream_key, Parameter.query.get(1959))
+        ctdpf_ckl_seawater_temperature = FunctionParameter(self.stream_key, Parameter.query.get(1960))
+        ctdpf_ckl_seawater_conductivity = FunctionParameter(self.stream_key, Parameter.query.get(1961))
+        ctdpf_ckl_sci_water_pracsal = FunctionParameter(self.stream_key, Parameter.query.get(1962))
+        ctdpf_ckl_seawater_density = FunctionParameter(self.stream_key, Parameter.query.get(1963))
 
         times = [1.0, 2.0, 3.0]
         temperature.data = numpy.array([254779, 254779, 254779])
@@ -241,7 +236,7 @@ class StreamUnitTestMixin(object):
         conductivity.times = times
         pressure.times = times
 
-        stream_request = StreamRequest(self.subsite, self.node, self.sensor, self.method, stream, parameters, {})
+        stream_request = StreamRequest(self.stream_key, parameters, {})
         stream_request.data = [temperature, conductivity, pressure]
         stream_request.functions = [ctdpf_ckl_seawater_pressure, ctdpf_ckl_seawater_temperature,
                                     ctdpf_ckl_seawater_conductivity, ctdpf_ckl_sci_water_pracsal,
@@ -258,9 +253,9 @@ class StreamUnitTestMixin(object):
     def create_stream_request(self, stream_name):
         stream = Stream.query.filter(Stream.name == stream_name).first()
         parameters = stream.parameters
-        stream_request = StreamRequest(self.subsite, self.node, self.sensor, self.method, stream, parameters, {})
+        stream_request = StreamRequest(self.stream_key, parameters, {})
         for parameter in parameters:
-            stream_request.add_parameter(parameter, self.subsite, self.node, self.sensor, stream_name, self.method)
+            stream_request.add_parameter(parameter, self.stream_key)
 
         return stream_request
 
@@ -406,7 +401,8 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         d['id'] = uuid.uuid4()
         keys = sorted(d.keys())
         values = [d[k] for k in keys]
-        stmt = 'insert into ctdbp_no_calibration_coefficients (%s) values (%s)' % (','.join(keys), ','.join(['%s' for _ in keys]))
+        stmt = 'insert into ctdbp_no_calibration_coefficients (%s) values (%s)'\
+               % (','.join(keys), ','.join(['%s' for _ in keys]))
         session.execute(stmt, values)
 
         session.execute('insert into stream_metadata (subsite, node, sensor, method, stream, count, first, last) values (%s, %s, %s, %s, %s, %s, %s, %s)',
@@ -466,7 +462,7 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         stream = Stream.query.filter(Stream.name == 'thsph_sample').first()
         self.assertEqual(stream.name, 'thsph_sample')
         self.assertEqual([p.id for p in stream.parameters],
-                         [7, 10, 11, 12, 863, 2260, 2261, 2262, 2263,
+                         [7, 10, 11, 12, 16, 863, 2260, 2261, 2262, 2263,
                           2264, 2265, 2266, 2267, 2624, 2625, 2626,
                           2627, 2628, 2629, 2630, 2631, 2632, 2633, 2634, 2635])
 
@@ -477,7 +473,7 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         :return:
         """
         parameter = Parameter.query.get(193)
-        p = DataParameter(self.subsite, self.node, self.sensor, self.stream, self.method, parameter)
+        p = DataParameter(self.stream_key, parameter)
         p.data = numpy.array([[1, 2, 3], [4, 5, 6]])
         p.shape = p.data.shape
         p.dtype = p.data.dtype
@@ -585,8 +581,8 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
             self.assertIsNotNone(each.data)
 
     def test_interpolate(self):
-        parameter = DataParameter(self.subsite, self.sensor, self.node,
-                                  self.stream, self.method, Parameter.query.get(195))
+        stream_key = StreamKey(self.subsite, self.sensor, self.node, self.stream, self.method)
+        parameter = DataParameter(stream_key, Parameter.query.get(195))
         orig_times = [1, 2, 4, 5]
         new_times = [1, 2, 3, 4, 5]
         parameter.data = numpy.array([1, 2, 4, 5])
@@ -596,6 +592,7 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         self.assertTrue(numpy.allclose(parameter.data, [1., 2., 3., 4., 5.]))
 
         parameter.data = numpy.array(['a', 'b', 'd', 'e'])
+        parameter.times = orig_times
         parameter.interpolate(new_times)
         self.assertTrue(numpy.array_equal(parameter.data, ['a', 'b', 'b', 'd', 'e']))
 
@@ -612,7 +609,9 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
                                                         [2, 3, 4, 5, 6]]))
 
     def test_fetch_data(self):
-        future = fetch_data(self.subsite, self.node, self.sensor, self.method, 'ctdbp_no_sample', 1, 9)
+        stream_key = StreamKey(self.subsite, self.node, self.sensor, self.method, 'ctdbp_no_sample')
+        time_range = TimeRange(1,9)
+        future = fetch_data(stream_key, time_range)
         data = future.result()
         self.assertTrue(len(data) == 9)
 
@@ -662,3 +661,25 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
 
         # do the datatypes match?
         self.assertEqual(numpy.array(data).dtype.str, dtype)
+
+    def test_data_stream(self):
+        stream_key1 = StreamKey(self.subsite, self.node, self.sensor, self.method, 'ctdbp_no_sample')
+        stream_key2 = StreamKey(self.subsite, self.node, self.sensor, self.method, 'ctdbp_no_calibration_coefficients')
+        time_range = TimeRange(1, 10)
+        sr = StreamRequest2([stream_key1, stream_key2], [], [], time_range)
+        for particle in sr.particle_generator():
+            print particle
+
+        # data_stream = sr.streams[0]
+        # data_stream.async_query()
+        # times = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+        # interp_times = [2.1, 3.5, 4.6, 5.8, 6.1, 7.4, 8.0, 11., 22.]
+        # self.assertListEqual(data_stream.get_param(195, time_range)[0], times)
+        # self.assertListEqual(data_stream.get_param(195, time_range)[1], [8597725] * 9)
+        # self.assertListEqual(data_stream.get_param(196, time_range)[0], times)
+        # self.assertListEqual(data_stream.get_param(196, time_range)[1], [28282] * 9)
+        # self.assertListEqual(data_stream.get_param(197, time_range)[0], times)
+        # self.assertListEqual(data_stream.get_param(197, time_range)[1], [1724210] * 9)
+        # self.assertListEqual(data_stream.get_param_interp(197, interp_times)[0], interp_times)
+        # self.assertListEqual(data_stream.get_param_interp(197, interp_times)[1].tolist(), [1724210] * 9)
+
