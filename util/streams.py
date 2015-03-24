@@ -13,7 +13,8 @@ from werkzeug.exceptions import abort
 from engine import app
 import util.calc
 import util.cass
-from util.common import DataUnavailableException, UnknownEncodingException, FUNCTION, StreamNotFoundException, StreamKey, \
+from util.common import DataUnavailableException, UnknownEncodingException, FUNCTION, StreamNotFoundException, \
+    StreamKey, \
     TimeRange, parse_pdid, CachedParameter, CachedStream, UnknownFunctionTypeException, CoefficientUnavailableException
 
 stream_cache = {}
@@ -168,7 +169,7 @@ class DataStream(object):
         if numpy.array_equal(times, interp_times):
             return times, data
         try:
-            #data = data.astype('f64')
+            # data = data.astype('f64')
             data = griddata(times, data, interp_times, method='linear')
         except ValueError:
             data = DataStream._last_seen(times, data, interp_times)
@@ -183,8 +184,8 @@ class DataStream(object):
         for t in interp_times:
             while t >= next_time:
                 time_index += 1
-                if time_index+1 < len(times):
-                    next_time = times[time_index+1]
+                if time_index + 1 < len(times):
+                    next_time = times[time_index + 1]
                     last = data[time_index]
                 else:
                     last = data[time_index]
@@ -409,7 +410,15 @@ class StreamRequest2(object):
         self._query_all()
         with tempfile.NamedTemporaryFile() as tf:
             with netCDF4.Dataset(tf.name, 'w', format='NETCDF4') as ncfile:
+                ncfile.subsite = self.stream_keys[0].subsite
+                ncfile.node = self.stream_keys[0].node
+                ncfile.sensor = self.stream_keys[0].sensor
+                ncfile.collection_method = self.stream_keys[0].method
+                ncfile.stream = self.stream_keys[0].stream.name
+
                 time_dim = ncfile.createDimension('time', None)
+                raw = ncfile.createGroup('raw')
+                derived = ncfile.createGroup('derived')
                 variables = {}
                 chunk_generator = self.streams[0].create_generator(None)
                 first_chunk = chunk_generator.next()
@@ -418,21 +427,26 @@ class StreamRequest2(object):
                 for param_id in first_chunk:
                     param = CachedParameter.from_id(param_id)
                     data = first_chunk[param_id]
+                    if param.parameter_type == FUNCTION:
+                        group = derived
+                    else:
+                        group = raw
+
                     if len(data.shape) == 1:
-                        variables[param_id] = ncfile.createVariable(param.name,
-                                                                    data.dtype,
-                                                                    ('time',),
-                                                                    zlib=True)
+                        variables[param_id] = group.createVariable(param.name,
+                                                                   data.dtype,
+                                                                   ('time',),
+                                                                   zlib=True)
                     else:
                         dims = ['time']
                         for index, dimension in enumerate(data.shape[1:]):
                             name = '%s_dim_%d' % (param.name, index)
-                            ncfile.createDimension(name, dimension)
+                            group.createDimension(name, dimension)
                             dims.append(name)
-                        variables[param_id] = ncfile.createVariable(param.name,
-                                                                    data.dtype,
-                                                                    dims,
-                                                                    zlib=True)
+                        variables[param_id] = group.createVariable(param.name,
+                                                                   data.dtype,
+                                                                   dims,
+                                                                   zlib=True)
                     variables[param_id].units = param.unit
                     if param.description is not None:
                         variables[param_id].long_name = param.description
@@ -448,7 +462,7 @@ class StreamRequest2(object):
                 for index, chunk in enumerate(chunk_generator):
                     self._execute_dpas_chunk(chunk)
                     for param_id in chunk:
-                        variables[param_id][chunksize*(index+1):] = chunk[param_id]
+                        variables[param_id][chunksize * (index + 1):] = chunk[param_id]
 
                     ncfile.sync()
                     yield tf.read()
