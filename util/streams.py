@@ -352,7 +352,9 @@ class StreamRequest2(object):
                 if name in self.coefficients:
                     value = self.coefficients[name]
                     if type(value) == list:
-                        args[key] = numpy.tile(value, data_length).reshape([data_length, len(value)])
+                        data = numpy.array(value)
+                        shape = [data_length] + [1 for _ in data.shape]
+                        args[key] = numpy.tile(data, shape)
                     else:
                         args[key] = numpy.tile(value, data_length)
                 else:
