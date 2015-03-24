@@ -88,10 +88,15 @@ class DataStream(object):
             if self.queue.empty() and self.finished_event.is_set():
                 raise StopIteration()
 
+            source = self.stream_key.as_refdes()
+
             self.row_cache = []
             self.data_cache = {p.id: [] for p in parameters}
             self._get_chunk()
-            self.data_cache[7] = []
+            self.data_cache[7] = {
+                'data': [],
+                'source': source
+            }
 
             if len(self.row_cache) == 0:
                 raise StopIteration()
@@ -101,13 +106,16 @@ class DataStream(object):
 
             for p in parameters:
                 index = fields.index(p.name.lower())
-                slice = array[:, index]
+                data_slice = array[:, index]
                 shape_name = p.name + '_shape'
                 if shape_name in fields:
                     shape = [len(array)] + array[0, fields.index(shape_name)]
-                    slice = self._handle_byte_buffer(''.join(slice), p.value_encoding, shape)
-                slice = numpy.array(slice.tolist())
-                self.data_cache[p.id] = slice
+                    data_slice = self._handle_byte_buffer(''.join(data_slice), p.value_encoding, shape)
+                data_slice = numpy.array(data_slice.tolist())
+                self.data_cache[p.id] = {
+                    'data': data_slice,
+                    'source': source
+                }
 
             yield self.data_cache
 
@@ -127,22 +135,22 @@ class DataStream(object):
             self._fill_cache(pdid)
 
         # copy the data in case of interpolation
-        return self.data_cache[7][:], self.data_cache[pdid][:]
+        return self.data_cache[7]['data'][:], self.data_cache[pdid]['data'][:]
 
     def _fill_cache(self, pdid):
         name = self.id_map[pdid]
         if 7 not in self.data_cache:
-            self.data_cache[7] = []
+            self.data_cache[7] = {'data': [], 'source': self.stream_key.as_refdes()}
             for row in self.row_cache:
-                self.data_cache[7].append(row.time)
+                self.data_cache[7]['data'].append(row.time)
 
-        self.data_cache[pdid] = []
+        self.data_cache[pdid] = {'data': [], 'source': self.stream_key.as_refdes()}
         for row in self.row_cache:
             item = getattr(row, name)
             if hasattr(row, name + '_shape'):
                 shape = getattr(row, name + '_shape')
                 item = self._handle_byte_buffer(item, self.param_map[name].value_encoding, shape)
-            self.data_cache[pdid].append(item)
+            self.data_cache[pdid]['data'].append(item)
 
     def get_param_interp(self, pdid, interp_times):
         times, data = self.get_param(pdid, TimeRange(interp_times[0], interp_times[-1]))
@@ -300,13 +308,16 @@ class StreamRequest2(object):
                 try:
                     # we may have already inserted this during recursion
                     if each.id not in chunk:
-                        times, data = stream.get_param_interp(each.id, chunk[7])
-                        chunk[each.id] = data
+                        times, data = stream.get_param_interp(each.id, chunk[7]['data'])
+                        chunk[each.id] = {
+                            'data': data,
+                            'source': stream.stream_key.as_refdes()
+                        }
                 except DataUnavailableException:
                     pass
 
         args = self.build_func_map(parameter, chunk)
-        chunk[parameter.id] = self._execute_dpa(parameter, args)
+        chunk[parameter.id] = {'data': self._execute_dpa(parameter, args), 'source': 'derived'}
 
     def _execute_dpa(self, parameter, kwargs):
         func = parameter.parameter_function
@@ -326,7 +337,7 @@ class StreamRequest2(object):
 
         func_map = parameter.parameter_function_map
         args = {}
-        data_length = len(chunk[7])
+        data_length = len(chunk[7]['data'])
         for key in func_map:
             if func_map[key].startswith('PD'):
                 pdid = parse_pdid(func_map[key])
@@ -334,7 +345,7 @@ class StreamRequest2(object):
                 if pdid not in chunk:
                     raise DataUnavailableException(pdid)
 
-                args[key] = chunk[pdid]
+                args[key] = chunk[pdid]['data']
 
             elif func_map[key].startswith('CC'):
                 name = func_map[key]
@@ -356,7 +367,7 @@ class StreamRequest2(object):
             particle['pk'] = pk
             pk['time'] = t
             for param in self.parameters:
-                value = chunk[param.id][index]
+                value = chunk[param.id]['data'][index]
                 if type(value) == numpy.ndarray:
                     value = value.tolist()
                 particle[param.name] = value
@@ -370,7 +381,10 @@ class StreamRequest2(object):
                 else:
                     for stream in self.streams[1:]:
                         try:
-                            chunk[parameter.id] = stream.get_param_interp(parameter.id, chunk[7])[1]
+                            chunk[parameter.id] = {
+                                'data': stream.get_param_interp(parameter.id, chunk[7]['data'])[1],
+                                'source': stream.stream_key.as_refdes()
+                            }
                         except DataUnavailableException:
                             pass
 
@@ -387,16 +401,7 @@ class StreamRequest2(object):
         yield '[ '
         first = True
         for chunk in self.streams[0].create_generator(None):
-            for parameter in self.parameters:
-                if parameter.id not in chunk:
-                    if parameter.parameter_type == FUNCTION:
-                        self._calculate(parameter, chunk)
-                    else:
-                        for stream in self.streams[1:]:
-                            try:
-                                chunk[parameter.id] = stream.get_param_interp(parameter.id, chunk[7])[1]
-                            except DataUnavailableException:
-                                pass
+            self._execute_dpas_chunk(chunk)
             for particle in self.chunk_to_particles(chunk):
                 if first:
                     first = False
@@ -417,20 +422,28 @@ class StreamRequest2(object):
                 ncfile.stream = self.stream_keys[0].stream.name
 
                 time_dim = ncfile.createDimension('time', None)
-                raw = ncfile.createGroup('raw')
-                derived = ncfile.createGroup('derived')
+                groups = {
+                    'derived': ncfile.createGroup('derived')
+                }
+
                 variables = {}
                 chunk_generator = self.streams[0].create_generator(None)
-                first_chunk = chunk_generator.next()
-                chunksize = len(first_chunk[7])
-                self._execute_dpas_chunk(first_chunk)
-                for param_id in first_chunk:
+                chunk = chunk_generator.next()
+                chunksize = len(chunk[7]['data'])
+                self._execute_dpas_chunk(chunk)
+                for param_id in chunk:
+
                     param = CachedParameter.from_id(param_id)
-                    data = first_chunk[param_id]
-                    if param.parameter_type == FUNCTION:
-                        group = derived
+                    data = chunk[param_id]['data']
+                    source = chunk[param_id]['source']
+                    if param_id == 7:
+                        group = ncfile
+                    elif param.parameter_type == FUNCTION:
+                        group = groups['derived']
                     else:
-                        group = raw
+                        if source not in groups:
+                            groups[source] = ncfile.createGroup(source)
+                        group = groups[source]
 
                     if len(data.shape) == 1:
                         variables[param_id] = group.createVariable(param.name,
@@ -462,7 +475,7 @@ class StreamRequest2(object):
                 for index, chunk in enumerate(chunk_generator):
                     self._execute_dpas_chunk(chunk)
                     for param_id in chunk:
-                        variables[param_id][chunksize * (index + 1):] = chunk[param_id]
+                        variables[param_id][chunksize * (index + 1):] = chunk[param_id]['data']
 
                     ncfile.sync()
                     yield tf.read()

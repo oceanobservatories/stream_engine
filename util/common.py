@@ -72,6 +72,9 @@ class StreamKey(object):
             'stream': self.stream.name if self.stream is not None else None
         }
 
+    def as_refdes(self):
+        return '%(subsite)s-%(node)s-%(sensor)s-%(method)s-%(stream)s' % self.as_dict()
+
     def __repr__(self):
         return repr(self.as_dict())
 
