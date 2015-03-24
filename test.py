@@ -93,6 +93,7 @@ d5 = {
             "sensor": "00-VELPTD002",
             "method": "streamed",
             "stream": "velpt_velocity_data",
+            "parameters": [3230, 3231, 3232]
         }
     ],
     "coefficients": {
@@ -104,6 +105,7 @@ d5 = {
 }
 
 headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
-r = requests.post('http://localhost:5000/particles', data=json.dumps(d5), headers=headers, stream=True)
-for line in r.iter_lines():
-    print line
+r = requests.post('http://localhost:5000/netcdf', data=json.dumps(d5), headers=headers, stream=True)
+for chunk in r.iter_content(100):
+    sys.stdout.write(chunk)
+    sys.stdout.flush()

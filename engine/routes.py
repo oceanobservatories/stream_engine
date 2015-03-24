@@ -57,6 +57,17 @@ def particles():
                     mimetype='application/json')
 
 
+@app.route('/netcdf', methods=['POST'])
+def netcdf():
+    input_data = request.get_json()
+    validate(input_data)
+
+    start = input_data.get('start', 1)
+    stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
+    return Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', [])),
+                    mimetype='application/json')
+
+
 @app.route('/needs', methods=['POST'])
 def needs():
     """

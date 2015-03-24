@@ -2,7 +2,9 @@ from Queue import Queue
 from collections import OrderedDict
 import importlib
 import json
+import tempfile
 from threading import Event
+import netCDF4
 import numexpr
 import numpy
 import struct
@@ -359,6 +361,18 @@ class StreamRequest2(object):
                 particle[param.name] = value
             yield json.dumps(particle, indent=2)
 
+    def _execute_dpas_chunk(self, chunk):
+        for parameter in self.parameters:
+            if parameter.id not in chunk:
+                if parameter.parameter_type == FUNCTION:
+                    self._calculate(parameter, chunk)
+                else:
+                    for stream in self.streams[1:]:
+                        try:
+                            chunk[parameter.id] = stream.get_param_interp(parameter.id, chunk[7])[1]
+                        except DataUnavailableException:
+                            pass
+
     def particle_generator(self):
         # plan of attack
         # start queries
@@ -389,4 +403,56 @@ class StreamRequest2(object):
                     yield ', '
                 yield particle
         yield ' ]'
+
+
+    def netcdf_generator(self):
+        self._query_all()
+        with tempfile.NamedTemporaryFile(delete=False) as tf:
+            with netCDF4.Dataset(tf.name, 'w', format='NETCDF4') as ncfile:
+                time_dim = ncfile.createDimension('time', None)
+                variables = {}
+                chunk_generator = self.streams[0].create_generator(None)
+                first_chunk = chunk_generator.next()
+                chunksize = len(first_chunk[7])
+                self._execute_dpas_chunk(first_chunk)
+                for param_id in first_chunk:
+                    param = CachedParameter.from_id(param_id)
+                    data = first_chunk[param_id]
+                    if len(data.shape) == 1:
+                        variables[param_id] = ncfile.createVariable(param.name,
+                                                                    data.dtype,
+                                                                    ('time',),
+                                                                    zlib=True)
+                    else:
+                        dims = ['time']
+                        for index, dimension in enumerate(data.shape[1:]):
+                            name = '%s_dim_%d' % (param.name, index)
+                            ncfile.createDimension(name, dimension)
+                            dims.append(name)
+                        variables[param_id] = ncfile.createVariable(param.name,
+                                                                    data.dtype,
+                                                                    dims,
+                                                                    zlib=True)
+                    variables[param_id].units = param.unit
+                    if param.description is not None:
+                        variables[param_id].long_name = param.description
+                    if param.fill_value is not None:
+                        variables[param_id].fill_value = param.fill_value
+                    if param.display_name is not None:
+                        variables[param_id].display_name = param.display_name
+                    if param.data_product_identifier is not None:
+                        variables[param_id].data_product_identifier = param.data_product_identifier
+
+                    variables[param_id][:] = data
+
+                for index, chunk in enumerate(chunk_generator):
+                    self._execute_dpas_chunk(chunk)
+                    for param_id in chunk:
+                        variables[param_id][chunksize*(index+1):] = chunk[param_id]
+
+                    ncfile.sync()
+                    yield tf.read()
+
+            print tf.name
+            yield tf.read()
 

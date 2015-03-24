@@ -345,6 +345,18 @@ def get_particles(streams, start, stop, coefficients):
 
 
 @log_timing
+def get_netcdf(streams, start, stop, coefficients):
+    stream_keys = [StreamKey.from_dict(d) for d in streams]
+    parameters = []
+    for s in streams:
+        for p in s.get('parameters', []):
+            parameters.append(CachedParameter.from_id(p))
+    time_range = TimeRange(start, stop)
+    stream_request = StreamRequest2(stream_keys, parameters, coefficients, time_range)
+    return stream_request.netcdf_generator()
+
+
+@log_timing
 def get_needs(streams):
     stream_keys = [StreamKey.from_dict(d) for d in streams]
     parameters = []
