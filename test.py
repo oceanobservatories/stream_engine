@@ -104,6 +104,6 @@ d5 = {
 }
 
 headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
-r = requests.post('http://localhost:5000/particles', data=json.dumps(d5), headers=headers)
-# for chunk in r.iter_content(100):
-#     pass
+r = requests.post('http://localhost:5000/particles', data=json.dumps(d5), headers=headers, stream=True)
+for line in r.iter_lines():
+    print line
