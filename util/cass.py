@@ -92,7 +92,7 @@ def fetch_data(stream_key, time_range, session=None, prepared=None):
     if last:
         stop = last[0].time
 
-    query = SimpleStatement(base + ' and time>=%s and time<=%s', fetch_size=5000)
+    query = SimpleStatement(base + ' and time>=%s and time<=%s', fetch_size=engine.app.config['CASSANDRA_FETCH_SIZE'])
     engine.app.logger.info('Executing cassandra query: %s %s', query, (stream_key.subsite, stream_key.node,
                                                                        stream_key.sensor, stream_key.method,
                                                                        start, stop))

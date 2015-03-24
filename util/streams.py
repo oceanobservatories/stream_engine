@@ -362,7 +362,7 @@ class StreamRequest2(object):
     def chunk_to_particles(self, chunk):
         pk = self.stream_keys[0].as_dict()
 
-        for index, t in enumerate(chunk[7]):
+        for index, t in enumerate(chunk[7]['data']):
             particle = OrderedDict()
             particle['pk'] = pk
             pk['time'] = t
@@ -428,14 +428,14 @@ class StreamRequest2(object):
 
                 variables = {}
                 chunk_generator = self.streams[0].create_generator(None)
-                chunk = chunk_generator.next()
-                chunksize = len(chunk[7]['data'])
-                self._execute_dpas_chunk(chunk)
-                for param_id in chunk:
+                first_chunk = chunk_generator.next()
+                chunk_size = len(first_chunk[7]['data'])
+                self._execute_dpas_chunk(first_chunk)
+                for param_id in first_chunk:
 
                     param = CachedParameter.from_id(param_id)
-                    data = chunk[param_id]['data']
-                    source = chunk[param_id]['source']
+                    data = first_chunk[param_id]['data']
+                    source = first_chunk[param_id]['source']
                     if param_id == 7:
                         group = ncfile
                     elif param.parameter_type == FUNCTION:
@@ -460,6 +460,7 @@ class StreamRequest2(object):
                                                                    data.dtype,
                                                                    dims,
                                                                    zlib=True)
+
                     variables[param_id].units = param.unit
                     if param.description is not None:
                         variables[param_id].long_name = param.description
@@ -473,12 +474,11 @@ class StreamRequest2(object):
                     variables[param_id][:] = data
 
                 for index, chunk in enumerate(chunk_generator):
+                    index = (index+1) * chunk_size
                     self._execute_dpas_chunk(chunk)
                     for param_id in chunk:
-                        variables[param_id][chunksize * (index + 1):] = chunk[param_id]['data']
-
-                    ncfile.sync()
-                    yield tf.read()
+                        data = chunk[param_id]['data']
+                        variables[param_id][index:] = data
 
             yield tf.read()
 
