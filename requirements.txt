@@ -13,6 +13,7 @@ netCDF4==1.1.7.1
 ntplib==0.3.2
 numexpr==2.4
 numpy==1.9.2
+pygsw==0.0.10
 scipy==0.15.1
 six==1.9.0
 SQLAlchemy==0.9.9
