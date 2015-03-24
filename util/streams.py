@@ -12,7 +12,7 @@ from engine import app
 import util.calc
 import util.cass
 from util.common import DataUnavailableException, UnknownEncodingException, FUNCTION, StreamNotFoundException, StreamKey, \
-    TimeRange, parse_pdid, CachedParameter, CachedStream, UnknownFunctionTypeException
+    TimeRange, parse_pdid, CachedParameter, CachedStream, UnknownFunctionTypeException, CoefficientUnavailableException
 
 stream_cache = {}
 parameter_cache = {}
@@ -34,13 +34,17 @@ class DataStream(object):
         self.param_map = {}
         self.func_params = []
         self.times = []
+        self.needs_cc = []
         self._initialize()
 
     def _initialize(self):
-        needs = set()
+        needs_cc = set()
         for param in self.stream_key.stream.parameters:
             if not param.parameter_type == FUNCTION:
                 self.id_map[param.id] = param.name
+            else:
+                needs_cc = needs_cc.union(param.needs_cc)
+        self.needs_cc = list(needs_cc)
 
     def async_query(self):
         self.future = util.cass.fetch_data(self.stream_key, self.query_time_range)
@@ -97,7 +101,7 @@ class DataStream(object):
                 slice = array[:, index]
                 shape_name = p.name + '_shape'
                 if shape_name in fields:
-                    shape = array[0, fields.index(shape_name)]
+                    shape = [len(array)] + array[0, fields.index(shape_name)]
                     slice = self._handle_byte_buffer(''.join(slice), p.value_encoding, shape)
                 slice = numpy.array(slice.tolist())
                 self.data_cache[p.id] = slice
@@ -162,7 +166,7 @@ class DataStream(object):
         if numpy.array_equal(times, interp_times):
             return times, data
         try:
-            data = data.astype('f64')
+            #data = data.astype('f64')
             data = griddata(times, data, interp_times, method='linear')
         except ValueError:
             data = DataStream._last_seen(times, data, interp_times)
@@ -192,7 +196,7 @@ class DataStream(object):
             format_string = 'i'
             count = len(data) / 4
         elif encoding in ['uint32', 'int64']:
-            format_string = 'l'
+            format_string = 'q'
             count = len(data) / 8
         elif 'float' in encoding:
             format_string = 'd'
@@ -202,7 +206,7 @@ class DataStream(object):
 
         data = numpy.array(struct.unpack('>%d%s' % (count, format_string), data))
         data = data.reshape(shape)
-        return data.tolist()
+        return data
 
 
 class StreamRequest2(object):
@@ -319,6 +323,7 @@ class StreamRequest2(object):
 
         func_map = parameter.parameter_function_map
         args = {}
+        data_length = len(chunk[7])
         for key in func_map:
             if func_map[key].startswith('PD'):
                 pdid = parse_pdid(func_map[key])
@@ -331,10 +336,13 @@ class StreamRequest2(object):
             elif func_map[key].startswith('CC'):
                 name = func_map[key]
                 if name in self.coefficients:
-                    args[key] = self.coefficients[name]
+                    value = self.coefficients[name]
+                    if type(value) == list:
+                        args[key] = numpy.tile(value, data_length).reshape([data_length, len(value)])
+                    else:
+                        args[key] = numpy.tile(value, data_length)
                 else:
-                    args[key] = 1.0
-                    #raise CoefficientUnavailableException(name)
+                    raise CoefficientUnavailableException(name)
         return args
 
     def chunk_to_particles(self, chunk):
@@ -345,8 +353,11 @@ class StreamRequest2(object):
             particle['pk'] = pk
             pk['time'] = t
             for param in self.parameters:
-                particle[param.name] = chunk[param.id][index]
-            yield json.dumps(particle)
+                value = chunk[param.id][index]
+                if type(value) == numpy.ndarray:
+                    value = value.tolist()
+                particle[param.name] = value
+            yield json.dumps(particle, indent=2)
 
     def particle_generator(self):
         # plan of attack
@@ -358,7 +369,7 @@ class StreamRequest2(object):
         # calculate derived products
         # yield one or more particles
         self._query_all()
-        yield '[\n'
+        yield '[ '
         first = True
         for chunk in self.streams[0].create_generator(None):
             for parameter in self.parameters:
@@ -375,7 +386,7 @@ class StreamRequest2(object):
                 if first:
                     first = False
                 else:
-                    yield ',\n'
+                    yield ', '
                 yield particle
-        yield '\n]\n'
+        yield ' ]'
 

@@ -1,7 +1,6 @@
 from functools import wraps
 from cassandra.cluster import Cluster
 from cassandra.query import SimpleStatement
-from cassandra.io.libevreactor import LibevConnection
 import engine
 from util.common import log_timing
 
@@ -41,8 +40,7 @@ def get_session():
         engine.app.logger.debug('Creating cassandra session')
         global_cassandra_state['cluster'] = Cluster(engine.app.config['CASSANDRA_CONTACT_POINTS'],
                                             control_connection_timeout=engine.app.config['CASSANDRA_CONNECT_TIMEOUT'],
-                                            protocol_version=3, compression=True,
-                                            connection_class=LibevConnection)
+                                            compression=True)
     if global_cassandra_state.get('session') is None:
         session = global_cassandra_state['cluster'].connect(engine.app.config['CASSANDRA_KEYSPACE'])
         global_cassandra_state['session'] = session

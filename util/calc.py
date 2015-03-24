@@ -14,7 +14,7 @@ import engine
 from util.cass import fetch_data, get_distinct_sensors, get_streams
 from util.common import log_timing, FUNCTION, CoefficientUnavailableException, DataNotReadyException, \
     DataUnavailableException, parse_pdid, UnknownEncodingException, StreamKey, TimeRange, \
-    CachedParameter, UnknownFunctionTypeException
+    CachedParameter, UnknownFunctionTypeException, CachedStream
 from util.streams import StreamRequest2
 
 
@@ -267,7 +267,8 @@ def find_needed_params(stream_key, parameters, coefficients):
 
         else:
             engine.app.logger.debug('NEED PARAMETER FROM OTHER STREAM: %s', parameter.name)
-            sensor1, stream1 = find_stream(stream_key, parameter.streams, distinct_sensors)
+            streams = [CachedStream.from_id(sid) for sid in parameter.streams]
+            sensor1, stream1 = find_stream(stream_key, streams, distinct_sensors)
             if not any([sensor1 is None, stream1 is None]):
                 new_stream_key = StreamKey(stream_key.subsite, stream_key.node, sensor1,
                                            stream_key.method, stream1.name)
@@ -344,12 +345,32 @@ def get_particles(streams, start, stop, coefficients):
 
 
 @log_timing
+def get_needs(streams):
+    stream_keys = [StreamKey.from_dict(d) for d in streams]
+    parameters = []
+    for s in streams:
+        for p in s.get('parameters', []):
+            parameters.append(CachedParameter.from_id(p))
+    #time_range = TimeRange(0, 1)
+    stream_request = StreamRequest2(stream_keys, parameters, [], None)
+
+    stream_list = []
+    for stream in stream_request.streams:
+        sk = stream.stream_key
+        needs = stream.needs_cc
+        d = sk.as_dict()
+        d['coefficients'] = needs
+        stream_list.append(d)
+    return stream_list
+
+
+@log_timing
 def handle_bytebuffer(data, encoding, shape):
     if encoding in ['int8', 'int16', 'int32', 'uint8', 'uint16']:
         format_string = 'i'
         count = len(data) / 4
     elif encoding in ['uint32', 'int64']:
-        format_string = 'l'
+        format_string = 'q'
         count = len(data) / 8
     elif 'float' in encoding:
         format_string = 'd'
