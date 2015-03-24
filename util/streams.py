@@ -407,7 +407,7 @@ class StreamRequest2(object):
 
     def netcdf_generator(self):
         self._query_all()
-        with tempfile.NamedTemporaryFile(delete=False) as tf:
+        with tempfile.NamedTemporaryFile() as tf:
             with netCDF4.Dataset(tf.name, 'w', format='NETCDF4') as ncfile:
                 time_dim = ncfile.createDimension('time', None)
                 variables = {}
@@ -453,6 +453,5 @@ class StreamRequest2(object):
                     ncfile.sync()
                     yield tf.read()
 
-            print tf.name
             yield tf.read()
 
