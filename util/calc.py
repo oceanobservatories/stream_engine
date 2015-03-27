@@ -555,5 +555,5 @@ class StreamRequest(object):
                         data = chunk[param_id]['data']
                         variables[param_id][index:] = data
 
-            yield tf.read()
+            return tf.read()
 
