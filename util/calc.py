@@ -391,7 +391,8 @@ class StreamRequest(object):
 
         if len(needs.difference(found)) > 0:
             app.logger.error('Unable to find needed parameters: %s', needs.difference(found))
-            abort(404)
+            raise StreamUnavailableException('Unable to find a stream to provide needed parameters',
+                                             payload={'parameters': list(needs.difference(found))})
 
         needs_cc = set()
         for stream in self.streams:
@@ -400,7 +401,8 @@ class StreamRequest(object):
         needs_cc = needs_cc.difference(self.coefficients.keys())
         if len(needs_cc) > 0:
             app.logger.error('Missing calibration coefficients: %s', needs_cc)
-            abort(404)
+            raise CoefficientUnavailableException('Missing calibration coefficients',
+                                                  payload={'coefficients': list(needs_cc)})
 
     def _create_data_stream(self, stream_key):
         if stream_key.stream is None:

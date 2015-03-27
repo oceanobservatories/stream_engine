@@ -158,7 +158,7 @@ def validate(input_data):
             raise MalformedRequestException('Missing stream information from request',
                                             payload={'request': input_data})
 
-        stream = CachedStream.from_stream(Stream.query.filter(Stream.name == each['stream']).first())
+        stream = Stream.query.filter(Stream.name == each['stream']).first()
         if stream is None:
             raise InvalidStreamException('The requested stream does not exist in preload', payload={'stream': each})
 
