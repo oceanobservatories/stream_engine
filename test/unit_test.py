@@ -319,7 +319,7 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         self.assertEqual(r.status_code, 400)
 
         r = self.app.post('/particles', data=json.dumps(missing_coefficients), headers=headers)
-        self.assertEqual(r.status_code, 404)
+        self.assertEqual(r.status_code, 400)
 
         r = self.app.post('/particles', data=json.dumps(missing_node), headers=headers)
         self.assertEqual(r.status_code, 400)
