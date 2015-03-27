@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-import msgpack
-import base64
 import json
-import requests
 import sys
+
+import requests
+
 
 d = {
     "streams": [

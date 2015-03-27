@@ -104,6 +104,7 @@ class CachedStream(object):
             stream_cache[stream_id] = CachedStream.from_stream(Stream.query.get(stream_id))
         return stream_cache[stream_id]
 
+
 class CachedParameter(object):
     @staticmethod
     def from_parameter(parameter):

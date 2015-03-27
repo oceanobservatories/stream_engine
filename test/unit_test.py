@@ -1,32 +1,23 @@
-import base64
 import copy
-import csv
 import json
 import os
-import pprint
 import struct
 import unittest
-import uuid
-from cassandra.cluster import Cluster
-from cassandra.protocol import ConfigurationException
-import cqlshlib
-from flask import Response
-import msgpack
-import numpy
 import subprocess
+import sys
+
+from cassandra.cluster import Cluster
+import numpy
+
 from engine.routes import app
 from model.preload import Parameter, Stream
 from util.cass import fetch_data, global_cassandra_state, get_distinct_sensors, get_streams, stream_exists
 from util.common import StreamKey, TimeRange, CachedStream, CachedParameter
 from util.preload_insert import create_db
-
-import sys
 from util.calc import StreamRequest, find_stream, stretch, interpolate, handle_byte_buffer, execute_dpa, build_func_map
 
+
 sys.path.append('../ion-functions')
-
-from ion_functions.data import ctd_functions, sfl_functions
-
 
 TEST_DIR = os.path.dirname(__file__)
 

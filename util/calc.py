@@ -71,7 +71,6 @@ def get_needs(streams):
     for s in streams:
         for p in s.get('parameters', []):
             parameters.append(CachedParameter.from_id(p))
-    #time_range = TimeRange(0, 1)
     stream_request = StreamRequest(stream_keys, parameters, [], None)
 
     stream_list = []
@@ -433,7 +432,6 @@ class StreamRequest(object):
                         'source': stream.stream_key.as_refdes()
                     }
 
-
         args = build_func_map(parameter, chunk, self.coefficients)
         chunk[parameter.id] = {'data': execute_dpa(parameter, args), 'source': 'derived'}
 
@@ -485,7 +483,6 @@ class StreamRequest(object):
                 yield particle
         yield ' ]'
 
-
     def netcdf_generator(self):
         self._query_all()
         with tempfile.NamedTemporaryFile() as tf:
@@ -496,7 +493,7 @@ class StreamRequest(object):
                 ncfile.collection_method = self.stream_keys[0].method
                 ncfile.stream = self.stream_keys[0].stream.name
 
-                time_dim = ncfile.createDimension('time', None)
+                ncfile.createDimension('time', None)
                 groups = {
                     'derived': ncfile.createGroup('derived')
                 }
@@ -556,4 +553,3 @@ class StreamRequest(object):
                         variables[param_id][index:] = data
 
             return tf.read()
-
