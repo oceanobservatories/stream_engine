@@ -107,6 +107,8 @@ class CachedStream(object):
 class CachedParameter(object):
     @staticmethod
     def from_parameter(parameter):
+        if parameter is None:
+            return None
         if parameter.id not in parameter_cache:
             cp = CachedParameter()
             cp.id = parameter.id
@@ -151,25 +153,73 @@ class CachedFunction(object):
         return function_cache[function.id]
 
 
-class DataUnavailableException(Exception):
-    pass
+class StreamEngineException(Exception):
+    status_code = 500
+
+    def __init__(self, message, status_code=None, payload=None):
+        Exception.__init__(self)
+        self.message = message
+        if status_code is not None:
+            self.status_code = status_code
+        self.payload = payload
+
+    def to_dict(self):
+        rv = dict(self.payload or ())
+        rv['message'] = self.message
+        return rv
 
 
-class DataNotReadyException(Exception):
-    pass
+class StreamUnavailableException(StreamEngineException):
+    """
+    Stream is not in cassandra
+    """
+    status_code = 404
 
 
-class CoefficientUnavailableException(Exception):
-    pass
+class InvalidStreamException(StreamEngineException):
+    """
+    Stream does not exist in preload
+    """
+    status_code = 400
 
 
-class UnknownEncodingException(Exception):
-    pass
+class InvalidParameterException(StreamEngineException):
+    """
+    Parameter does not exist in preload or the specified stream
+    """
+    status_code = 400
 
 
-class StreamNotFoundException(Exception):
-    pass
+class MalformedRequestException(StreamEngineException):
+    """
+    Structural problem in this request such as missing mandatory data
+    """
+    status_code = 400
 
 
-class UnknownFunctionTypeException(Exception):
-    pass
+class CoefficientUnavailableException(StreamEngineException):
+    """
+    Missing a required calibration coefficient
+    """
+    status_code = 400
+
+
+class UnknownEncodingException(StreamEngineException):
+    """
+    Internal error. A parameter specified an unknown encoding type
+    """
+    status_code = 500
+
+
+class UnknownFunctionTypeException(StreamEngineException):
+    """
+    Internal error. A function specified an unknown function type
+    """
+    status_code = 500
+
+
+class AlgorithmException(StreamEngineException):
+    """
+    Internal error. Exception while executing a DPA
+    """
+    status_code = 500

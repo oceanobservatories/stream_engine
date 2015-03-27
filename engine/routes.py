@@ -2,17 +2,25 @@ import json
 import ntplib
 import time
 from engine import app
-from flask import request, Response
-from werkzeug.exceptions import abort
+from flask import request, Response, jsonify
+from werkzeug.exceptions import abort, HTTPException
+from model.preload import Stream
 import util.calc
-import util.streams
+from util.cass import stream_exists
+from util.common import CachedParameter, CachedStream, StreamEngineException, MalformedRequestException, \
+    InvalidStreamException, StreamUnavailableException, InvalidParameterException
 
 
-@app.route('/calculate', methods=['POST'])
-def calculate():
+@app.errorhandler(StreamEngineException)
+def handle_stream_not_found(error):
+    response = jsonify(error.to_dict())
+    response.status_code = error.status_code
+    return response
+
+
+@app.route('/particles', methods=['POST'])
+def particles():
     """
-    First DRAFT, only supports 1 stream
-
     POST should contain a dictionary of the following format:
     {
         'streams': [
@@ -38,33 +46,43 @@ def calculate():
     """
     input_data = request.get_json()
     validate(input_data)
-
     start = input_data.get('start', 1)
     stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
-
-    return Response(util.calc.calculate(input_data.get('streams')[0], start, stop, input_data.get('coefficients', [])),
-                    mimetype='application/json')
-
-
-@app.route('/particles', methods=['POST'])
-def particles():
-    input_data = request.get_json()
-    validate(input_data)
-
-    start = input_data.get('start', 1)
-    stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
-    return Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', [])),
+    return Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {})),
                     mimetype='application/json')
 
 
 @app.route('/netcdf', methods=['POST'])
 def netcdf():
+    """
+    POST should contain a dictionary of the following format:
+    {
+        'streams': [
+            {
+                'subsite': subsite,
+                'node': node,
+                'sensor': sensor,
+                'method': method,
+                'stream': stream,
+                'parameters': [...],
+            },
+            ...
+        ],
+        'coefficients': {
+            'CC_a0': 1.0,
+            ...
+        },
+        'start': ntptime,
+        'stop': ntptime
+    }
+
+    :return: JSON object:
+    """
     input_data = request.get_json()
     validate(input_data)
-
     start = input_data.get('start', 1)
     stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
-    return Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', [])),
+    return Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {})),
                     mimetype='application/netcdf')
 
 
@@ -115,38 +133,54 @@ def needs():
             ]
     }
     """
-    import util.streams
-    output_data = {}
     input_data = request.get_json()
-
-    if input_data is None:
-        app.logger.warn('Received null request')
-        abort(400)
-
-    streams = input_data.get('streams')
-    if streams is None or not isinstance(streams, list):
-        app.logger.warn('Received invalid request: %r', streams)
-        abort(400)
-
-    for each in streams:
-        if not isinstance(each, dict):
-            abort(400)
-
-    output_data = {'streams': util.calc.get_needs(streams)}
-
+    validate(input_data)
+    output_data = {'streams': util.calc.get_needs(input_data.get('streams'))}
     return Response(json.dumps(output_data), mimetype='application/json')
 
 
 def validate(input_data):
     if input_data is None:
-        app.logger.warn('Received null request')
-        abort(400)
+        raise MalformedRequestException('Received NULL input data')
 
     streams = input_data.get('streams')
     if streams is None or not isinstance(streams, list):
-        app.logger.warn('Received invalid request: %r', streams)
-        abort(400)
+        raise MalformedRequestException('Received invalid request', payload={'request': input_data})
 
     for each in streams:
         if not isinstance(each, dict):
-            abort(400)
+            raise MalformedRequestException('Received invalid request, stream is not dictionary',
+                                            payload={'request': input_data})
+        keys = each.keys()
+        required = {'subsite', 'node', 'sensor', 'method', 'stream'}
+        missing = required.difference(keys)
+        if len(missing) > 0:
+            raise MalformedRequestException('Missing stream information from request',
+                                            payload={'request': input_data})
+
+        stream = CachedStream.from_stream(Stream.query.filter(Stream.name == each['stream']).first())
+        if stream is None:
+            raise InvalidStreamException('The requested stream does not exist in preload', payload={'stream': each})
+
+        if not stream_exists(each['subsite'],
+                             each['node'],
+                             each['sensor'],
+                             each['method'],
+                             each['stream']):
+            raise StreamUnavailableException('The requested stream does not exist in cassandra',
+                                             payload={'stream' :each})
+
+        parameters = each.get('parameters', [])
+        for pid in parameters:
+            p = CachedParameter.from_id(pid)
+            if p is None:
+                raise InvalidParameterException('The requested parameter does not exist in preload',
+                                                payload={'id': pid})
+
+            if p not in stream.parameters:
+                raise InvalidParameterException('The requested parameter does not exist in this stream',
+                                                payload={'id': pid, 'stream': each})
+
+    if not isinstance(input_data.get('coefficients', {}), dict):
+        raise MalformedRequestException('Received invalid coefficient data, must be a map',
+                                        payload={'coefficients': input_data.get('coefficients')})

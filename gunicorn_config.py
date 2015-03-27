@@ -20,7 +20,7 @@ import sys
 #       range.
 #
 
-bind = '127.0.0.1:5000'
+bind = '0.0.0.0:5000'
 backlog = 2048
 
 #
@@ -74,7 +74,7 @@ backlog = 2048
 workers = 8
 threads = 8
 worker_class = 'sync'
-timeout = 3000
+timeout = 30000
 max_requests = 8
 graceful_timeout = 3000
 keepalive = 2
