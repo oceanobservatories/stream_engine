@@ -214,6 +214,9 @@ class DataStream(object):
                 needs_cc = needs_cc.union(param.needs_cc)
         self.needs_cc = list(needs_cc)
 
+    def provides(self, key):
+        return key in self.id_map
+
     def async_query(self):
         self.future = fetch_data(self.stream_key, self.query_time_range)
         self.future.add_callbacks(callback=self.handle_page, errback=self.handle_error)
@@ -401,7 +404,6 @@ class StreamRequest(object):
         if not needs_only:
             self._abort_if_missing_params()
 
-
     def _abort_if_missing_params(self):
         if len(self.needs_params) > 0:
             app.logger.error('Unable to find needed parameters: %s', self.needs_params)
@@ -433,14 +435,9 @@ class StreamRequest(object):
             # calculate the underlying L1 functions first
             if each.parameter_type == FUNCTION:
                 self._calculate(each, chunk)
-            for stream in self.streams[1:]:
-                # we may have already inserted this during recursion
-                if each.id not in chunk:
-                    times, data = stream.get_param_interp(each.id, chunk[7]['data'])
-                    chunk[each.id] = {
-                        'data': data,
-                        'source': stream.stream_key.as_refdes()
-                    }
+            # we may have already inserted this during recursion
+            if each.id not in chunk:
+                self._get_param(each.id, chunk)
 
         args = build_func_map(parameter, chunk, self.coefficients)
         chunk[parameter.id] = {'data': execute_dpa(parameter, args), 'source': 'derived'}
@@ -459,27 +456,23 @@ class StreamRequest(object):
                 particle[param.name] = value
             yield json.dumps(particle, indent=2)
 
+    def _get_param(self, pdid, chunk):
+        for stream in self.streams[1:]:
+            if stream.provides(pdid):
+                chunk[pdid] = {
+                    'data': stream.get_param_interp(pdid, chunk[7]['data'])[1],
+                    'source': stream.stream_key.as_refdes()
+                }
+
     def _execute_dpas_chunk(self, chunk):
         for parameter in self.parameters:
             if parameter.id not in chunk:
                 if parameter.parameter_type == FUNCTION:
                     self._calculate(parameter, chunk)
                 else:
-                    for stream in self.streams[1:]:
-                        chunk[parameter.id] = {
-                            'data': stream.get_param_interp(parameter.id, chunk[7]['data'])[1],
-                            'source': stream.stream_key.as_refdes()
-                        }
+                    self._get_param(parameter.id, chunk)
 
     def particle_generator(self):
-        # plan of attack
-        # start queries
-        # fetch chunk from primary stream
-        # retrieve times for chunk
-        # fetch chunk from each secondary stream until time parity reached or chunks exhausted
-        # retrieve raw data from primary stream, interpolated data from secondary streams
-        # calculate derived products
-        # yield one or more particles
         self._query_all()
         yield '[ '
         first = True
@@ -497,24 +490,30 @@ class StreamRequest(object):
         self._query_all()
         with tempfile.NamedTemporaryFile() as tf:
             with netCDF4.Dataset(tf.name, 'w', format='NETCDF4') as ncfile:
+                # set up file level attributes
                 ncfile.subsite = self.stream_keys[0].subsite
                 ncfile.node = self.stream_keys[0].node
                 ncfile.sensor = self.stream_keys[0].sensor
                 ncfile.collection_method = self.stream_keys[0].method
                 ncfile.stream = self.stream_keys[0].stream.name
 
+                # create the time dimension in the root group
                 ncfile.createDimension('time', None)
+                # create a derived group
                 groups = {
                     'derived': ncfile.createGroup('derived')
                 }
 
                 variables = {}
+
+                # grab the first chunk of data
                 chunk_generator = self.streams[0].create_generator(None)
                 first_chunk = chunk_generator.next()
                 chunk_size = len(first_chunk[7]['data'])
                 self._execute_dpas_chunk(first_chunk)
-                for param_id in first_chunk:
 
+                # create the netcdf variables and any extra dimensions
+                for param_id in first_chunk:
                     param = CachedParameter.from_id(param_id)
                     data = first_chunk[param_id]['data']
                     source = first_chunk[param_id]['source']
@@ -555,6 +554,7 @@ class StreamRequest(object):
 
                     variables[param_id][:] = data
 
+                # iterate through the chunks and populate the data
                 for index, chunk in enumerate(chunk_generator):
                     index = (index+1) * chunk_size
                     self._execute_dpas_chunk(chunk)

@@ -49,19 +49,6 @@ class ParameterFunction(db.Model):
     description = db.Column(db.String(4096))
 
 
-class ParameterMap(db.Model):
-    __tablename__ = 'parameter_map'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(250), nullable=False)
-    value = db.Column(db.String(250), nullable=False)
-
-
-class ParameterParameterMap(db.Model):
-    __tablename__ = 'parameter_parameter_map'
-    parameter_id = db.Column(db.Integer, db.ForeignKey('parameter.id'), primary_key=True)
-    parameter_map_id = db.Column(db.Integer, db.ForeignKey('parameter_map.id'), primary_key=True)
-
-
 class Parameter(db.Model):
     __tablename__ = 'parameter'
     id = db.Column(db.Integer, primary_key=True)

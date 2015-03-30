@@ -43,13 +43,15 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
             create_db()
 
         app.config['CASSANDRA_KEYSPACE'] = StreamUnitTest.TEST_KEYSPACE
+        #app.config['SQLALCHEMY_ECHO'] = True
 
         cluster = Cluster(app.config['CASSANDRA_CONTACT_POINTS'],
                           control_connection_timeout=app.config['CASSANDRA_CONNECT_TIMEOUT'])
         global_cassandra_state['cluster'] = cluster
         session = cluster.connect()
 
-        subprocess.call(['cqlsh', '-f', os.path.join(TEST_DIR, 'load.cql')])
+        os.chdir(TEST_DIR)
+        subprocess.call(['cqlsh', '-f', 'load.cql'])
 
         session.set_keyspace(StreamUnitTest.TEST_KEYSPACE)
 
