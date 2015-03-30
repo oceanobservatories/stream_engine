@@ -172,13 +172,14 @@ def validate(input_data):
                                              payload={'stream' :each})
 
         parameters = each.get('parameters', [])
+        stream_parameters = [p.id for p in stream.parameters]
         for pid in parameters:
             p = CachedParameter.from_id(pid)
             if p is None:
                 raise InvalidParameterException('The requested parameter does not exist in preload',
                                                 payload={'id': pid})
 
-            if p not in stream.parameters:
+            if pid not in stream_parameters:
                 raise InvalidParameterException('The requested parameter does not exist in this stream',
                                                 payload={'id': pid, 'stream': each})
 
