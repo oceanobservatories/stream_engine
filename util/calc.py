@@ -278,7 +278,11 @@ class DataStream(object):
                 shape_name = p.name + '_shape'
                 if shape_name in fields:
                     shape = [len(array)] + array[0, fields.index(shape_name)]
-                    data_slice = handle_byte_buffer(''.join(data_slice), p.value_encoding, shape)
+                    if p.value_encoding == 'string':
+                        temp = [item for sublist in data_slice for item in sublist]
+                        data_slice = numpy.array(temp).reshape(shape)
+                    else:
+                        data_slice = handle_byte_buffer(''.join(data_slice), p.value_encoding, shape)
                 data_slice = numpy.array(data_slice.tolist())
                 self.data_cache[p.id] = {
                     'data': data_slice,

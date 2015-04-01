@@ -11,14 +11,19 @@ function_cache = {}
 
 
 def log_timing(func):
-    @wraps(func)
-    def inner(*args, **kwargs):
-        app.logger.debug('Entered method: %s', func)
-        start = time.time()
-        results = func(*args, **kwargs)
-        elapsed = time.time() - start
-        app.logger.debug('Completed method: %s in %.2f', func, elapsed)
-        return results
+    if app.logger.isEnabledFor('debug'):
+        @wraps(func)
+        def inner(*args, **kwargs):
+            app.logger.debug('Entered method: %s', func)
+            start = time.time()
+            results = func(*args, **kwargs)
+            elapsed = time.time() - start
+            app.logger.debug('Completed method: %s in %.2f', func, elapsed)
+            return results
+    else:
+        @wraps(func)
+        def inner(*args, **kwargs):
+            return func(*args, **kwargs)
 
     return inner
 
