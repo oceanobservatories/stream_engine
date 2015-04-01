@@ -123,16 +123,8 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
     def test_distinct_sensors(self):
         distinct = get_distinct_sensors()
         self.assertListEqual(distinct,
-                             [(u'RS00ENGC', u'XX00X', u'00-NUTNRA001'),
-                              (u'RS00ENGC', u'XX00X', u'00-PRESTA001'),
-                              (u'RS00ENGC', u'XX00X', u'00-THSPHA001'),
-                              (u'RS00ENGC', u'XX00X', u'00-TMPSFA001'),
-                              (u'RS00ENGC', u'XX00X', u'00-CTDPFA001'),
-                              (u'RS00ENGC', u'XX00X', u'00-TRHPHA001'),
-                              (u'RS00ENGC', u'XX00X', u'00-FLORDD001'),
-                              (u'RS00ENGC', u'XX00X', u'00-OPTAAD001'),
+                             [(u'RS00ENGC', u'XX001', u'00-CTDPFA001'),
                               (u'XX00XXXX', u'XX00X', u'00-CTDPFW100'),
-                              (u'RS00ENGC', u'XX00X', u'00-SPKIRA001'),
                               (u'RS00ENGC', u'XX00X', u'00-CTDBPA002')])
 
     def test_get_streams(self):
@@ -390,4 +382,25 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         response = json.loads(r.data)
         self.assertDictEqual(response, expected_response)
 
+    def test_incomplete_stream(self):
+        # we have the ctdpf_sbe43_sample stream but not the corresponding coefficients stream
+        headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+        request = {
+            'streams': [
+                {
+                    "node": "XX001",
+                    "stream": "ctdpf_sbe43_sample",
+                    "subsite": "RS00ENGC",
+                    "sensor": "00-CTDPFA001",
+                    "method": "streamed",
+                }
+            ],
+        }
 
+        r = self.app.post('/needs', data=json.dumps(request), headers=headers)
+        response = json.loads(r.data)
+        print r, response
+
+        r = self.app.post('/particles', data=json.dumps(request), headers=headers)
+        response = json.loads(r.data)
+        print r, response

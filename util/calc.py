@@ -401,14 +401,14 @@ class StreamRequest(object):
 
         self.needs_cc = needs_cc.difference(self.coefficients.keys())
 
-        if not needs_only:
-            self._abort_if_missing_params()
+        # if not needs_only:
+        #     self._abort_if_missing_params()
 
     def _abort_if_missing_params(self):
         if len(self.needs_params) > 0:
             app.logger.error('Unable to find needed parameters: %s', self.needs_params)
             raise StreamUnavailableException('Unable to find a stream to provide needed parameters',
-                                             payload={'parameters': self.needs_params})
+                                             payload={'parameters': list(self.needs_params)})
 
         if len(self.needs_cc) > 0:
             app.logger.error('Missing calibration coefficients: %s', self.needs_cc)
@@ -439,8 +439,11 @@ class StreamRequest(object):
             if each.id not in chunk:
                 self._get_param(each.id, chunk)
 
-        args = build_func_map(parameter, chunk, self.coefficients)
-        chunk[parameter.id] = {'data': execute_dpa(parameter, args), 'source': 'derived'}
+        try:
+            args = build_func_map(parameter, chunk, self.coefficients)
+            chunk[parameter.id] = {'data': execute_dpa(parameter, args), 'source': 'derived'}
+        except StreamEngineException:
+            pass
 
     def chunk_to_particles(self, chunk):
         pk = self.stream_keys[0].as_dict()
@@ -450,10 +453,11 @@ class StreamRequest(object):
             particle['pk'] = pk
             pk['time'] = t
             for param in self.parameters:
-                value = chunk[param.id]['data'][index]
-                if type(value) == numpy.ndarray:
-                    value = value.tolist()
-                particle[param.name] = value
+                if param.id in chunk:
+                    value = chunk[param.id]['data'][index]
+                    if type(value) == numpy.ndarray:
+                        value = value.tolist()
+                    particle[param.name] = value
             yield json.dumps(particle, indent=2)
 
     def _get_param(self, pdid, chunk):
@@ -509,8 +513,21 @@ class StreamRequest(object):
                 # grab the first chunk of data
                 chunk_generator = self.streams[0].create_generator(None)
                 first_chunk = chunk_generator.next()
-                chunk_size = len(first_chunk[7]['data'])
                 self._execute_dpas_chunk(first_chunk)
+
+                # sometimes we will get duplicate timestamps
+                # INITIAL solution is to remove any duplicate timestamps
+                # and the corresponding data.
+
+                # create a mask to match only valid INCREASING times
+                # we will insert the last valid timestamp from the previous
+                # chunk at the beginning of the array
+                chunk_times = first_chunk[7]['data']
+                chunk_valid = numpy.diff(numpy.insert(chunk_times, 0, 0.0)) != 0
+
+                # We will need to keep track of the last timestamp of each chunk so
+                # that we can apply this logic across chunks
+                last_timestamp = chunk_times[chunk_valid][-1]
 
                 # create the netcdf variables and any extra dimensions
                 for param_id in first_chunk:
@@ -552,14 +569,19 @@ class StreamRequest(object):
                     if param.data_product_identifier is not None:
                         variables[param_id].data_product_identifier = param.data_product_identifier
 
-                    variables[param_id][:] = data
+                    variables[param_id][:] = data[chunk_valid]
 
                 # iterate through the chunks and populate the data
-                for index, chunk in enumerate(chunk_generator):
-                    index = (index+1) * chunk_size
+                for chunk in chunk_generator:
+                    # see comment in first_chunk for explanation of this logic
+                    chunk_times = chunk[7]['data']
+                    chunk_valid = numpy.diff(numpy.insert(chunk_times, 0, last_timestamp)) != 0
+                    last_timestamp = chunk_times[chunk_valid][-1]
+
                     self._execute_dpas_chunk(chunk)
+                    index = len(variables[7])
                     for param_id in chunk:
                         data = chunk[param_id]['data']
-                        variables[param_id][index:] = data
+                        variables[param_id][index:] = data[chunk_valid]
 
             return tf.read()
