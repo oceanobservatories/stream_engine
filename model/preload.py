@@ -84,7 +84,7 @@ class Parameter(db.Model):
 
         if self.parameter_type.value == 'function':
             for value in self.parameter_function_map.values():
-                if value.startswith('PD'):
+                if isinstance(value,basestring) and value.startswith('PD'):
                     try:
                         pdid = self.parse_pdid(value)
                         sub_param = Parameter.query.get(pdid)
@@ -105,7 +105,7 @@ class Parameter(db.Model):
         if self.parameter_type.value == 'function':
             for value in self.parameter_function_map.values():
 
-                if value.startswith('CC') and value not in needed:
+                if isinstance(value,basestring) and value.startswith('CC') and value not in needed:
                     needed.append(value)
 
         return needed
