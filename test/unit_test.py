@@ -18,7 +18,7 @@ from util.preload_insert import create_db
 from util.calc import StreamRequest, find_stream, stretch, interpolate, handle_byte_buffer, execute_dpa, build_func_map
 
 
-sys.path.append('../ion-functions')
+#sys.path.append('../ion-functions')
 
 TEST_DIR = os.path.dirname(__file__)
 
