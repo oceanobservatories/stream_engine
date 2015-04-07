@@ -16,4 +16,4 @@ CASSANDRA_FETCH_SIZE = 1000
 SPREADSHEET_KEY = '1jIiBKpVRBMU5Hb1DJqyR16XCkiX-CuTsn1Z1VnlRV4I'
 USE_CACHED_SPREADSHEET = False
 
-sys.path.append('ion-functions')
+#sys.path.append('ion-functions')
