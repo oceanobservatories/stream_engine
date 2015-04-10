@@ -52,7 +52,10 @@ def particles():
     validate(input_data)
     start = input_data.get('start', 1)
     stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
-    return Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {})),
+    limit = input_data.get('limit', 0)
+    if limit <= 0:
+        limit = None
+    return Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}), limit=limit),
                     mimetype='application/json')
 
 
@@ -89,7 +92,10 @@ def netcdf():
     validate(input_data)
     start = input_data.get('start', 1)
     stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
-    return Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {})),
+    limit = input_data.get('limit', 0)
+    if limit <= 0:
+        limit = None
+    return Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}), limit=limit),
                     mimetype='application/netcdf')
 
 
