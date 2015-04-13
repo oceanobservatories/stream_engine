@@ -563,7 +563,8 @@ class StreamRequest(object):
                                                                    dims,
                                                                    zlib=True)
 
-                    variables[param_id].units = param.unit
+                    if param.unit is not None:
+                        variables[param_id].units = param.unit
                     if param.description is not None:
                         variables[param_id].long_name = param.description
                     if param.fill_value is not None:
