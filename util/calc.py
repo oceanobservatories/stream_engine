@@ -164,7 +164,7 @@ def build_func_map(parameter, chunk, coefficients):
     args = {}
     data_length = len(chunk[7]['data'])
     for key in func_map:
-        if func_map[key].startswith('PD'):
+        if str(func_map[key]).startswith('PD'):
             pdid = parse_pdid(func_map[key])
 
             if pdid not in chunk:
@@ -172,7 +172,7 @@ def build_func_map(parameter, chunk, coefficients):
 
             args[key] = chunk[pdid]['data']
 
-        elif func_map[key].startswith('CC'):
+        elif str(func_map[key]).startswith('CC'):
             name = func_map[key]
             if name in coefficients:
                 value = coefficients[name]
@@ -184,6 +184,10 @@ def build_func_map(parameter, chunk, coefficients):
                     args[key] = numpy.tile(value, data_length)
             else:
                 raise CoefficientUnavailableException(name)
+        elif isinstance(func_map[key], (int, float, long, complex)):
+            args[key] = func_map[key]
+        else:
+            raise StreamEngineException('Unable to resolve parameter \'%s\' in PD%s %s' % (func_map[key], parameter.id, parameter.name))
     return args
 
 
