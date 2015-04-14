@@ -1,4 +1,4 @@
-CREATE TABLE ctdpf_ckl_wfp_metadata_recovered (
+CREATE TABLE stream_engine_test.ctdpf_ckl_wfp_metadata_recovered (
   subsite text,
   node text,
   sensor text,

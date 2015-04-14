@@ -1,4 +1,4 @@
-CREATE TABLE stream_metadata (
+CREATE TABLE stream_engine_test.stream_metadata (
   subsite text,
   node text,
   sensor text,

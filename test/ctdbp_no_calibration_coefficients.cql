@@ -1,4 +1,4 @@
-CREATE TABLE ctdbp_no_calibration_coefficients (
+CREATE TABLE stream_engine_test.ctdbp_no_calibration_coefficients (
   subsite text,
   node text,
   sensor text,
