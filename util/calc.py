@@ -175,13 +175,12 @@ def build_func_map(parameter, chunk, coefficients):
         elif str(func_map[key]).startswith('CC'):
             name = func_map[key]
             if name in coefficients:
-                value = coefficients[name]
-                if type(value) == list:
-                    data = numpy.array(value)
-                    shape = [data_length] + [1 for _ in data.shape]
-                    args[key] = numpy.tile(data, shape)
+                framed_CCs = coefficients[name]
+                CC_argument = build_CC_argument(framed_CCs, chunk[7]['data'])
+                if(len(CC_argument) == data_length):
+                    args[key] = CC_argument
                 else:
-                    args[key] = numpy.tile(value, data_length)
+                    raise CoefficientUnavailableException(name)
             else:
                 raise CoefficientUnavailableException(name)
         elif isinstance(func_map[key], (int, float, long, complex)):
@@ -189,6 +188,26 @@ def build_func_map(parameter, chunk, coefficients):
         else:
             raise StreamEngineException('Unable to resolve parameter \'%s\' in PD%s %s' % (func_map[key], parameter.id, parameter.name))
     return args
+
+
+def in_range(start, stop, time):
+    return (start <= time 
+        and (stop > time 
+            or (stop == time and stop == start)
+            or stop == None))
+
+
+def to_numpy(value):
+    return numpy.array(value) if (type(value) == list) else value
+
+
+def build_CC_argument(frames, times):
+    r = []
+    for t in times:
+        f = next((f for f in frames if (in_range(f.get('start'), f.get('stop'), t))), None)
+        if (f != None):
+            r.append(to_numpy(f.get('value')))
+    return r
 
 
 class DataStream(object):
