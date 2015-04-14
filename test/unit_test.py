@@ -4,7 +4,6 @@ import os
 import struct
 import unittest
 import subprocess
-import sys
 
 from cassandra.cluster import Cluster
 import numpy
@@ -17,8 +16,6 @@ from util.common import StreamKey, TimeRange, CachedStream, CachedParameter
 from util.preload_insert import create_db
 from util.calc import StreamRequest, find_stream, stretch, interpolate, handle_byte_buffer, execute_dpa, build_func_map
 
-
-#sys.path.append('../ion-functions')
 
 TEST_DIR = os.path.dirname(__file__)
 

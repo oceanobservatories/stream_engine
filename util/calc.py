@@ -487,16 +487,20 @@ class StreamRequest(object):
     def particle_generator(self):
         self._query_all()
         yield '[ '
-        first = True
-        for chunk in self.streams[0].create_generator(None):
-            self._execute_dpas_chunk(chunk)
-            for particle in self.chunk_to_particles(chunk):
-                if first:
-                    first = False
-                else:
-                    yield ', '
-                yield particle
-        yield ' ]'
+        try:
+            first = True
+            for chunk in self.streams[0].create_generator(None):
+                self._execute_dpas_chunk(chunk)
+                for particle in self.chunk_to_particles(chunk):
+                    if first:
+                        first = False
+                    else:
+                        yield ', '
+                    yield particle
+        except Exception as e:
+            yield repr(e)
+        finally:
+            yield ' ]'
 
     def netcdf_generator(self):
         self._query_all()

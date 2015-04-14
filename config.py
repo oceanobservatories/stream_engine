@@ -1,5 +1,5 @@
 import os
-import sys
+
 _basedir = os.path.abspath(os.path.dirname(__file__))
 
 DEBUG = False
@@ -15,5 +15,3 @@ CASSANDRA_FETCH_SIZE = 1000
 
 SPREADSHEET_KEY = '1jIiBKpVRBMU5Hb1DJqyR16XCkiX-CuTsn1Z1VnlRV4I'
 USE_CACHED_SPREADSHEET = False
-
-#sys.path.append('ion-functions')
