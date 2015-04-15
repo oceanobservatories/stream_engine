@@ -14,7 +14,7 @@ from model.preload import Parameter, Stream
 from util.cass import fetch_data, global_cassandra_state, get_distinct_sensors, get_streams, stream_exists
 from util.common import StreamKey, TimeRange, CachedStream, CachedParameter
 from util.preload_insert import create_db
-from util.calc import StreamRequest, find_stream, stretch, interpolate, handle_byte_buffer, execute_dpa, build_func_map, in_range, to_numpy, build_CC_argument
+from util.calc import StreamRequest, find_stream, stretch, interpolate, handle_byte_buffer, execute_dpa, build_func_map, in_range, build_CC_argument
 
 
 TEST_DIR = os.path.dirname(__file__)
@@ -236,7 +236,7 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
             'CC_lon': [{'start': 0, 'stop': 6, 'value': -55.0}]
         }
         chunk = {
-            7: {'data': range(6)},
+            7: {'data': numpy.arange(6)},
             3649: {'data': numpy.array([33.5, 33.5, 37, 34.9, 35, 35])},
             908: {'data': numpy.array([28., 28., 20., 6., 3., 2.])},
             3647: {'data': numpy.array([0., 10., 150., 800., 2500., 5000.])},
@@ -256,25 +256,19 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
             numpy.testing.assert_array_equal(result[key], expected_args[key])
 
     def test_in_range(self):
-        self.assertTrue(in_range(-1, 5, 1))
-        self.assertFalse(in_range(-1, 5, 5))
-        self.assertTrue(in_range(5, 5, 5))
-        self.assertFalse(in_range(5, -1, 1))
-        self.assertTrue(in_range(None, 5, 1))
-        self.assertTrue(in_range(5, None, 5))
-        self.assertFalse(in_range(5, None, 1))
-        self.assertTrue(in_range(None, None, 1))
-
-    def test_to_numpy(self):
-        self.assertEqual(1, to_numpy(1))
-        numpy.testing.assert_array_equal(numpy.array([1,2,3]), to_numpy([1,2,3]))
+        times = numpy.arange(1,6)
+        numpy.testing.assert_array_equal(in_range((2,4), times), [False,True,True,False,False])
+        numpy.testing.assert_array_equal(in_range((None,4), times), [True,True,True,False,False])
+        numpy.testing.assert_array_equal(in_range((2,None), times), [False,True,True,True,True])
+        numpy.testing.assert_array_equal(in_range((None,None), times), [True,True,True,True,True])
+        numpy.testing.assert_array_equal(in_range((4,4,), times), [False,False,False,True,False])
 
     def test_build_CC_argument(self):
-        times = range(5)
+        times = numpy.arange(5)
         frames = [ {'start': 0, 'stop': 1, 'value': 1 },
                    {'start': 0, 'stop': 1, 'value': 1 },
                    {'start': 0, 'stop': 1, 'value': 1 } ]
-        self.assertEqual(1, len(build_CC_argument(frames, times)))
+        self.assertTrue(numpy.isnan(numpy.min(build_CC_argument(frames, times))))
 
         frames = [ {'start': 0, 'stop': 1, 'value': [1,2] },
                    {'start': 4, 'stop': 5, 'value': [3,4] },
