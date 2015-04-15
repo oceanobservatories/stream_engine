@@ -576,7 +576,7 @@ class StreamRequest(object):
                     if param.description is not None:
                         variables[param_id].long_name = param.description
                     if param.fill_value is not None:
-                        variables[param_id].fill_value = param.fill_value
+                        variables[param_id]._FillValue = param.fill_value
                     if param.display_name is not None:
                         variables[param_id].display_name = param.display_name
                     if param.data_product_identifier is not None:
