@@ -1,4 +1,4 @@
-CREATE TABLE ctdbp_no_sample (
+CREATE TABLE stream_engine_test.ctdbp_no_sample (
   subsite text,
   node text,
   sensor text,

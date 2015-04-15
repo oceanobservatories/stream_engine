@@ -162,7 +162,7 @@ def execute_dpa(parameter, kwargs):
 def build_func_map(parameter, chunk, coefficients):
     func_map = parameter.parameter_function_map
     args = {}
-    data_length = len(chunk[7]['data'])
+    times = chunk[7]['data']
     for key in func_map:
         if str(func_map[key]).startswith('PD'):
             pdid = parse_pdid(func_map[key])
@@ -175,13 +175,12 @@ def build_func_map(parameter, chunk, coefficients):
         elif str(func_map[key]).startswith('CC'):
             name = func_map[key]
             if name in coefficients:
-                value = coefficients[name]
-                if type(value) == list:
-                    data = numpy.array(value)
-                    shape = [data_length] + [1 for _ in data.shape]
-                    args[key] = numpy.tile(data, shape)
+                framed_CCs = coefficients[name]
+                CC_argument = build_CC_argument(framed_CCs, times)
+                if(numpy.isnan(numpy.min(CC_argument))):
+                    raise CoefficientUnavailableException('Coefficient %s missing times in range (%s, %s) for parameter %s' % (name, times[0], times[-1], parameter.name))
                 else:
-                    args[key] = numpy.tile(value, data_length)
+                    args[key] = CC_argument
             else:
                 raise CoefficientUnavailableException(name)
         elif isinstance(func_map[key], (int, float, long, complex)):
@@ -189,6 +188,49 @@ def build_func_map(parameter, chunk, coefficients):
         else:
             raise StreamEngineException('Unable to resolve parameter \'%s\' in PD%s %s' % (func_map[key], parameter.id, parameter.name))
     return args
+
+
+def in_range(frame, times):
+    """
+    Returns boolean masking array for times in range.
+
+      frame is a tuple such that frame[0] is the inclusive start time and
+      frame[1] is the exclusive stop time.  None for any of these indices
+      indicates unbounded.
+
+      times is a numpy array of ntp times.
+
+      returns a bool numpy array the same shape as times
+    """
+    if(frame[0] is None and frame[1] is None):
+        mask = numpy.ones(times.shape, dtype=bool)
+    elif(frame[0] is None):
+        mask = (times < frame[1])
+    elif(frame[1] is None):
+        mask = (times >= frame[0])
+    elif(frame[0] == frame[1]):
+        mask = (times == frame[0])
+    else:
+        mask = numpy.logical_and(times >= frame[0], times < frame[1])
+    return mask
+
+
+def build_CC_argument(frames, times):
+    sample_value = frames[0]['value']
+    if(type(sample_value) == list) :
+        cc = numpy.empty(times.shape + numpy.array(sample_value).shape)
+    else:
+        cc = numpy.empty(times.shape)
+    cc[:] = numpy.NAN
+    
+    frames = [(f.get('start'), f.get('stop'), f['value']) for f in frames]
+    frames.sort()
+
+    for frame in frames[::-1]:
+        mask = in_range(frame, times)
+        cc[mask] = frame[2]
+
+    return cc
 
 
 class DataStream(object):

@@ -1,4 +1,4 @@
-CREATE TABLE ctdpf_sbe43_sample (
+CREATE TABLE stream_engine_test.ctdpf_sbe43_sample (
   subsite text,
   node text,
   sensor text,

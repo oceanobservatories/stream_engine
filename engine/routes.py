@@ -36,7 +36,10 @@ def particles():
             ...
         ],
         'coefficients': {
-            'CC_a0': 1.0,
+            'CC_a0': [
+                { 'start': ntptime, 'stop': ntptime, 'value': 1.0 },
+                ...
+            ],
             ...
         },
         'start': ntptime,
@@ -70,7 +73,10 @@ def netcdf():
             ...
         ],
         'coefficients': {
-            'CC_a0': 1.0,
+            'CC_a0': [
+                { 'start': ntptime, 'stop': ntptime, 'value': 1.0 },
+                ...
+            ],
             ...
         },
         'start': ntptime,

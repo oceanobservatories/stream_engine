@@ -14,7 +14,7 @@ from model.preload import Parameter, Stream
 from util.cass import fetch_data, global_cassandra_state, get_distinct_sensors, get_streams, stream_exists
 from util.common import StreamKey, TimeRange, CachedStream, CachedParameter
 from util.preload_insert import create_db
-from util.calc import StreamRequest, find_stream, stretch, interpolate, handle_byte_buffer, execute_dpa, build_func_map
+from util.calc import StreamRequest, find_stream, stretch, interpolate, handle_byte_buffer, execute_dpa, build_func_map, in_range, build_CC_argument
 
 
 TEST_DIR = os.path.dirname(__file__)
@@ -232,11 +232,11 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
     def test_build_func_map(self):
         parameter = CachedParameter.from_id(3650)
         coefficients = {
-            'CC_lat': 15.0,
-            'CC_lon': -55.0
+            'CC_lat': [{'start': 0, 'stop': 6, 'value': 15.0}],
+            'CC_lon': [{'start': 0, 'stop': 6, 'value': -55.0}]
         }
         chunk = {
-            7: {'data': range(6)},
+            7: {'data': numpy.arange(6)},
             3649: {'data': numpy.array([33.5, 33.5, 37, 34.9, 35, 35])},
             908: {'data': numpy.array([28., 28., 20., 6., 3., 2.])},
             3647: {'data': numpy.array([0., 10., 150., 800., 2500., 5000.])},
@@ -255,12 +255,33 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         for key in result:
             numpy.testing.assert_array_equal(result[key], expected_args[key])
 
+    def test_in_range(self):
+        times = numpy.arange(1,6)
+        numpy.testing.assert_array_equal(in_range((2,4), times), [False,True,True,False,False])
+        numpy.testing.assert_array_equal(in_range((None,4), times), [True,True,True,False,False])
+        numpy.testing.assert_array_equal(in_range((2,None), times), [False,True,True,True,True])
+        numpy.testing.assert_array_equal(in_range((None,None), times), [True,True,True,True,True])
+        numpy.testing.assert_array_equal(in_range((4,4,), times), [False,False,False,True,False])
+
+    def test_build_CC_argument(self):
+        times = numpy.arange(5)
+        frames = [ {'start': 0, 'stop': 1, 'value': 1 },
+                   {'start': 0, 'stop': 1, 'value': 1 },
+                   {'start': 0, 'stop': 1, 'value': 1 } ]
+        self.assertTrue(numpy.isnan(numpy.min(build_CC_argument(frames, times))))
+
+        frames = [ {'start': 0, 'stop': 1, 'value': [1,2] },
+                   {'start': 4, 'stop': 5, 'value': [3,4] },
+                   {'start': 1, 'stop': 4, 'value': [2,3] } ]
+        numpyresult = numpy.array([[1,2],[2,3],[2,3],[2,3],[3,4]])
+        numpy.testing.assert_array_equal(numpyresult, build_CC_argument(frames, times))
+
     def test_data_stream(self):
 
         stream_key1 = StreamKey(self.subsite, self.node, self.sensor, self.method, 'ctdbp_no_sample')
         stream_key2 = StreamKey(self.subsite, self.node, self.sensor, self.method, 'ctdbp_no_calibration_coefficients')
         time_range = TimeRange(self.first, self.last)
-        sr = StreamRequest([stream_key1, stream_key2], [], {'CC_lat': 0.0, 'CC_lon': 0.0}, time_range)
+        sr = StreamRequest([stream_key1, stream_key2], [], {'CC_lat': [{'start': self.first, 'stop': self.last, 'value': 0.0}], 'CC_lon': [{'start': self.first, 'stop': self.last, 'value': 0.0}]}, time_range)
         particles = json.loads(''.join(list(sr.particle_generator())))
 
         self.assertEqual(len(particles), 100)
