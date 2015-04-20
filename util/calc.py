@@ -565,11 +565,12 @@ class StreamRequest(object):
                     variables[param_id] = group.createVariable(param.name,
                                                                data.dtype,
                                                                dims,
-                                                               fill_value=param.fill_value,
                                                                zlib=True)
 
                     if param.unit is not None:
                         variables[param_id].units = param.unit
+                    if param.fill_value is not None:
+                        variables[param_id].fill_value = param.fill_value
                     if param.description is not None:
                         variables[param_id].long_name = param.description
                     if param.display_name is not None:
