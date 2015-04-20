@@ -555,28 +555,23 @@ class StreamRequest(object):
                             groups[source] = ncfile.createGroup(source)
                         group = groups[source]
 
-                    if len(data.shape) == 1:
-                        variables[param_id] = group.createVariable(param.name,
-                                                                   data.dtype,
-                                                                   ('time',),
-                                                                   zlib=True)
-                    else:
-                        dims = ['time']
+                    dims = ['time']
+                    if len(data.shape) > 1:
                         for index, dimension in enumerate(data.shape[1:]):
                             name = '%s_dim_%d' % (param.name, index)
                             group.createDimension(name, dimension)
                             dims.append(name)
-                        variables[param_id] = group.createVariable(param.name,
-                                                                   data.dtype,
-                                                                   dims,
-                                                                   zlib=True)
+
+                    variables[param_id] = group.createVariable(param.name,
+                                                               data.dtype,
+                                                               dims,
+                                                               fill_value=param.fill_value,
+                                                               zlib=True)
 
                     if param.unit is not None:
                         variables[param_id].units = param.unit
                     if param.description is not None:
                         variables[param_id].long_name = param.description
-                    if param.fill_value is not None:
-                        variables[param_id]._FillValue = param.fill_value
                     if param.display_name is not None:
                         variables[param_id].display_name = param.display_name
                     if param.data_product_identifier is not None:
