@@ -52,6 +52,8 @@ class StreamKey(object):
         if stream not in stream_cache:
             stream_cache[stream] = CachedStream.from_stream(Stream.query.filter(Stream.name == stream).first())
         self.stream = stream_cache[stream]
+        # convenience property
+        self.needs_cc = set().union(*[param.needs_cc for param in self.stream.parameters if param.parameter_type == FUNCTION])
 
     @staticmethod
     def from_dict(d):

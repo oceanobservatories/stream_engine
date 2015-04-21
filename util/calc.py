@@ -49,7 +49,7 @@ def get_particles(streams, start, stop, coefficients, limit=None):
             parameters.append(CachedParameter.from_id(p))
     time_range = TimeRange(start, stop)
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit)
-    return stream_request.particle_generator()
+    return Particle_Generator(Chunk_Generator()).chunks(stream_request)
 
 
 @log_timing
@@ -61,7 +61,7 @@ def get_netcdf(streams, start, stop, coefficients, limit=None):
             parameters.append(CachedParameter.from_id(p))
     time_range = TimeRange(start, stop)
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit)
-    return stream_request.netcdf_generator()
+    return NetCDF_Generator(Chunk_Generator()).chunks(stream_request)
 
 
 @log_timing
@@ -74,9 +74,8 @@ def get_needs(streams):
     stream_request = StreamRequest(stream_keys, parameters, {}, None, needs_only=True)
 
     stream_list = []
-    for stream in stream_request.streams:
-        sk = stream.stream_key
-        needs = stream.needs_cc
+    for sk in stream_request.stream_keys:
+        needs = list(sk.needs_cc)
         d = sk.as_dict()
         d['coefficients'] = needs
         stream_list.append(d)
@@ -385,12 +384,12 @@ class DataStream(object):
 
 
 class StreamRequest(object):
+
     def __init__(self, stream_keys, parameters, coefficients, time_range, needs_only=False, limit=None):
         self.stream_keys = stream_keys
         self.time_range = time_range
         self.parameters = parameters
         self.coefficients = coefficients
-        self.streams = []
         self.needs_cc = None
         self.needs_params = None
         self.limit = limit
@@ -405,7 +404,6 @@ class StreamRequest(object):
         for key in self.stream_keys:
             if key in handled:
                 abort(400)
-            self.streams.append(self._create_data_stream(key))
             handled.append(key)
 
         # populate self.parameters if empty or None
@@ -444,15 +442,14 @@ class StreamRequest(object):
             if not any([sensor1 is None, stream1 is None]):
                 new_stream_key = StreamKey.from_stream_key(self.stream_keys[0], sensor1, stream1.name)
                 self.stream_keys.append(new_stream_key)
-                self.streams.append(self._create_data_stream(new_stream_key))
                 found = found.union(stream1.parameters)
         found = [p.id for p in found]
 
         self.needs_params = needs.difference(found)
 
         needs_cc = set()
-        for stream in self.streams:
-            needs_cc = needs_cc.union(stream.needs_cc)
+        for sk in self.stream_keys:
+            needs_cc = needs_cc.union(sk.needs_cc)
 
         self.needs_cc = needs_cc.difference(self.coefficients.keys())
 
@@ -470,6 +467,15 @@ class StreamRequest(object):
             raise CoefficientUnavailableException('Missing calibration coefficients',
                                                   payload={'coefficients': list(self.needs_cc)})
 
+
+class Chunk_Generator(object):
+
+    def __init__(self):
+        self.streams = None
+        self.parameters = None
+        self.coefficients = None
+        self.time_range = None
+
     def _create_data_stream(self, stream_key):
         if stream_key.stream is None:
             raise InvalidStreamException('The requested stream does not exist in preload',
@@ -480,6 +486,7 @@ class StreamRequest(object):
     def _query_all(self):
         for stream in self.streams:
             stream.async_query()
+
     def _terminate_all(self):
         for stream in self.streams:
             stream.terminate_query()
@@ -503,21 +510,6 @@ class StreamRequest(object):
         except StreamEngineException:
             pass
 
-    def chunk_to_particles(self, chunk):
-        pk = self.stream_keys[0].as_dict()
-
-        for index, t in enumerate(chunk[7]['data']):
-            particle = OrderedDict()
-            particle['pk'] = pk
-            pk['time'] = t
-            for param in self.parameters:
-                if param.id in chunk:
-                    value = chunk[param.id]['data'][index]
-                    if type(value) == numpy.ndarray:
-                        value = value.tolist()
-                    particle[param.name] = value
-            yield json.dumps(particle, indent=2)
-
     def _get_param(self, pdid, chunk):
         for stream in self.streams[1:]:
             if stream.provides(pdid):
@@ -534,40 +526,75 @@ class StreamRequest(object):
                 else:
                     self._get_param(parameter.id, chunk)
 
-    def particle_generator(self):
+    def chunks(self, r):
+        self.parameters = r.parameters
+        self.coefficients = r.coefficients
+        self.time_range = r.time_range
+        self.streams = [self._create_data_stream(key) for key in r.stream_keys]
+
         self._query_all()
+        for chunk in self.streams[0].create_generator(None):
+            self._execute_dpas_chunk(chunk)
+            yield(chunk)
+
+
+class Particle_Generator(object):
+
+    def __init__(self, generator):
+        self.generator = generator
+
+    def chunk_to_particles(self, stream_key, parameters, chunk):
+        pk = stream_key.as_dict()
+
+        for index, t in enumerate(chunk[7]['data']):
+            particle = OrderedDict()
+            particle['pk'] = pk
+            pk['time'] = t
+            for param in parameters:
+                if param.id in chunk:
+                    value = chunk[param.id]['data'][index]
+                    if type(value) == numpy.ndarray:
+                        value = value.tolist()
+                    particle[param.name] = value
+            yield json.dumps(particle, indent=2)
+
+    def chunks(self, r):
         count = 0
         yield '[ '
         try:
             first = True
-            for chunk in self.streams[0].create_generator(None):
-                self._execute_dpas_chunk(chunk)
-                for particle in self.chunk_to_particles(chunk):
+            for chunk in self.generator.chunks(r):
+                for particle in self.chunk_to_particles(r.stream_keys[0], r.parameters, chunk):
                     count += 1
                     if first:
                         first = False
                     else:
                         yield ', '
                     yield particle
-                if self.limit is not None :
-                    if self.limit <= count :
+                if r.limit is not None :
+                    if r.limit <= count :
                         break
         except Exception as e:
             yield repr(e)
         finally:
             yield ' ]'
-        self._terminate_all()
+        self.generator._terminate_all()
 
-    def netcdf_generator(self):
-        self._query_all()
+
+class NetCDF_Generator(object):
+
+    def __init__(self, generator):
+        self.generator = generator
+
+    def chunks(self, r):
         with tempfile.NamedTemporaryFile() as tf:
             with netCDF4.Dataset(tf.name, 'w', format='NETCDF4') as ncfile:
                 # set up file level attributes
-                ncfile.subsite = self.stream_keys[0].subsite
-                ncfile.node = self.stream_keys[0].node
-                ncfile.sensor = self.stream_keys[0].sensor
-                ncfile.collection_method = self.stream_keys[0].method
-                ncfile.stream = self.stream_keys[0].stream.name
+                ncfile.subsite = r.stream_keys[0].subsite
+                ncfile.node = r.stream_keys[0].node
+                ncfile.sensor = r.stream_keys[0].sensor
+                ncfile.collection_method = r.stream_keys[0].method
+                ncfile.stream = r.stream_keys[0].stream.name
 
                 # create the time dimension in the root group
                 ncfile.createDimension('time', None)
@@ -579,9 +606,8 @@ class StreamRequest(object):
                 variables = {}
 
                 # grab the first chunk of data
-                chunk_generator = self.streams[0].create_generator(None)
+                chunk_generator = self.generator.chunks(r)
                 first_chunk = chunk_generator.next()
-                self._execute_dpas_chunk(first_chunk)
 
                 # sometimes we will get duplicate timestamps
                 # INITIAL solution is to remove any duplicate timestamps
@@ -643,7 +669,6 @@ class StreamRequest(object):
                     chunk_valid = numpy.diff(numpy.insert(chunk_times, 0, last_timestamp)) != 0
                     last_timestamp = chunk_times[chunk_valid][-1]
 
-                    self._execute_dpas_chunk(chunk)
                     index = len(variables[7])
                     for param_id in chunk:
                         data = chunk[param_id]['data']
