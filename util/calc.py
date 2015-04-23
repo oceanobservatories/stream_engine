@@ -7,7 +7,6 @@ import netCDF4
 from threading import Event
 import numexpr
 import numpy
-from scipy.interpolate import griddata
 from werkzeug.exceptions import abort
 from engine import app
 from collections import OrderedDict
@@ -15,6 +14,9 @@ from util.cass import get_streams, fetch_data, get_distinct_sensors
 from util.common import log_timing, StreamKey, TimeRange, CachedParameter, UnknownEncodingException, \
     FUNCTION, CoefficientUnavailableException, parse_pdid, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, StreamUnavailableException, InvalidStreamException
+import bisect
+from util import common
+from util import chunks
 
 
 def find_stream(stream_key, streams, distinct_sensors):
@@ -80,49 +82,6 @@ def get_needs(streams):
         d['coefficients'] = needs
         stream_list.append(d)
     return stream_list
-
-
-def stretch(times, data, interp_times):
-    if len(times) == 1:
-        return interp_times, data * len(interp_times)
-    if interp_times[0] < times[0]:
-        times.insert(0, interp_times[0])
-        data.insert(0, data[0])
-    if interp_times[-1] > times[-1]:
-        times.append(interp_times[-1])
-        data.append(data[-1])
-    return times, data
-
-
-def interpolate(times, data, interp_times):
-    data = numpy.array(data)
-
-    if numpy.array_equal(times, interp_times):
-        return times, data
-    try:
-        # data = data.astype('f64')
-        data = griddata(times, data, interp_times, method='linear')
-    except ValueError:
-        data = last_seen(times, data, interp_times)
-    return interp_times, data
-
-
-def last_seen(times, data, interp_times):
-    time_index = 0
-    last = data[0]
-    next_time = times[1]
-    new_data = []
-    for t in interp_times:
-        while t >= next_time:
-            time_index += 1
-            if time_index + 1 < len(times):
-                next_time = times[time_index + 1]
-                last = data[time_index]
-            else:
-                last = data[time_index]
-                break
-        new_data.append(last)
-    return numpy.array(new_data)
 
 
 def handle_byte_buffer(data, encoding, shape):
@@ -378,14 +337,14 @@ class DataStream(object):
 
     def get_param_interp(self, pdid, interp_times):
         times, data = self.get_param(pdid, TimeRange(interp_times[0], interp_times[-1]))
-        times, data = stretch(times, data, interp_times)
-        times, data = interpolate(times, data, interp_times)
+        times, data = common.stretch(times, data, interp_times)
+        times, data = common.interpolate(times, data, interp_times)
         return times, data
 
 
 class StreamRequest(object):
 
-    def __init__(self, stream_keys, parameters, coefficients, time_range, needs_only=False, limit=None):
+    def __init__(self, stream_keys, parameters, coefficients, time_range, needs_only=False, limit=None, times=None):
         self.stream_keys = stream_keys
         self.time_range = time_range
         self.parameters = parameters
@@ -393,6 +352,7 @@ class StreamRequest(object):
         self.needs_cc = None
         self.needs_params = None
         self.limit = limit
+        self.times = times
         self._initialize(needs_only)
 
     def _initialize(self, needs_only):
@@ -675,3 +635,69 @@ class NetCDF_Generator(object):
                         variables[param_id][index:] = data[chunk_valid]
 
             return tf.read()
+
+
+class Average_Generator(object):
+
+    def __init__(self, generator):
+        self.generator = generator
+
+    def chunks(self, r):
+        times = r.times
+        remaining_chunk = None
+        for chunk in self.generator.chunks(r):
+            if remaining_chunk and len(remaining_chunk[7]['data']) > 0:
+                chunk = chunks.join(remaining_chunk, chunk)
+
+            #Find rightmost index of times less than or equal to last_time
+            last_time = chunk[7]['data'][-1]
+            i = bisect.bisect_right(times, last_time) - 1
+            if i >= 0:
+                # split chunk into remaining and averaging chunks
+                j = numpy.searchsorted(chunk[7]['data'], times[i])
+                avg_chunk, remaining_chunk = chunks.split(chunk, j)
+                avg_times = times[:i]
+                times = times[i:]
+                avg_chunk = chunks.average(avg_chunk, avg_times)
+                if len(avg_chunk[7]['data']) > 0:
+                    yield avg_chunk
+
+            if len(times) == 1:
+                break
+
+        if len(times) > 1:
+            j = numpy.searchsorted(remaining_chunk[7]['data'], times[-1])
+            chunk = chunks.split(remaining_chunk, j)
+            yield chunks.average(chunk, times[:-1])
+
+
+class Interpolation_Generator(object):
+
+    def __init__(self, generator):
+        self.generator = generator
+
+    def chunks(self, r):
+        times = r.times
+        remaining_chunk = None
+        for chunk in self.generator.chunks(r):
+            if remaining_chunk and len(remaining_chunk[7]['data']) > 0:
+                chunk = chunks.join(remaining_chunk, chunk)
+
+            #Find rightmost index of times less than or equal to last_time
+            last_time = chunk[7]['data'][-1]
+            i = bisect.bisect_right(times, last_time) - 1
+            if i < 0:
+                remaining_chunk = chunks.split(chunk, -1)
+            else:
+                # save last data point for next interpolation
+                j = numpy.searchsorted(chunk[7]['data'], times[i]) + 1
+                remaining_chunk = chunks.split(chunk, j)[1]
+
+                yield chunks.interpolate(chunk, times[:i+1])
+                times = times[i+1:]
+
+            if len(times) == 0:
+                break
+
+        if len(times) > 1:
+            yield chunks.interpolate(remaining_chunk, times)

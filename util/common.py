@@ -2,12 +2,76 @@ from functools import wraps
 import time
 from engine import app
 from model.preload import Stream, Parameter
+import numpy
+from scipy.interpolate import griddata
 
 FUNCTION = 'function'
 
 stream_cache = {}
 parameter_cache = {}
 function_cache = {}
+
+
+def with_size_and_fill(a, size):
+    """
+    Return array with same dtype and shape as a, but with axis 0 of length size.
+    The resulting array will be filled with appropriate values for the dtype.  Currently,
+    this is only numpy.NAN.
+    :param a: array
+    :param size: scalar
+    :return: array with same dtype and shape as a, but with axis 0 of length size.
+    """
+    shape = a.shape
+    dtype = a.dtype
+    x = numpy.empty((size,) + shape[1:], dtype)
+    # TODO: Fill with appropriate value for dtype
+    x.fill(numpy.NAN)
+    return x
+
+
+def stretch(times, data, interp_times):
+    if len(times) == 1:
+        new_data = with_size_and_fill(data, len(interp_times))
+        new_data[:] = data[0]
+        return interp_times, new_data
+    if interp_times[0] < times[0]:
+        times.insert(0, interp_times[0])
+        data.insert(0, data[0])
+    if interp_times[-1] > times[-1]:
+        times.append(interp_times[-1])
+        data.append(data[-1])
+    return times, data
+
+
+def interpolate(times, data, interp_times):
+    data = numpy.array(data)
+
+    if numpy.array_equal(times, interp_times):
+        return times, data
+    try:
+        # data = data.astype('f64')
+        data = griddata(times, data, interp_times, method='linear')
+    except ValueError:
+        data = last_seen(times, data, interp_times)
+    return interp_times, data
+
+
+def last_seen(times, data, interp_times):
+    time_index = 0
+    last = data[0]
+    next_time = times[1]
+    new_data = []
+    for t in interp_times:
+        while t >= next_time:
+            time_index += 1
+            if time_index + 1 < len(times):
+                next_time = times[time_index + 1]
+                last = data[time_index]
+            else:
+                last = data[time_index]
+                break
+        new_data.append(last)
+    return numpy.array(new_data)
 
 
 def log_timing(func):
