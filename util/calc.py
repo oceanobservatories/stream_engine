@@ -7,7 +7,6 @@ import netCDF4
 from threading import Event
 import numexpr
 import numpy
-from scipy.interpolate import griddata
 from werkzeug.exceptions import abort
 from engine import app
 from collections import OrderedDict
@@ -15,6 +14,10 @@ from util.cass import get_streams, fetch_data, get_distinct_sensors
 from util.common import log_timing, StreamKey, TimeRange, CachedParameter, UnknownEncodingException, \
     FUNCTION, CoefficientUnavailableException, parse_pdid, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, StreamUnavailableException, InvalidStreamException
+import bisect
+from util import common
+from util import chunks
+from util.chunks import Chunk
 
 
 def find_stream(stream_key, streams, distinct_sensors):
@@ -40,28 +43,45 @@ def find_stream(stream_key, streams, distinct_sensors):
     return None, None
 
 
+def get_generator(custom_times=None, custom_type=None):
+    if custom_times is None:
+        return Chunk_Generator()
+    else:
+        # Make sure custom_times is strictly increasing and has at least
+        # two values
+        if len(custom_times) < 2:
+            abort(400)
+        if any(custom_times[i] >= custom_times[i + 1] for i in range(len(custom_times) - 1)):
+            abort(400)
+
+        if custom_type != 'average':
+            return Interpolation_Generator(Chunk_Generator())
+        else:
+            return Average_Generator(Chunk_Generator())
+
+
 @log_timing
-def get_particles(streams, start, stop, coefficients, limit=None):
+def get_particles(streams, start, stop, coefficients, limit=None, custom_times=None, custom_type=None):
     stream_keys = [StreamKey.from_dict(d) for d in streams]
     parameters = []
     for s in streams:
         for p in s.get('parameters', []):
             parameters.append(CachedParameter.from_id(p))
     time_range = TimeRange(start, stop)
-    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit)
-    return Particle_Generator(Chunk_Generator()).chunks(stream_request)
+    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit, times=custom_times)
+    return Particle_Generator(get_generator(custom_times, custom_type)).chunks(stream_request)
 
 
 @log_timing
-def get_netcdf(streams, start, stop, coefficients, limit=None):
+def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None, custom_type=None):
     stream_keys = [StreamKey.from_dict(d) for d in streams]
     parameters = []
     for s in streams:
         for p in s.get('parameters', []):
             parameters.append(CachedParameter.from_id(p))
     time_range = TimeRange(start, stop)
-    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit)
-    return NetCDF_Generator(Chunk_Generator()).chunks(stream_request)
+    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit, times=custom_times)
+    return NetCDF_Generator(get_generator(custom_times, custom_type)).chunks(stream_request)
 
 
 @log_timing
@@ -80,49 +100,6 @@ def get_needs(streams):
         d['coefficients'] = needs
         stream_list.append(d)
     return stream_list
-
-
-def stretch(times, data, interp_times):
-    if len(times) == 1:
-        return interp_times, data * len(interp_times)
-    if interp_times[0] < times[0]:
-        times.insert(0, interp_times[0])
-        data.insert(0, data[0])
-    if interp_times[-1] > times[-1]:
-        times.append(interp_times[-1])
-        data.append(data[-1])
-    return times, data
-
-
-def interpolate(times, data, interp_times):
-    data = numpy.array(data)
-
-    if numpy.array_equal(times, interp_times):
-        return times, data
-    try:
-        # data = data.astype('f64')
-        data = griddata(times, data, interp_times, method='linear')
-    except ValueError:
-        data = last_seen(times, data, interp_times)
-    return interp_times, data
-
-
-def last_seen(times, data, interp_times):
-    time_index = 0
-    last = data[0]
-    next_time = times[1]
-    new_data = []
-    for t in interp_times:
-        while t >= next_time:
-            time_index += 1
-            if time_index + 1 < len(times):
-                next_time = times[time_index + 1]
-                last = data[time_index]
-            else:
-                last = data[time_index]
-                break
-        new_data.append(last)
-    return numpy.array(new_data)
 
 
 def handle_byte_buffer(data, encoding, shape):
@@ -378,14 +355,14 @@ class DataStream(object):
 
     def get_param_interp(self, pdid, interp_times):
         times, data = self.get_param(pdid, TimeRange(interp_times[0], interp_times[-1]))
-        times, data = stretch(times, data, interp_times)
-        times, data = interpolate(times, data, interp_times)
+        times, data = common.stretch(times, data, interp_times)
+        times, data = common.interpolate(times, data, interp_times)
         return times, data
 
 
 class StreamRequest(object):
 
-    def __init__(self, stream_keys, parameters, coefficients, time_range, needs_only=False, limit=None):
+    def __init__(self, stream_keys, parameters, coefficients, time_range, needs_only=False, limit=None, times=None):
         self.stream_keys = stream_keys
         self.time_range = time_range
         self.parameters = parameters
@@ -393,6 +370,7 @@ class StreamRequest(object):
         self.needs_cc = None
         self.needs_params = None
         self.limit = limit
+        self.times = times
         self._initialize(needs_only)
 
     def _initialize(self, needs_only):
@@ -675,3 +653,124 @@ class NetCDF_Generator(object):
                         variables[param_id][index:] = data[chunk_valid]
 
             return tf.read()
+
+
+class Average_Generator(object):
+    """
+    Generator to average chunks into time bins.
+    """
+
+    def __init__(self, generator):
+        self.generator = generator
+
+    def chunks(self, r):
+        """
+        Generator to average chunks into time bins.  Expects a list of times
+        to be provided in the request r.  Times is a monotonically increasing
+        list of ntp times.  Each time bin i that will be averaged is defined by
+        (times[i] inclusively,times[j] exclusively).
+
+        If the underlying generator has no chunks this generator will return
+        no chunks.  In the future it may be better to return a empty chunk
+        extended to the times specified, but without something to use as a
+        template, this code would not know how to generate a chunk compatible
+        with the data stream.
+
+        :param r:
+        :return:
+        """
+        times = r.times
+        first_chunk = None
+        remaining_chunk = None
+        for chunk in self.generator.chunks(r):
+            chunk = Chunk(chunk)
+            if first_chunk is None:
+                first_chunk = chunk
+
+            if remaining_chunk:
+                chunk = chunks.concatenate(remaining_chunk, chunk)
+
+            # Find bin for the last time in the chunk
+            # Find rightmost index of times less than or equal to last_time
+            last_time = chunk.times()[-1]
+            i = bisect.bisect_right(times, last_time) - 1
+            if i >= 0:
+                # Find index in chunk that starts the bin identified above and
+                # split the chunk into averaging and remaining chunks
+                j = numpy.searchsorted(chunk.times(), times[i])
+                avg_chunk = chunk[:j]
+                remaining_chunk = chunk[j:]
+                avg_times = times[:i]
+                times = times[i:]
+
+                # Yield the average
+                if avg_times:
+                    avg_chunk = avg_chunk.with_times(avg_times, strategy='Average')
+                    yield avg_chunk.to_dict()
+
+            # Break when done processing last bin
+            if len(times) < 2:
+                break
+
+        # Average any remaining data
+        if (first_chunk or remaining_chunk) and len(times) >= 2:
+            if remaining_chunk is None:
+                remaining_chunk = first_chunk
+            yield remaining_chunk.with_times(times[:-1], strategy='Average').to_dict()
+
+    def _terminate_all(self):
+        self.generator._terminate_all()
+
+
+class Interpolation_Generator(object):
+    """
+    Generator to interpolate chunks to times.
+    """
+
+    def __init__(self, generator):
+        self.generator = generator
+
+    def chunks(self, r):
+        """
+        Generator to interpolate chunks to times.  Expects a list of times
+        to be provided in the request r.  Times is a monotonically increasing
+        list of ntp times.
+
+        If the underlying generator has no chunks this generator will return
+        no chunks.  In the future it may be better to return a empty chunk
+        extended to the times specified, but without something to use as a
+        template, this code would not know how to generate a chunk compatible
+        with the data stream.
+
+        :param r:
+        :return:
+        """
+        times = r.times
+        # Save the last data point of chunk i to help interpolate times[0] of
+        # iteration j.  Chunk i comes before time[0] of iteration j, but chunk j
+        # may come after.
+        remaining_chunk = None
+        for chunk in self.generator.chunks(r):
+            chunk = Chunk(chunk)
+            if remaining_chunk:
+                chunk = chunks.concatenate(remaining_chunk, chunk)
+            remaining_chunk = chunk[-1]
+
+            # Find the times that can be interpolated by this chunk,
+            # Find rightmost index of times less than or equal to last_time
+            last_time = chunk.times()[-1]
+            i = bisect.bisect_right(times, last_time) - 1
+            if i >= 0:
+                yield chunk.with_times(times[:i+1]).to_dict()
+                times = times[i+1:]
+
+            # Break if we have processed all the times.
+            if len(times) == 0:
+                break
+
+        # Interpolate any times we have left
+        if remaining_chunk and len(times) > 0:
+            yield remaining_chunk.with_times(times).to_dict()
+
+    def _terminate_all(self):
+        self.generator._terminate_all()
