@@ -332,6 +332,11 @@ class DataStream(object):
                         data_slice = numpy.array(temp).reshape(shape)
                     else:
                         data_slice = handle_byte_buffer(''.join(data_slice), p.value_encoding, shape)
+
+                nones = numpy.equal(data_slice, None)
+                if numpy.any(nones):
+                    data_slice[nones] = p.fill_value
+
                 data_slice = numpy.array(data_slice.tolist())
                 self.data_cache[p.id] = {
                     'data': data_slice,
