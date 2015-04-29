@@ -12,9 +12,9 @@ from engine.routes import app
 from engine import db
 from model.preload import Parameter, Stream
 from util.cass import fetch_data, global_cassandra_state, get_distinct_sensors, get_streams, stream_exists
-from util.common import StreamKey, TimeRange, CachedStream, CachedParameter
+from util.common import StreamKey, TimeRange, CachedStream, CachedParameter, stretch, interpolate
 from util.preload_insert import create_db
-from util.calc import StreamRequest, Chunk_Generator, Particle_Generator, find_stream, stretch, interpolate, handle_byte_buffer, execute_dpa, build_func_map, in_range, build_CC_argument
+from util.calc import StreamRequest, Chunk_Generator, Particle_Generator, find_stream, handle_byte_buffer, execute_dpa, build_func_map, in_range, build_CC_argument
 
 
 TEST_DIR = os.path.dirname(__file__)
