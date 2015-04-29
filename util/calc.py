@@ -321,6 +321,16 @@ class DataStream(object):
             fields = self.row_cache[0]._fields
             array = numpy.array(self.row_cache)
 
+            # Start - Special case to forward Deployment Number
+            index = fields.index('deployment')
+            data_slice = array[:, index]
+            data_slice = numpy.array(data_slice.tolist())
+            self.data_cache['deployment'] = {
+                'data': data_slice,
+                'source': source
+            }
+            # Stop - Special case to forward Deployment Number
+
             for p in parameters:
                 index = fields.index(p.name.lower())
                 data_slice = array[:, index]
@@ -555,6 +565,7 @@ class Particle_Generator(object):
             particle = OrderedDict()
             particle['pk'] = pk
             pk['time'] = t
+            pk['deployment'] = chunk['deployment']['data'][index]
             for param in parameters:
                 if param.id in chunk:
                     value = chunk[param.id]['data'][index]
