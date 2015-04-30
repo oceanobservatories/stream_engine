@@ -1,4 +1,4 @@
-from Queue import Queue
+from Queue import Queue, Empty
 import importlib
 import json
 import struct
@@ -7,10 +7,11 @@ import netCDF4
 from threading import Event
 import numexpr
 import numpy
+import time
 from werkzeug.exceptions import abort
 from engine import app
-from collections import OrderedDict
-from util.cass import get_streams, fetch_data, get_distinct_sensors
+from collections import OrderedDict, namedtuple
+from util.cass import get_streams, fetch_data, get_distinct_sensors, fetch_nth_data
 from util.common import log_timing, StreamKey, TimeRange, CachedParameter, UnknownEncodingException, \
     FUNCTION, CoefficientUnavailableException, parse_pdid, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, StreamUnavailableException, InvalidStreamException
@@ -18,6 +19,7 @@ import bisect
 from util import common
 from util import chunks
 from util.chunks import Chunk
+import pandas as pd
 
 
 def find_stream(stream_key, streams, distinct_sensors):
@@ -29,16 +31,16 @@ def find_stream(stream_key, streams, distinct_sensors):
     stream_map = {s.name: s for s in streams}
 
     # check our specific reference designator first
-    for row in get_streams(stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method):
-        if row.stream in stream_map:
-            return stream_key.sensor, stream_map[row.stream]
+    for stream in get_streams(stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method):
+        if stream in stream_map:
+            return stream_key.sensor, stream_map[stream]
 
     # check other reference designators in the same family
     for subsite1, node1, sensor in distinct_sensors:
         if subsite1 == stream_key.subsite and node1 == stream_key.node:
-            for row in get_streams(stream_key.subsite, stream_key.node, sensor, stream_key.method):
-                if row.stream in stream_map:
-                    return sensor, stream_map[row.stream]
+            for stream in get_streams(stream_key.subsite, stream_key.node, sensor, stream_key.method):
+                if stream in stream_map:
+                    return sensor, stream_map[stream]
 
     return None, None
 
@@ -51,7 +53,7 @@ def get_generator(time_range, custom_times=None, custom_type=None):
         # two values
         if len(custom_times) < 2:
             abort(400)
-        if any(custom_times[i] >= custom_times[i + 1] for i in range(len(custom_times) - 1)):
+        if any(numpy.diff(custom_times) <= 0):
             abort(400)
 
         if custom_type != 'average':
@@ -70,6 +72,12 @@ def get_particles(streams, start, stop, coefficients, limit=None, custom_times=N
         for p in s.get('parameters', []):
             parameters.append(CachedParameter.from_id(p))
     time_range = TimeRange(start, stop)
+    if custom_times is None and limit is not None:
+        custom_times = numpy.linspace(start, stop, num=limit)
+    elif limit is not None:
+        custom_times = custom_times[:limit]
+        time_range.stop = custom_times[-1]
+
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit, times=custom_times)
     return Particle_Generator(get_generator(time_range, custom_times, custom_type)).chunks(stream_request)
 
@@ -212,7 +220,7 @@ def build_CC_argument(frames, times):
 
 
 class DataStream(object):
-    def __init__(self, stream_key, time_range):
+    def __init__(self, stream_key, time_range, limit=None):
         self.stream_key = stream_key
         self.query_time_range = time_range
         self.available_time_range = TimeRange(0, 0)
@@ -227,7 +235,9 @@ class DataStream(object):
         self.func_params = []
         self.times = []
         self.needs_cc = []
+        self.cols = None
         self.terminate = False
+        self.limit = limit
         self._initialize()
 
     def _initialize(self):
@@ -243,10 +253,15 @@ class DataStream(object):
         return key in self.id_map
 
     def async_query(self):
-        self.future = fetch_data(self.stream_key, self.query_time_range)
+        if self.limit is not None:
+            self.cols, self.future = fetch_nth_data(self.stream_key, self.query_time_range, num_points=self.limit)
+        else:
+            self.cols, self.future = fetch_data(self.stream_key, self.query_time_range)
         self.future.add_callbacks(callback=self.handle_page, errback=self.handle_error)
 
     def handle_page(self, rows):
+        Row = namedtuple('Row', self.cols, rename=True)
+        rows = [Row(*row) for row in rows]
         self.queue.put(rows)
         if self.future.has_more_pages and not self.terminate:
             self.future.start_fetching_next_page()
@@ -261,14 +276,20 @@ class DataStream(object):
         self.finished_event.set()
 
     def _get_chunk(self):
-        chunk = self.queue.get()
-        if hasattr(chunk, '_asdict'):
-            self.row_cache.append(chunk)
-        else:
-            self.row_cache.extend(chunk)
+        # try/except because we can reach this code occasionally
+        # when the query is complete but the complete flag hasn't
+        # been set.
+        try:
+            chunk = self.queue.get_nowait()
+            if hasattr(chunk, '_asdict'):
+                self.row_cache.append(chunk)
+            else:
+                self.row_cache.extend(chunk)
 
-        self.available_time_range.start = self.row_cache[0].time
-        self.available_time_range.stop = self.row_cache[-1].time
+            self.available_time_range.start = self.row_cache[0].time
+            self.available_time_range.stop = self.row_cache[-1].time
+        except Empty:
+            time.sleep(.001)
 
     def create_generator(self, parameters):
         """
@@ -295,27 +316,23 @@ class DataStream(object):
             }
 
             if len(self.row_cache) == 0:
-                raise StopIteration()
+                continue
 
             fields = self.row_cache[0]._fields
-            array = numpy.array(self.row_cache)
+            df = pd.DataFrame(self.row_cache, columns=fields)
 
             # Start - Special case to forward Deployment Number
-            index = fields.index('deployment')
-            data_slice = array[:, index]
-            data_slice = numpy.array(data_slice.tolist())
             self.data_cache['deployment'] = {
-                'data': data_slice,
+                'data': df.deployment,
                 'source': source
             }
             # Stop - Special case to forward Deployment Number
 
             for p in parameters:
-                index = fields.index(p.name.lower())
-                data_slice = array[:, index]
+                data_slice = df[p.name]
                 shape_name = p.name + '_shape'
                 if shape_name in fields:
-                    shape = [len(array)] + array[0, fields.index(shape_name)]
+                    shape = [len(data_slice)] + df[shape_name][0]
                     if p.value_encoding == 'string':
                         temp = [item for sublist in data_slice for item in sublist]
                         data_slice = numpy.array(temp).reshape(shape)
@@ -331,7 +348,6 @@ class DataStream(object):
                     'data': data_slice,
                     'source': source
                 }
-
             yield self.data_cache
 
     def get_param(self, pdid, time_range):
@@ -471,12 +487,12 @@ class Chunk_Generator(object):
         self.coefficients = None
         self.time_range = None
 
-    def _create_data_stream(self, stream_key):
+    def _create_data_stream(self, stream_key, limit):
         if stream_key.stream is None:
             raise InvalidStreamException('The requested stream does not exist in preload',
                                          payload={'stream': stream_key.as_dict()})
 
-        return DataStream(stream_key, self.time_range)
+        return DataStream(stream_key, self.time_range, limit)
 
     def _query_all(self):
         for stream in self.streams:
@@ -525,7 +541,7 @@ class Chunk_Generator(object):
         self.parameters = r.parameters
         self.coefficients = r.coefficients
         self.time_range = r.time_range
-        self.streams = [self._create_data_stream(key) for key in r.stream_keys]
+        self.streams = [self._create_data_stream(key, r.limit) for key in r.stream_keys]
 
         self._query_all()
         for chunk in self.streams[0].create_generator(None):
@@ -571,7 +587,8 @@ class Particle_Generator(object):
                     if r.limit <= count :
                         break
         except Exception as e:
-            yield repr(e)
+            import traceback
+            yield traceback.format_exc()
         finally:
             yield ' ]'
         self.generator._terminate_all()

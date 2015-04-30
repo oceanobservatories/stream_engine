@@ -72,7 +72,7 @@ class Chunk(object):
 
         :return: Chunk
         """
-        if any([not self, not times]):
+        if any([not self, len(times) == 0]):
             dict_ = {}
             for key in self.__dict:
                 if key != 7:
