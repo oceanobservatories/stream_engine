@@ -14,7 +14,8 @@ from model.preload import Parameter, Stream
 from util.cass import fetch_data, global_cassandra_state, get_distinct_sensors, get_streams, stream_exists
 from util.common import StreamKey, TimeRange, CachedStream, CachedParameter, stretch, interpolate
 from util.preload_insert import create_db
-from util.calc import StreamRequest, Chunk_Generator, Particle_Generator, find_stream, handle_byte_buffer, execute_dpa, build_func_map, in_range, build_CC_argument
+from util.calc import StreamRequest, Chunk_Generator, Particle_Generator, find_stream, handle_byte_buffer, execute_dpa, build_func_map, in_range, build_CC_argument, \
+    Interpolation_Generator
 
 
 TEST_DIR = os.path.dirname(__file__)
@@ -36,21 +37,17 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
 
     @classmethod
     def setUpClass(cls):
+        os.chdir(TEST_DIR)
+        subprocess.call(['cqlsh', '-f', 'load.cql'])
+
         if not os.path.exists(app.config['DBFILE_LOCATION']):
             create_db()
 
         app.config['CASSANDRA_KEYSPACE'] = StreamUnitTest.TEST_KEYSPACE
-        #app.config['SQLALCHEMY_ECHO'] = True
 
         cluster = Cluster(app.config['CASSANDRA_CONTACT_POINTS'],
                           control_connection_timeout=app.config['CASSANDRA_CONNECT_TIMEOUT'])
         global_cassandra_state['cluster'] = cluster
-        session = cluster.connect()
-
-        os.chdir(TEST_DIR)
-        subprocess.call(['cqlsh', '-f', 'load.cql'])
-
-        session.set_keyspace(StreamUnitTest.TEST_KEYSPACE)
 
     def setUp(self):
         app.config['TESTING'] = True
@@ -126,14 +123,14 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
 
     def test_get_streams(self):
         streams = get_streams(self.subsite, self.node, self.sensor, self.method)
-        streams = [s.stream for s in streams]
+        streams = [s for s in streams]
         self.assertListEqual(streams,
                              [u'ctdbp_no_calibration_coefficients', u'ctdbp_no_sample'])
 
     def test_fetch_data(self):
         stream_key = StreamKey(self.subsite, self.node, self.sensor, self.method, 'ctdbp_no_sample')
         time_range = TimeRange(self.first, self.last)
-        future = fetch_data(stream_key, time_range)
+        cols, future = fetch_data(stream_key, time_range)
         data = future.result()
         self.assertTrue(len(data) == 100)
 
@@ -281,10 +278,29 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         stream_key1 = StreamKey(self.subsite, self.node, self.sensor, self.method, 'ctdbp_no_sample')
         stream_key2 = StreamKey(self.subsite, self.node, self.sensor, self.method, 'ctdbp_no_calibration_coefficients')
         time_range = TimeRange(self.first, self.last)
-        sr = StreamRequest([stream_key1, stream_key2], [], {'CC_lat': [{'start': self.first, 'stop': self.last, 'value': 0.0}], 'CC_lon': [{'start': self.first, 'stop': self.last, 'value': 0.0}]}, time_range)
+        sr = StreamRequest([stream_key1, stream_key2], [],
+                           {'CC_lat': [{'start': self.first, 'stop': self.last, 'value': 0.0}],
+                            'CC_lon': [{'start': self.first, 'stop': self.last, 'value': 0.0}]}, time_range)
         particles = json.loads(''.join(list(Particle_Generator(Chunk_Generator()).chunks(sr))))
 
         self.assertEqual(len(particles), 100)
+
+    def test_data_stream_with_limit(self):
+        # number of points needs to be low enough that
+        # we will exercise the fetch_nth code
+        number_points = 20
+
+        stream_key1 = StreamKey(self.subsite, self.node, self.sensor, self.method, 'ctdbp_no_sample')
+        stream_key2 = StreamKey(self.subsite, self.node, self.sensor, self.method, 'ctdbp_no_calibration_coefficients')
+        time_range = TimeRange(self.first, self.last)
+        times = numpy.linspace(self.first, self.last, num=number_points)
+        sr = StreamRequest([stream_key1, stream_key2], [],
+                           {'CC_lat': [{'start': self.first, 'stop': self.last, 'value': 0.0}],
+                            'CC_lon': [{'start': self.first, 'stop': self.last, 'value': 0.0}]},
+                           time_range, limit=number_points, times=times)
+        particles = json.loads(''.join(list(Particle_Generator(Interpolation_Generator(Chunk_Generator())).chunks(sr))))
+
+        self.assertEqual(len(particles), number_points)
 
     def test_invalid_request(self):
         headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
@@ -325,8 +341,9 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         r = self.app.post('/particles', headers=headers)
         self.assertEqual(r.status_code, 400)
 
-        r = self.app.post('/particles', data=json.dumps(missing_coefficients), headers=headers)
-        self.assertEqual(r.status_code, 400)
+        # we just let this go through now...
+        # r = self.app.post('/particles', data=json.dumps(missing_coefficients), headers=headers)
+        # self.assertEqual(r.status_code, 400)
 
         r = self.app.post('/particles', data=json.dumps(missing_node), headers=headers)
         self.assertEqual(r.status_code, 400)
@@ -357,8 +374,8 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
                 }
             ],
             'coefficients': {
-                'CC_latitude': 1.0,
-                'CC_longitude': 1.0,
+                'CC_latitude': [{'value': 1.0}],
+                'CC_longitude': [{'value': 1.0}],
             }
         }
 
@@ -417,8 +434,8 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
 
         r = self.app.post('/needs', data=json.dumps(request), headers=headers)
         response = json.loads(r.data)
-        print r, response
+        # print r, response
 
         r = self.app.post('/particles', data=json.dumps(request), headers=headers)
         response = json.loads(r.data)
-        print r, response
+        # print r, response
