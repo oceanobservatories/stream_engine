@@ -121,7 +121,15 @@ def test_with_times():
           9: {'source': 'foo', 'data': numpy.array([[-9223372036854775808,-9223372036854775808],[-9223372036854775808,-9223372036854775808],[-9223372036854775808,-9223372036854775808],[-9223372036854775808,-9223372036854775808]])},
           10: {'source': 'foo', 'data': numpy.array(['nan','nan','nan','nan'])}}
 
+    concat_chunk = \
+        {7: {'source': 'foo', 'data': numpy.array([ 2,  4,  8,  9, 13, 19])},
+         8: {'source': 'foo', 'data': numpy.array([1, 2, 3, 4, 7, 8])},
+         9: {'source': 'foo', 'data': numpy.array([[1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2]])},
+         10: {'source': 'foo', 'data': numpy.array(['str1', 'str2', 'str3', 'str1', 'str1', 'str2'])}}
+
     chunk = chunks.concatenate(*cg.chunks_list)
+    assert concat_chunk == chunk
+
     chunk_result = chunk.with_times([9,14,15], strategy='Average')
     assert avg_chunk == chunk_result
 
