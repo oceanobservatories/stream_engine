@@ -22,6 +22,7 @@ from util import chunks
 from util.chunks import Chunk
 import pandas as pd
 import logging
+import uuid
 
 log = logging.getLogger(__name__)
 
@@ -324,12 +325,16 @@ class DataStream(object):
             fields = self.row_cache[0]._fields
             df = pd.DataFrame(self.row_cache, columns=fields)
 
-            # Start - Special case to forward Deployment Number
+            # special cases for deployment number and provenance key
             self.data_cache['deployment'] = {
                 'data': df.deployment.values,
                 'source': source
             }
-            # Stop - Special case to forward Deployment Number
+
+            self.data_cache['provenance'] = {
+                'data': df.provenance.values,
+                'source': source
+            }
 
             for p in parameters:
                 data_slice = df[p.name].values
@@ -571,7 +576,10 @@ class Particle_Generator(object):
             particle = OrderedDict()
             particle['pk'] = pk
             pk['time'] = t
+
+            # special cases for deployment number and provenance key
             pk['deployment'] = chunk['deployment']['data'][index]
+            particle['provenance'] = str(chunk['provenance']['data'][index])
             for param in parameters:
                 if param.id in chunk:
                     value = chunk[param.id]['data'][index]
@@ -684,10 +692,21 @@ class NetCDF_Generator(object):
                             group.createDimension(name, dimension)
                             dims.append(name)
 
+
+                    data_type = data.dtype
+                    if data.dtype == 'object' and len(data[chunk_valid]) > 0:
+                        # convert uuid to str
+                        if isinstance(data[chunk_valid][0], uuid.UUID):
+                            data_type = "str"
+                            data[chunk_valid] = [str(x) for x in data[chunk_valid]]
+                        else:
+                            app.logger.error("Unknown object type: {}, skipping".format(type(data[chunk_valid][0])))
+                            continue
+
                     variables[param_id] = group.createVariable(param_name,
-                                                               data.dtype,
-                                                               dims,
-                                                               zlib=True)
+                                                                data_type,
+                                                                dims,
+                                                                zlib=True)
 
                     if param:
                         if param.unit is not None:
