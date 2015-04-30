@@ -105,6 +105,9 @@ class TimeRange(object):
         self.start = start
         self.stop = stop
 
+    def secs(self):
+        return abs(self.stop - self.start)
+
 
 class StreamKey(object):
     def __init__(self, subsite, node, sensor, method, stream):
