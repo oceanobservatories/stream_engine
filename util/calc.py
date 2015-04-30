@@ -329,6 +329,14 @@ class DataStream(object):
             }
             # Stop - Special case to forward Deployment Number
 
+            prov_index = fields.index('provenance')
+            prov_data_slice = array[:, prov_index]
+            prov_data_slice = numpy.array(prov_data_slice.tolist())
+            self.data_cache['provenance'] = {
+                'data': prov_data_slice,
+                'source': source
+            }
+
             for p in parameters:
                 data_slice = df[p.name]
                 shape_name = p.name + '_shape'
@@ -563,6 +571,9 @@ class Particle_Generator(object):
             particle['pk'] = pk
             pk['time'] = t
             pk['deployment'] = chunk['deployment']['data'][index]
+
+            # the uuid provenance key needs to be converted to a string
+            particle['provenance'] = str(chunk['provenance']['data'][index])
             for param in parameters:
                 if param.id in chunk:
                     value = chunk[param.id]['data'][index]
