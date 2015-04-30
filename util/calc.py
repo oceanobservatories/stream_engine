@@ -18,7 +18,9 @@ import bisect
 from util import common
 from util import chunks
 from util.chunks import Chunk
+import logging
 
+log = logging.getLogger(__name__)
 
 def find_stream(stream_key, streams, distinct_sensors):
     """
@@ -146,7 +148,7 @@ def build_func_map(parameter, chunk, coefficients):
             pdid = parse_pdid(func_map[key])
 
             if pdid not in chunk:
-                raise StreamEngineException('Internal error: unable to find parameter in stream')
+                raise StreamEngineException('Needed parameter PD%s not found in chunk when calculating PD%s %s' % (pdid, parameter.id, parameter.name))
 
             args[key] = chunk[pdid]['data']
 
@@ -156,11 +158,11 @@ def build_func_map(parameter, chunk, coefficients):
                 framed_CCs = coefficients[name]
                 CC_argument = build_CC_argument(framed_CCs, times)
                 if(numpy.isnan(numpy.min(CC_argument))):
-                    raise CoefficientUnavailableException('Coefficient %s missing times in range (%s, %s) for parameter %s' % (name, times[0], times[-1], parameter.name))
+                    raise CoefficientUnavailableException('Coefficient %s missing times in range (%s, %s) for PD%s %s' % (name, times[0], times[-1], parameter.id, parameter.name))
                 else:
                     args[key] = CC_argument
             else:
-                raise CoefficientUnavailableException(name)
+                raise CoefficientUnavailableException('Coefficient %s not provided for PD%s %s' % (name, parameter.id, parameter.name))
         elif isinstance(func_map[key], (int, float, long, complex)):
             args[key] = func_map[key]
         else:
@@ -492,8 +494,9 @@ class Chunk_Generator(object):
         try:
             args = build_func_map(parameter, chunk, self.coefficients)
             chunk[parameter.id] = {'data': execute_dpa(parameter, args), 'source': 'derived'}
-        except StreamEngineException:
-            pass
+        except StreamEngineException as e:
+            log.info(e.message)
+
 
     def _get_param(self, pdid, chunk):
         for stream in self.streams[1:]:
