@@ -300,6 +300,14 @@ class DataStream(object):
             fields = self.row_cache[0]._fields
             array = numpy.array(self.row_cache)
 
+            prov_index = fields.index('provenance')
+            prov_data_slice = array[:, prov_index]
+            prov_data_slice = numpy.array(prov_data_slice.tolist())
+            self.data_cache['provenance'] = {
+                'data': prov_data_slice,
+                'source': source
+            }
+
             for p in parameters:
                 index = fields.index(p.name.lower())
                 data_slice = array[:, index]
@@ -535,6 +543,9 @@ class Particle_Generator(object):
             particle = OrderedDict()
             particle['pk'] = pk
             pk['time'] = t
+
+            # the uuid provenance key needs to be converted to a string
+            particle['provenance'] = str(chunk['provenance']['data'][index])
             for param in parameters:
                 if param.id in chunk:
                     value = chunk[param.id]['data'][index]
