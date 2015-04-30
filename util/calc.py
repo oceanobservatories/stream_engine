@@ -322,12 +322,15 @@ class DataStream(object):
             fields = self.row_cache[0]._fields
             df = pd.DataFrame(self.row_cache, columns=fields)
 
-            # Start - Special case to forward Deployment Number
             self.data_cache['deployment'] = {
                 'data': df.deployment.values,
                 'source': source
             }
-            # Stop - Special case to forward Deployment Number
+
+            self.data_cache['provenance'] = {
+                'data': df.provenance,
+                'source': source
+            }
 
             for p in parameters:
                 data_slice = df[p.name].values
@@ -570,6 +573,9 @@ class Particle_Generator(object):
             particle['pk'] = pk
             pk['time'] = t
             pk['deployment'] = chunk['deployment']['data'][index]
+
+            # the uuid provenance key needs to be converted to a string
+            particle['provenance'] = str(chunk['provenance']['data'][index])
             for param in parameters:
                 if param.id in chunk:
                     value = chunk[param.id]['data'][index]
