@@ -2,9 +2,14 @@
 
 HERE=$(dirname $(readlink -f $BASH_SOURCE))
 
-#PYTHON_PATH="$HERE/python27"
-PYTHON_PATH="/home/race/python27"
-STREAMNG_PID="/home/race/stream_engine/stream_engine.pid"
+if [ -z ${STREAM_ENGINE_PYTHON+x} ]
+then
+    PYTHON_PATH=$STREAM_ENGINE_PYTHON
+else
+    #PYTHON_PATH="$HERE/python27"
+    PYTHON_PATH="/home/race/python27"
+fi
+STREAMNG_PID="$HERE/stream_engine.pid"
 NAME="Stream Engine"
 timestamp=`date +%F-%H-%M-%S`
 
