@@ -4,7 +4,7 @@ import os
 import gdata.spreadsheet.service as service
 from engine import db, app
 from model.preload import Stream, ParameterFunction, FunctionType, Parameter, ParameterType, ValueEncoding, CodeSet, \
-    Unit, FillValue
+    Unit, FillValue, DataProductIdentifier, ProductDefinitionIdentifier, DpidPdid
 
 
 key = app.config['SPREADSHEET_KEY']
@@ -58,8 +58,24 @@ def get_simple_field(field_class, value):
         item = field_class(value=value)
         db.session.add(item)
         db.session.commit()
-
     return item
+
+def get_data_product_identifier(field_class, name, pdid):
+    if name is None:
+        return name
+    dpid = db.session.query(field_class).get(name)
+    if dpid is None:
+        dpid = field_class(name=name)
+        pdids = DpidPdid()
+        pdids.pdid = ProductDefinitionIdentifier(value=pdid)
+        dpid.pdids.append(pdids)
+        db.session.add(dpid)
+    else:
+        pdids = DpidPdid()
+        pdids.pdid = ProductDefinitionIdentifier(value=pdid)
+        dpid.pdids.append(pdids)
+    db.session.commit()
+    return dpid
 
 
 def validate_parameter_row(row):
@@ -114,8 +130,12 @@ def get_function(pfid):
     return ParameterFunction.query.get(pfid)
 
 
-def get_parameter(pdid):
-    return db.session.query(Parameter).get(pdid)
+def get_parameter(id):
+    if id.startswith('PD'):
+        pdid = int(id.strip()[2:])
+        return db.session.query(Parameter).get(pdid)
+    else:
+        return None
 
 
 def process_parameters(sheet):
@@ -132,7 +152,7 @@ def process_parameters(sheet):
             parameter.fill_value = get_simple_field(FillValue, row.get('fillvalue'))
             parameter.display_name = row.get('displayname')
             parameter.precision = row.get('precision')
-            parameter.data_product_identifier = row.get('dataproductidentifier')
+            parameter.data_product_identifier = get_data_product_identifier(DataProductIdentifier, row.get('dataproductidentifier'), parameter.id)
             parameter.description = row.get('description')
             if row.get('parameterfunctionid') is not None:
                 id = row.get('parameterfunctionid')
@@ -167,14 +187,14 @@ def process_parameter_funcs(sheet):
 
 def process_streams(sheet):
     print 'Processing streams'
-    common_fields = [7, 10, 11, 12, 16, 863]
+    common_fields = ['PD7', 'PD10', 'PD11', 'PD12', 'PD16', 'PD863']
     for row in sheet:
         if validate_stream_row(row):
             stream = Stream()
             stream.id = int(row.get('id')[4:])
             stream.name = row.get('name')
             params = row.get('parameterids').split(',')
-            params = common_fields + [int(p.strip()[2:]) for p in params if p.startswith('PD')]
+            params = common_fields + params
             params = sorted(list(set(params)))
             for each in params:
                 parameter = get_parameter(each)

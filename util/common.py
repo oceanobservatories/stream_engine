@@ -1,13 +1,14 @@
 from functools import wraps
 import time
 from engine import app
-from model.preload import Stream, Parameter
+from model.preload import Stream, Parameter, DataProductIdentifier
 
 FUNCTION = 'function'
 
 stream_cache = {}
 parameter_cache = {}
 function_cache = {}
+data_product_identifier_cache = {}
 
 
 def log_timing(func):
@@ -111,6 +112,22 @@ class CachedStream(object):
             stream_cache[stream_id] = CachedStream.from_stream(Stream.query.get(stream_id))
         return stream_cache[stream_id]
 
+class CachedDataProductIdentifier(object):
+    @staticmethod
+    def from_data_product_identifier(data_product_identifier):
+        if data_product_identifier is None:
+            return None
+        if data_product_identifier.name not in data_product_identifier_cache:
+            d = CachedDataProductIdentifier()
+            d.name = data_product_identifier.name
+            d.pdids = data_product_identifier.pdids
+            data_product_identifier_cache[data_product_identifier.name] = d
+        return data_product_identifier_cache[data_product_identifier.name]
+    @staticmethod
+    def from_name(name):
+        if name not in data_product_identifier_cache:
+            data_product_identifier_cache[name] = CachedDataProductIdentifier.from_data_product_identifier(DataProductIdentifier.query.get(name))
+        return data_product_identifier_cache[name]
 
 class CachedParameter(object):
     @staticmethod

@@ -14,7 +14,7 @@ from collections import OrderedDict
 from util.cass import get_streams, fetch_data, get_distinct_sensors
 from util.common import log_timing, StreamKey, TimeRange, CachedParameter, UnknownEncodingException, \
     FUNCTION, CoefficientUnavailableException, parse_pdid, UnknownFunctionTypeException, \
-    CachedStream, StreamEngineException, StreamUnavailableException, InvalidStreamException
+    CachedStream, CachedDataProductIdentifier, StreamEngineException, StreamUnavailableException, InvalidStreamException
 
 
 def find_stream(stream_key, streams, distinct_sensors):
@@ -165,7 +165,6 @@ def build_func_map(parameter, chunk, coefficients):
     for key in func_map:
         if str(func_map[key]).startswith('PD'):
             pdid = parse_pdid(func_map[key])
-
             if pdid not in chunk:
                 raise StreamEngineException('Internal error: unable to find parameter in stream')
 
@@ -185,7 +184,18 @@ def build_func_map(parameter, chunk, coefficients):
         elif isinstance(func_map[key], (int, float, long, complex)):
             args[key] = func_map[key]
         else:
-            raise StreamEngineException('Unable to resolve parameter \'%s\' in PD%s %s' % (func_map[key], parameter.id, parameter.name))
+            dpid = CachedDataProductIdentifier.from_name(str(func_map[key]))
+            if dpid is not None:
+                exists = False
+                for each in dpid.pdids:
+                    if int(each.pdid.value) in chunk:
+                        exists = True
+                        args[key] = chunk[int(each.pdid.value)]['data']
+                        break
+                if exists is False:
+                    raise StreamEngineException('Internal error: unable to find parameter in stream')
+            else:
+                raise StreamEngineException('Unable to resolve parameter \'%s\' in PD%s %s' % (func_map[key], parameter.id, parameter.name))
     return args
 
 
@@ -320,7 +330,6 @@ class DataStream(object):
 
             fields = self.row_cache[0]._fields
             array = numpy.array(self.row_cache)
-
             for p in parameters:
                 index = fields.index(p.name.lower())
                 data_slice = array[:, index]
@@ -337,7 +346,6 @@ class DataStream(object):
                     'data': data_slice,
                     'source': source
                 }
-
             yield self.data_cache
 
     def get_param(self, pdid, time_range):

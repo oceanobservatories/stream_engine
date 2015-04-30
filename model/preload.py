@@ -48,6 +48,22 @@ class ParameterFunction(db.Model):
     owner = db.Column(db.String(250))
     description = db.Column(db.String(4096))
 
+class ProductDefinitionIdentifier(db.Model):
+    __tablename__ = 'product_definition_identifier'
+    id = db.Column(db.Integer, primary_key=True)
+    value = db.Column('value', db.String(20))
+
+class DataProductIdentifier(db.Model):
+    __tablename__ = 'data_product_identifier'
+    name = db.Column(db.String(250), primary_key=True)
+    product_definition_identifier_id = db.Column(db.Integer,db.ForeignKey('product_definition_identifier.id'))
+    pdids = db.relationship('DpidPdid')
+
+class DpidPdid(db.Model):
+    __tablename__ = 'dpid_pdid'
+    data_product_identifier_id = db.Column(db.String(250), db.ForeignKey('data_product_identifier.name'), primary_key=True)
+    product_definition_identifier_id = db.Column(db.Integer, db.ForeignKey('product_definition_identifier.id'), primary_key=True)
+    pdid = db.relationship(ProductDefinitionIdentifier)
 
 class Parameter(db.Model):
     __tablename__ = 'parameter'
@@ -68,7 +84,8 @@ class Parameter(db.Model):
     parameter_function_id = db.Column(db.Integer, db.ForeignKey('parameter_function.id'))
     parameter_function = db.relationship(ParameterFunction)
     parameter_function_map = db.Column(db.PickleType(pickler=json))
-    data_product_identifier = db.Column(db.String(250))
+    data_product_identifier_id = db.Column(db.String(250), db.ForeignKey('data_product_identifier.name'))
+    data_product_identifier = db.relationship(DataProductIdentifier)
     description = db.Column(db.String(4096))
     streams = db.relationship('Stream', secondary='stream_parameter')
 
@@ -84,13 +101,20 @@ class Parameter(db.Model):
 
         if self.parameter_type.value == 'function':
             for value in self.parameter_function_map.values():
-                if isinstance(value,basestring) and value.startswith('PD'):
+                if isinstance(value,basestring) and not value.startswith('CC') and not value.startswith('NPD'):
                     try:
-                        pdid = self.parse_pdid(value)
-                        sub_param = Parameter.query.get(pdid)
-                        if sub_param in needed:
-                            continue
-                        sub_param.needs(needed)
+                        if value.startswith('PD'):
+                            pdid = self.parse_pdid(value)
+                            sub_param = Parameter.query.get(pdid)
+                            if sub_param not in needed and not None:
+                                sub_param.needs(needed)
+                        else:
+                            dpid = DataProductIdentifier.query.get(value)
+                            if dpid is not None:
+                                for each in dpid.pdids:
+                                    sub_param = Parameter.query.get(each.pdid.value)
+                                    if sub_param not in needed and not None:
+                                        sub_param.needs(needed)
                     except (ValueError, AttributeError):
                         pass
 
