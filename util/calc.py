@@ -43,7 +43,7 @@ def find_stream(stream_key, streams, distinct_sensors):
     return None, None
 
 
-def get_generator(custom_times=None, custom_type=None):
+def get_generator(time_range, custom_times=None, custom_type=None):
     if custom_times is None:
         return Chunk_Generator()
     else:
@@ -57,6 +57,8 @@ def get_generator(custom_times=None, custom_type=None):
         if custom_type != 'average':
             return Interpolation_Generator(Chunk_Generator())
         else:
+            if custom_times[-1] < time_range.stop:
+                custom_times.append(time_range.stop)
             return Average_Generator(Chunk_Generator())
 
 
@@ -69,7 +71,7 @@ def get_particles(streams, start, stop, coefficients, limit=None, custom_times=N
             parameters.append(CachedParameter.from_id(p))
     time_range = TimeRange(start, stop)
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit, times=custom_times)
-    return Particle_Generator(get_generator(custom_times, custom_type)).chunks(stream_request)
+    return Particle_Generator(get_generator(time_range, custom_times, custom_type)).chunks(stream_request)
 
 
 @log_timing
@@ -81,7 +83,7 @@ def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None
             parameters.append(CachedParameter.from_id(p))
     time_range = TimeRange(start, stop)
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit, times=custom_times)
-    return NetCDF_Generator(get_generator(custom_times, custom_type)).chunks(stream_request)
+    return NetCDF_Generator(get_generator(time_range, custom_times, custom_type)).chunks(stream_request)
 
 
 @log_timing
