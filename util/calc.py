@@ -322,12 +322,15 @@ class DataStream(object):
             fields = self.row_cache[0]._fields
             df = pd.DataFrame(self.row_cache, columns=fields)
 
-            # Start - Special case to forward Deployment Number
             self.data_cache['deployment'] = {
                 'data': df.deployment.values,
                 'source': source
             }
-            # Stop - Special case to forward Deployment Number
+
+            self.data_cache['provenance'] = {
+                'data': df.provenance.values,
+                'source': source
+            }
 
             for p in parameters:
                 data_slice = df[p.name].values
@@ -570,6 +573,8 @@ class Particle_Generator(object):
             particle['pk'] = pk
             pk['time'] = t
             pk['deployment'] = chunk['deployment']['data'][index]
+
+            particle['provenance'] = str(chunk['provenance']['data'][index])
             for param in parameters:
                 if param.id in chunk:
                     value = chunk[param.id]['data'][index]
@@ -651,6 +656,10 @@ class NetCDF_Generator(object):
                     param_name = param_id if param is None else param.name
 
                     data = first_chunk[param_id]['data']
+
+                    if data.dtype == 'object':
+                        continue
+
                     source = first_chunk[param_id]['source']
                     if param_id == 7:
                         group = ncfile
