@@ -1,4 +1,4 @@
-from Queue import Queue
+from Queue import Queue, Empty
 import importlib
 import json
 import struct
@@ -7,6 +7,7 @@ import netCDF4
 from threading import Event
 import numexpr
 import numpy
+import time
 from werkzeug.exceptions import abort
 from engine import app
 from collections import OrderedDict
@@ -261,14 +262,20 @@ class DataStream(object):
         self.finished_event.set()
 
     def _get_chunk(self):
-        chunk = self.queue.get()
-        if hasattr(chunk, '_asdict'):
-            self.row_cache.append(chunk)
-        else:
-            self.row_cache.extend(chunk)
+        # try/except because we can reach this code occasionally
+        # when the query is complete but the complete flag hasn't
+        # been set.
+        try:
+            chunk = self.queue.get_nowait()
+            if hasattr(chunk, '_asdict'):
+                self.row_cache.append(chunk)
+            else:
+                self.row_cache.extend(chunk)
 
-        self.available_time_range.start = self.row_cache[0].time
-        self.available_time_range.stop = self.row_cache[-1].time
+            self.available_time_range.start = self.row_cache[0].time
+            self.available_time_range.stop = self.row_cache[-1].time
+        except Empty:
+            time.sleep(.001)
 
     def create_generator(self, parameters):
         """
@@ -295,7 +302,7 @@ class DataStream(object):
             }
 
             if len(self.row_cache) == 0:
-                raise StopIteration()
+                continue
 
             fields = self.row_cache[0]._fields
             array = numpy.array(self.row_cache)
