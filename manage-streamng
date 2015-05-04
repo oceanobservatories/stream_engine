@@ -18,7 +18,9 @@ source "$PYTHON_PATH/getenv.sh"
 start(){
     echo "Starting Stream Engine..."
     if [ ! -f $STREAMNG_PID ]; then
-        gunicorn --log-config $HERE/logging.conf --daemon -p $STREAMNG_PID --config $HERE/gunicorn_config.py engine.routes:app
+        export OOI_GUNICORN_LOG_LOC=$HERE
+        gunicorn --pythonpath $HERE --log-config $HERE/logging.conf --daemon -p $STREAMNG_PID --config $HERE/gunicorn_config.py engine.routes:app
+        export OOI_GUNICORN_LOG_LOC=
         #gunicorn --daemon -p $STREAMNG_PID --config $HERE/gunicorn_config.py engine.routes:app > "/home/race/stream_engine/${timestamp}.log" 2>&1 &
     else
         echo "$NAME: Trying to start stream engine, but pid exists"
