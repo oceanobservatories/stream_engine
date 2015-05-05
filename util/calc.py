@@ -324,13 +324,13 @@ class DataStream(object):
 
             # Start - Special case to forward Deployment Number
             self.data_cache['deployment'] = {
-                'data': df.deployment,
+                'data': df.deployment.values,
                 'source': source
             }
             # Stop - Special case to forward Deployment Number
 
             for p in parameters:
-                data_slice = df[p.name]
+                data_slice = df[p.name].values
                 shape_name = p.name + '_shape'
                 if shape_name in fields:
                     shape = [len(data_slice)] + df[shape_name][0]
@@ -340,11 +340,18 @@ class DataStream(object):
                     else:
                         data_slice = handle_byte_buffer(''.join(data_slice), p.value_encoding, shape)
 
+                # Nones can only be in ndarrays with dtype == object.  NetCDF
+                # doesn't like objects.  First replace Nones with the
+                # appropriate fill value.
                 nones = numpy.equal(data_slice, None)
                 if numpy.any(nones):
                     data_slice[nones] = p.fill_value
 
-                data_slice = numpy.array(data_slice.tolist())
+                # Pandas also treats strings as objects.  NetCDF doesn't
+                # like objects.  So convert objects to strings.
+                if data_slice.dtype == object:
+                    data_slice = data_slice.astype('str')
+
                 self.data_cache[p.id] = {
                     'data': data_slice,
                     'source': source
@@ -639,11 +646,15 @@ class NetCDF_Generator(object):
                 # create the netcdf variables and any extra dimensions
                 for param_id in first_chunk:
                     param = CachedParameter.from_id(param_id)
+                    # param can be None if this is not a real parameter,
+                    # like deployment for deployment number
+                    param_name = param_id if param is None else param.name
+
                     data = first_chunk[param_id]['data']
                     source = first_chunk[param_id]['source']
                     if param_id == 7:
                         group = ncfile
-                    elif param.parameter_type == FUNCTION:
+                    elif param and param.parameter_type == FUNCTION:
                         group = groups['derived']
                     else:
                         if source not in groups:
@@ -653,25 +664,26 @@ class NetCDF_Generator(object):
                     dims = ['time']
                     if len(data.shape) > 1:
                         for index, dimension in enumerate(data.shape[1:]):
-                            name = '%s_dim_%d' % (param.name, index)
+                            name = '%s_dim_%d' % (param_name, index)
                             group.createDimension(name, dimension)
                             dims.append(name)
 
-                    variables[param_id] = group.createVariable(param.name,
+                    variables[param_id] = group.createVariable(param_name,
                                                                data.dtype,
                                                                dims,
                                                                zlib=True)
 
-                    if param.unit is not None:
-                        variables[param_id].units = param.unit
-                    if param.fill_value is not None:
-                        variables[param_id].fill_value = param.fill_value
-                    if param.description is not None:
-                        variables[param_id].long_name = param.description
-                    if param.display_name is not None:
-                        variables[param_id].display_name = param.display_name
-                    if param.data_product_identifier is not None:
-                        variables[param_id].data_product_identifier = param.data_product_identifier
+                    if param:
+                        if param.unit is not None:
+                            variables[param_id].units = param.unit
+                        if param.fill_value is not None:
+                            variables[param_id].fill_value = param.fill_value
+                        if param.description is not None:
+                            variables[param_id].long_name = param.description
+                        if param.display_name is not None:
+                            variables[param_id].display_name = param.display_name
+                        if param.data_product_identifier is not None:
+                            variables[param_id].data_product_identifier = param.data_product_identifier
 
                     variables[param_id][:] = data[chunk_valid]
 
