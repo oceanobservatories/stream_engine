@@ -19,6 +19,7 @@ import bisect
 from util import common
 from util import chunks
 from util.chunks import Chunk
+import traceback
 
 
 def find_stream(stream_key, streams, distinct_sensors):
@@ -550,7 +551,6 @@ class Particle_Generator(object):
 
     def chunk_to_particles(self, stream_key, parameters, chunk):
         pk = stream_key.as_dict()
-
         for index, t in enumerate(chunk[7]['data']):
             particle = OrderedDict()
             particle['pk'] = pk
@@ -580,11 +580,15 @@ class Particle_Generator(object):
                 if r.limit is not None :
                     if r.limit <= count :
                         break
+            yield ']'
+        except GeneratorExit as e:
+            raise e
         except Exception as e:
-            yield repr(e)
+            exception_output = ', ' if not first else ''
+            exception_output += json.dumps(traceback.format_exc()) + ']'
+            yield exception_output
         finally:
-            yield ' ]'
-        self.generator._terminate_all()
+            self.generator._terminate_all()
 
 
 class NetCDF_Generator(object):
