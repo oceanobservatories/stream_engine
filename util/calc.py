@@ -580,11 +580,13 @@ class Particle_Generator(object):
                 if r.limit is not None :
                     if r.limit <= count :
                         break
+        except GeneratorExit as e:
+            raise e
         except Exception as e:
             yield repr(e)
         finally:
-            yield ' ]'
-        self.generator._terminate_all()
+            self.generator._terminate_all()
+        yield ' ]'
 
 
 class NetCDF_Generator(object):
