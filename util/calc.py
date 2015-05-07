@@ -591,13 +591,14 @@ class Particle_Generator(object):
                     else:
                         yield ', '
                     yield particle
-                if r.limit is not None :
-                    if r.limit <= count :
-                        break
-        except Exception as e:
-            yield traceback.format_exc()
-        finally:
+                if r.limit is not None and r.limit <= count:
+                    break
             yield ' ]'
+        except Exception as e:
+            app.logger.error(traceback.format_exc())
+            traceback.print_exc()
+            raise e
+
         self.generator._terminate_all()
 
 

@@ -1,20 +1,22 @@
+import numpy
+import engine
+
 from functools import wraps
-from itertools import izip, chain
 from multiprocessing.pool import Pool
+from multiprocessing import BoundedSemaphore
 from threading import Lock
+
 from cassandra.cluster import Cluster, ResponseFuture
 from cassandra.query import SimpleStatement, _clean_column_name, tuple_factory
 from cassandra.concurrent import execute_concurrent_with_args
-from cassandra.query import dict_factory
-import numpy
-from pandas.util.testing import DataFrame
-import engine
-import pandas
 
 from util.common import log_timing
 
+
 # cassandra database handle
 global_cassandra_state = {}
+multiprocess_lock = BoundedSemaphore(2)
+execution_pool = None
 
 STREAM_EXISTS_PS = 'stream_exists'
 METADATA_FOR_REFDES_PS = 'metadata_for_refdes'
@@ -46,23 +48,32 @@ def get_session():
     :return: session and dictionary of prepared statements
     """
     if global_cassandra_state.get('cluster') is None:
-        engine.app.logger.debug('Creating cassandra session')
-        global_cassandra_state['cluster'] = Cluster(engine.app.config['CASSANDRA_CONTACT_POINTS'],
-                                                    control_connection_timeout=engine.app.config[
-                                                        'CASSANDRA_CONNECT_TIMEOUT'],
-                                                    compression=True)
+        with multiprocess_lock:
+            engine.app.logger.info('Creating cassandra session')
+            global_cassandra_state['cluster'] = Cluster(
+                engine.app.config['CASSANDRA_CONTACT_POINTS'],
+                control_connection_timeout=engine.app.config['CASSANDRA_CONNECT_TIMEOUT'],
+                compression=True)
+
     if global_cassandra_state.get('session') is None:
-        session = global_cassandra_state['cluster'].connect(engine.app.config['CASSANDRA_KEYSPACE'])
-        session.row_factory = tuple_factory
-        global_cassandra_state['session'] = session
-        prep = global_cassandra_state['prepared_statements'] = {}
-        prep[STREAM_EXISTS_PS] = session.prepare(STREAM_EXISTS_RAW)
-        prep[METADATA_FOR_REFDES_PS] = session.prepare(METADATA_FOR_REFDES_RAW)
-        prep[DISTINCT_PS] = session.prepare(DISTINCT_RAW)
+        with multiprocess_lock:
+            session = global_cassandra_state['cluster'].connect(engine.app.config['CASSANDRA_KEYSPACE'])
+            session.row_factory = tuple_factory
+            global_cassandra_state['session'] = session
+            prep = global_cassandra_state['prepared_statements'] = {}
+            prep[STREAM_EXISTS_PS] = session.prepare(STREAM_EXISTS_RAW)
+            prep[METADATA_FOR_REFDES_PS] = session.prepare(METADATA_FOR_REFDES_RAW)
+            prep[DISTINCT_PS] = session.prepare(DISTINCT_RAW)
+
     return global_cassandra_state['session'], global_cassandra_state['prepared_statements']
 
 
 def cassandra_session(func):
+    """
+    Wrap a function to automatically add the session and prepared arguments retrieved from get_session
+    :param func:
+    :return:
+    """
     @wraps(func)
     def inner(*args, **kwargs):
         session, preps = get_session()
@@ -207,4 +218,21 @@ def stream_exists(subsite, node, sensor, method, stream, session=None, prepared=
     return len(rows) == 1
 
 
-execution_pool = Pool(8, initializer=get_session)
+def initialize_worker():
+    global global_cassandra_state
+    global_cassandra_state = {}
+
+def connect_worker():
+    get_session()
+
+
+def create_execution_pool():
+    global execution_pool
+    pool_size = engine.app.config['POOL_SIZE']
+    execution_pool = Pool(pool_size, initializer=initialize_worker)
+
+    futures = []
+    for i in xrange(pool_size*2):
+        futures.append(execution_pool.apply_async(connect_worker))
+
+    [f.get() for f in futures]
