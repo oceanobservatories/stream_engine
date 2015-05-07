@@ -1,6 +1,9 @@
 # Stream Engine Gunicorn configuration file.
 import os
 import sys
+from multiprocessing import Lock
+
+worker_lock = Lock()
 
 #
 # Server socket
@@ -72,10 +75,10 @@ backlog = 2048
 #
 
 workers = 8
-threads = 8
+threads = 1
 worker_class = 'sync'
 timeout = 30000
-max_requests = 8
+max_requests = 800
 graceful_timeout = 3000
 keepalive = 2
 
@@ -187,10 +190,14 @@ proc_name = 'stream_engine'
 def post_fork(server, worker):
     server.log.info("Worker spawned (pid: %s)", worker.pid)
     sys.path.append(os.getcwd())
-    from util.cass import get_session
-    worker.log.info('Connecting worker to cassandra')
-    get_session()
-    worker.log.info('Connected worker to cassandra')
+    from util.cass import get_session, create_execution_pool
+    with worker_lock:
+        worker.log.info('Connecting worker to cassandra')
+        get_session()
+        worker.log.info('Connected worker to cassandra')
+        worker.log.info('Worker creating execution pool')
+        create_execution_pool()
+        worker.log.info('Worker created execution pool')
 
 
 def pre_fork(server, worker):
