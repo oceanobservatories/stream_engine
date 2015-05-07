@@ -318,6 +318,14 @@ class DataStream(object):
             }
             # Stop - Special case to forward Deployment Number
 
+            prov_index = fields.index('provenance')
+            prov_data_slice = array[:, prov_index]
+            prov_data_slice = numpy.array(prov_data_slice.tolist())
+            self.data_cache['provenance'] = {
+                'data': prov_data_slice,
+                'source': source
+            }
+
             for p in parameters:
                 index = fields.index(p.name.lower())
                 data_slice = array[:, index]
@@ -556,6 +564,7 @@ class Particle_Generator(object):
             particle['pk'] = pk
             pk['time'] = t
             pk['deployment'] = chunk['deployment']['data'][index]
+            particle['provenance'] = str(chunk['provenance']['data'][index])
             for param in parameters:
                 if param.id in chunk:
                     value = chunk[param.id]['data'][index]
@@ -641,6 +650,10 @@ class NetCDF_Generator(object):
                     param_name = param_id if param is None else param.name
 
                     data = first_chunk[param_id]['data']
+
+                    if data.dtype == "object":
+                        continue
+
                     source = first_chunk[param_id]['source']
                     if param_id == 7:
                         group = ncfile
@@ -658,6 +671,7 @@ class NetCDF_Generator(object):
                             group.createDimension(name, dimension)
                             dims.append(name)
 
+                    print("PARAMNAME: {}, DATADTYPE: {}".format(param_name, data.dtype))
                     variables[param_id] = group.createVariable(param_name,
                                                                data.dtype,
                                                                dims,
