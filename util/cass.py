@@ -112,13 +112,20 @@ def get_streams(subsite, node, sensor, method, session=None, prepared=None):
 
 @log_timing
 @cassandra_session
-def fetch_data(stream_key, time_range, session=None, prepared=None):
+def get_query_columns(stream_key, session=None, prepared=None):
     # grab the column names from our metadata
     cols = global_cassandra_state['cluster'].metadata.keyspaces[engine.app.config['CASSANDRA_KEYSPACE']]. \
         tables[stream_key.stream.name].columns.keys()
     cols = map(_clean_column_name, cols)
-    # we don't need any parts of the key(1-5) except the time column(4)
-    cols = cols[4:5] + cols[6:]
+    # we don't need any parts of the key(1-6) except the time column(4) and deployment column(5)
+    cols = cols[4:6] + cols[7:]
+    return cols
+
+
+@log_timing
+@cassandra_session
+def fetch_data(stream_key, time_range, session=None, prepared=None):
+    cols = get_query_columns(stream_key)
 
     # attempt to find one data point beyond the requested start/stop times
     start = time_range.start
@@ -173,10 +180,7 @@ def fetch_nth_data(stream_key, time_range, num_points=1000, chunk_size=100, sess
                 return fetch_data(stream_key, time_range)
 
     # lots of rows or we were unable to estimate, fetch every ~nth record
-    cols = global_cassandra_state['cluster'].metadata.keyspaces[engine.app.config['CASSANDRA_KEYSPACE']]. \
-        tables[stream_key.stream.name].columns.keys()
-    cols = map(_clean_column_name, cols)
-    cols = cols[4:5] + cols[6:]
+    cols = get_query_columns(stream_key)
 
     start = time_range.start
     stop = time_range.stop
