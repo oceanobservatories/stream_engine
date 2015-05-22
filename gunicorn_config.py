@@ -80,7 +80,7 @@ backlog = 2048
 #       A positive integer. Generally set in the 1-5 seconds range.
 #
 
-workers = 8
+workers = 1
 threads = 1
 worker_class = 'sync'
 timeout = 30000
@@ -197,12 +197,12 @@ def post_fork(server, worker):
     server.log.info("Worker spawned (pid: %s)", worker.pid)
     from util.cass import get_session, create_execution_pool
     with worker_lock:
-        worker.log.info('Connecting worker to cassandra')
+        worker.log.debug('Connecting worker to cassandra')
         get_session()
-        worker.log.info('Connected worker to cassandra')
-        worker.log.info('Worker creating execution pool')
+        worker.log.debug('Connected worker to cassandra')
+        worker.log.debug('Worker creating execution pool')
         create_execution_pool()
-        worker.log.info('Worker created execution pool')
+        worker.log.debug('Worker created execution pool')
     preload_database.database.open_connection()
 
 
