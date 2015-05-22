@@ -1,8 +1,12 @@
+import engine
+
 import json
 import time
+import logging
 
 import ntplib
 from flask import request, Response, jsonify
+from functools import wraps
 
 from engine import app
 from preload_database.model.preload import Stream
@@ -11,15 +15,29 @@ from util.cass import stream_exists
 from util.common import CachedParameter, StreamEngineException, MalformedRequestException, \
     InvalidStreamException, StreamUnavailableException, InvalidParameterException
 
+log = logging.getLogger(__name__)
 
 @app.errorhandler(StreamEngineException)
 def handle_stream_not_found(error):
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
+
+    log.info("Returning exception: {}".format(error.to_dict()))
     return response
+
+#def log_request(f):
+    #@wraps(f)
+    #def inner(*args, **kwargs):
+        #start_time = time.time()
+        #log.info("Handling request for {} - {}".format(request.url, request.get('streams', "")))
+        #result = f(*args, **kwargs)
+        #log.info("Request took {:.2f}s to complete".format(time.time()-start_time))
+        #return result
+    #return inner
 
 
 @app.route('/particles', methods=['POST'])
+#@log_request
 def particles():
     """
     POST should contain a dictionary of the following format:
@@ -50,14 +68,22 @@ def particles():
     """
     input_data = request.get_json()
     validate(input_data)
+
+    request_start_time = time.time()
+    log.info("Handling request for {} - {}".format(request.url, input_data.get('streams', "")))
+
     start = input_data.get('start', 1)
     stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
     limit = input_data.get('limit', 0)
     if limit <= 0:
         limit = None
-    return Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
+    
+    resp = Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
                     input_data.get('qcParameters', {}), limit=limit, custom_times=input_data.get('custom_times'),
                     custom_type=input_data.get('custom_type')), mimetype='application/json')
+
+    log.info("Request took {:.2f}s to complete".format(time.time()-request_start_time))
+    return resp
 
 
 @app.route('/netcdf', methods=['POST'])
@@ -176,13 +202,13 @@ def validate(input_data):
         if stream is None:
             raise InvalidStreamException('The requested stream does not exist in preload', payload={'stream': each})
 
-        if not stream_exists(each['subsite'],
-                             each['node'],
-                             each['sensor'],
-                             each['method'],
-                             each['stream']):
-            raise StreamUnavailableException('The requested stream does not exist in cassandra',
-                                             payload={'stream' :each})
+        #if not stream_exists(each['subsite'],
+                             #each['node'],
+                             #each['sensor'],
+                             #each['method'],
+                             #each['stream']):
+            #raise StreamUnavailableException('The requested stream does not exist in cassandra',
+                                             #payload={'stream' :each})
 
         parameters = each.get('parameters', [])
         stream_parameters = [p.id for p in stream.parameters]
