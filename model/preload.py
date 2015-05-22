@@ -116,9 +116,18 @@ class StreamParameter(db.Model):
     stream_id = db.Column(db.Integer, db.ForeignKey('stream.id'), primary_key=True)
     parameter_id = db.Column(db.Integer, db.ForeignKey('parameter.id'), primary_key=True)
 
+stream_dependency = db.Table("stream_dependency", db.Model.metadata,
+        db.Column("source_stream_id", db.Integer, db.ForeignKey("stream.id"), primary_key=True),
+        db.Column("product_stream_id", db.Integer, db.ForeignKey("stream.id"), primary_key=True))
 
 class Stream(db.Model):
     __tablename__ = 'stream'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(250), nullable=False, unique=True)
     parameters = db.relationship('Parameter', secondary='stream_parameter')
+
+    product_streams = db.relationship('Stream', 
+                                secondary="stream_dependency",
+                                primaryjoin=id==stream_dependency.c.source_stream_id,
+                                secondaryjoin=id==stream_dependency.c.product_stream_id,
+                                backref="left_nodes")
