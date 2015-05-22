@@ -1,3 +1,5 @@
+import engine
+
 import json
 import time
 
@@ -55,9 +57,18 @@ def particles():
     limit = input_data.get('limit', 0)
     if limit <= 0:
         limit = None
-    return Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
-                    limit=limit, custom_times=input_data.get('custom_times'), custom_type=input_data.get('custom_type')),
-                    mimetype='application/json')
+
+    for s in input_data.get('streams'):
+        engine.app.logger.info("Starting to fetch particles for: {}-{}-{}-{}-{}".format(s['subsite'], s['node'], s['sensor'], s['method'], s['stream']))
+    time_begin = time.time()
+
+    particles = util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
+                    limit=limit, custom_times=input_data.get('custom_times'), custom_type=input_data.get('custom_type'))
+
+    time_end = time.time()
+    engine.app.logger.info("Particle fetch took %.5f s" % (time_end-time_begin))
+
+    return Response(particles, mimetype='application/json')
 
 
 @app.route('/netcdf', methods=['POST'])
