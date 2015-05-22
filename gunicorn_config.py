@@ -80,7 +80,7 @@ backlog = 2048
 #       A positive integer. Generally set in the 1-5 seconds range.
 #
 
-workers = 8
+workers = 1
 threads = 1
 worker_class = 'sync'
 timeout = 30000

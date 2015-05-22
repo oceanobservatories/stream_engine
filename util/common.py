@@ -1,7 +1,7 @@
 from functools import wraps
 import time
 from engine import app
-from preload_database.model.preload import Stream, Parameter, ParameterFunction
+from preload_database.model.preload import Stream, Parameter
 import numpy
 from scipy.interpolate import griddata
 import parameter_util
@@ -50,7 +50,7 @@ def interpolate(times, data, interp_times):
     if numpy.array_equal(times, interp_times):
         return times, data
     try:
-        # data = data.astype('f64')
+        #data = data.astype('f64')
         data = griddata(times, data, interp_times, method='linear')
     except ValueError:
         data = last_seen(times, data, interp_times)
@@ -109,6 +109,9 @@ class TimeRange(object):
     def secs(self):
         return abs(self.stop - self.start)
 
+    def __str__(self):
+        return "{} - {}".format(self.start, self.stop)
+
 
 class StreamKey(object):
     def __init__(self, subsite, node, sensor, method, stream):
@@ -126,6 +129,10 @@ class StreamKey(object):
     @staticmethod
     def from_dict(d):
         return StreamKey(d['subsite'], d['node'], d['sensor'], d['method'], d['stream'])
+
+    @staticmethod
+    def from_refdes(refdes):
+        return StreamKey(*refdes.split('|'))
 
     @staticmethod
     def from_stream_key(stream_key, sensor, stream):
@@ -148,7 +155,7 @@ class StreamKey(object):
         }
 
     def as_refdes(self):
-        return '%(subsite)s-%(node)s-%(sensor)s-%(method)s-%(stream)s' % self.as_dict()
+        return '%(subsite)s|%(node)s|%(sensor)s|%(method)s|%(stream)s' % self.as_dict()
 
     def __repr__(self):
         return repr(self.as_dict())
@@ -167,9 +174,11 @@ class CachedStream(object):
             s = CachedStream()
             s.id = stream.id
             s.name = stream.name
+            s.time_parameter = stream.time_parameter
             s.parameters = []
             for p in stream.parameters:
                 s.parameters.append(CachedParameter.from_parameter(p))
+            s.is_virtual = len(stream.source_streams) > 0
             stream_cache[stream.id] = s
         return stream_cache[stream.id]
 
@@ -178,6 +187,16 @@ class CachedStream(object):
         if stream_id not in stream_cache:
             stream_cache[stream_id] = CachedStream.from_stream(Stream.query.get(stream_id))
         return stream_cache[stream_id]
+
+    def as_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'parameters': self.parameters
+        }
+
+    def __str__(self):
+        return str(self.as_dict())
 
 
 class CachedParameter(object):
@@ -211,6 +230,29 @@ class CachedParameter(object):
         if pdid not in parameter_cache:
             parameter_cache[pdid] = CachedParameter.from_parameter(Parameter.query.get(pdid))
         return parameter_cache[pdid]
+
+    def as_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'parameter_type': self.parameter_type,
+            'value_encoding': self.value_encoding,
+            'code_set': self.code_set,
+            'unit': self.unit,
+            'fill_value': self.fill_value,
+            'display_name': self.display_name,
+            'precision': self.precision,
+            'parameter_function_map': self.parameter_function_map,
+            'data_product_identifier': self.data_product_identifier,
+            'description': self.description,
+            'parameter_function': self.parameter_function,
+            'streams': self.streams,
+            'needs': self.needs,
+            'needs_cc': self.needs_cc
+        }
+
+    def __str__(self):
+        return str(self.as_dict())
 
 
 class CachedFunction(object):
@@ -310,3 +352,14 @@ class AlgorithmException(StreamEngineException):
     Internal error. Exception while executing a DPA
     """
     status_code = 500
+
+class MissingTimeException(StreamEngineException):
+    """
+    Internal error. A stream is missing its time parameter
+    """
+    status_code = 500
+
+
+def arb(d):
+    """ Returns an arbitrary value from the given dictionary """
+    return next(d.itervalues())
