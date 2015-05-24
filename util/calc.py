@@ -15,7 +15,7 @@ from collections import OrderedDict, namedtuple
 from util.cass import get_streams, fetch_data, get_distinct_sensors, fetch_nth_data
 from util.common import log_timing, StreamKey, TimeRange, CachedParameter, UnknownEncodingException, \
     FUNCTION, CoefficientUnavailableException, parse_pdid, UnknownFunctionTypeException, \
-    CachedStream, StreamEngineException, StreamUnavailableException, InvalidStreamException
+    CachedStream, StreamEngineException, StreamUnavailableException, InvalidStreamException, CachedFunction
 import bisect
 from util import common
 from util import chunks
@@ -69,7 +69,7 @@ def get_generator(time_range, custom_times=None, custom_type=None):
 
 
 @log_timing
-def get_particles(streams, start, stop, coefficients, limit=None, custom_times=None, custom_type=None):
+def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None, custom_times=None, custom_type=None):
     stream_keys = [StreamKey.from_dict(d) for d in streams]
     parameters = []
     for s in streams:
@@ -77,12 +77,35 @@ def get_particles(streams, start, stop, coefficients, limit=None, custom_times=N
             parameters.append(CachedParameter.from_id(p))
     time_range = TimeRange(start, stop)
 
+    qc_stream_parameters = {}
+    for qc_parameter in qc_parameters:
+        qc_pk = qc_parameter.get('qcParameterPK')
+        current_stream_parameter = qc_pk.get('streamParameter').encode('ascii', 'ignore')
+        qc_ids = qc_stream_parameters.get(current_stream_parameter)
+        if qc_ids is None:
+            qc_ids = {}
+            qc_stream_parameters[current_stream_parameter] = qc_ids
+        current_qc_id = qc_pk.get('qcId').encode('ascii', 'ignore')
+        parameter_dict = qc_ids.get(current_qc_id)
+        if parameter_dict is None:
+            parameter_dict = {}
+            qc_ids[current_qc_id] = parameter_dict
+        current_parameter_name = qc_pk.get('parameter').encode('ascii', 'ignore')
+        if current_parameter_name is not None:
+            qc_parameter_value = qc_parameter.get('value').encode('ascii', 'ignore')
+            if qc_parameter.get('valueType').encode('ascii', 'ignore') == 'INT':
+                parameter_dict[current_parameter_name] = int(qc_parameter_value)
+            elif qc_parameter.get('valueType').encode('ascii', 'ignore') == 'FLOAT':
+                parameter_dict[current_parameter_name] = float(qc_parameter_value)
+            else:
+                parameter_dict[current_parameter_name] = qc_parameter_value
+
     # limit defined by user without custom times
     # we're going to return every nth point unless the dataset is sufficiently small
     if custom_times is None and limit is not None:
         custom_times = numpy.linspace(start, stop, num=limit)
 
-    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit, times=custom_times)
+    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, qc_parameters=qc_stream_parameters, limit=limit, times=custom_times)
     return Particle_Generator(get_generator(time_range, custom_times, custom_type)).chunks(stream_request)
 
 
@@ -410,11 +433,12 @@ class DataStream(object):
 
 class StreamRequest(object):
 
-    def __init__(self, stream_keys, parameters, coefficients, time_range, needs_only=False, limit=None, times=None):
+    def __init__(self, stream_keys, parameters, coefficients, time_range, qc_parameters={}, needs_only=False, limit=None, times=None):
         self.stream_keys = stream_keys
         self.time_range = time_range
         self.parameters = parameters
         self.coefficients = coefficients
+        self.qc_parameters = qc_parameters
         self.needs_cc = None
         self.needs_params = None
         self.limit = limit
@@ -501,6 +525,7 @@ class Chunk_Generator(object):
         self.parameters = None
         self.coefficients = None
         self.time_range = None
+        self.qc_functions = None
 
     def _create_data_stream(self, stream_key, limit):
         if stream_key.stream is None:
@@ -552,12 +577,26 @@ class Chunk_Generator(object):
                     self._calculate(parameter, chunk)
                 else:
                     self._get_param(parameter.id, chunk)
+                if self.qc_functions.get(parameter.name) is not None:
+                    self._qc_check(parameter, chunk)
+
+
+    def _qc_check(self, parameter, chunk):
+        qcs = self.qc_functions.get(parameter.name)
+        for function_name in qcs:
+            if qcs.get(function_name).get('strict_validation') is None:
+                qcs.get(function_name)['strict_validation'] = 'False'
+            qcs.get(function_name)['dat'] = chunk.get(parameter.id).get('data')
+            module = importlib.import_module(CachedFunction.from_qc_function(function_name).owner)
+            chunk['%s_%s' %(parameter.name.encode('ascii', 'ignore'), function_name)] = \
+                {'data': getattr(module, function_name)(**qcs.get(function_name)), 'source': 'qc'}
 
     def chunks(self, r):
         self.parameters = r.parameters
         self.coefficients = r.coefficients
         self.time_range = r.time_range
         self.streams = [self._create_data_stream(key, r.limit) for key in r.stream_keys]
+        self.qc_functions = r.qc_parameters
 
         self._query_all()
         for chunk in self.streams[0].create_generator(None):
@@ -570,8 +609,9 @@ class Particle_Generator(object):
     def __init__(self, generator):
         self.generator = generator
 
-    def chunk_to_particles(self, stream_key, parameters, chunk):
+    def chunk_to_particles(self, stream_key, parameters, chunk, qc_parameters={}):
         pk = stream_key.as_dict()
+        #pprint.pprint(qc_parameters)
         for index, t in enumerate(chunk[7]['data']):
             particle = OrderedDict()
             particle['pk'] = pk
@@ -586,6 +626,22 @@ class Particle_Generator(object):
                     if type(value) == numpy.ndarray:
                         value = value.tolist()
                     particle[param.name] = value
+                if qc_parameters.get(param.name) is not None:
+                    for qc_function_name in qc_parameters.get(param.name):
+                        qc_function_results = '%s_%s' %(param.name, qc_function_name)
+                        if qc_function_results in chunk:
+                            value = chunk[qc_function_results]['data'][index]
+                            qc_results_key = '%s_%s' %(param.name, 'qc_results')
+                            if(particle.get(qc_results_key) is None):
+                                particle[qc_results_key] = 0b0000000000000000
+                            qc_results_value = particle.get(qc_results_key)
+                            qc_cached_function = CachedFunction.from_qc_function(qc_function_name)
+                            qc_results_mask = int(qc_cached_function.qc_flag, 2)
+                            if value == 0:
+                                qc_results_value = ~qc_results_mask & qc_results_value
+                            elif value == 1:
+                                qc_results_value = qc_results_mask ^ qc_results_value
+                            particle[qc_results_key] = qc_results_value
             yield json.dumps(particle, indent=2)
 
     def chunks(self, r):
@@ -594,7 +650,7 @@ class Particle_Generator(object):
         try:
             first = True
             for chunk in self.generator.chunks(r):
-                for particle in self.chunk_to_particles(r.stream_keys[0], r.parameters, chunk):
+                for particle in self.chunk_to_particles(r.stream_keys[0], r.parameters, chunk, r.qc_parameters):
                     count += 1
                     if first:
                         first = False
