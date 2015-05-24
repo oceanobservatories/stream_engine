@@ -1,7 +1,7 @@
 from functools import wraps
 import time
 from engine import app
-from model.preload import Stream, Parameter
+from model.preload import Stream, Parameter, ParameterFunction
 import numpy
 from scipy.interpolate import griddata
 
@@ -224,8 +224,19 @@ class CachedFunction(object):
             f.function = function.function
             f.owner = function.owner
             f.description = function.description
+            f.qc_flag = function.qc_flag
             function_cache[function.id] = f
         return function_cache[function.id]
+
+    @staticmethod
+    def from_qc_function(qc_function_name):
+        for function_id in function_cache:
+            if function_cache.get(function_id).function.encode('ascii', 'ignore') == qc_function_name:
+                return function_cache.get(function_id)
+        ret = CachedFunction.from_function(ParameterFunction.query.filter_by(function = qc_function_name).first())
+        if ret is None:
+            app.logger.warn('Unable to find QC function: %s', qc_function_name)
+        return ret
 
 
 class StreamEngineException(Exception):

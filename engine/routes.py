@@ -56,8 +56,8 @@ def particles():
     if limit <= 0:
         limit = None
     return Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
-                    limit=limit, custom_times=input_data.get('custom_times'), custom_type=input_data.get('custom_type')),
-                    mimetype='application/json')
+                    input_data.get('qcParameters', {}), limit=limit, custom_times=input_data.get('custom_times'),
+                    custom_type=input_data.get('custom_type')), mimetype='application/json')
 
 
 @app.route('/netcdf', methods=['POST'])

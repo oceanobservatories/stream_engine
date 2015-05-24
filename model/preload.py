@@ -47,6 +47,7 @@ class ParameterFunction(db.Model):
     function = db.Column(db.String(250))
     owner = db.Column(db.String(250))
     description = db.Column(db.String(4096))
+    qc_flag = db.Column(db.String(32))
 
 
 class Parameter(db.Model):
