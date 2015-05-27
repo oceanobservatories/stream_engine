@@ -1,3 +1,5 @@
 .idea
 .cache
 *.pyc
+stream_engine.access.log
+stream_engine.error.log
