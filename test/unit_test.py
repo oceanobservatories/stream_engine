@@ -10,15 +10,19 @@ import numpy
 import time
 
 from engine.routes import app
-from engine import db
-from model.preload import Parameter, Stream
+import preload_database.database
+from preload_database.model.preload import Parameter, Stream
 from util.cass import fetch_data, global_cassandra_state, get_distinct_sensors, get_streams, stream_exists, \
     fetch_nth_data, create_execution_pool
 from util.common import StreamKey, TimeRange, CachedStream, CachedParameter, stretch, interpolate
-from util.preload_insert import create_db
 from util.calc import StreamRequest, Chunk_Generator, Particle_Generator, find_stream, handle_byte_buffer, execute_dpa, build_func_map, in_range, build_CC_argument, \
     Interpolation_Generator
+import parameter_util
+import preload_database.database
 
+
+preload_database.database.initialize_connection(preload_database.database.PreloadDatabaseMode.POPULATED_FILE)
+preload_database.database.open_connection()
 
 TEST_DIR = os.path.dirname(__file__)
 
@@ -44,9 +48,6 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
             subprocess.call(['cqlsh', '-f', 'load.cql'])
             open('TEST_DATA_LOADED', 'wb').write('%s\n' % time.ctime())
 
-        if not os.path.exists(app.config['DBFILE_LOCATION']):
-            create_db()
-
         app.config['CASSANDRA_KEYSPACE'] = StreamUnitTest.TEST_KEYSPACE
 
         cluster = Cluster(app.config['CASSANDRA_CONTACT_POINTS'],
@@ -59,7 +60,7 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         self.app = app.test_client()
 
     def tearDown(self):
-        db.session.remove()
+        preload_database.database.Session.remove()
 
     def test_parameters(self):
         """
@@ -92,8 +93,8 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
             self.assertEqual(parameter.id, pdid)
             self.assertEqual(parameter.parameter_type.value, pmap[pdid]['ptype'])
             self.assertEqual(parameter.value_encoding.value, pmap[pdid]['encoding'])
-            self.assertEqual(sorted([pdref.pdid for pdref in parameter.needs()]), pmap[pdid]['needs'])
-            self.assertEqual(sorted(parameter.needs_cc()), pmap[pdid]['cc'])
+            self.assertEqual(sorted([pdref.pdid for pdref in parameter_util.needs(parameter)]), pmap[pdid]['needs'])
+            self.assertEqual(sorted(parameter_util.needs_cc(parameter)), pmap[pdid]['cc'])
 
             # by name (FAILS, parameter names are not unique!)
             # for pdid in pmap:

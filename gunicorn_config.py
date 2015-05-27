@@ -3,6 +3,12 @@ import os
 import sys
 from multiprocessing import Lock
 
+# Add the current directory to the PYTHONPATH
+sys.path.append(os.getcwd())
+
+import preload_database.database
+
+
 worker_lock = Lock()
 
 #
@@ -189,7 +195,6 @@ proc_name = 'stream_engine'
 
 def post_fork(server, worker):
     server.log.info("Worker spawned (pid: %s)", worker.pid)
-    sys.path.append(os.getcwd())
     from util.cass import get_session, create_execution_pool
     with worker_lock:
         worker.log.info('Connecting worker to cassandra')
@@ -198,10 +203,11 @@ def post_fork(server, worker):
         worker.log.info('Worker creating execution pool')
         create_execution_pool()
         worker.log.info('Worker created execution pool')
+    preload_database.database.open_connection()
 
 
 def pre_fork(server, worker):
-    pass
+    preload_database.database.initialize_connection(preload_database.database.PreloadDatabaseMode.POPULATED_FILE)
 
 
 def pre_exec(server):
@@ -216,7 +222,7 @@ def worker_int(worker):
     worker.log.info("worker received INT or QUIT signal")
 
     ## get traceback info
-    import threading, sys, traceback
+    import threading, traceback
     id2name = dict([(th.ident, th.name) for th in threading.enumerate()])
     code = []
     for threadId, stack in sys._current_frames().items():

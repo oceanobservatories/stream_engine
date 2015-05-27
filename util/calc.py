@@ -23,7 +23,7 @@ from util.chunks import Chunk
 import pandas as pd
 import logging
 import uuid
-from model.preload import PDRef
+from parameter_util import PDRef
 
 log = logging.getLogger(__name__)
 

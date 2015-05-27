@@ -1,9 +1,10 @@
 from functools import wraps
 import time
 from engine import app
-from model.preload import Stream, Parameter, ParameterFunction
+from preload_database.model.preload import Stream, Parameter, ParameterFunction
 import numpy
 from scipy.interpolate import griddata
+import parameter_util
 
 FUNCTION = 'function'
 
@@ -200,8 +201,8 @@ class CachedParameter(object):
             cp.description = parameter.description
             cp.parameter_function = CachedFunction.from_function(parameter.parameter_function)
             cp.streams = [stream.id for stream in parameter.streams]
-            cp.needs = parameter.needs()
-            cp.needs_cc = parameter.needs_cc()
+            cp.needs = parameter_util.needs(parameter)
+            cp.needs_cc = parameter_util.needs_cc(parameter)
             parameter_cache[parameter.id] = cp
         return parameter_cache[parameter.id]
 

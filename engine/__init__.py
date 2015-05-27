@@ -1,7 +1,6 @@
 from flask import Flask
-from flask.ext.sqlalchemy import SQLAlchemy
 import logging.config
-
+import preload_database.database
 
 app = Flask(__name__)
 app.config.from_object('config')
@@ -15,5 +14,6 @@ if app.config.get('LOGGING_CONFIG'):
     # Then load configuration to overwrite
     logging.config.fileConfig(app.config.get('LOGGING_CONFIG'))
 
-# preload database handle
-db = SQLAlchemy(app)
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    preload_database.database.Session.remove()
