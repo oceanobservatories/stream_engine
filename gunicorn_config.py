@@ -1,6 +1,12 @@
 # Stream Engine Gunicorn configuration file.
+
 import os
 import sys
+
+# Add the current directory to the PYTHONPATH
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+
+import preload_database.database
 from multiprocessing import Lock
 
 worker_lock = Lock()
@@ -198,10 +204,11 @@ def post_fork(server, worker):
         worker.log.info('Worker creating execution pool')
         create_execution_pool()
         worker.log.info('Worker created execution pool')
+    preload_database.database.open_connection()
 
 
 def pre_fork(server, worker):
-    pass
+    preload_database.database.initialize_connection(preload_database.database.PreloadDatabaseMode.POPULATED_FILE)
 
 
 def pre_exec(server):
