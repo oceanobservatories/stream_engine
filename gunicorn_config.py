@@ -81,6 +81,7 @@ timeout = 30000
 max_requests = 800
 graceful_timeout = 3000
 keepalive = 2
+preload_app = True
 
 #
 #   spew - Install a trace function that spews every line of Python
