@@ -1,23 +1,17 @@
 import copy
-import json
 import os
 import struct
 import unittest
 import subprocess
-
 from cassandra.cluster import Cluster
 import numpy
 import time
-
-from engine.routes import app
-from engine import db
-from model.preload import Parameter, Stream
+from engine import *
 from util.cass import fetch_data, global_cassandra_state, get_distinct_sensors, get_streams, stream_exists, \
     fetch_nth_data
 from util.common import StreamKey, TimeRange, CachedStream, CachedParameter, stretch, interpolate
-from util.preload_insert import create_db
-from util.calc import StreamRequest, Chunk_Generator, Particle_Generator, find_stream, handle_byte_buffer, execute_dpa, build_func_map, in_range, build_CC_argument, \
-    Interpolation_Generator
+from util.calc import StreamRequest, Chunk_Generator, Particle_Generator, find_stream, handle_byte_buffer, \
+    execute_dpa, build_func_map, in_range, build_CC_argument
 
 
 TEST_DIR = os.path.dirname(__file__)
@@ -44,9 +38,6 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
             subprocess.call(['cqlsh', '-f', 'load.cql'])
             open('TEST_DATA_LOADED', 'wb').write('%s\n' % time.ctime())
 
-        if not os.path.exists(app.config['DBFILE_LOCATION']):
-            create_db()
-
         app.config['CASSANDRA_KEYSPACE'] = StreamUnitTest.TEST_KEYSPACE
 
         cluster = Cluster(app.config['CASSANDRA_CONTACT_POINTS'],
@@ -58,7 +49,7 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         self.app = app.test_client()
 
     def tearDown(self):
-        db.session.remove()
+        db_session.remove()
 
     def test_parameters(self):
         """
