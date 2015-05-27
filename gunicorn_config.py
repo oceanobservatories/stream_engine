@@ -130,6 +130,11 @@ spew = False
 #       A path to a directory where the process owner can write. Or
 #       None to signal that Python should choose one on its own.
 #
+#   preload_app - Load application code before the worker processes
+#       are forked.
+#
+#       True or False
+#
 
 daemon = False
 pidfile = None
@@ -137,6 +142,7 @@ umask = 0
 user = None
 group = None
 tmp_upload_dir = None
+preload_app = True
 
 #
 #   Logging
