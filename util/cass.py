@@ -124,22 +124,22 @@ def get_query_columns(stream_key, session=None, prepared=None):
 
 @log_timing
 @cassandra_session
-def fetch_data(stream_key, time_range, session=None, prepared=None):
+def fetch_data(stream_key, time_range, strict_range=False, session=None, prepared=None):
     cols = get_query_columns(stream_key)
 
-    # attempt to find one data point beyond the requested start/stop times
     start = time_range.start
     stop = time_range.stop
     base = "select %%s from %s where subsite='%s' and node='%s' and sensor='%s' and method='%s'" % \
            (stream_key.stream.name, stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method)
 
-    first = session.execute(base % 'time' + ' and time<%s order by method desc limit 1', (start,))
-    last = session.execute(base % 'time' + ' and time>%s limit 1', (stop,))
-
-    if first:
-        start = first[0][0]
-    if last:
-        stop = last[0][0]
+    # attempt to find one data point beyond the requested start/stop times
+    if not strict_range:
+        first = session.execute(base % 'time' + ' and time<%s order by method desc limit 1', (start,))
+        last = session.execute(base % 'time' + ' and time>%s limit 1', (stop,))
+        if first:
+            start = first[0][0]
+        if last:
+            stop = last[0][0]
 
     query = SimpleStatement(base % ','.join(cols) + ' and time>=%s and time<=%s', fetch_size=engine.app.config['CASSANDRA_FETCH_SIZE'])
     engine.app.logger.info('Executing cassandra query: %s %s', query, (start, stop))
@@ -150,7 +150,7 @@ def fetch_data(stream_key, time_range, session=None, prepared=None):
 
 @log_timing
 @cassandra_session
-def fetch_nth_data(stream_key, time_range, num_points=1000, chunk_size=100, session=None, prepared=None):
+def fetch_nth_data(stream_key, time_range, strict_range=False, num_points=1000, chunk_size=100, session=None, prepared=None):
     """
     Given a time range, generate evenly spaced times over the specified interval. Fetch a single
     result from either side of each point in time.
@@ -177,7 +177,7 @@ def fetch_nth_data(stream_key, time_range, num_points=1000, chunk_size=100, sess
             # if we estimate a small number of rows we should just fetch everything
             estimated_count = time_range.secs() * rate
             if estimated_count < num_points * 4:
-                return fetch_data(stream_key, time_range)
+                return fetch_data(stream_key, time_range, strict_range)
 
     # lots of rows or we were unable to estimate, fetch every ~nth record
     cols = get_query_columns(stream_key)
@@ -188,7 +188,7 @@ def fetch_nth_data(stream_key, time_range, num_points=1000, chunk_size=100, sess
 
     futures = []
     for i in xrange(0, num_points, chunk_size):
-        futures.append(execution_pool.apply_async(execute_query, (stream_key, cols, times[i:i + chunk_size])))
+        futures.append(execution_pool.apply_async(execute_query, (stream_key, cols, times[i:i + chunk_size], time_range, strict_range)))
 
     rows = []
     for future in futures:
@@ -200,17 +200,25 @@ def fetch_nth_data(stream_key, time_range, num_points=1000, chunk_size=100, sess
 
 @cassandra_session
 @log_timing
-def execute_query(stream_key, cols, times, session=None, prepared=None):
-    query_name = '%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite,
-                                     stream_key.node, stream_key.sensor, stream_key.method)
-    if query_name not in prepared:
-        base = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and method='%s'" % \
-               (','.join(cols), stream_key.stream.name, stream_key.subsite,
-                stream_key.node, stream_key.sensor, stream_key.method)
-        query = session.prepare(base + ' and time<=? order by method desc limit 1')
-        prepared[query_name] = query
+def execute_query(stream_key, cols, times, time_range, strict_range=False, session=None, prepared=None):
+    if strict_range:
+        query = session.prepare(
+            "select %s from %s where subsite='%s' and node='%s'"
+            " and sensor='%s' and method='%s' and time>=%s and time<=?"
+            " order by method desc limit 1" % (','.join(cols),
+                stream_key.stream.name, stream_key.subsite, stream_key.node,
+                stream_key.sensor, stream_key.method, time_range.start))
+    else:
+        query_name = '%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite,
+                                         stream_key.node, stream_key.sensor, stream_key.method)
+        if query_name not in prepared:
+            base = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and method='%s'" % \
+                   (','.join(cols), stream_key.stream.name, stream_key.subsite,
+                    stream_key.node, stream_key.sensor, stream_key.method)
+            query = session.prepare(base + ' and time<=? order by method desc limit 1')
+            prepared[query_name] = query
+        query = prepared[query_name]
 
-    query = prepared[query_name]
     result = list(execute_concurrent_with_args(session, query, times, concurrency=50))
     return result
 
