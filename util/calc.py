@@ -250,6 +250,7 @@ class DataStream(object):
     def __init__(self, stream_key, time_range, limit=None):
         self.stream_key = stream_key
         self.query_time_range = time_range
+        self.strict_range = False
         self.available_time_range = TimeRange(0, 0)
         self.future = None
         self.row_cache = []
@@ -281,15 +282,17 @@ class DataStream(object):
 
     def async_query(self):
         if self.limit is not None:
-            self.cols, self.future = fetch_nth_data(self.stream_key, self.query_time_range, num_points=self.limit)
+            self.cols, self.future = fetch_nth_data(self.stream_key, self.query_time_range, strict_range=self.strict_range, num_points=self.limit)
         else:
-            self.cols, self.future = fetch_data(self.stream_key, self.query_time_range)
+            self.cols, self.future = fetch_data(self.stream_key, self.query_time_range, strict_range=self.strict_range)
         self.future.add_callbacks(callback=self.handle_page, errback=self.handle_error)
 
     def handle_page(self, rows):
-        Row = namedtuple('Row', self.cols, rename=True)
-        rows = [Row(*row) for row in rows]
-        self.queue.put(rows)
+        if rows:
+            Row = namedtuple('Row', self.cols, rename=True)
+            rows = [Row(*row) for row in rows]
+            self.queue.put(rows)
+
         if self.future.has_more_pages and not self.terminate:
             self.future.start_fetching_next_page()
         else:
@@ -596,6 +599,7 @@ class Chunk_Generator(object):
         self.coefficients = r.coefficients
         self.time_range = r.time_range
         self.streams = [self._create_data_stream(key, r.limit) for key in r.stream_keys]
+        self.streams[0].strict_range = True
         self.qc_functions = r.qc_parameters
 
         self._query_all()
