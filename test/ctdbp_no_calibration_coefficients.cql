@@ -4,6 +4,7 @@ CREATE TABLE stream_engine_test.ctdbp_no_calibration_coefficients (
   sensor text,
   method text,
   time double,
+  deployment int,
   id uuid,
   calibration_date_conductivity text,
   calibration_date_pressure text,
@@ -16,7 +17,6 @@ CREATE TABLE stream_engine_test.ctdbp_no_calibration_coefficients (
   cond_coeff_cslope double,
   cond_coeff_ctcor double,
   cond_sensor_serial_number text,
-  deployment int,
   driver_timestamp double,
   ext_freq_sf double,
   ext_volt0_offset double,
@@ -57,7 +57,7 @@ CREATE TABLE stream_engine_test.ctdbp_no_calibration_coefficients (
   temp_coeff_ta2 double,
   temp_coeff_ta3 double,
   temp_sensor_serial_number text,
-  PRIMARY KEY ((subsite, node, sensor), method, time, id)
+  PRIMARY KEY ((subsite, node, sensor), method, time, deployment, id)
 ) WITH
   bloom_filter_fp_chance=0.010000 AND
   caching='{"keys":"ALL", "rows_per_partition":"NONE"}' AND

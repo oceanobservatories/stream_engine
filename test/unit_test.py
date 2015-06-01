@@ -13,7 +13,7 @@ from engine.routes import app
 from engine import db
 from model.preload import Parameter, Stream
 from util.cass import fetch_data, global_cassandra_state, get_distinct_sensors, get_streams, stream_exists, \
-    fetch_nth_data
+    fetch_nth_data, create_execution_pool
 from util.common import StreamKey, TimeRange, CachedStream, CachedParameter, stretch, interpolate
 from util.preload_insert import create_db
 from util.calc import StreamRequest, Chunk_Generator, Particle_Generator, find_stream, handle_byte_buffer, execute_dpa, build_func_map, in_range, build_CC_argument, \
@@ -52,6 +52,7 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         cluster = Cluster(app.config['CASSANDRA_CONTACT_POINTS'],
                           control_connection_timeout=app.config['CASSANDRA_CONNECT_TIMEOUT'])
         global_cassandra_state['cluster'] = cluster
+        create_execution_pool()
 
     def setUp(self):
         app.config['TESTING'] = True
@@ -71,14 +72,14 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
                 'name': 'pressure',
                 'ptype': 'quantity',
                 'encoding': 'int32',
-                'needs': [195],
+                'needs': [],
                 'cc': [],
             },
             1963: {
                 'name': 'ctdpf_ckl_seawater_density',
                 'ptype': 'function',
                 'encoding': 'float32',
-                'needs': [193, 194, 195, 1959, 1960, 1961, 1962, 1963],
+                'needs': [193, 194, 195, 1959, 1960, 1961, 1962],
                 'cc': ['CC_latitude', 'CC_longitude'],
             },
         }
@@ -91,7 +92,7 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
             self.assertEqual(parameter.id, pdid)
             self.assertEqual(parameter.parameter_type.value, pmap[pdid]['ptype'])
             self.assertEqual(parameter.value_encoding.value, pmap[pdid]['encoding'])
-            self.assertEqual(sorted([p.id for p in parameter.needs()]), pmap[pdid]['needs'])
+            self.assertEqual(sorted([pdref.pdid for pdref in parameter.needs()]), pmap[pdid]['needs'])
             self.assertEqual(sorted(parameter.needs_cc()), pmap[pdid]['cc'])
 
             # by name (FAILS, parameter names are not unique!)

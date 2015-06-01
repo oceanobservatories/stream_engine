@@ -200,7 +200,7 @@ class CachedParameter(object):
             cp.description = parameter.description
             cp.parameter_function = CachedFunction.from_function(parameter.parameter_function)
             cp.streams = [stream.id for stream in parameter.streams]
-            cp.needs = [p.id for p in parameter.needs()]
+            cp.needs = parameter.needs()
             cp.needs_cc = parameter.needs_cc()
             parameter_cache[parameter.id] = cp
         return parameter_cache[parameter.id]

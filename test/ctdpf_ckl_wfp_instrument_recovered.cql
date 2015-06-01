@@ -4,9 +4,9 @@ CREATE TABLE stream_engine_test.ctdpf_ckl_wfp_instrument_recovered (
   sensor text,
   method text,
   time double,
+  deployment int,
   id uuid,
   conductivity int,
-  deployment int,
   driver_timestamp double,
   ingestion_timestamp double,
   internal_timestamp double,
@@ -16,7 +16,7 @@ CREATE TABLE stream_engine_test.ctdpf_ckl_wfp_instrument_recovered (
   provenance int,
   quality_flag text,
   temperature int,
-  PRIMARY KEY ((subsite, node, sensor), method, time, id)
+  PRIMARY KEY ((subsite, node, sensor), method, time, deployment, id)
 ) WITH
   bloom_filter_fp_chance=0.010000 AND
   caching='{"keys":"ALL", "rows_per_partition":"NONE"}' AND

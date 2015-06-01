@@ -23,6 +23,7 @@ from util.chunks import Chunk
 import pandas as pd
 import logging
 import uuid
+from model.preload import PDRef
 
 log = logging.getLogger(__name__)
 
@@ -177,13 +178,13 @@ def build_func_map(parameter, chunk, coefficients):
     args = {}
     times = chunk[7]['data']
     for key in func_map:
-        if str(func_map[key]).startswith('PD'):
-            pdid = parse_pdid(func_map[key])
+        if PDRef.is_pdref(func_map[key]):
+            pdRef = PDRef.from_str(func_map[key])
 
-            if pdid not in chunk:
-                raise StreamEngineException('Needed parameter PD%s not found in chunk when calculating PD%s %s' % (pdid, parameter.id, parameter.name))
+            if pdRef.chunk_key not in chunk:
+                raise StreamEngineException('Needed parameter %s not found in chunk when calculating PD%s %s' % (func_map[key], parameter.id, parameter.name))
 
-            args[key] = chunk[pdid]['data']
+            args[key] = chunk[pdRef.chunk_key]['data']
 
         elif str(func_map[key]).startswith('CC'):
             name = func_map[key]
@@ -475,7 +476,10 @@ class StreamRequest(object):
         needs = set()
         for each in self.parameters:
             if each.parameter_type == FUNCTION:
-                needs = needs.union([p for p in each.needs if p not in self.parameters])
+                needs = needs.union([pdref for pdref in each.needs])
+
+        needs_fqn = set([pdref for pdref in needs if pdref.is_fqn()])
+        needs = set([pdref.pdid for pdref in needs if not pdref.is_fqn()])
 
         # available in the specified streams?
         provided = []
@@ -499,6 +503,21 @@ class StreamRequest(object):
         found = [p.id for p in found]
 
         self.needs_params = needs.difference(found)
+
+        log.debug('Found FQN needs %s' % (', '.join(map(str, needs_fqn))))
+        # find the available streams which provide any needed fqn parameters
+        found = set([stream_key.stream_name for stream_key in self.stream_keys])
+        for pdref in needs_fqn:
+            if pdref.stream_name in found:
+                continue
+            parameter = CachedParameter.from_id(pdref.pdid)
+            streams = [CachedStream.from_id(sid) for sid in parameter.streams]
+            streams = [s for s in streams if s.name == pdref.stream_name]
+            sensor1, stream1 = find_stream(self.stream_keys[0], streams, distinct_sensors)
+            if not any([sensor1 is None, stream1 is None]):
+                new_stream_key = StreamKey.from_stream_key(self.stream_keys[0], sensor1, stream1.name)
+                self.stream_keys.append(new_stream_key)
+                found = found.union(stream1.name)
 
         needs_cc = set()
         for sk in self.stream_keys:
@@ -546,17 +565,20 @@ class Chunk_Generator(object):
             stream.terminate_query()
 
     def _calculate(self, parameter, chunk):
-        needs = [CachedParameter.from_id(p) for p in parameter.needs if p not in chunk.keys()]
-        if parameter in needs:
-            needs.remove(parameter)
-        for each in needs:
+        this_ref = PDRef(None, parameter.id)
+        needs = [pdref for pdref in parameter.needs if pdref.chunk_key not in chunk.keys()]
+        # prevent loops since they are only warned against
+        if this_ref in needs:
+            needs.remove(this_ref)
+        for pdref in needs:
             # this should descend through any L2 functions to
             # calculate the underlying L1 functions first
-            if each.parameter_type == FUNCTION:
-                self._calculate(each, chunk)
+            needed_parameter = CachedParameter.from_id(pdref.pdid)
+            if needed_parameter.parameter_type == FUNCTION:
+                self._calculate(needed_parameter, chunk)
             # we may have already inserted this during recursion
-            if each.id not in chunk:
-                self._get_param(each.id, chunk)
+            if pdref.chunk_key not in chunk:
+                self._get_param(pdref, chunk)
 
         try:
             args = build_func_map(parameter, chunk, self.coefficients)
@@ -565,13 +587,30 @@ class Chunk_Generator(object):
             log.warning(e.message)
 
 
-    def _get_param(self, pdid, chunk):
-        for stream in self.streams[1:]:
-            if stream.provides(pdid):
-                chunk[pdid] = {
-                    'data': stream.get_param_interp(pdid, chunk[7]['data'])[1],
-                    'source': stream.stream_key.as_refdes()
-                }
+    def _get_param(self, pdref, chunk):
+        found_stream = None
+        if pdref.is_fqn():
+            log.debug('Requesting FQN Parameter %s' % (pdref))
+            for stream in self.streams:
+                if stream.stream_key.stream_name == pdref.stream_name:
+                    log.debug('Found FQN Parameter %s' % (pdref))
+                    found_stream = stream
+                    break
+        else:
+            for stream in self.streams[1:]:
+                if stream.provides(pdref.pdid):
+                    found_stream = stream
+                    break
+
+        if found_stream is None:
+            log.warning('Failed to resolve %s' % (pdref))
+        elif found_stream is not self.streams[0]:
+            chunk[pdref.chunk_key] = {
+                'data': found_stream.get_param_interp(pdref.pdid, chunk[7]['data'])[1],
+                'source': found_stream.stream_key.as_refdes()
+            }
+        else:
+            chunk[pdref.chunk_key] = chunk[pdref.pdid]
 
     def _execute_dpas_chunk(self, chunk):
         for parameter in self.parameters:
@@ -579,7 +618,7 @@ class Chunk_Generator(object):
                 if parameter.parameter_type == FUNCTION:
                     self._calculate(parameter, chunk)
                 else:
-                    self._get_param(parameter.id, chunk)
+                    self._get_param(PDRef(None, parameter.id), chunk)
                 if self.qc_functions.get(parameter.name) is not None:
                     self._qc_check(parameter, chunk)
 

@@ -1,5 +1,8 @@
 import json
 from engine import db
+import logging
+
+log = logging.getLogger(__name__)
 
 
 class ParameterType(db.Model):
@@ -76,27 +79,37 @@ class Parameter(db.Model):
     def parse_pdid(self, pdid_string):
         return int(pdid_string.split()[0][2:])
 
-    def needs(self, needed=None):
-        if needed is None:
-            needed = []
+    def needs(self, seen=None):
+        if seen is None:
+            seen = set()
+        needed = set()
 
-        if self in needed:
-            return
+        this_ref = PDRef(None, self.id)
+        seen.add(this_ref)
 
         if self.parameter_type.value == 'function':
             for value in self.parameter_function_map.values():
-                if isinstance(value,basestring) and value.startswith('PD'):
+                if PDRef.is_pdref(value):
                     try:
-                        pdid = self.parse_pdid(value)
-                        sub_param = Parameter.query.get(pdid)
-                        if sub_param in needed:
+                        pdref = PDRef.from_str(value)
+                        needed.add(pdref)
+                        if pdref in seen:
                             continue
-                        sub_param.needs(needed)
+                        seen.add(pdref)
+
+                        sub_param = Parameter.query.get(pdref.pdid)
+                        if(sub_param.parameter_type.value == 'function'):
+                            if pdref.is_fqn():
+                                log.warning('Argument error, %s, FQN only supported for L0' % (pdref))
+                            else:
+                                needed.update(sub_param.needs(seen))
+
                     except (ValueError, AttributeError):
                         pass
 
-        if self not in needed:
-            needed.append(self)
+            if this_ref in needed:
+                log.warning('Parameter %s defined needing itself' % (this_ref))
+
         return needed
 
     def needs_cc(self, needed=None):
@@ -123,3 +136,46 @@ class Stream(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(250), nullable=False, unique=True)
     parameters = db.relationship('Parameter', secondary='stream_parameter')
+
+
+class PDRef(object):
+
+    def __init__(self, stream_name, pdid):
+        self.stream_name = stream_name;
+        self.pdid = pdid;
+        self.chunk_key = '%s.PD%s' % (stream_name, pdid) if stream_name else pdid
+
+    def is_fqn(self):
+        return self.stream_name is not None
+
+    @staticmethod
+    def is_pdref(s):
+        if isinstance(s,basestring) and (s.startswith('PD') or s.find('.PD') > 0):
+            return True
+        else:
+            return False
+
+    @staticmethod
+    def from_str(s):
+        if PDRef.is_pdref(s):
+            s_split = s.split('.', 1)
+            if len(s_split) == 2:
+                stream_name = s_split[0]
+                pdid = s_split[1]
+            else:
+                stream_name = None
+                pdid = s
+
+            pdid = int(pdid.split()[0][2:])
+            return PDRef(stream_name, pdid)
+        else:
+            raise ValueError('%s is not a PDRef' % s)
+
+    def __str__(self):
+        return self.chunk_key
+
+    def __hash__(self):
+        return hash(self.chunk_key)
+
+    def __eq__(self, other):
+        return self.chunk_key == other.chunk_key
