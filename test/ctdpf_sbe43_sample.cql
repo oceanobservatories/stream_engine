@@ -15,7 +15,7 @@ CREATE TABLE stream_engine_test.ctdpf_sbe43_sample (
   preferred_timestamp text,
   pressure int,
   pressure_temp int,
-  provenance int,
+  provenance uuid,
   quality_flag text,
   temperature int,
   PRIMARY KEY ((subsite, node, sensor), method, time, deployment, id)

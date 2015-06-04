@@ -13,7 +13,7 @@ CREATE TABLE stream_engine_test.ctdpf_ckl_wfp_instrument_recovered (
   port_timestamp double,
   preferred_timestamp text,
   pressure int,
-  provenance int,
+  provenance uuid,
   quality_flag text,
   temperature int,
   PRIMARY KEY ((subsite, node, sensor), method, time, deployment, id)

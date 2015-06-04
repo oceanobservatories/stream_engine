@@ -297,6 +297,18 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
 
         self.assertEqual(len(particles), 100)
 
+    def test_data_stream_not_objects_dtype(self):
+
+        stream_key1 = StreamKey(self.subsite, self.node, self.sensor, self.method, 'ctdbp_no_sample')
+        stream_key2 = StreamKey(self.subsite, self.node, self.sensor, self.method, 'ctdbp_no_calibration_coefficients')
+        time_range = TimeRange(self.first, self.last)
+        sr = StreamRequest([stream_key1, stream_key2], [],
+                           {'CC_lat': [{'start': self.first, 'stop': self.last, 'value': 0.0}],
+                            'CC_lon': [{'start': self.first, 'stop': self.last, 'value': 0.0}]}, time_range)
+        for chunk in Chunk_Generator().chunks(sr):
+            for key in chunk:
+                self.assertNotEqual(chunk[key]['data'].dtype, 'object');
+
     def test_data_stream_with_limit(self):
         # number of points needs to be low enough that
         # we will exercise the fetch_nth code

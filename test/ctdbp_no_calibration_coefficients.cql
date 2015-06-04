@@ -48,7 +48,7 @@ CREATE TABLE stream_engine_test.ctdbp_no_calibration_coefficients (
   press_coeff_pt4 double,
   pressure_sensor_range double,
   pressure_sensor_serial_number text,
-  provenance int,
+  provenance uuid,
   quality_flag text,
   serial_number text,
   temp_coeff_offset double,

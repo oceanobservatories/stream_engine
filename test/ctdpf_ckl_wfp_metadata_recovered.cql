@@ -11,7 +11,7 @@ CREATE TABLE stream_engine_test.ctdpf_ckl_wfp_metadata_recovered (
   internal_timestamp double,
   port_timestamp double,
   preferred_timestamp text,
-  provenance int,
+  provenance uuid,
   quality_flag text,
   wfp_number_samples bigint,
   wfp_time_off bigint,
