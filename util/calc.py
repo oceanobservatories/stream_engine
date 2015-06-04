@@ -359,7 +359,7 @@ class DataStream(object):
             }
 
             self.data_cache['provenance'] = {
-                'data': df.provenance.values,
+                'data': df.provenance.values.astype('str'),
                 'source': source
             }
 
@@ -791,19 +791,8 @@ class NetCDF_Generator(object):
                             group.createDimension(name, dimension)
                             dims.append(name)
 
-
-                    data_type = data.dtype
-                    if data.dtype == 'object' and len(data[chunk_valid]) > 0:
-                        # convert uuid to str
-                        if isinstance(data[chunk_valid][0], uuid.UUID):
-                            data_type = "str"
-                            data[chunk_valid] = [str(x) for x in data[chunk_valid]]
-                        else:
-                            app.logger.error("Unknown object type: {}, skipping".format(type(data[chunk_valid][0])))
-                            continue
-
                     variables[param_id] = group.createVariable(param_name,
-                                                                data_type,
+                                                                data.dtype,
                                                                 dims,
                                                                 zlib=True)
 

@@ -84,7 +84,7 @@ class PDRef(object):
             raise ValueError('%s is not a PDRef' % s)
 
     def __str__(self):
-        return self.chunk_key
+        return str(self.chunk_key)
 
     def __hash__(self):
         return hash(self.chunk_key)
