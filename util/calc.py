@@ -233,16 +233,17 @@ def in_range(frame, times):
 
 
 def build_CC_argument(frames, times):
-    sample_value = frames[0]['value']
+    frames = [(f.get('start'), f.get('stop'), f['value']) for f in frames]
+    frames.sort()
+    frames = [f for f in frames if any(in_range(f, times))]
+
+    sample_value = frames[0][2]
     if(type(sample_value) == list) :
         cc = numpy.empty(times.shape + numpy.array(sample_value).shape)
     else:
         cc = numpy.empty(times.shape)
     cc[:] = numpy.NAN
     
-    frames = [(f.get('start'), f.get('stop'), f['value']) for f in frames]
-    frames.sort()
-
     for frame in frames[::-1]:
         mask = in_range(frame, times)
         cc[mask] = frame[2]
@@ -270,9 +271,12 @@ class DataStream(object):
         self.cols = None
         self.terminate = False
         self.limit = limit
+        self.nf_parameters = None
         self._initialize()
 
     def _initialize(self):
+        self.nf_parameters = [p for p in self.stream_key.stream.parameters if p.parameter_type != FUNCTION]
+
         needs_cc = set()
         for param in self.stream_key.stream.parameters:
             if not param.parameter_type == FUNCTION:
@@ -325,29 +329,19 @@ class DataStream(object):
         except Empty:
             time.sleep(.001)
 
-    def create_generator(self, parameters):
+    def create_generator(self):
         """
         generator to return the data from a single chunk
         dropping the previous row cache each cycle
         this is the preferred method of retrieving data
         from the primary stream
         """
-        if parameters is None or len(parameters) == 0:
-            parameters = [p for p in self.stream_key.stream.parameters if p.parameter_type != FUNCTION]
-
         while True:
             if self.queue.empty() and self.finished_event.is_set():
                 raise StopIteration()
 
-            source = self.stream_key.as_refdes()
-
             self.row_cache = []
-            self.data_cache = {p.id: [] for p in parameters}
             self._get_chunk()
-            self.data_cache[7] = {
-                'data': [],
-                'source': source
-            }
 
             if len(self.row_cache) == 0:
                 continue
@@ -355,45 +349,54 @@ class DataStream(object):
             fields = self.row_cache[0]._fields
             df = pd.DataFrame(self.row_cache, columns=fields)
 
-            # special cases for deployment number and provenance key
-            self.data_cache['deployment'] = {
-                'data': df.deployment.values,
+            deployments = df.groupby('deployment')
+            for dep_num, data_frame in deployments:
+                self.populate_data_cache(data_frame)
+                yield self.data_cache
+
+    def populate_data_cache(self, df):
+        source = self.stream_key.as_refdes()
+
+        self.data_cache = {}
+
+        # special cases for deployment number and provenance key
+        self.data_cache['deployment'] = {
+            'data': df.deployment.values,
+            'source': source
+        }
+
+        self.data_cache['provenance'] = {
+            'data': df.provenance.values.astype('str'),
+            'source': source
+        }
+
+        for p in self.nf_parameters:
+            data_slice = df[p.name].values
+            shape_name = p.name + '_shape'
+            if shape_name in df:
+                shape = [len(data_slice)] + df[shape_name].iloc[0]
+                if p.value_encoding == 'string':
+                    temp = [item for sublist in data_slice for item in sublist]
+                    data_slice = numpy.array(temp).reshape(shape)
+                else:
+                    data_slice = handle_byte_buffer(''.join(data_slice), p.value_encoding, shape)
+
+            # Nones can only be in ndarrays with dtype == object.  NetCDF
+            # doesn't like objects.  First replace Nones with the
+            # appropriate fill value.
+            nones = numpy.equal(data_slice, None)
+            if numpy.any(nones):
+                data_slice[nones] = p.fill_value
+
+            # Pandas also treats strings as objects.  NetCDF doesn't
+            # like objects.  So convert objects to strings.
+            if data_slice.dtype == object:
+                data_slice = data_slice.astype('str')
+
+            self.data_cache[p.id] = {
+                'data': data_slice,
                 'source': source
             }
-
-            self.data_cache['provenance'] = {
-                'data': df.provenance.values.astype('str'),
-                'source': source
-            }
-
-            for p in parameters:
-                data_slice = df[p.name].values
-                shape_name = p.name + '_shape'
-                if shape_name in fields:
-                    shape = [len(data_slice)] + df[shape_name][0]
-                    if p.value_encoding == 'string':
-                        temp = [item for sublist in data_slice for item in sublist]
-                        data_slice = numpy.array(temp).reshape(shape)
-                    else:
-                        data_slice = handle_byte_buffer(''.join(data_slice), p.value_encoding, shape)
-
-                # Nones can only be in ndarrays with dtype == object.  NetCDF
-                # doesn't like objects.  First replace Nones with the
-                # appropriate fill value.
-                nones = numpy.equal(data_slice, None)
-                if numpy.any(nones):
-                    data_slice[nones] = p.fill_value
-
-                # Pandas also treats strings as objects.  NetCDF doesn't
-                # like objects.  So convert objects to strings.
-                if data_slice.dtype == object:
-                    data_slice = data_slice.astype('str')
-
-                self.data_cache[p.id] = {
-                    'data': data_slice,
-                    'source': source
-                }
-            yield self.data_cache
 
     def get_param(self, pdid, time_range):
         if pdid not in self.id_map:
@@ -645,7 +648,7 @@ class Chunk_Generator(object):
         self.qc_functions = r.qc_parameters
 
         self._query_all()
-        for chunk in self.streams[0].create_generator(None):
+        for chunk in self.streams[0].create_generator():
             self._execute_dpas_chunk(chunk)
             yield(chunk)
 
@@ -742,88 +745,91 @@ class NetCDF_Generator(object):
                 ncfile.collection_method = r.stream_keys[0].method
                 ncfile.stream = r.stream_keys[0].stream.name
 
-                # create the time dimension in the root group
-                ncfile.createDimension('time', None)
-                # create a derived group
-                groups = {
-                    'derived': ncfile.createGroup('derived')
-                }
-
                 variables = {}
-
-                # grab the first chunk of data
-                chunk_generator = self.generator.chunks(r)
-                first_chunk = chunk_generator.next()
-
-                # sometimes we will get duplicate timestamps
-                # INITIAL solution is to remove any duplicate timestamps
-                # and the corresponding data.
-
-                # create a mask to match only valid INCREASING times
-                # we will insert the last valid timestamp from the previous
-                # chunk at the beginning of the array
-                chunk_times = first_chunk[7]['data']
-                chunk_valid = numpy.diff(numpy.insert(chunk_times, 0, 0.0)) != 0
-
-                # We will need to keep track of the last timestamp of each chunk so
-                # that we can apply this logic across chunks
-                last_timestamp = chunk_times[chunk_valid][-1]
-
-                # create the netcdf variables and any extra dimensions
-                for param_id in first_chunk:
-                    param = CachedParameter.from_id(param_id)
-                    # param can be None if this is not a real parameter,
-                    # like deployment for deployment number
-                    param_name = param_id if param is None else param.name
-
-                    data = first_chunk[param_id]['data']
-                    source = first_chunk[param_id]['source']
-                    if param_id == 7:
-                        group = ncfile
-                    elif param and param.parameter_type == FUNCTION:
-                        group = groups['derived']
-                    else:
-                        if source not in groups:
-                            groups[source] = ncfile.createGroup(source)
-                        group = groups[source]
-
-                    dims = ['time']
-                    if len(data.shape) > 1:
-                        for index, dimension in enumerate(data.shape[1:]):
-                            name = '%s_dim_%d' % (param_name, index)
-                            group.createDimension(name, dimension)
-                            dims.append(name)
-
-                    variables[param_id] = group.createVariable(param_name,
-                                                                data.dtype,
-                                                                dims,
-                                                                zlib=True)
-
-                    if param:
-                        if param.unit is not None:
-                            variables[param_id].units = param.unit
-                        if param.fill_value is not None:
-                            variables[param_id].fill_value = param.fill_value
-                        if param.description is not None:
-                            variables[param_id].long_name = param.description
-                        if param.display_name is not None:
-                            variables[param_id].display_name = param.display_name
-                        if param.data_product_identifier is not None:
-                            variables[param_id].data_product_identifier = param.data_product_identifier
-
-                    variables[param_id][:] = data[chunk_valid]
-
+                last_timestamp = 0.0
                 # iterate through the chunks and populate the data
-                for chunk in chunk_generator:
-                    # see comment in first_chunk for explanation of this logic
+                for chunk in self.generator.chunks(r):
+                    # sometimes we will get duplicate timestamps
+                    # INITIAL solution is to remove any duplicate timestamps
+                    # and the corresponding data.
+
+                    # create a mask to match only valid INCREASING times
+                    # we will insert the last valid timestamp from the previous
+                    # chunk at the beginning of the array
                     chunk_times = chunk[7]['data']
                     chunk_valid = numpy.diff(numpy.insert(chunk_times, 0, last_timestamp)) != 0
+                    # We will need to keep track of the last timestamp of each chunk so
+                    # that we can apply this logic across chunks
                     last_timestamp = chunk_times[chunk_valid][-1]
 
-                    index = len(variables[7])
+                    deployment = str(chunk['deployment']['data'][0])
+                    time_v_key = '7_%s' % (deployment,)
+                    time_dim = 'time_%s' % (deployment,)
+                    if time_v_key not in variables:
+                        index = 0
+                        ncfile.createDimension(time_dim, None)
+                    else:
+                        index = len(variables[time_v_key])
+
                     for param_id in chunk:
                         data = chunk[param_id]['data']
-                        variables[param_id][index:] = data[chunk_valid]
+                        source = chunk[param_id]['source']
+
+                        if param_id == 7:
+                            group = ncfile
+                            v_key = time_v_key
+                        else:
+                            if source in ncfile.groups:
+                                group = ncfile.groups[source]
+                            else:
+                                group = ncfile.createGroup(source)
+
+                            if deployment in group.groups:
+                                group = group.groups[deployment]
+                            else:
+                                group = group.createGroup(deployment)
+
+                            v_key = '/%s/%s/%s' % (source, deployment, param_id)
+
+                        if v_key not in variables:
+                            param = CachedParameter.from_id(param_id)
+                            # param can be None if this is not a real parameter,
+                            # like deployment for deployment number
+                            param_name = param_id if param is None else param.name
+
+                            dims = [time_dim]
+                            if len(data.shape) > 1:
+                                for index, dimension in enumerate(data.shape[1:]):
+                                    name = '%s_dim_%d' % (param_name, index)
+                                    group.createDimension(name, dimension)
+                                    dims.append(name)
+
+                            try:
+                                variables[v_key] = group.createVariable(param_name if param_id != 7 else v_key,
+                                                                            data.dtype,
+                                                                            dims,
+                                                                            zlib=True)
+                            except TypeError:
+                                log.error('Unable to create variable: %s, %s, %s, %s' % (v_key, data.dtype, data.shape, traceback.format_exc()))
+                            else:
+                                if param:
+                                    if param.unit is not None:
+                                        variables[v_key].units = param.unit
+                                    if param.fill_value is not None:
+                                        variables[v_key].fill_value = param.fill_value
+                                    if param.description is not None:
+                                        variables[v_key].long_name = param.description
+                                    if param.display_name is not None:
+                                        variables[v_key].display_name = param.display_name
+                                    if param.data_product_identifier is not None:
+                                        variables[v_key].data_product_identifier = param.data_product_identifier
+
+                        try:
+                            variables[v_key][index:] = data[chunk_valid]
+                        except KeyError:
+                            log.error('Variable identified with key %s doesn\'t exist' % (v_key))
+                        except (IndexError, ValueError):
+                            log.error('Unable to write data slice to variable: %s, %s, %s, %s' % (v_key, data.dtype, data.shape, traceback.format_exc()))
 
             return tf.read()
 
