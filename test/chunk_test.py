@@ -19,21 +19,25 @@ class Test_Chunk_Generator(object):
             { 7: {'source': 'foo', 'data': numpy.array([2,4,8])},
               8: {'source': 'foo', 'data': numpy.array([1,2,3])},
               9: {'source': 'foo', 'data': numpy.array([[1,2],[1,2],[1,2]])},
-             10: {'source': 'foo', 'data': numpy.array(['str1','str2','str3'])}},
+             10: {'source': 'foo', 'data': numpy.array(['str1','str2','str3'])},
+             11: {'source': 'foo', 'data': numpy.array([[1,2],[1,2],[1,2]])}},
             { 7: {'source': 'foo', 'data': numpy.array([9])},
               8: {'source': 'foo', 'data': numpy.array([4])},
               9: {'source': 'foo', 'data': numpy.array([[1,2]])},
-             10: {'source': 'foo', 'data': numpy.array(['str1'])}},
+             10: {'source': 'foo', 'data': numpy.array(['str1'])},
+             11: {'source': 'foo', 'data': numpy.array([[1]])}},
             { 7: {'source': 'foo', 'data': numpy.array([13, 19])},
               8: {'source': 'foo', 'data': numpy.array([7,8])},
               9: {'source': 'foo', 'data': numpy.array([[1,2],[1,2]])},
-             10: {'source': 'foo', 'data': numpy.array(['str1','str2'])}}
+             10: {'source': 'foo', 'data': numpy.array(['str1','str2'])},
+             11: {'source': 'foo', 'data': numpy.array([[1,2,3],[1,2,3]])}},
         ]
         self.empty_chunk = \
             { 7: {'source': 'foo', 'data': numpy.empty((0,), dtype=int)},
               8: {'source': 'foo', 'data': numpy.empty((0,), dtype=int)},
               9: {'source': 'foo', 'data': numpy.empty((0,2,), dtype=int)},
-             10: {'source': 'foo', 'data': numpy.empty((0,), dtype='|S4')}}
+             10: {'source': 'foo', 'data': numpy.empty((0,), dtype='|S4')},
+             11: {'source': 'foo', 'data': numpy.empty((0,), dtype=object)}}
 
     def chunks(self, r=None):
         for chunk in self.chunks_list:
@@ -53,7 +57,8 @@ def test_axioms():
         { 7: {'source': 'foo', 'data': numpy.array([2,4,8])},
           8: {'source': 'foo', 'data': numpy.array([1,2,3])},
           9: {'source': 'foo', 'data': numpy.array([[1,2],[1,2],[1,2]])},
-         10: {'source': 'foo', 'data': numpy.array(['str1','str2','str3'])}}
+         10: {'source': 'foo', 'data': numpy.array(['str1','str2','str3'])},
+         11: {'source': 'foo', 'data': numpy.array([[1,2],[1,2],[1,2]])}}
 
     assert chunks.is_equal(test_chunk, cg.chunks_list[0])
     assert Chunk(test_chunk) == cg.chunks_list[0]
@@ -68,7 +73,8 @@ def test_concatenate():
         { 7: {'source': 'foo', 'data': numpy.array([2,4,8,9])},
           8: {'source': 'foo', 'data': numpy.array([1,2,3,4])},
           9: {'source': 'foo', 'data': numpy.array([[1,2],[1,2],[1,2],[1,2]])},
-         10: {'source': 'foo', 'data': numpy.array(['str1','str2','str3','str1'])}}
+         10: {'source': 'foo', 'data': numpy.array(['str1','str2','str3','str1'])},
+         11: {'source': 'foo', 'data': numpy.array([[1,2],[1,2],[1,2],[1]])}}
 
     chunk = chunks.concatenate(cg.chunks_list[0], cg.chunks_list[1])
     assert chunk == test_chunk
@@ -85,6 +91,7 @@ def test_slice():
 
     slice1 = chunk[:chunk0_length]
     slice2 = chunk[chunk0_length:]
+
     assert cg.chunks_list[0] == slice1
     assert cg.chunks_list[1] == slice2
 
@@ -103,7 +110,8 @@ def test_slice():
            { 7: {'source': 'foo', 'data': numpy.array([9])},
              8: {'source': 'foo', 'data': numpy.array([4])},
              9: {'source': 'foo', 'data': numpy.array([[1,2]])},
-            10: {'source': 'foo', 'data': numpy.array(['str1'])}}
+            10: {'source': 'foo', 'data': numpy.array(['str1'])},
+            11: {'source': 'foo', 'data': numpy.array([[1]])}}
 
 
 def test_with_times():
@@ -113,19 +121,22 @@ def test_with_times():
         { 7: {'source': 'foo', 'data': numpy.array([9,14,15])},
           8: {'source': 'foo', 'data': numpy.array([5.5, numpy.NAN, 8])},
           9: {'source': 'foo', 'data': numpy.array([[1,2],[-9223372036854775808,-9223372036854775808],[1,2]])},
-         10: {'source': 'foo', 'data': numpy.array(['str1','nan','str2'])}}
+         10: {'source': 'foo', 'data': numpy.array(['str1','nan','str2'])},
+         11: {'source': 'foo', 'data': numpy.array([[1],None,[1,2,3]])}}
 
     nan_chunk = \
         { 7: {'source': 'foo', 'data': numpy.array([1,2,3,4])},
           8: {'source': 'foo', 'data': numpy.array([-9223372036854775808,-9223372036854775808,-9223372036854775808,-9223372036854775808])},
           9: {'source': 'foo', 'data': numpy.array([[-9223372036854775808,-9223372036854775808],[-9223372036854775808,-9223372036854775808],[-9223372036854775808,-9223372036854775808],[-9223372036854775808,-9223372036854775808]])},
-          10: {'source': 'foo', 'data': numpy.array(['nan','nan','nan','nan'])}}
+          10: {'source': 'foo', 'data': numpy.array(['nan','nan','nan','nan'])},
+          11: {'source': 'foo', 'data': numpy.array([None, None, None, None])}}
 
     concat_chunk = \
         {7: {'source': 'foo', 'data': numpy.array([ 2,  4,  8,  9, 13, 19])},
          8: {'source': 'foo', 'data': numpy.array([1, 2, 3, 4, 7, 8])},
          9: {'source': 'foo', 'data': numpy.array([[1, 2], [1, 2], [1, 2], [1, 2], [1, 2], [1, 2]])},
-         10: {'source': 'foo', 'data': numpy.array(['str1', 'str2', 'str3', 'str1', 'str1', 'str2'])}}
+         10: {'source': 'foo', 'data': numpy.array(['str1', 'str2', 'str3', 'str1', 'str1', 'str2'])},
+         11: {'source': 'foo', 'data': numpy.array([[1, 2], [1, 2], [1, 2], [1], [1, 2, 3], [1, 2, 3]])}}
 
     chunk = chunks.concatenate(*cg.chunks_list)
     assert concat_chunk == chunk
@@ -143,7 +154,8 @@ def test_with_times():
         { 7: {'source': 'foo', 'data': numpy.array([1,3,20])},
           8: {'source': 'foo', 'data': numpy.array([1,1.5,8])},
           9: {'source': 'foo', 'data': numpy.array([[1,2],[1,2],[1,2]])},
-         10: {'source': 'foo', 'data': numpy.array(['str1','str1','str2'])}}
+         10: {'source': 'foo', 'data': numpy.array(['str1','str1','str2'])},
+         11: {'source': 'foo', 'data': numpy.array([[1, 2], [1, 2], [1, 2, 3]])}}
 
     chunk_result = chunk.with_times([1,3,20])
     assert int_chunk == chunk_result
@@ -153,11 +165,13 @@ def test_average_generator():
     avg_chunks = [{ 7: {'source': 'foo', 'data': numpy.array([9,14])},
                     8: {'source': 'foo', 'data': numpy.array([5.5, numpy.NAN])},
                     9: {'source': 'foo', 'data': numpy.array([[1,2],[-9223372036854775808,-9223372036854775808]])},
-                   10: {'source': 'foo', 'data': numpy.array(['str1','nan'])}},
+                   10: {'source': 'foo', 'data': numpy.array(['str1','nan'])},
+                   11: {'source': 'foo', 'data': numpy.array([[1], None])}},
                   { 7: {'source': 'foo', 'data': numpy.array([15])},
                     8: {'source': 'foo', 'data': numpy.array([8])},
                     9: {'source': 'foo', 'data': numpy.array([[1,2]])},
-                   10: {'source': 'foo', 'data': numpy.array(['str2'])}}]
+                   10: {'source': 'foo', 'data': numpy.array(['str2'])},
+                   11: {'source': 'foo', 'data': numpy.array([[1,2,3]])}}]
 
     ag = Average_Generator(Test_Chunk_Generator())
     i = 0
@@ -170,15 +184,19 @@ def test_interpolation_generator():
     int_chunks = [{ 7: {'source': 'foo', 'data': numpy.array([1,5])},
                     8: {'source': 'foo', 'data': numpy.array([1,2.25])},
                     9: {'source': 'foo', 'data': numpy.array([[1,2],[1,2]])},
-                   10: {'source': 'foo', 'data': numpy.array(['str1','str2'])}},
+                   10: {'source': 'foo', 'data': numpy.array(['str1','str2'])},
+                   11: {'source': 'foo', 'data': numpy.array([[1,2],[1,2]])}},
                   { 7: {'source': 'foo', 'data': numpy.array([10,15])},
                     8: {'source': 'foo', 'data': numpy.array([4.75,(7. + (2./6.))])},
                     9: {'source': 'foo', 'data': numpy.array([[1,2],[1,2]])},
-                   10: {'source': 'foo', 'data': numpy.array(['str1','str1'])}},
+                   10: {'source': 'foo', 'data': numpy.array(['str1','str1'])},
+                   11: {'source': 'foo', 'data': numpy.array([[1],[1,2,3]])}},
                   { 7: {'source': 'foo', 'data': numpy.array([20])},
                     8: {'source': 'foo', 'data': numpy.array([8])},
                     9: {'source': 'foo', 'data': numpy.array([[1,2]])},
-                   10: {'source': 'foo', 'data': numpy.array(['str2'])}}]
+                   10: {'source': 'foo', 'data': numpy.array(['str2'])},
+                   11: {'source': 'foo', 'data': numpy.array([[1,2,3]])}}]
+
 
     ag = Interpolation_Generator(Test_Chunk_Generator())
     i = 0

@@ -140,6 +140,9 @@ def fetch_data(stream_key, time_range, strict_range=False, session=None, prepare
             start = first[0][0]
         if last:
             stop = last[0][0]
+        # search "close enough" because floats are not exact
+        start -= 0.005
+        stop += 0.005
 
     query = SimpleStatement(base % ','.join(cols) + ' and time>=%s and time<=%s', fetch_size=engine.app.config['CASSANDRA_FETCH_SIZE'])
     engine.app.logger.info('Executing cassandra query: %s %s', query, (start, stop))

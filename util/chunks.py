@@ -171,7 +171,9 @@ def is_equal(chunk1, chunk2, exact=True):
                 pass
 
             if exact:
-                if not np.array_equal(d1, d2):
+                if d1.dtype != d2.dtype and 'object' in (d1.dtype, d2.dtype) and d1.shape != d2.shape:
+                    return d1.tolist() == d2.tolist()
+                elif not np.array_equal(d1, d2):
                     return False
             else:
                 try:
@@ -179,7 +181,9 @@ def is_equal(chunk1, chunk2, exact=True):
                     if not np.allclose(d1, d2):
                         return False
                 except TypeError:
-                    if not np.array_equal(d1, d2):
+                    if d1.dtype != d2.dtype and 'object' in (d1.dtype, d2.dtype) and d1.shape != d2.shape:
+                        return d1.tolist() == d2.tolist()
+                    elif not np.array_equal(d1, d2):
                         return False
 
     return True
@@ -199,5 +203,8 @@ def concatenate(*chunks):
     cd1 = chunks[0]
     for key in cd1:
         dict_[key] = {'source': cd1[key]['source']}
-        dict_[key]['data'] = np.concatenate([cd[key]['data'] for cd in chunks])
+        try:
+            dict_[key]['data'] = np.concatenate([cd[key]['data'] for cd in chunks])
+        except ValueError:
+            dict_[key]['data'] = np.array([d for cd in chunks for d in cd[key]['data'].tolist()])
     return Chunk(dict_)

@@ -26,21 +26,24 @@ def with_size_and_fill(a, size):
     dtype = a.dtype
     x = numpy.empty((size,) + shape[1:], dtype)
     # TODO: Fill with appropriate value for dtype
-    x.fill(numpy.NAN)
+    if x.dtype == object:
+        x.fill(None)
+    else:
+        x.fill(numpy.NAN)
     return x
 
 
 def stretch(times, data, interp_times):
     if len(times) == 1:
         new_data = with_size_and_fill(numpy.array(data), len(interp_times))
-        new_data[:] = data[0]
+        new_data[:] = data[0:1]
         return interp_times, new_data
     if interp_times[0] < times[0]:
         times = numpy.concatenate(([interp_times[0]], times))
-        data = numpy.concatenate(([data[0]], data))
+        data = numpy.concatenate((data[0:1], data))
     if interp_times[-1] > times[-1]:
         times = numpy.concatenate((times, [interp_times[-1]]))
-        data = numpy.concatenate((data, [data[-1]]))
+        data = numpy.concatenate((data, data[-1:]))
     return times, data
 
 
