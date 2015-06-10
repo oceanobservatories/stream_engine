@@ -703,13 +703,13 @@ class Particle_Generator(object):
                 if r.limit is not None :
                     if r.limit <= count :
                         break
-            yield ']'
+            yield ' ]'
         except GeneratorExit as e:
             raise e
         except Exception as e:
             log.exception('An unexpected error occurred.')
             exception_output = ', ' if not first else ''
-            exception_output += json.dumps(traceback.format_exc()) + ']'
+            exception_output += json.dumps(traceback.format_exc()) + ' ]'
             yield exception_output
         finally:
             self.generator._terminate_all()
