@@ -230,16 +230,17 @@ def in_range(frame, times):
 
 
 def build_CC_argument(frames, times):
-    sample_value = frames[0]['value']
+    frames = [(f.get('start'), f.get('stop'), f['value']) for f in frames]
+    frames.sort()
+    frames = [f for f in frames if any(in_range(f, times))]
+
+    sample_value = frames[0][2]
     if(type(sample_value) == list) :
         cc = numpy.empty(times.shape + numpy.array(sample_value).shape)
     else:
         cc = numpy.empty(times.shape)
     cc[:] = numpy.NAN
     
-    frames = [(f.get('start'), f.get('stop'), f['value']) for f in frames]
-    frames.sort()
-
     for frame in frames[::-1]:
         mask = in_range(frame, times)
         cc[mask] = frame[2]
@@ -267,9 +268,12 @@ class DataStream(object):
         self.cols = None
         self.terminate = False
         self.limit = limit
+        self.l0_parameters = None
         self._initialize()
 
     def _initialize(self):
+        self.l0_parameters = [p for p in self.stream_key.stream.parameters if p.parameter_type != FUNCTION]
+
         needs_cc = set()
         for param in self.stream_key.stream.parameters:
             if not param.parameter_type == FUNCTION:
@@ -322,29 +326,19 @@ class DataStream(object):
         except Empty:
             time.sleep(.001)
 
-    def create_generator(self, parameters):
+    def create_generator(self):
         """
         generator to return the data from a single chunk
         dropping the previous row cache each cycle
         this is the preferred method of retrieving data
         from the primary stream
         """
-        if parameters is None or len(parameters) == 0:
-            parameters = [p for p in self.stream_key.stream.parameters if p.parameter_type != FUNCTION]
-
         while True:
             if self.queue.empty() and self.finished_event.is_set():
                 raise StopIteration()
 
-            source = self.stream_key.as_refdes()
-
             self.row_cache = []
-            self.data_cache = {p.id: [] for p in parameters}
             self._get_chunk()
-            self.data_cache[7] = {
-                'data': [],
-                'source': source
-            }
 
             if len(self.row_cache) == 0:
                 continue
@@ -352,45 +346,52 @@ class DataStream(object):
             fields = self.row_cache[0]._fields
             df = pd.DataFrame(self.row_cache, columns=fields)
 
-            # special cases for deployment number and provenance key
-            self.data_cache['deployment'] = {
-                'data': df.deployment.values,
+            deployments = df.groupby('deployment')
+            for deployment in deployments:
+                self.populate_data_cache(df)
+                yield self.data_cache
+
+    def populate_data_cache(self, df):
+        source = self.stream_key.as_refdes()
+
+        # special cases for deployment number and provenance key
+        self.data_cache['deployment'] = {
+            'data': df.deployment.values,
+            'source': source
+        }
+
+        self.data_cache['provenance'] = {
+            'data': df.provenance.values.astype('str'),
+            'source': source
+        }
+
+        for p in self.l0_parameters:
+            data_slice = df[p.name].values
+            shape_name = p.name + '_shape'
+            if shape_name in df:
+                shape = [len(data_slice)] + df[shape_name][0]
+                if p.value_encoding == 'string':
+                    temp = [item for sublist in data_slice for item in sublist]
+                    data_slice = numpy.array(temp).reshape(shape)
+                else:
+                    data_slice = handle_byte_buffer(''.join(data_slice), p.value_encoding, shape)
+
+            # Nones can only be in ndarrays with dtype == object.  NetCDF
+            # doesn't like objects.  First replace Nones with the
+            # appropriate fill value.
+            nones = numpy.equal(data_slice, None)
+            if numpy.any(nones):
+                data_slice[nones] = p.fill_value
+
+            # Pandas also treats strings as objects.  NetCDF doesn't'2014-11-15T21:00:18.000Z'
+            # like objects.  So convert objects to strings.
+            if data_slice.dtype == object:
+                data_slice = data_slice.astype('str')
+
+            self.data_cache[p.id] = {
+                'data': data_slice,
                 'source': source
             }
-
-            self.data_cache['provenance'] = {
-                'data': df.provenance.values.astype('str'),
-                'source': source
-            }
-
-            for p in parameters:
-                data_slice = df[p.name].values
-                shape_name = p.name + '_shape'
-                if shape_name in fields:
-                    shape = [len(data_slice)] + df[shape_name][0]
-                    if p.value_encoding == 'string':
-                        temp = [item for sublist in data_slice for item in sublist]
-                        data_slice = numpy.array(temp).reshape(shape)
-                    else:
-                        data_slice = handle_byte_buffer(''.join(data_slice), p.value_encoding, shape)
-
-                # Nones can only be in ndarrays with dtype == object.  NetCDF
-                # doesn't like objects.  First replace Nones with the
-                # appropriate fill value.
-                nones = numpy.equal(data_slice, None)
-                if numpy.any(nones):
-                    data_slice[nones] = p.fill_value
-
-                # Pandas also treats strings as objects.  NetCDF doesn't
-                # like objects.  So convert objects to strings.
-                if data_slice.dtype == object:
-                    data_slice = data_slice.astype('str')
-
-                self.data_cache[p.id] = {
-                    'data': data_slice,
-                    'source': source
-                }
-            yield self.data_cache
 
     def get_param(self, pdid, time_range):
         if pdid not in self.id_map:
@@ -642,7 +643,7 @@ class Chunk_Generator(object):
         self.qc_functions = r.qc_parameters
 
         self._query_all()
-        for chunk in self.streams[0].create_generator(None):
+        for chunk in self.streams[0].create_generator():
             self._execute_dpas_chunk(chunk)
             yield(chunk)
 
