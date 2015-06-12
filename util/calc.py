@@ -147,6 +147,9 @@ def handle_byte_buffer(data, encoding, shape):
     elif encoding in ['uint32', 'int64']:
         format_string = 'q'
         count = len(data) / 8
+    elif encoding in ['uint64']:
+        format_string = 'Q'
+        count = len(data) / 8
     elif 'float' in encoding:
         format_string = 'd'
         count = len(data) / 8
