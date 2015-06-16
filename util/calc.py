@@ -177,6 +177,7 @@ def build_func_map(parameter, chunk, coefficients):
     func_map = parameter.parameter_function_map
     args = {}
     times = chunk[7]['data']
+    deployment = chunk['deployment']['data'][0] if 'deployment' in chunk else -1
     for key in func_map:
         if PDRef.is_pdref(func_map[key]):
             pdRef = PDRef.from_str(func_map[key])
@@ -190,7 +191,7 @@ def build_func_map(parameter, chunk, coefficients):
             name = func_map[key]
             if name in coefficients:
                 framed_CCs = coefficients[name]
-                CC_argument = build_CC_argument(framed_CCs, times)
+                CC_argument = build_CC_argument(framed_CCs, times, deployment)
                 if(numpy.isnan(numpy.min(CC_argument))):
                     raise CoefficientUnavailableException('Coefficient %s missing times in range (%s, %s) for PD%s %s' % (name, times[0], times[-1], parameter.id, parameter.name))
                 else:
@@ -205,47 +206,24 @@ def build_func_map(parameter, chunk, coefficients):
 
 
 def in_range(frame, times):
-    """
-    Returns boolean masking array for times in range.
+    for time in times:
+        if time < frame['start'] or time > frame['stop']:
+            return False
+    return True
 
-      frame is a tuple such that frame[0] is the inclusive start time and
-      frame[1] is the exclusive stop time.  None for any of these indices
-      indicates unbounded.
-
-      times is a numpy array of ntp times.
-
-      returns a bool numpy array the same shape as times
-    """
-    if(frame[0] is None and frame[1] is None):
-        mask = numpy.ones(times.shape, dtype=bool)
-    elif(frame[0] is None):
-        mask = (times < frame[1])
-    elif(frame[1] is None):
-        mask = (times >= frame[0])
-    elif(frame[0] == frame[1]):
-        mask = (times == frame[0])
-    else:
-        mask = numpy.logical_and(times >= frame[0], times < frame[1])
-    return mask
-
-
-def build_CC_argument(frames, times):
-    sample_value = frames[0]['value']
-    if(type(sample_value) == list) :
-        cc = numpy.empty(times.shape + numpy.array(sample_value).shape)
-    else:
-        cc = numpy.empty(times.shape)
-    cc[:] = numpy.NAN
+def build_CC_argument(frames, times, deployment):
+    matching_frame = None
+    for frame in frames:
+        if frame['deployment'] == deployment and in_range(frame, times):
+            matching_frame = frame
+            break
     
-    frames = [(f.get('start'), f.get('stop'), f['value']) for f in frames]
-    frames.sort()
+    if matching_frame is None:
+        raise CoefficientUnavailableException("Couldn't find matching calibration frame")
 
-    for frame in frames[::-1]:
-        mask = in_range(frame, times)
-        cc[mask] = frame[2]
+    corrected_cal = [matching_frame['value'] for _ in range(len(times))]
 
-    return cc
-
+    return corrected_cal
 
 class DataStream(object):
     def __init__(self, stream_key, time_range, limit=None):
@@ -582,7 +560,10 @@ class Chunk_Generator(object):
 
         try:
             args = build_func_map(parameter, chunk, self.coefficients)
-            chunk[parameter.id] = {'data': execute_dpa(parameter, args), 'source': 'derived'}
+            try:
+                chunk[parameter.id] = {'data': execute_dpa(parameter, args), 'source': 'derived'}
+            except Exception, e:
+                log.exception(e);
         except StreamEngineException as e:
             log.warning(e.message)
 
@@ -654,7 +635,6 @@ class Particle_Generator(object):
 
     def chunk_to_particles(self, stream_key, parameters, chunk, qc_parameters={}):
         pk = stream_key.as_dict()
-        #pprint.pprint(qc_parameters)
         for index, t in enumerate(chunk[7]['data']):
             particle = OrderedDict()
             particle['pk'] = pk
