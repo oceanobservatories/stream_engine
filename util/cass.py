@@ -6,8 +6,8 @@ from multiprocessing.pool import Pool
 from multiprocessing import BoundedSemaphore
 from threading import Lock
 
-from cassandra.cluster import Cluster, ResponseFuture
-from cassandra.query import SimpleStatement, _clean_column_name, tuple_factory
+from cassandra.cluster import Cluster, QueryExhausted, ResponseFuture
+from cassandra.query import _clean_column_name, tuple_factory
 from cassandra.concurrent import execute_concurrent_with_args
 
 from util.common import log_timing
@@ -96,6 +96,53 @@ class FakeFuture(ResponseFuture):
         self._final_result = rows
 
 
+class JoinedFuture(ResponseFuture):
+
+    def __init__(self, futures):
+        self._callback_lock = Lock()
+        self._callbacks = []
+        self._errbacks = []
+        self.futures = iter(futures)
+        self.current_future = next(self.futures)
+        self.current_needs_init = False
+
+    def add_callback(self, fn, *args, **kwargs):
+        super(JoinedFuture, self).add_callback(fn, *args, **kwargs)
+        self.current_future.add_callback(fn, *args, **kwargs)
+
+    def add_errback(self, fn, *args, **kwargs):
+        super(JoinedFuture, self).add_errback(fn, *args, **kwargs)
+        self.current_future.add_errback(fn, *args, **kwargs)
+
+    @property
+    def has_more_pages(self):
+        if self.current_needs_init:
+            return True
+
+        if not self.current_future.has_more_pages:
+            try:
+                self.current_future = next(self.futures)
+                self.current_needs_init = True
+            except StopIteration:
+                return False
+
+        return True
+
+    def start_fetching_next_page(self):
+        if not self.has_more_pages:
+            raise QueryExhausted()
+
+        if self.current_needs_init:
+            self.current_needs_init = False
+            this_future = self.current_future
+            for (fn, args, kwargs) in self._callbacks:
+                this_future.add_callback(fn, *args, **kwargs)
+            for (fn, args, kwargs) in self._errbacks:
+                this_future.add_errback(fn, *args, **kwargs)
+        else:
+            self.current_future.start_fetching_next_page()
+
+
 @log_timing
 @cassandra_session
 def get_distinct_sensors(session=None, prepared=None):
@@ -117,8 +164,8 @@ def get_query_columns(stream_key, session=None, prepared=None):
     cols = global_cassandra_state['cluster'].metadata.keyspaces[engine.app.config['CASSANDRA_KEYSPACE']]. \
         tables[stream_key.stream.name].columns.keys()
     cols = map(_clean_column_name, cols)
-    # we don't need any parts of the key(1-6) except the time column(4) and deployment column(5)
-    cols = cols[4:6] + cols[7:]
+    # we don't need any parts of the key(0-7) except the time column(5) and deployment column(6)
+    cols = cols[5:7] + cols[8:]
     return cols
 
 
@@ -129,13 +176,13 @@ def fetch_data(stream_key, time_range, strict_range=False, session=None, prepare
 
     start = time_range.start
     stop = time_range.stop
-    base = "select %%s from %s where subsite='%s' and node='%s' and sensor='%s' and method='%s'" % \
+    base = "select %%s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=%%s and method='%s'" % \
            (stream_key.stream.name, stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method)
 
     # attempt to find one data point beyond the requested start/stop times
     if not strict_range:
-        first = session.execute(base % 'time' + ' and time<%s order by method desc limit 1', (start,))
-        last = session.execute(base % 'time' + ' and time>%s limit 1', (stop,))
+        first = session.execute(base % ('time', time_to_bin(start)) + ' and time<%s order by method desc limit 1', (start,))
+        last = session.execute(base % ('time', time_to_bin(stop)) + ' and time>%s limit 1', (stop,))
         if first:
             start = first[0][0]
         if last:
@@ -144,11 +191,18 @@ def fetch_data(stream_key, time_range, strict_range=False, session=None, prepare
         start -= 0.005
         stop += 0.005
 
-    query = SimpleStatement(base % ','.join(cols) + ' and time>=%s and time<=%s', fetch_size=engine.app.config['CASSANDRA_FETCH_SIZE'])
-    engine.app.logger.info('Executing cassandra query: %s %s', query, (start, stop))
-    future = session.execute_async(query, (start, stop))
+    query_name = 'fetch_data_%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite,
+                                 stream_key.node, stream_key.sensor, stream_key.method)
+    if query_name not in prepared:
+        base = "select %%s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s'" % \
+           (stream_key.stream.name, stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method)
+        query = session.prepare(base % ','.join(cols) + ' and time>=? and time<=?')
+        query.fetch_size = engine.app.config['CASSANDRA_FETCH_SIZE']
+        prepared[query_name] = query
+    query = prepared[query_name]
+    futures = [ session.execute_async(query, (b, start, stop)) for b in xrange(time_to_bin(start), time_to_bin(stop) + 1) ]
 
-    return cols, future
+    return cols, JoinedFuture(futures)
 
 
 @log_timing
@@ -187,7 +241,7 @@ def fetch_nth_data(stream_key, time_range, strict_range=False, num_points=1000, 
 
     start = time_range.start
     stop = time_range.stop
-    times = [(t,) for t in numpy.linspace(start, stop, num_points)]
+    times = [(time_to_bin(t), t) for t in numpy.linspace(start, stop, num_points)]
 
     futures = []
     for i in xrange(0, num_points, chunk_size):
@@ -207,7 +261,7 @@ def execute_query(stream_key, cols, times, time_range, strict_range=False, sessi
     if strict_range:
         query = session.prepare(
             "select %s from %s where subsite='%s' and node='%s'"
-            " and sensor='%s' and method='%s' and time>=%s and time<=?"
+            " and sensor='%s' and bin=? and method='%s' and time>=%s and time<=?"
             " order by method desc limit 1" % (','.join(cols),
                 stream_key.stream.name, stream_key.subsite, stream_key.node,
                 stream_key.sensor, stream_key.method, time_range.start))
@@ -215,7 +269,7 @@ def execute_query(stream_key, cols, times, time_range, strict_range=False, sessi
         query_name = '%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite,
                                          stream_key.node, stream_key.sensor, stream_key.method)
         if query_name not in prepared:
-            base = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and method='%s'" % \
+            base = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s'" % \
                    (','.join(cols), stream_key.stream.name, stream_key.subsite,
                     stream_key.node, stream_key.sensor, stream_key.method)
             query = session.prepare(base + ' and time<=? order by method desc limit 1')
@@ -251,3 +305,7 @@ def create_execution_pool():
         futures.append(execution_pool.apply_async(connect_worker))
 
     [f.get() for f in futures]
+
+
+def time_to_bin(t):
+    return int(t / (24 * 60 * 60))
