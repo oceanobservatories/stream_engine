@@ -1,2 +1,2 @@
-subsite,node,sensor,method,time,deployment,id,driver_timestamp,ingestion_timestamp,internal_timestamp,port_timestamp,preferred_timestamp,provenance,quality_flag,wfp_number_samples,wfp_time_off,wfp_time_on
-XX00XXXX,XX00X,00-CTDPFW100,recovered,3589862402,1,1ed3900c-49fa-4af6-8de8-4375d6d68b3d,3635779976.3413972855,3635779977.970000267,3589862402,0,internal_timestamp,de305d54-75b4-431b-adb2-eb6b9e546014,ok,3,1380873882,1380873602
+subsite,node,sensor,bin,method,time,deployment,id,driver_timestamp,ingestion_timestamp,internal_timestamp,port_timestamp,preferred_timestamp,provenance,quality_flag,wfp_number_samples,wfp_time_off,wfp_time_on
+XX00XXXX,XX00X,00-CTDPFW100,41549,recovered,3589862402,1,1ed3900c-49fa-4af6-8de8-4375d6d68b3d,3635779976.3413972855,3635779977.970000267,3589862402,0,internal_timestamp,de305d54-75b4-431b-adb2-eb6b9e546014,ok,3,1380873882,1380873602
