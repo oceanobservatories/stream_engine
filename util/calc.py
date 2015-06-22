@@ -12,7 +12,7 @@ import time
 from werkzeug.exceptions import abort
 from engine import app
 from collections import OrderedDict, namedtuple
-from util.cass import get_streams, fetch_data, get_distinct_sensors, fetch_nth_data
+from util.cass import get_streams, fetch_data, get_distinct_sensors, fetch_nth_data, get_available_time_range
 from util.common import log_timing, StreamKey, TimeRange, CachedParameter, UnknownEncodingException, \
     FUNCTION, CoefficientUnavailableException, parse_pdid, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, StreamUnavailableException, InvalidStreamException, CachedFunction
@@ -459,6 +459,9 @@ class StreamRequest(object):
         if len(self.stream_keys) == 0:
             abort(400)
 
+        if not needs_only:
+            self._fit_time_range()
+
         # no duplicates allowed
         handled = []
         for key in self.stream_keys:
@@ -544,6 +547,23 @@ class StreamRequest(object):
             app.logger.error('Missing calibration coefficients: %s', self.needs_cc)
             raise CoefficientUnavailableException('Missing calibration coefficients',
                                                   payload={'coefficients': list(self.needs_cc)})
+
+    def _fit_time_range(self):
+        # assumes start <= stop for time ranges
+        try:
+            available_time_range = get_available_time_range(self.stream_keys[0])
+        except IndexError:
+            log.info('No stream metadata in cassandra for %s', self.stream_keys[0])
+            abort(400)
+        else:
+            if self.time_range.start >= available_time_range.stop or self.time_range.stop <= available_time_range.start:
+                log.info('No data in requested time range (%s, %s) for %s ', self.time_range.start, self.time_range.stop, self.stream_keys[0])
+                abort(400)
+
+            start = max(self.time_range.start, available_time_range.start)
+            stop = min(self.time_range.stop, available_time_range.stop)
+            log.debug('fit (%s, %s) to (%s, %s) for %s', self.time_range.start, self.time_range.stop, start, stop, self.stream_keys[0])
+            self.time_range = TimeRange(start, stop)
 
 
 class Chunk_Generator(object):

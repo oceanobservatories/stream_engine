@@ -2,6 +2,7 @@ CREATE TABLE stream_engine_test.ctdbp_no_sample (
   subsite text,
   node text,
   sensor text,
+  bin int,
   method text,
   time double,
   deployment int,
@@ -20,7 +21,7 @@ CREATE TABLE stream_engine_test.ctdbp_no_sample (
   provenance uuid,
   quality_flag text,
   temperature int,
-  PRIMARY KEY ((subsite, node, sensor), method, time, deployment, id)
+  PRIMARY KEY ((subsite, node, sensor, bin), method, time, deployment, id)
 ) WITH
   bloom_filter_fp_chance=0.010000 AND
   caching='{"keys":"ALL", "rows_per_partition":"NONE"}' AND
