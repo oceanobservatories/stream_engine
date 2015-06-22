@@ -386,7 +386,17 @@ class DataStream(object):
             # appropriate fill value.
             nones = numpy.equal(data_slice, None)
             if numpy.any(nones):
-                data_slice[nones] = p.fill_value
+                # If there are nones either fill with specific vlaue for ints, floats, string, or throw an error
+                if p.value_encoding in ['int', 'uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64']:
+                    fv = -999999999
+                elif p.value_encoding in ['float16', 'float32', 'float64', 'float96']:
+                    fv = numpy.nan
+                elif p.value_encoding == 'string':
+                    fv = ''
+                else:
+                    log.error("Do not know how to fill type: {:s}".format(p.value_encoding))
+                    raise StreamEngineException('Do Not Know how to fill for data type ' + str(p.value_encoding))
+                data_slice[nones] = fv
 
             # Pandas also treats strings as objects.  NetCDF doesn't
             # like objects.  So convert objects to strings.
