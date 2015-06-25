@@ -384,24 +384,39 @@ class DataStream(object):
             # Nones can only be in ndarrays with dtype == object.  NetCDF
             # doesn't like objects.  First replace Nones with the
             # appropriate fill value.
-            nones = numpy.equal(data_slice, None)
-            if numpy.any(nones):
-                # If there are nones either fill with specific vlaue for ints, floats, string, or throw an error
+            # pandas does some funny things to missing values if the whole column is missing it becomes a None filled object
+            # Otherwise pandas will replace floats with Not A Number correctly.
+            # Integers are cast as floats and missing values replaced with Not A Number
+            # The below case will take care of instances where the whole series is missing or if it is an array or
+            # some other object we don't know how to fill.
+            if data_slice.dtype == 'object':
+                nones = numpy.equal(data_slice, None)
+                if numpy.any(nones):
+                    # If there are nones either fill with specific vlaue for ints, floats, string, or throw an error
+                    if p.value_encoding in ['int', 'uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64']:
+                        data_slice[nones] =  -999999999
+                        data_slice = data_slice.astype('int64')
+                    elif p.value_encoding in ['float16', 'float32', 'float64', 'float96']:
+                        data_slice[nones] = numpy.nan
+                        data_slice = data_slice.astype('float64')
+                    elif p.value_encoding == 'string':
+                        data_slice[nones] = ''
+                        data_slice = data_slice.astype('str')
+                    else:
+                        log.error("Do not know how to fill type: {:s}".format(p.value_encoding))
+                        raise StreamEngineException('Do Not Know how to fill for data type ' + str(p.value_encoding))
+            #otherwise if the returned data is a float we need to check and make sure it is not supposed to be an int
+            elif data_slice.dtype == 'float64':
+                #Int's are upcast to floats if there is a missing value.
                 if p.value_encoding in ['int', 'uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64']:
-                    data_slice[nones] =  -999999999
+                    # We had a missing value because it was upcast
+                    indexes = numpy.where(numpy.isnan(data_slice))
+                    data_slice[indexes] = -999999999
                     data_slice = data_slice.astype('int64')
-                elif p.value_encoding in ['float16', 'float32', 'float64', 'float96']:
-                    data_slice[nones] = numpy.nan
-                    data_slice = data_slice.astype('float64')
-                elif p.value_encoding == 'string':
-                    data_slice[nones] = ''
-                    data_slice = data_slice.astype('str')
-                else:
-                    log.error("Do not know how to fill type: {:s}".format(p.value_encoding))
-                    raise StreamEngineException('Do Not Know how to fill for data type ' + str(p.value_encoding))
 
             # Pandas also treats strings as objects.  NetCDF doesn't
             # like objects.  So convert objects to strings.
+            # if it is still an object we need to convert it here as a final catch all
             if data_slice.dtype == object:
                 data_slice = data_slice.astype('str')
 
