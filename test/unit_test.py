@@ -44,9 +44,9 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
     @classmethod
     def setUpClass(cls):
         os.chdir(TEST_DIR)
-        if not os.path.exists('TEST_DATA_LOADED'):
-            subprocess.call(['cqlsh', '-f', 'load.cql'])
-            open('TEST_DATA_LOADED', 'wb').write('%s\n' % time.ctime())
+        if not os.path.exists(TEST_DIR + '/TEST_DATA_LOADED'):
+            subprocess.call(['cqlsh', '-f', TEST_DIR + '/load.cql'])
+            open(TEST_DIR + '/TEST_DATA_LOADED', 'wb').write('%s\n' % time.ctime())
 
         app.config['CASSANDRA_KEYSPACE'] = StreamUnitTest.TEST_KEYSPACE
 
@@ -131,7 +131,7 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         streams = get_streams(self.subsite, self.node, self.sensor, self.method)
         streams = [s for s in streams]
         self.assertListEqual(streams,
-                             [u'ctdbp_no_calibration_coefficients', u'ctdbp_no_sample'])
+                           [u'ctdbp_no_calibration_coefficients', u'ctdbp_no_sample', u'sio_eng_control_status']  )
 
     def test_fetch_data(self):
         stream_key = StreamKey(self.subsite, self.node, self.sensor, self.method, 'ctdbp_no_sample')
@@ -470,3 +470,56 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         r = self.app.post('/particles', data=json.dumps(request), headers=headers)
         response = json.loads(r.data)
         # print r, response
+
+
+    def test_missing_data(self):
+        #INTS NEED DIFFERENT FILE
+        headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+        request = {
+            'streams': [
+                {
+                    "node": "XX00X",
+                    "stream": "ctdbp_no_sample",
+                    "subsite": "RS00ENGC",
+                    "sensor": "00-CTDBPA002",
+                    "method": "streamed",
+                    "parameters": []
+                }
+            ],
+
+            }
+
+        r = self.app.post('/particles', data=json.dumps(request), headers=headers)
+        data = json.loads(r.data)
+        # single missing value
+        self.assertEqual(data[-1]["temperature"], -999999999)
+        # all missing value
+        self.assertEqual(data[-1]["oxy_temp"], -999999999)
+
+        # get the next stream.
+        headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+        request = {
+            'streams': [
+                {
+                    "node": "XX00X",
+                    "stream": "sio_eng_control_status",
+                    "subsite": "RS00ENGC",
+                    "sensor": "00-CTDBPA002",
+                    "method": "streamed",
+                    "parameters": []
+                }
+            ],
+
+            }
+
+        r = self.app.post('/particles', data=json.dumps(request), headers=headers)
+        data = json.loads(r.data)
+        #Big int not there all
+        self.assertEqual(data[-1]['sio_controller_timestamp'], -999999999)
+        #Big int not there one
+        self.assertEqual(data[-1]['sio_controller_id'], -999999999)
+
+        #float not there.
+        self.assertTrue(numpy.isnan(data[-1]['sio_eng_temperature']))
+        #float not there ALL
+        self.assertTrue(numpy.isnan(data[-1]['sio_eng_voltage']))
