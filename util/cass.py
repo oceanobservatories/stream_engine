@@ -7,7 +7,7 @@ from multiprocessing.pool import Pool
 from multiprocessing import BoundedSemaphore
 from threading import Lock
 
-from cassandra.cluster import Cluster, QueryExhausted, ResponseFuture
+from cassandra.cluster import Cluster, QueryExhausted, ResponseFuture, _NOT_SET
 from cassandra.query import _clean_column_name, tuple_factory
 from cassandra.concurrent import execute_concurrent_with_args
 
@@ -105,15 +105,15 @@ class JoinedFuture(ResponseFuture):
     do not need paging, cassandra.concurrent.execute_concurrent is
     likely to be much more efficient.
 
-    TODO: Need to think about recursion depth.  The ResponseFuture
-    add_callback and add_errback function will call the fn argument
-    immediately if a result is available.  If fn is calling
-    start_fetching_next_page, it will be effectively in a recursive
-    loop.  Normally, the next page is not fetched from cassandra immediately
-    so start_fetching_next_page will return and fn will return, breaking
-    the loop.  However in the case of this class, more than one future is
-    running at one time so it is more likely that the next page will be available
-    immediately.
+    Note about recursion.  The ResponseFuture add_callback and add_errback
+    function will call the callback argument immediately if a result is available.
+    Normally, the next page is not fetched from cassandra immediately so
+    start_fetching_next_page will return and the callback will return.  However,
+    in the case of this class, more than one future is active at one time, so it
+    is more likely that the next page will be available immediately.  It is
+    important to realize that ResponseFutures run on a single event loop.  If
+    the futures parameter in this constructor is passed in as a generator, then
+    the depth of recursion will be limited to buffer_size.
     """
     def __init__(self, futures, buffer_size=100):
         """
@@ -142,11 +142,28 @@ class JoinedFuture(ResponseFuture):
             self._buffer.append(next(self._futures))
         except StopIteration:
             self._buffer.popleft()
+
+        """
+        If ResponseFuture has data, it won't actually add the
+        callback to it's list resulting in future calls to
+        start_fetching_next_page not having a callback.  This will
+        force the callbacks to be added, then if data is ready, start
+        the chain of calls to invoke them.  ResponseFuture will only
+        call the first of callback or errback if data is ready.
+        """
+        run = False
         this_future = self._buffer[0]
-        for (fn, args, kwargs) in self._callbacks:
-            this_future.add_callback(fn, *args, **kwargs)
-        for (fn, args, kwargs) in self._errbacks:
-            this_future.add_errback(fn, *args, **kwargs)
+        with this_future._callback_lock:
+            this_future._callbacks.extend(self._callbacks)
+            this_future._errbacks.extend(self._errbacks)
+            if this_future._final_result is not _NOT_SET or this_future._final_exception:
+                run = True
+
+        if run:
+            for (fn, args, kwargs) in self._callbacks[0:1]:
+                this_future.add_callback(fn, *args, **kwargs)
+            for (fn, args, kwargs) in self._errbacks[0:1]:
+                this_future.add_errback(fn, *args, **kwargs)
 
     def add_callback(self, fn, *args, **kwargs):
         self._callbacks.append((fn, args, kwargs))
