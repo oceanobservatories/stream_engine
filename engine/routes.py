@@ -55,9 +55,10 @@ def particles():
     limit = input_data.get('limit', 0)
     if limit <= 0:
         limit = None
+    prov = input_data.get('include_provenance', False)
     return Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
                     input_data.get('qcParameters', {}), limit=limit, custom_times=input_data.get('custom_times'),
-                    custom_type=input_data.get('custom_type')), mimetype='application/json')
+                    custom_type=input_data.get('custom_type'), include_provenance=prov), mimetype='application/json')
 
 
 @app.route('/netcdf', methods=['POST'])
@@ -96,7 +97,10 @@ def netcdf():
     limit = input_data.get('limit', 0)
     if limit <= 0:
         limit = None
-    return Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}), limit=limit, custom_times=input_data.get('custom_times'), custom_type=input_data.get('custom_type')),
+    prov = input_data.get('include_provenance', False)
+    return Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
+                                         limit=limit, custom_times=input_data.get('custom_times'),
+                                         custom_type=input_data.get('custom_type'), include_provenance=prov),
                     mimetype='application/netcdf')
 
 
