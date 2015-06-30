@@ -5,7 +5,7 @@ import json
 import struct
 import tempfile
 import netCDF4
-from threading import Event
+from threading import Event, Lock
 import traceback
 import numexpr
 import numpy
@@ -13,7 +13,7 @@ import time
 from werkzeug.exceptions import abort
 from engine import app
 from collections import OrderedDict, namedtuple
-from util.cass import get_streams, fetch_data, get_distinct_sensors, fetch_nth_data, get_available_time_range
+from util.cass import get_streams, fetch_data, get_distinct_sensors, fetch_nth_data, get_available_time_range, fetch_lo_provenance
 from util.common import log_timing, StreamKey, TimeRange, CachedParameter, UnknownEncodingException, \
     FUNCTION, CoefficientUnavailableException, parse_pdid, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, StreamUnavailableException, InvalidStreamException, CachedFunction
@@ -51,9 +51,9 @@ def find_stream(stream_key, streams, distinct_sensors):
     return None, None
 
 
-def get_generator(time_range, custom_times=None, custom_type=None):
+def get_generator(time_range, provenance_metadata, custom_times=None, custom_type=None):
     if custom_type is None:
-        return Chunk_Generator()
+        return Chunk_Generator(provenance_metadata)
     else:
         # Make sure custom_times is strictly increasing and has at least
         # two values
@@ -63,15 +63,15 @@ def get_generator(time_range, custom_times=None, custom_type=None):
             abort(400)
 
         if custom_type != 'average':
-            return Interpolation_Generator(Chunk_Generator())
+            return Interpolation_Generator(Chunk_Generator(provenance_metadata))
         else:
             if custom_times[-1] < time_range.stop:
                 custom_times.append(time_range.stop)
-            return Average_Generator(Chunk_Generator())
+            return Average_Generator(Chunk_Generator(provenance_metadata))
 
 
 @log_timing
-def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None, custom_times=None, custom_type=None):
+def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None, custom_times=None, custom_type=None, include_provenance=True):
     stream_keys = [StreamKey.from_dict(d) for d in streams]
     parameters = []
     for s in streams:
@@ -107,20 +107,26 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
     if custom_times is None and limit is not None:
         custom_times = numpy.linspace(start, stop, num=limit)
 
-    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, qc_parameters=qc_stream_parameters, limit=limit, times=custom_times)
-    return Particle_Generator(get_generator(time_range, custom_times, custom_type)).chunks(stream_request)
+    # create the store that will keep track of provenance for all streams/datasources
+    provenance_meta = ProvenanceMetadataStore()
+    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range,
+                                   qc_parameters=qc_stream_parameters, limit=limit, times=custom_times, include_provenance=include_provenance)
+    return Particle_Generator(get_generator(time_range, provenance_meta, custom_times, custom_type)).chunks(stream_request)
 
 
 @log_timing
-def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None, custom_type=None):
+def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None, custom_type=None, include_provenance=True):
     stream_keys = [StreamKey.from_dict(d) for d in streams]
     parameters = []
     for s in streams:
         for p in s.get('parameters', []):
             parameters.append(CachedParameter.from_id(p))
     time_range = TimeRange(start, stop)
-    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit, times=custom_times)
-    return NetCDF_Generator(get_generator(time_range, custom_times, custom_type)).chunks(stream_request)
+    # Create the provenance metadata store to keep track of all files that are used
+    provenance_meta = ProvenanceMetadataStore()
+    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit,
+                                   times=custom_times, include_provenance=include_provenance)
+    return NetCDF_Generator(get_generator(time_range, provenance_meta, custom_times, custom_type)).chunks(stream_request)
 
 
 @log_timing
@@ -130,7 +136,7 @@ def get_needs(streams):
     for s in streams:
         for p in s.get('parameters', []):
             parameters.append(CachedParameter.from_id(p))
-    stream_request = StreamRequest(stream_keys, parameters, {}, None, needs_only=True)
+    stream_request = StreamRequest(stream_keys, parameters, {}, None, needs_only=True, include_provenance=False)
 
     stream_list = []
     for sk in stream_request.stream_keys:
@@ -234,9 +240,36 @@ def build_CC_argument(frames, times):
 
     return cc
 
+class ProvenanceMetadataStore(object):
+    def __init__(self):
+        self._prov_set= set()
+        self._lock = Lock()
+
+    def add_metadata(self, value):
+        self._prov_set.add(value)
+
+    def _get_metadata(self):
+        return list(self._prov_set)
+
+
+    def get_provenance_dict(self):
+        prov = {}
+        for i in self._get_metadata():
+            prov_data =  fetch_lo_provenance(*i)
+            fname = prov_data[0][-3]
+            pname = prov_data[0][-2]
+            pversion = prov_data[0][-1]
+            prov[i[-1]] = {}
+            prov[i[-1]]['file_name'] = fname
+            prov[i[-1]]['parser_name'] = pname
+            prov[i[-1]]['parser_version'] = pversion
+        return prov
 
 class DataStream(object):
-    def __init__(self, stream_key, time_range, limit=None):
+
+    def __init__(self, stream_key, time_range, provenance_metadata, limit=None, ):
+        # store for the metadata
+        self.provenance_metadata = provenance_metadata
         self.stream_key = stream_key
         self.query_time_range = time_range
         self.strict_range = False
@@ -340,6 +373,11 @@ class DataStream(object):
 
     def populate_data_cache(self, df):
         source = self.stream_key.as_refdes()
+        # we need to keep this information for the provenance metadata and future queries
+        subsite = self.stream_key.subsite
+        method = self.stream_key.method
+        node = self.stream_key.node
+        sensor = self.stream_key.sensor
 
         self.data_cache = {}
 
@@ -348,6 +386,11 @@ class DataStream(object):
             'data': df.deployment.values,
             'source': source
         }
+
+        # Store provenance metadata
+        for id, deployment in zip(df.provenance.values.astype(str), df.deployment.values):
+            value = (subsite, node, sensor, method, deployment, id)
+            self.provenance_metadata.add_metadata(value)
 
         self.data_cache['provenance'] = {
             'data': df.provenance.values.astype('str'),
@@ -454,7 +497,8 @@ class DataStream(object):
 
 class StreamRequest(object):
 
-    def __init__(self, stream_keys, parameters, coefficients, time_range, qc_parameters={}, needs_only=False, limit=None, times=None):
+    def __init__(self, stream_keys, parameters, coefficients, time_range, qc_parameters={},
+                 needs_only=False, limit=None, times=None, include_provenance=False):
         self.stream_keys = stream_keys
         self.time_range = time_range
         self.parameters = parameters
@@ -464,6 +508,7 @@ class StreamRequest(object):
         self.needs_params = None
         self.limit = limit
         self.times = times
+        self.include_provenance = include_provenance
         self._initialize(needs_only)
 
     def _initialize(self, needs_only):
@@ -579,19 +624,20 @@ class StreamRequest(object):
 
 class Chunk_Generator(object):
 
-    def __init__(self):
+    def __init__(self, provenance_metadata):
         self.streams = None
         self.parameters = None
         self.coefficients = None
         self.time_range = None
         self.qc_functions = None
+        self.provenance_metadata = provenance_metadata
 
     def _create_data_stream(self, stream_key, limit):
         if stream_key.stream is None:
             raise InvalidStreamException('The requested stream does not exist in preload',
                                          payload={'stream': stream_key.as_dict()})
 
-        return DataStream(stream_key, self.time_range, limit)
+        return DataStream(stream_key, self.time_range,  self.provenance_metadata, limit)
 
     def _query_all(self):
         for stream in self.streams:
@@ -688,6 +734,7 @@ class Particle_Generator(object):
 
     def __init__(self, generator):
         self.generator = generator
+        self.provenance_metadata = generator.provenance_metadata
 
     def chunk_to_particles(self, stream_key, parameters, chunk, qc_parameters={}):
         pk = stream_key.as_dict()
@@ -726,6 +773,10 @@ class Particle_Generator(object):
 
     def chunks(self, r):
         count = 0
+        # if including provenenace we need to add an additional feild to our response
+        if r.include_provenance:
+            yield "{ \"data\": "
+
         yield '[ '
         try:
             first = True
@@ -740,7 +791,15 @@ class Particle_Generator(object):
                 if r.limit is not None :
                     if r.limit <= count :
                         break
-            yield ']'
+            # spit out the provenance dict if we are including it.  Otherwise close out the data array.
+            if r.include_provenance:
+                yield '], \n'
+                yield '\"provenance\": \n'
+                prov = self.provenance_metadata.get_provenance_dict()
+                yield json.dumps(prov, indent=2)
+                yield '\n}'
+            else:
+                yield ']'
         except GeneratorExit as e:
             raise e
         except Exception as e:
@@ -756,6 +815,8 @@ class NetCDF_Generator(object):
 
     def __init__(self, generator):
         self.generator = generator
+        # keep track of the metadata that is being used in the generator
+        self.provenance_metadata = generator.provenance_metadata
 
     def chunks(self, r):
         try:
@@ -767,6 +828,7 @@ class NetCDF_Generator(object):
             raise
 
     def create_netcdf(self, r):
+        include_provenance = r.include_provenance
         with tempfile.NamedTemporaryFile() as tf:
             with netCDF4.Dataset(tf.name, 'w', format='NETCDF4') as ncfile:
                 # set up file level attributes
@@ -861,6 +923,19 @@ class NetCDF_Generator(object):
                             log.error('Variable identified with key %s doesn\'t exist' % (v_key))
                         except (IndexError, ValueError):
                             log.error('Unable to write data slice to variable: %s, %s, %s, %s' % (v_key, data.dtype, data.shape, traceback.format_exc()))
+                # if we are including provenance put it in the top level of the netcdf.
+                if include_provenance:
+                    prov = self.provenance_metadata.get_provenance_dict()
+                    keys = []
+                    values = []
+                    for k,v in prov.iteritems():
+                        keys.append(k)
+                        values.append(v['file_name'] + " " + v['parser_name'] + " " + v['parser_version'])
+                    ncfile.createDimension('l0_provenance',len(keys) )
+                    pkeys = ncfile.createVariable('l0_provenance_keys', 'str',  'l0_provenance')
+                    pvals = ncfile.createVariable('l0_provenance_data', 'str',  'l0_provenance')
+                    pkeys[:] = numpy.array(keys)
+                    pvals[:] = numpy.array(values)
 
             return tf.read()
 
@@ -872,6 +947,7 @@ class Average_Generator(object):
 
     def __init__(self, generator):
         self.generator = generator
+        self.provenance_metadata = generator.provenance_metadata
 
     def chunks(self, r):
         """
@@ -939,6 +1015,7 @@ class Interpolation_Generator(object):
 
     def __init__(self, generator):
         self.generator = generator
+        self.provenance_metadata = generator.provenance_metadata
 
     def chunks(self, r):
         """

@@ -266,6 +266,18 @@ def fetch_data(stream_key, time_range, strict_range=False, session=None, prepare
 
     return cols, JoinedFuture(futures_generator_exp)
 
+@cassandra_session
+def fetch_lo_provenance(subsite, node, sensor, method, deployment, id,  session=None, prepared=None):
+    """
+    Fetch the l0_provenance entry for the passed information.
+    All of the neccessary infromation should be stored as a tuple in the
+    provenance metadata store.
+    """
+    base = "select * from ooi.dataset_l0_provenance where subsite='%s' and node='%s' and sensor='%s' and method='%s' and deployment=%s and id=%s" % \
+           (subsite, node, sensor, method, deployment, id)
+    rows = session.execute(base)
+    return rows
+
 
 @log_timing
 @cassandra_session
