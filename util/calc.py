@@ -1,36 +1,34 @@
 import engine
 
-from Queue import Queue, Empty
 import importlib
-import msgpack
 import json
-import struct
+import logging
 import tempfile
-import netCDF4
-from threading import Event
+import time
 import traceback
+import uuid
+
+import msgpack
+import netCDF4
 import numexpr
 import numpy
-import time
-from werkzeug.exceptions import abort
+
 from engine import app
-from collections import OrderedDict, namedtuple
-from collections import OrderedDict, defaultdict
-from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, fetch_data_sync, get_available_time_range
+from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, get_available_time_range
 from util.common import log_timing, StreamKey, TimeRange, CachedParameter, UnknownEncodingException, \
-    FUNCTION, CoefficientUnavailableException, parse_pdid, UnknownFunctionTypeException, \
+    FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, StreamUnavailableException, InvalidStreamException, \
     MissingTimeException, MissingDataException, arb
 from util import common
-from util import chunks
-from util.chunks import Chunk
+from parameter_util import PDRef
+
+from collections import OrderedDict, defaultdict
+from werkzeug.exceptions import abort
+
 import pandas as pd
-import uuid
-import bisect
 import numpy as np
 import scipy as sp
-import logging
-from parameter_util import PDRef
+
 
 try:
     import simplejson as json
@@ -116,26 +114,26 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
                 particle[param.name] = val
 
             # add qc results to particle
-            for qc_function_name in qc_parameters.get(param.name, []):
-                qc_function_results = '%s_%s' %(param.name, qc_function_name)
+            #for qc_function_name in qc_parameters.get(param.name, []):
+                #qc_function_results = '%s_%s' %(param.name, qc_function_name)
 
-                if qc_function_results in pd_data:
-                    value = pd_data[qc_function_results][primary_key.as_refdes()]['data'][index]
+                #if qc_function_results in pd_data:
+                    #value = pd_data[qc_function_results][primary_key.as_refdes()]['data'][index]
 
-                    qc_results_key = '%s_%s' %(param.name, 'qc_results')
-                    if(particle[qc_results_key] is None):
-                        particle[qc_results_key] = 0b0000000000000000
+                    #qc_results_key = '%s_%s' %(param.name, 'qc_results')
+                    #if(particle[qc_results_key] is None):
+                        #particle[qc_results_key] = 0b0000000000000000
 
-                    qc_results_value = particle[qc_results_key]
-                    qc_cached_function = CachedFunction.from_qc_function(qc_function_name)
-                    qc_results_mask = int(qc_cached_function.qc_flag, 2)
+                    #qc_results_value = particle[qc_results_key]
+                    #qc_cached_function = CachedFunction.from_qc_function(qc_function_name)
+                    #qc_results_mask = int(qc_cached_function.qc_flag, 2)
 
-                    if value == 0:
-                        qc_results_value = ~qc_results_mask & qc_results_value
-                    elif value == 1:
-                        qc_results_value = qc_results_mask ^ qc_results_value
+                    #if value == 0:
+                        #qc_results_value = ~qc_results_mask & qc_results_value
+                    #elif value == 1:
+                        #qc_results_value = qc_results_mask ^ qc_results_value
 
-                    particle[qc_results_key] = qc_results_value
+                    #particle[qc_results_key] = qc_results_value
 
         
         particles.append(particle)
@@ -179,10 +177,6 @@ def get_needs(streams):
         d['coefficients'] = needs
         stream_list.append(d)
     return stream_list
-
-
-def handle_byte_buffer(data):
-    return numpy.array([msgpack.unpackb(x) for x in data])
 
 
 def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit):
@@ -238,52 +232,80 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit):
         if first_time is None:
             first_time = df['time'].values
 
-        for param in parameters:
-            data_slice = df[param.name].values
+        deployments = df.groupby('deployment')
 
-            # transform non scalar params
-            shape_name = param.name + '_shape'
-            if shape_name in fields:
-                shape = [len(cass_data)] + df[shape_name][0]
-                if param.value_encoding == 'string':
-                    temp = [item for sublist in data_slice for item in sublist]
-                    data_slice = numpy.array(temp).reshape(shape)
-                else:
-                    data_slice = handle_byte_buffer(data_slice)
+        for dep_num, data_frame in deployments:
+            for param in parameters:
+                data_slice = data_frame[param.name].values
 
-            # Nones can only be in ndarrays with dtype == object.  NetCDF
-            # doesn't like objects.  First replace Nones with the
-            # appropriate fill value.
-            nones = numpy.equal(data_slice, None)
-            if numpy.any(nones):
-                data_slice[nones] = param.fill_value
+                # transform non scalar params
+                if param.is_array:
+                    data_slice = numpy.array([msgpack.unpackb(x) for x in data_slice])
 
-            # Pandas also treats strings as objects.  NetCDF doesn't
-            # like objects.  So convert objects to strings.
-            if data_slice.dtype == object:
-                data_slice = data_slice.astype('str')
+                # Nones can only be in ndarrays with dtype == object.  NetCDF
+                # doesn't like objects.  First replace Nones with the
+                # appropriate fill value.
+                #
+                # pandas does some funny things to missing values if the whole column is missing it becomes a None filled object
+                # Otherwise pandas will replace floats with Not A Number correctly.
+                # Integers are cast as floats and missing values replaced with Not A Number
+                # The below case will take care of instances where the whole series is missing or if it is an array or
+                # some other object we don't know how to fill.
 
-            if param.id not in pd_data:
-                pd_data[param.id] = {}
-            pd_data[param.id][key.as_refdes()] = {
-                'data': data_slice,
+                # skip replacing with fill values for arrays for now
+                if data_slice.dtype == 'object' and not param.is_array:
+                    nones = numpy.equal(data_slice, None)
+                    if numpy.any(nones):
+                        # If there are nones either fill with specific vlaue for ints, floats, string, or throw an error
+                        if param.value_encoding in ['int', 'uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64']:
+                            data_slice[nones] =  -999999999
+                            data_slice = data_slice.astype('int64')
+                        elif param.value_encoding in ['float16', 'float32', 'float64', 'float96']:
+                            data_slice[nones] = numpy.nan
+                            data_slice = data_slice.astype('float64')
+                        elif param.value_encoding == 'string':
+                            data_slice[nones] = ''
+                            data_slice = data_slice.astype('str')
+                        else:
+                            log.error("Do not know how to fill type: {:s}".format(param.value_encoding))
+                            raise StreamEngineException('Do Not Know how to fill for data type ' + str(param.value_encoding))
+                #otherwise if the returned data is a float we need to check and make sure it is not supposed to be an int
+                elif data_slice.dtype == 'float64':
+                    #Int's are upcast to floats if there is a missing value.
+                    if param.value_encoding in ['int', 'uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64']:
+                        # We had a missing value because it was upcast
+                        indexes = numpy.where(numpy.isnan(data_slice))
+                        data_slice[indexes] = -999999999
+                        data_slice = data_slice.astype('int64')
+
+
+
+                # Pandas also treats strings as objects.  NetCDF doesn't
+                # like objects.  So convert objects to strings.
+                #if data_slice.dtype == object:
+                    #data_slice = data_slice.astype('str')
+
+                if param.id not in pd_data:
+                    pd_data[param.id] = {}
+                pd_data[param.id][key.as_refdes()] = {
+                    'data': data_slice,
+                    'source': key.as_refdes()
+                }
+
+            ## Add non-param data to particle
+            if 'provenance' not in pd_data:
+                pd_data['provenance'] = {}
+            pd_data['provenance'][key.as_refdes()] = {
+                'data': data_frame.provenance.values.astype('str'),
                 'source': key.as_refdes()
             }
 
-        ## Add non-param data to particle
-        if 'provenance' not in pd_data:
-            pd_data['provenance'] = {}
-        pd_data['provenance'][key.as_refdes()] = {
-            'data': df.provenance.values.astype('str'),
-            'source': key.as_refdes()
-        }
-
-        if 'deployment' not in pd_data:
-            pd_data['deployment'] = {}
-        pd_data['deployment'][key.as_refdes()] = {
-            'data': df.deployment.values,
-            'source': key.as_refdes()
-        }
+            if 'deployment' not in pd_data:
+                pd_data['deployment'] = {}
+            pd_data['deployment'][key.as_refdes()] = {
+                'data': data_frame.deployment.values,
+                'source': key.as_refdes()
+            }
 
     ## exec dpa for stream
 
@@ -501,7 +523,7 @@ def build_func_map(parameter, coefficients, pd_data, primary_key):
             name = func_map[key]
             if name in coefficients:
                 framed_CCs = coefficients[name]
-                CC_argument = build_CC_argument(framed_CCs, main_times, deployment)
+                CC_argument = build_CC_argument(framed_CCs, main_times)
                 if(numpy.isnan(numpy.min(CC_argument))):
                     raise CoefficientUnavailableException('Coefficient %s missing times in range (%s, %s)' % (name, main_times[0], main_times[-1]))
                 else:
@@ -584,7 +606,8 @@ class StreamRequest(object):
         if len(self.stream_keys) == 0:
             abort(400)
 
-        if not needs_only:
+        # virtual streams are not in cassandra, so we can't fit the time range
+        if not needs_only and not self.stream_keys[0].stream.is_virtual:
             self._fit_time_range()
 
         # no duplicates allowed
@@ -642,6 +665,7 @@ class StreamRequest(object):
         self.needs_params = needs.difference(found)
 
         log.debug('Found FQN needs %s' % (', '.join(map(str, needs_fqn))))
+
         # find the available streams which provide any needed fqn parameters
         found = set([stream_key.stream_name for stream_key in self.stream_keys])
         for pdref in needs_fqn:
@@ -665,13 +689,13 @@ class StreamRequest(object):
 
         if len(self.needs_params) > 0:
             app.logger.error('Unable to find needed parameters: %s', self.needs_params)
-            raise StreamUnavailableException('Unable to find a stream to provide needed parameters',
-                                             payload={'parameters': list(self.needs_params)})
+            #raise StreamUnavailableException('Unable to find a stream to provide needed parameters',
+                                             #payload={'parameters': list(self.needs_params)})
 
         if len(self.needs_cc) > 0:
             app.logger.error('Missing calibration coefficients: %s', self.needs_cc)
-            raise CoefficientUnavailableException('Missing calibration coefficients',
-                                                  payload={'coefficients': list(self.needs_cc)})
+            #raise CoefficientUnavailableException('Missing calibration coefficients',
+                                                  #payload={'coefficients': list(self.needs_cc)})
 
     def _fit_time_range(self):
         # assumes start <= stop for time ranges
@@ -690,7 +714,7 @@ class StreamRequest(object):
             log.debug('fit (%s, %s) to (%s, %s) for %s', self.time_range.start, self.time_range.stop, start, stop, self.stream_keys[0])
             self.time_range = TimeRange(start, stop)
 
-def create_netcdf(self, r):
+def create_netcdf(r, pd_data, primary_key):
     with tempfile.NamedTemporaryFile() as tf:
         with netCDF4.Dataset(tf.name, 'w', format='NETCDF4') as ncfile:
             # set up file level attributes
@@ -702,91 +726,100 @@ def create_netcdf(self, r):
 
             variables = {}
             last_timestamp = 0.0
-            # iterate through the chunks and populate the data
-            for chunk in self.generator.chunks(r):
-                # sometimes we will get duplicate timestamps
-                # INITIAL solution is to remove any duplicate timestamps
-                # and the corresponding data.
 
-                # create a mask to match only valid INCREASING times
-                # we will insert the last valid timestamp from the previous
-                # chunk at the beginning of the array
-                chunk_times = chunk[7]['data']
-                chunk_valid = numpy.diff(numpy.insert(chunk_times, 0, last_timestamp)) != 0
-                # We will need to keep track of the last timestamp of each chunk so
-                # that we can apply this logic across chunks
-                last_timestamp = chunk_times[chunk_valid][-1]
+            tp = primary_key.stream.time_parameter
+            if tp in pd_data and primary_key.as_refdes() in pd_data[tp]:
+                chunk_times = pd_data[tp][primary_key.as_refdes()]['data']
+            else:
+                chunk_times = arb(pd_data[7])['data']
 
-                deployment = str(chunk['deployment']['data'][0])
-                time_v_key = '7_%s' % (deployment,)
-                time_dim = 'time_%s' % (deployment,)
-                if time_v_key not in variables:
-                    index = 0
-                    ncfile.createDimension(time_dim, None)
+            # sometimes we will get duplicate timestamps
+            # INITIAL solution is to remove any duplicate timestamps
+            # and the corresponding data.
+
+            # create a mask to match only valid INCREASING times
+            # we will insert the last valid timestamp from the previous
+            # chunk at the beginning of the array
+            chunk_valid = numpy.diff(numpy.insert(chunk_times, 0, last_timestamp)) != 0
+            # We will need to keep track of the last timestamp of each chunk so
+            # that we can apply this logic across chunks
+            last_timestamp = chunk_times[chunk_valid][-1]
+
+            if not primary_key.stream.is_virtual:
+                deployment = str(pd_data['deployment'][primary_key.as_refdes()]['data'][0])
+            else:
+                # get parent first stream's deployment
+                deployment = str(pd_data['deployment'][primary_key.stream.source_streams[0].as_refdes()]['data'][0])
+
+            time_v_key = '%d_%s' % (primary_key.stream.time_parameter, deployment)
+            time_dim = 'time_%s' % (deployment,)
+            if time_v_key not in variables:
+                index = 0
+                ncfile.createDimension(time_dim, None)
+            else:
+                index = len(variables[time_v_key])
+
+            for param_id in pd_data:
+                data = pd_data[param_id][primary_key.as_refdes()]['data']
+                source = pd_data[param_id][primary_key.as_refdes()]['source']
+
+                if param_id == 7:
+                    group = ncfile
+                    v_key = time_v_key
                 else:
-                    index = len(variables[time_v_key])
-
-                for param_id in chunk:
-                    data = chunk[param_id]['data']
-                    source = chunk[param_id]['source']
-
-                    if param_id == 7:
-                        group = ncfile
-                        v_key = time_v_key
+                    if source in ncfile.groups:
+                        group = ncfile.groups[source]
                     else:
-                        if source in ncfile.groups:
-                            group = ncfile.groups[source]
-                        else:
-                            group = ncfile.createGroup(source)
+                        group = ncfile.createGroup(source)
 
-                        if deployment in group.groups:
-                            group = group.groups[deployment]
-                        else:
-                            group = group.createGroup(deployment)
+                    if deployment in group.groups:
+                        group = group.groups[deployment]
+                    else:
+                        group = group.createGroup(deployment)
 
-                        v_key = '/%s/%s/%s' % (source, deployment, param_id)
+                    v_key = '/%s/%s/%s' % (source, deployment, param_id)
 
-                    if v_key not in variables:
-                        param = CachedParameter.from_id(param_id)
-                        # param can be None if this is not a real parameter,
-                        # like deployment for deployment number
-                        param_name = param_id if param is None else param.name
+                if v_key not in variables:
+                    param = CachedParameter.from_id(param_id)
+                    # param can be None if this is not a real parameter,
+                    # like deployment for deployment number
+                    param_name = param_id if param is None else param.name
 
-                        dims = [time_dim]
-                        if len(data.shape) > 1:
-                            for index, dimension in enumerate(data.shape[1:]):
-                                name = '%s_dim_%d' % (param_name, index)
-                                group.createDimension(name, dimension)
-                                dims.append(name)
-
-                        try:
-                            variables[v_key] = group.createVariable(param_name if param_id != 7 else v_key,
-                                                                        data.dtype,
-                                                                        dims,
-                                                                        zlib=True)
-                        except TypeError:
-                            log.error('Unable to create variable: %s, %s, %s, %s' % (v_key, data.dtype, data.shape, traceback.format_exc()))
-                        else:
-                            if param:
-                                if param.unit is not None:
-                                    variables[v_key].units = param.unit
-                                if param.fill_value is not None:
-                                    variables[v_key].fill_value = param.fill_value
-                                if param.description is not None:
-                                    variables[v_key].long_name = param.description
-                                if param.display_name is not None:
-                                    variables[v_key].display_name = param.display_name
-                                if param.data_product_identifier is not None:
-                                    variables[v_key].data_product_identifier = param.data_product_identifier
+                    dims = [time_dim]
+                    if len(data.shape) > 1:
+                        for index, dimension in enumerate(data.shape[1:]):
+                            name = '%s_dim_%d' % (param_name, index)
+                            group.createDimension(name, dimension)
+                            dims.append(name)
 
                     try:
-                        variables[v_key][index:] = data[chunk_valid]
-                    except KeyError:
-                        log.error('Variable identified with key %s doesn\'t exist' % (v_key))
-                    except (IndexError, ValueError):
-                        log.error('Unable to write data slice to variable: %s, %s, %s, %s' % (v_key, data.dtype, data.shape, traceback.format_exc()))
+                        variables[v_key] = group.createVariable(param_name if param_id != 7 else v_key,
+                                                                    data.dtype,
+                                                                    dims,
+                                                                    zlib=True)
+                    except TypeError:
+                        log.error('Unable to create variable: %s, %s, %s, %s' % (v_key, data.dtype, data.shape, traceback.format_exc()))
+                    else:
+                        if param:
+                            if param.unit is not None:
+                                variables[v_key].units = param.unit
+                            if param.fill_value is not None:
+                                variables[v_key].fill_value = param.fill_value
+                            if param.description is not None:
+                                variables[v_key].long_name = param.description
+                            if param.display_name is not None:
+                                variables[v_key].display_name = param.display_name
+                            if param.data_product_identifier is not None:
+                                variables[v_key].data_product_identifier = param.data_product_identifier
 
-        return tf.read()
+                try:
+                    variables[v_key][index:] = data[chunk_valid]
+                except KeyError:
+                    log.error('Variable identified with key %s doesn\'t exist' % (v_key))
+                except (IndexError, ValueError):
+                    log.error('Unable to write data slice to variable: %s, %s, %s, %s' % (v_key, data.dtype, data.shape, traceback.format_exc()))
+
+    return tf.read()
 
 
 def find_stream(stream_key, streams, distinct_sensors):

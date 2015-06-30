@@ -7,8 +7,7 @@ import logging
 from functools import wraps
 from multiprocessing.pool import Pool
 from multiprocessing import BoundedSemaphore
-from threading import Lock, Event
-from itertools import count
+from threading import Lock
 
 from cassandra.cluster import Cluster, QueryExhausted, ResponseFuture, _NOT_SET
 from cassandra.query import _clean_column_name, tuple_factory
@@ -17,8 +16,6 @@ from cassandra.query import SimpleStatement, _clean_column_name, tuple_factory, 
 from cassandra.concurrent import execute_concurrent_with_args
 
 from util.common import log_timing, TimeRange
-
-from six.moves import queue
 
 log = logging.getLogger(__name__)
 
@@ -290,24 +287,6 @@ def fetch_nth_data(stream_key, time_range, strict_range=False, num_points=1000, 
     :param prepared:
     :return:
     """
-    # first, fetch the stream_metadata record for this refdes/stream
-    # to calculate an estimated data rate
-    rows = session.execute(prepared[STREAM_EXISTS_PS], (stream_key.subsite, stream_key.node,
-                                                     stream_key.sensor, stream_key.method,
-                                                     stream_key.stream.name))
- 
-    if rows:
-        stream, count, first, last = rows[0]
-        elapsed = last - first
-        if elapsed > 0:
-            rate = count / elapsed
- 
-            # if we estimate a small number of rows we should just fetch everything
-            estimated_count = time_range.secs() * rate
-            if estimated_count < num_points * 4:
-                return fetch_data_sync(stream_key, time_range, strict_range)
- 
-    # lots of rows or we were unable to estimate, fetch every ~nth record
     cols = get_query_columns(stream_key)
  
     start = time_range.start
@@ -383,8 +362,10 @@ def create_execution_pool():
 
     [f.get() for f in futures]
 
+
 def time_to_bin(t):
     return int(t / (24 * 60 * 60))
+
 
 @cassandra_session
 def get_available_time_range(stream_key, session=None, prepared=None):

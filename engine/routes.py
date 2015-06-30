@@ -6,7 +6,6 @@ import logging
 
 import ntplib
 from flask import request, Response, jsonify
-from functools import wraps
 
 from engine import app
 from preload_database.model.preload import Stream
@@ -183,8 +182,8 @@ def needs():
     return resp
 
 @app.route('/')
-def hello():
-    return "Hello"
+def index():
+    return "You are trying to access <strong>stream engine</strong> directly. Please access through uframe instead."
 
 
 def validate(input_data):
@@ -210,6 +209,7 @@ def validate(input_data):
         if stream is None:
             raise InvalidStreamException('The requested stream does not exist in preload', payload={'stream': each})
 
+        # this check will disallow virtual streams to be accessed, so it's commented out for now
         #if not stream_exists(each['subsite'],
                              #each['node'],
                              #each['sensor'],

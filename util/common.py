@@ -79,11 +79,11 @@ def log_timing(func):
     if app.logger.isEnabledFor('debug'):
         @wraps(func)
         def inner(*args, **kwargs):
-            app.logger.debug('Entered method: %s', func)
+            #app.logger.debug('Entered method: %s', func)
             start = time.time()
             results = func(*args, **kwargs)
             elapsed = time.time() - start
-            app.logger.debug('Completed method: %s in %.2f', func, elapsed)
+            #app.logger.debug('Completed method: %s in %.2f', func, elapsed)
             return results
     else:
         @wraps(func)
@@ -231,6 +231,10 @@ class CachedParameter(object):
             cp.needs_cc = parameter_util.needs_cc(parameter)
             parameter_cache[parameter.id] = cp
         return parameter_cache[parameter.id]
+
+    @property
+    def is_array(self):
+        return self.parameter_type == 'array<quantity>'
 
     @staticmethod
     def from_id(pdid):
