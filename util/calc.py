@@ -1,5 +1,6 @@
 from Queue import Queue, Empty
 import importlib
+import msgpack
 import json
 import struct
 import tempfile
@@ -140,25 +141,8 @@ def get_needs(streams):
     return stream_list
 
 
-def handle_byte_buffer(data, encoding, shape):
-    if encoding in ['int8', 'int16', 'int32', 'uint8', 'uint16']:
-        format_string = 'i'
-        count = len(data) / 4
-    elif encoding in ['uint32', 'int64']:
-        format_string = 'q'
-        count = len(data) / 8
-    elif encoding in ['uint64']:
-        format_string = 'Q'
-        count = len(data) / 8
-    elif 'float' in encoding:
-        format_string = 'd'
-        count = len(data) / 8
-    else:
-        raise UnknownEncodingException(encoding)
-
-    data = numpy.array(struct.unpack('>%d%s' % (count, format_string), data))
-    data = data.reshape(shape)
-    return data
+def handle_byte_buffer(data):
+    return numpy.array([msgpack.unpackb(x) for x in data])
 
 
 def execute_dpa(parameter, kwargs):
@@ -379,7 +363,7 @@ class DataStream(object):
                     temp = [item for sublist in data_slice for item in sublist]
                     data_slice = numpy.array(temp).reshape(shape)
                 else:
-                    data_slice = handle_byte_buffer(''.join(data_slice), p.value_encoding, shape)
+                    data_slice = handle_byte_buffer(data_slice)
 
             # Nones can only be in ndarrays with dtype == object.  NetCDF
             # doesn't like objects.  First replace Nones with the
@@ -456,7 +440,7 @@ class DataStream(object):
                 item = getattr(row, name)
                 if hasattr(row, name + '_shape'):
                     shape = getattr(row, name + '_shape')
-                    item = handle_byte_buffer(item, self.param_map[name].value_encoding, shape)
+                    item = handle_byte_buffer([item])
                 self.data_cache[pdid]['data'].append(item)
             else:
                 self.data_cache[pdid]['data'].append(None)
