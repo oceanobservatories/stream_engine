@@ -12,7 +12,7 @@ import numpy
 import time
 from werkzeug.exceptions import abort
 from engine import app
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict, namedtuple, defaultdict
 from util.cass import get_streams, fetch_data, get_distinct_sensors, fetch_nth_data, get_available_time_range, fetch_l0_provenance
 from util.common import log_timing, StreamKey, TimeRange, CachedParameter, UnknownEncodingException, \
     FUNCTION, CoefficientUnavailableException, parse_pdid, UnknownFunctionTypeException, \
@@ -167,6 +167,7 @@ def execute_dpa(parameter, kwargs):
 
 
 def build_func_map(parameter, chunk, coefficients):
+    arg_metadata = {}
     func_map = parameter.parameter_function_map
     args = {}
     times = chunk[7]['data']
@@ -178,23 +179,25 @@ def build_func_map(parameter, chunk, coefficients):
                 raise StreamEngineException('Needed parameter %s not found in chunk when calculating PD%s %s' % (func_map[key], parameter.id, parameter.name))
 
             args[key] = chunk[pdRef.chunk_key]['data']
-
+            arg_metadata[key] = pdRef
         elif str(func_map[key]).startswith('CC'):
             name = func_map[key]
             if name in coefficients:
                 framed_CCs = coefficients[name]
-                CC_argument = build_CC_argument(framed_CCs, times)
+                CC_argument, CC_meta = build_CC_argument(framed_CCs, times)
                 if(numpy.isnan(numpy.min(CC_argument))):
                     raise CoefficientUnavailableException('Coefficient %s missing times in range (%s, %s) for PD%s %s' % (name, times[0], times[-1], parameter.id, parameter.name))
                 else:
                     args[key] = CC_argument
+                arg_metadata[key] = {'type' : 'CC', 'value' : CC_meta}
             else:
                 raise CoefficientUnavailableException('Coefficient %s not provided for PD%s %s' % (name, parameter.id, parameter.name))
         elif isinstance(func_map[key], (int, float, long, complex)):
+            arg_metadata[key] = {'type' : 'constant', 'value': func_map[key]}
             args[key] = func_map[key]
         else:
             raise StreamEngineException('Unable to resolve parameter \'%s\' in PD%s %s' % (func_map[key], parameter.id, parameter.name))
-    return args
+    return args, arg_metadata
 
 
 def in_range(frame, times):
@@ -223,7 +226,8 @@ def in_range(frame, times):
 
 
 def build_CC_argument(frames, times):
-    frames = [(f.get('start'), f.get('stop'), f['value']) for f in frames]
+    cc_meta = {'times' : [x.tolist() for x in times]}
+    frames = [(f.get('start'), f.get('stop'), f['value'], f['deployment']) for f in frames]
     frames.sort()
     frames = [f for f in frames if any(in_range(f, times))]
 
@@ -233,16 +237,71 @@ def build_CC_argument(frames, times):
     else:
         cc = numpy.empty(times.shape)
     cc[:] = numpy.NAN
-    
+
+    values = []
     for frame in frames[::-1]:
+        values.append({'start' : frame[0], 'stop' : frame[1], 'value': frame[2], 'deployment' : frame[3]})
         mask = in_range(frame, times)
         cc[mask] = frame[2]
+    cc_meta['data'] = values
 
-    return cc
+    return cc, cc_meta
+
+
+class CalculatedProvenanceMetadataStore(object):
+    """Metadata store for provenance values"""
+
+    def __init__(self):
+        self.params = defaultdict(list)
+        self.calls = {}
+
+    def insert_metadata(self, parameter, to_insert):
+        # check to see if we have a matching metadata call
+        # if we do return that id otherwise store it.
+        for call in self.params[parameter.name]:
+            if dict_equal(to_insert, self.calls[call]):
+                return call
+        # create and id and append it to the list
+        call_id = str(uuid.uuid4())
+        self.calls[call_id] = to_insert
+        self.params[parameter.name].append(call_id)
+        return call_id
+
+    def get_dict(self):
+        """return dictonary representation"""
+        res = {}
+        res['parameters'] = self.params
+        res['calculations'] = self.calls
+        return res
+
+
+def dict_equal(d1, d2):
+    """Function to recursively check if two dicts are equal"""
+    if isinstance(d1, dict) and isinstance(d2, dict):
+        # check keysets
+        s1 = set(d1.keys())
+        s2 = set(d2.keys())
+        sd = s1.symmetric_difference(s2)
+        # If there is a symetric difference they do not contain the same keys
+        if len(sd) > 0:
+            return False
+
+        #otherwise loop through all the keys and check if the dicts and items are equal
+        for key, value in d1.iteritems():
+            if key in d2:
+                if not dict_equal(d1[key], d2[key]):
+                    return False
+        # we made it through
+        return True
+    # check equality on other objects
+    else:
+        return d1 == d2
+
 
 class ProvenanceMetadataStore(object):
     def __init__(self):
         self._prov_set= set()
+        self.calc_meta= CalculatedProvenanceMetadataStore()
 
     def add_metadata(self, value):
         self._prov_set.add(value)
@@ -646,25 +705,89 @@ class Chunk_Generator(object):
         for stream in self.streams:
             stream.terminate_query()
 
+
+    @staticmethod
+    def get_param_description(pdref, chunk):
+        """Quickly build the descrption of a parameter for the provenance"""
+        deployment = list(set(chunk['deployment']['data']))
+        if len(deployment) > 1:
+            log.warn("More than one deployment!")
+            log.warn(chunk['deployment'])
+        deployment = deployment[0]
+        param = CachedParameter.from_id(pdref.pdid)
+        return {'id' : param.id, 'name' : param.name,  'source' : chunk[pdref.chunk_key]['source'], 'deployment' : deployment, 'identifier' : param.data_product_identifier}
+
     def _calculate(self, parameter, chunk):
         this_ref = PDRef(None, parameter.id)
         needs = [pdref for pdref in parameter.needs if pdref.chunk_key not in chunk.keys()]
+        subs = []
+        calc_meta = {}
+        # list of pdrefs for each subtype
+        parameters = {}
+        functions = {}
+
         # prevent loops since they are only warned against
         if this_ref in needs:
             needs.remove(this_ref)
+
+        # get others already present in the chunk
+        other = set([pdref for pdref in parameter.needs if pdref != this_ref]) - set(needs)
         for pdref in needs:
             # this should descend through any L2 functions to
             # calculate the underlying L1 functions first
             needed_parameter = CachedParameter.from_id(pdref.pdid)
             if needed_parameter.parameter_type == FUNCTION:
-                self._calculate(needed_parameter, chunk)
+            # get sub function id and calculate their results for the chunk
+                sub_id = self._calculate(needed_parameter, chunk)
+                if sub_id is not None:
+                    subs.append(sub_id)
+                    functions[pdref] = sub_id
+            else:
+                parameters[pdref] = pdref
             # we may have already inserted this during recursion
             if pdref.chunk_key not in chunk:
                 self._get_param(pdref, chunk)
+                parameters[pdref] = self.get_param_description(pdref, chunk)
+            else:
+                parameters[pdref] = self.get_param_description(pdref, chunk)
 
+        # get ones that were not needed but store their information
+        for i in other:
+            param = CachedParameter.from_id(i.pdid)
+            if param.parameter_type == FUNCTION:
+                functions[i] = ''
+                log.warn("Error in provenance calculation: Function already present")
+            else:
+                parameters[i] = self.get_param_description(i, chunk)
         try:
-            args = build_func_map(parameter, chunk, self.coefficients)
+            # calculate and update information
+            args, arg_metadata = build_func_map(parameter, chunk, self.coefficients)
             chunk[parameter.id] = {'data': execute_dpa(parameter, args), 'source': 'derived'}
+            # Create and store calculation variable  for provenance here.
+            # Return the stored variable.
+            calc_meta['function'] = {'function_id': parameter.parameter_function.id,
+                                     'function_name': parameter.parameter_function.function,
+                                     'function_type' : parameter.parameter_function.function_type,
+                                     'function_owner' : parameter.parameter_function.owner,
+                                     'function_args' : [a for a in parameter.parameter_function_map]
+                                     }
+            calc_meta['sub_calculations'] = subs
+            for k,v in arg_metadata.iteritems():
+                # Build the function map with information gathered from here
+                #link objects from arguments to information gathered in this function
+                if isinstance(v, PDRef):
+                    if v in functions:
+                        calc_meta[k] =  {'type': 'sub_calculation', 'value' : functions[v]}
+                    elif v in parameters:
+                        calc_meta[k] = {'type': 'parameter', 'value' : parameters[v] }
+                    else:
+                        log.warn("No metadata found: " +   str(k) + " " + str(v))
+                else:
+                    calc_meta[k] = v
+            # insert the metadata and get the id of this calcuation
+            calc_id = self.provenance_metadata.calc_meta.insert_metadata(parameter, calc_meta)
+            # return it for record keeping
+            return calc_id
         except StreamEngineException as e:
             log.warning(e.message)
 
@@ -796,7 +919,10 @@ class Particle_Generator(object):
                 yield '\"provenance\": \n'
                 prov = self.provenance_metadata.get_provenance_dict()
                 yield json.dumps(prov, indent=2)
-                yield '\n}'
+                yield ',\n'
+                yield '\"calculated_provenance\" : \n'
+                yield json.dumps(self.provenance_metadata.calc_meta.get_dict(), indent=2)
+                yield '}\n'
             else:
                 yield ']'
         except GeneratorExit as e:
@@ -935,6 +1061,10 @@ class NetCDF_Generator(object):
                     pvals = ncfile.createVariable('l0_provenance_data', 'str',  'l0_provenance')
                     pkeys[:] = numpy.array(keys)
                     pvals[:] = numpy.array(values)
+                    p2json = self.provenance_metadata.calc_meta.get_dict()
+                    ncfile.createDimension('calculated_provenance', 1)
+                    p2prov = ncfile.createVariable('calculated_provenance_data', 'str', 'calculated_provenance')
+                    p2prov[0] = json.dumps(p2json)
 
             return tf.read()
 
