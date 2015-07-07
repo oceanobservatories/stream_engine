@@ -273,7 +273,7 @@ def fetch_l0_provenance(subsite, node, sensor, method, deployment, prov_uuid,  s
     All of the neccessary infromation should be stored as a tuple in the
     provenance metadata store.
     """
-    base = "select * from ooi.dataset_l0_provenance where subsite='%s' and node='%s' and sensor='%s' and method='%s' and deployment=%s and id=%s" % \
+    base = "select * from dataset_l0_provenance where subsite='%s' and node='%s' and sensor='%s' and method='%s' and deployment=%s and id=%s" % \
            (subsite, node, sensor, method, deployment, prov_uuid)
     rows = session.execute(base)
     return rows
