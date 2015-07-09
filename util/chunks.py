@@ -3,25 +3,42 @@ __author__ = 'Stephen Zakrewsky'
 import numpy as np
 from util import common
 from scipy import stats
+import xray
 
 class Chunk(object):
 
     def __init__(self, obj):
-        if isinstance(obj, Chunk):
-            self.__dict = obj.to_dict()
+        if isinstance(obj, xray.Dataset):
+            self.__dataset = obj
+        elif isinstance(obj, Chunk):
+            self.__dataset = obj.__dataset
         elif isinstance(obj, dict):
-            self.__dict = obj
+            d = {}
+            for key in obj:
+                if(key != 7):
+                    dataArray = xray.DataArray(obj[key]['data'], coords={'dim_0': obj[7]['data']}, attrs={'source': obj[key]['source']})
+                    d[key] = dataArray
+            self.__dataset = xray.Dataset(d)
+            self.__dataset.rename({'dim_0': 'time'}, inplace=True)
         else:
-            raise TypeError('obj required to be a Chunk or dict')
+            raise TypeError('obj required to be xray.Dataset, Chunk or dict')
+
+    def to_dataset(self):
+        return self.__dataset
 
     def to_dict(self):
-        return self.__dict
+        dict_ = {}
+        for key in self.__dataset:
+            if key not in self.__dataset.dims.keys():
+                dict_[key] = {'source': self.__dataset[key].attrs['source'], 'data': self.__dataset[key].values}
+        dict_[7] = {'data': self.times()}
+        return dict_
 
     def __repr__(self):
-        return 'Chunk(%s)' % self.to_dict()
+        return 'Chunk(%s)' % self.__dataset
 
     def times(self):
-        return self.__dict[7]['data']
+        return self.__dataset['time'].values
 
     def __len__(self):
         return len(self.times())
@@ -39,12 +56,7 @@ class Chunk(object):
                 i += len(self)
             i = slice(i,i+1)
 
-        dict_ = {}
-        for key in self.__dict:
-            dict_[key] = {'source': self.__dict[key]['source']}
-            dict_[key]['data'] = self.__dict[key]['data'][i]
-
-        return Chunk(dict_)
+        return Chunk(self.__dataset.isel(time=i))
 
     def __eq__(self, other):
         return is_equal(self, other, exact=True)
@@ -74,11 +86,11 @@ class Chunk(object):
         """
         if any([not self, len(times) == 0]):
             dict_ = {}
-            for key in self.__dict:
-                if key != 7:
-                    dict_[key] = {'source': self.__dict[key]['source']}
-                    dict_[key]['data'] = common.with_size_and_fill(self.__dict[key]['data'], len(times))
-            dict_[7] = {'source': self.__dict[7]['source'], 'data': np.array(times)}
+            for key in self.__dataset:
+                if key not in self.__dataset.dims.keys():
+                    dict_[key] = {'source': self.__dataset[key].attrs['source']}
+                    dict_[key]['data'] = common.with_size_and_fill(self.__dataset[key].values, len(times))
+            dict_[7] = {'data': np.array(times)}
             return Chunk(dict_)
 
         if strategy == 'Average':
@@ -101,9 +113,9 @@ class Chunk(object):
         r = [(times[0], b[-1])]
 
         dict_ = {}
-        for key in self.__dict:
-            if key != 7:
-                d = self.__dict[key]['data']
+        for key in self.__dataset:
+            if key not in self.__dataset.dims.keys():
+                d = self.__dataset[key].values
                 try:
                     avg_data = stats.binned_statistic(self.times(), d, 'mean', bins=b, range=r)[0]
                 except:
@@ -114,18 +126,18 @@ class Chunk(object):
                         bin_data = d[bins == i]
                         if len(bin_data) > 0:
                             avg_data[i] = bin_data[0]
-                dict_[key] = {'source': self.__dict[key]['source'], 'data': avg_data}
-        dict_[7] = {'source': self.__dict[7]['source'], 'data': np.array(times)}
+                dict_[key] = {'source': self.__dataset[key].attrs['source'], 'data': avg_data}
+        dict_[7] = {'data': np.array(times)}
         return Chunk(dict_)
 
     def __interpolate(self, times):
         dict_ = {}
-        for key in self.__dict:
-            if key != 7:
-                t, d = common.stretch(self.times(), self.__dict[key]['data'], times)
+        for key in self.__dataset:
+            if key not in self.__dataset.dims.keys():
+                t, d = common.stretch(self.times(), self.__dataset[key].values, times)
                 t, d = common.interpolate(t, d, times)
-                dict_[key] = {'source': self.__dict[key]['source'], 'data': d}
-        dict_[7] = {'source': self.__dict[7]['source'], 'data': np.array(times)}
+                dict_[key] = {'source': self.__dataset[key].attrs['source'], 'data': d}
+        dict_[7] = {'data': np.array(times)}
         return Chunk(dict_)
 
 
@@ -143,47 +155,13 @@ def is_equal(chunk1, chunk2, exact=True):
     if chunk1 is chunk2:
         return True
 
-    cd1 = Chunk(chunk1).to_dict()
-    cd2 = Chunk(chunk2).to_dict()
+    cd1 = Chunk(chunk1).to_dataset()
+    cd2 = Chunk(chunk2).to_dataset()
 
     if cd1 is cd2:
         return True
 
-    if set(cd1) != set(cd2):
-        return False
-
-    for key in cd1:
-        if cd1[key]['source'] != cd2[key]['source']:
-            return False
-
-        d1 = cd1[key]['data']
-        d2 = cd2[key]['data']
-        if d1 is not d2:
-            try:
-                # Check NAN -- this only works on numbers
-                m1 = np.logical_not(np.isnan(d1))
-                m2 = np.logical_not(np.isnan(d2))
-                if not np.array_equal(m1,m2):
-                    return False
-                d1 = d1[m1]
-                d2 = d2[m2]
-            except TypeError:
-                pass
-
-            if exact:
-                if not np.array_equal(d1, d2):
-                    return False
-            else:
-                try:
-                    # this only works on numbers
-                    if not np.allclose(d1, d2):
-                        return False
-                except TypeError:
-                    if not np.array_equal(d1, d2):
-                        return False
-
-    return True
-
+    return cd1.identical(cd2)
 
 def concatenate(*chunks):
     """
@@ -194,10 +172,5 @@ def concatenate(*chunks):
     :param chunks: list of chunk like objects
     :return: the joined chunk
     """
-    chunks = [Chunk(c).to_dict() for c in chunks]
-    dict_ = {}
-    cd1 = chunks[0]
-    for key in cd1:
-        dict_[key] = {'source': cd1[key]['source']}
-        dict_[key]['data'] = np.concatenate([cd[key]['data'] for cd in chunks])
-    return Chunk(dict_)
+    chunks = [Chunk(c).to_dataset() for c in chunks]
+    return Chunk(xray.concat(chunks, dim='time'))

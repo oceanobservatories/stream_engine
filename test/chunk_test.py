@@ -15,6 +15,7 @@ class Test_StreamRequest(object):
 class Test_Chunk_Generator(object):
 
     def __init__(self):
+        self.provenance_metadata = None; #attribute needs to be defined
         self.chunks_list = [
             { 7: {'source': 'foo', 'data': numpy.array([2,4,8])},
               8: {'source': 'foo', 'data': numpy.array([1,2,3])},
