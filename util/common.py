@@ -79,11 +79,11 @@ def log_timing(func):
     if app.logger.isEnabledFor('debug'):
         @wraps(func)
         def inner(*args, **kwargs):
-            #app.logger.debug('Entered method: %s', func)
+            app.logger.debug('Entered method: %s', func)
             start = time.time()
             results = func(*args, **kwargs)
             elapsed = time.time() - start
-            #app.logger.debug('Completed method: %s in %.2f', func, elapsed)
+            app.logger.debug('Completed method: %s in %.2f', func, elapsed)
             return results
     else:
         @wraps(func)
@@ -376,6 +376,11 @@ class MissingDataException(StreamEngineException):
     """
     status_code = 400
 
+class MissingStreamMetadataException(StreamEngineException):
+    """
+    Internal error. Cassandra contains no metadata for the requested stream
+    """
+    status_code = 400
 
 def arb(d):
     """ Returns an arbitrary value from the given dictionary """

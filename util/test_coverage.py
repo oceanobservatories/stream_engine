@@ -38,12 +38,12 @@ for url in urls:
 
     stream_page = requests.get(url, proxies={'no': 'pass'})
 
-    if stream_page.status_code != 200 and stream_page.status_code != 400:
+    if stream_page.status_code != 200:
         print_bad("Code: {}".format(stream_page.status_code))
         num_errors += 1
     else:
         try:
-            len_output = len(stream_page.json())
+            len_output = len(stream_page.json()['data'])
         except Exception:
             print_bad("Code: {}".format(stream_page.status_code))
             num_errors += 1

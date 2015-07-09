@@ -1,5 +1,3 @@
-import engine
-
 import json
 import time
 import logging
@@ -15,6 +13,7 @@ from util.common import CachedParameter, StreamEngineException, MalformedRequest
     InvalidStreamException, StreamUnavailableException, InvalidParameterException
 
 log = logging.getLogger(__name__)
+
 
 @app.errorhandler(StreamEngineException)
 def handle_stream_not_found(error):
@@ -65,12 +64,13 @@ def particles():
     limit = input_data.get('limit', 0)
     if limit <= 0:
         limit = None
-    
+
+    prov = input_data.get('include_provenance', False)
     resp = Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
                     input_data.get('qcParameters', {}), limit=limit, custom_times=input_data.get('custom_times'),
-                    custom_type=input_data.get('custom_type')), mimetype='application/json')
+                    custom_type=input_data.get('custom_type'), include_provenance=prov), mimetype='application/json')
 
-    log.info("Request took {:.2f}s to complete".format(time.time()-request_start_time))
+    log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return resp
 
 
@@ -115,10 +115,13 @@ def netcdf():
     if limit <= 0:
         limit = None
 
-    resp = Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}), limit=limit, custom_times=input_data.get('custom_times'), custom_type=input_data.get('custom_type')),
+    prov = input_data.get('include_provenance', False)
+    resp = Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
+                                         limit=limit, custom_times=input_data.get('custom_times'),
+                                         custom_type=input_data.get('custom_type'), include_provenance=prov),
                     mimetype='application/netcdf')
 
-    log.info("Request took {:.2f}s to complete".format(time.time()-request_start_time))
+    log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return resp
 
 
@@ -178,7 +181,7 @@ def needs():
     output_data = {'streams': util.calc.get_needs(input_data.get('streams'))}
     resp = Response(json.dumps(output_data), mimetype='application/json')
 
-    log.info("Request took {:.2f}s to complete".format(time.time()-request_start_time))
+    log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return resp
 
 @app.route('/')
