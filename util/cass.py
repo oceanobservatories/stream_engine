@@ -1,13 +1,12 @@
 import numpy
 import engine
 
-from collections import deque
 from functools import wraps
 from multiprocessing.pool import Pool
 from multiprocessing import BoundedSemaphore
-from threading import Lock
+from threading import Lock, Thread
 
-from cassandra.cluster import Cluster, QueryExhausted, ResponseFuture, _NOT_SET
+from cassandra.cluster import Cluster, QueryExhausted, ResponseFuture, PagedResult
 from cassandra.query import _clean_column_name, tuple_factory
 from cassandra.concurrent import execute_concurrent_with_args
 
@@ -97,112 +96,90 @@ class FakeFuture(ResponseFuture):
         self._final_result = rows
 
 
-class JoinedFuture(ResponseFuture):
+class ConcurrentBatchFuture(ResponseFuture):
     """
-    This class provides a single ResponseFuture interface for a
-    collection of queries that need to be run in sequence.  This
-    supports paging within and across individual queries.  If you
-    do not need paging, cassandra.concurrent.execute_concurrent is
-    likely to be much more efficient.
+    Combines the apply_async(execute_concurrent) pattern with paging
 
-    Note about recursion.  The ResponseFuture add_callback and add_errback
-    function will call the callback argument immediately if a result is available.
-    Normally, the next page is not fetched from cassandra immediately so
-    start_fetching_next_page will return and the callback will return.  However,
-    in the case of this class, more than one future is active at one time, so it
-    is more likely that the next page will be available immediately.  It is
-    important to realize that ResponseFutures run on a single event loop.  If
-    the futures parameter in this constructor is passed in as a generator, then
-    the depth of recursion will be limited to buffer_size.
+    There are a number of parameters that can be tuned:
+
+        q_per_page -- number of queries to run per page
+                      if < 1, then everything will be done
+                      in a single page
+
+        q_per_proc -- number of queries to run per process
+
+        c_per_proc -- number of concurrent queries to run per process
+
+        blocking_init -- whether or not to block and fetch results immediately
+                         on construction of an instance of this class.
+                         q_per_page must also be < 1 for this to happen.
+
+    There are also a number of global parameters that are also related:
+
+        engine.app.config['POOL_SIZE'] -- number of processes in the pool
+
+        engine.app.config['CASSANDRA_FETCH_SIZE'] -- number of rows to fetch
+                                                     at a time from the underlying
+                                                     connection
     """
-    def __init__(self, futures, buffer_size=100):
-        """
-        If futures is a generator expression, then only buffer_size
-        futures will be running at the same time.
-        """
-        self._callbacks = []
-        self._errbacks = []
+
+    def __init__(self, stream_key, cols, times):
+        self.stream_key = stream_key
+        self.cols = cols
+        self.times = times
+        self.q_per_page = 0
+        self.q_per_proc = 10
+        self.c_per_proc = 50
+        self.blocking_init = True
+        self._has_more_pages = False
         self._final_result = None
-        self._futures = iter(futures)
-        self._buffer = deque(maxlen=buffer_size)
-        try:
-            for i in range(buffer_size):
-                self._buffer.append(next(self._futures))
-        except StopIteration:
-            pass
-
-    def _shift_buffer(self):
-        """
-        Pop the first future off of the buffer and add
-        the next one from the list of futures waiting
-        be run.  Then add any callbacks to the new
-        first (current) future.
-        """
-        try:
-            self._buffer.append(next(self._futures))
-        except StopIteration:
-            self._buffer.popleft()
-
-        """
-        If ResponseFuture has data, it won't actually add the
-        callback to it's list resulting in future calls to
-        start_fetching_next_page not having a callback.  This will
-        force the callbacks to be added, then if data is ready, start
-        the chain of calls to invoke them.  ResponseFuture will only
-        call the first of callback or errback if data is ready.
-        """
-        run_callback = False
-        run_errback = False
-        this_future = self._buffer[0]
-        with this_future._callback_lock:
-            this_future._callbacks.extend(self._callbacks)
-            this_future._errbacks.extend(self._errbacks)
-            if this_future._final_result is not _NOT_SET:
-                run_callback = True
-            if this_future._final_exception:
-                run_errback = True
-
-        if run_callback:
-            for (fn, args, kwargs) in self._callbacks[0:1]:
-                this_future.add_callback(fn, *args, **kwargs)
-        if run_errback:
-            for (fn, args, kwargs) in self._errbacks[0:1]:
-                this_future.add_errback(fn, *args, **kwargs)
+        if self.q_per_page < 1 and self.blocking_init:
+            self.result()
 
     def add_callback(self, fn, *args, **kwargs):
-        self._callbacks.append((fn, args, kwargs))
-        self._buffer[0].add_callback(fn, *args, **kwargs)
+        if self._final_result is not None:
+            fn(self._final_result, *args, **kwargs)
+        else:
+            def thread_internals():
+                for i in range(0, len(self.times), self.q_per_page):
+                    rows = self._fetch_data_concurrent(self.times[i:i + self.q_per_page])
+                    self._has_more_pages = i*self.q_per_page < len(self.times)
+                    fn(rows, *args, **kwargs)
+            Thread(target=thread_internals).start()
 
     def add_errback(self, fn, *args, **kwargs):
-        self._errbacks.append((fn, args, kwargs))
-        self._buffer[0].add_errback(fn, *args, **kwargs)
+        pass
 
     @property
     def has_more_pages(self):
-        if len(self._buffer) == 1:
-            return self._buffer[0].has_more_pages
-        else:
-            return len(self._buffer) > 0
+        return self._has_more_pages
 
     def start_fetching_next_page(self):
-        try:
-            if self._buffer[0].has_more_pages:
-                self._buffer[0].start_fetching_next_page()
-            else:
-                self._shift_buffer()
-        except IndexError:
+        if self._has_more_pages:
+            return
+        else:
             raise QueryExhausted
 
     def result(self):
         if self._final_result is None:
-            self._final_result = []
-            try:
-                while True:
-                    self._final_result.extend(self._buffer[0].result())
-                    self._shift_buffer()
-            except IndexError:
-                pass
+            self._final_result = self._fetch_data_concurrent(self.times)
         return self._final_result
+
+    @log_timing
+    def _fetch_data_concurrent(self, times):
+        futures = []
+        for i in xrange(0, len(times), self.q_per_proc):
+            args = (self.stream_key, self.cols, times[i:i + self.q_per_proc])
+            kwargs = {'concurrency': self.c_per_proc}
+            future = execution_pool.apply_async(fetch_concurrent, args, kwargs)
+            futures.append(future)
+
+        rows = []
+        for future in futures:
+            for data in future.get():
+                rows.extend(data)
+
+        return rows
 
 
 @log_timing
@@ -253,6 +230,13 @@ def fetch_data(stream_key, time_range, strict_range=False, session=None, prepare
         start -= 0.005
         stop += 0.005
 
+    times = [(b, start, stop) for b in xrange(time_to_bin(start), time_to_bin(stop) + 1)]
+    return cols, ConcurrentBatchFuture(stream_key, cols, times)
+
+
+@log_timing
+@cassandra_session
+def fetch_concurrent(stream_key, cols, times, concurrency=50, session=None, prepared=None):
     query_name = 'fetch_data_%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite,
                                  stream_key.node, stream_key.sensor, stream_key.method)
     if query_name not in prepared:
@@ -262,9 +246,9 @@ def fetch_data(stream_key, time_range, strict_range=False, session=None, prepare
         query.fetch_size = engine.app.config['CASSANDRA_FETCH_SIZE']
         prepared[query_name] = query
     query = prepared[query_name]
-    futures_generator_exp = ( session.execute_async(query, (b, start, stop)) for b in xrange(time_to_bin(start), time_to_bin(stop) + 1) )
-
-    return cols, JoinedFuture(futures_generator_exp)
+    results = execute_concurrent_with_args(session, query, times, concurrency=concurrency)
+    results = [list(r[1]) if type(r[1]) == PagedResult else r[1] for r in results if r[0]]
+    return results
 
 @cassandra_session
 def fetch_l0_provenance(subsite, node, sensor, method, deployment, prov_uuid,  session=None, prepared=None):
