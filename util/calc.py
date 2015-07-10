@@ -568,7 +568,11 @@ def build_CC_argument(frames, times):
     frames.sort()
     frames = [f for f in frames if any(in_range(f, times))]
 
-    sample_value = frames[0][2]
+    try:
+        sample_value = frames[0][2]
+    except IndexError, e:
+        raise StreamEngineException('Unable to build cc arguments for algorithm: {}'.format(e))
+
     if type(sample_value) == list:
         cc = numpy.empty(times.shape + numpy.array(sample_value).shape)
     else:
@@ -606,7 +610,7 @@ class StreamRequest(object):
 
     def _initialize(self, needs_only):
         if len(self.stream_keys) == 0:
-            abort(400)
+            raise StreamEngineException('Received no stream keys', status_code=400)
 
         # virtual streams are not in cassandra, so we can't fit the time range
         if not needs_only and not self.stream_keys[0].stream.is_virtual:
@@ -616,7 +620,7 @@ class StreamRequest(object):
         handled = []
         for key in self.stream_keys:
             if key in handled:
-                abort(400)
+                raise StreamEngineException('Received duplicate stream_keys', status_code=400)
             handled.append(key)
 
         # populate self.parameters if empty or None
@@ -702,7 +706,7 @@ class StreamRequest(object):
             raise MissingStreamMetadataException('No stream metadata in cassandra for %s', self.stream_keys[0])
         else:
             if self.time_range.start >= available_time_range.stop or self.time_range.stop <= available_time_range.start:
-                log.info('No data in requested time range (%s, %s) for %s ', self.time_range.start, self.time_range.stop, self.stream_keys[0])
+                log.warning('No data in requested time range (%s, %s) for %s ', self.time_range.start, self.time_range.stop, self.stream_keys[0])
                 raise MissingDataException("No data in requested time range")
 
             start = max(self.time_range.start, available_time_range.start)
