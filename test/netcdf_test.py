@@ -35,15 +35,16 @@ class Generator(object):
 
 def test_NetCDF_Generator():
 
-    request = to_obj({'stream_keys': [
-        {
-            'subsite': 'RS00ENGC',
-            'node': 'XX00X',
-            'sensor': '00-CTDBPA002',
-            'method': 'streamed',
-            'stream': {'name': 'ctdbp_no_sample'}
-         }
-    ]})
+    request = to_obj({
+        'stream_keys': [{
+                'subsite': 'RS00ENGC',
+                'node': 'XX00X',
+                'sensor': '00-CTDBPA002',
+                'method': 'streamed',
+                'stream': {'name': 'ctdbp_no_sample'}
+            }],
+        'include_provenance': False
+    })
 
     chunks = [{
         7: {
