@@ -1,7 +1,7 @@
 from functools import wraps
 import time
 from engine import app
-from preload_database.model.preload import Stream, Parameter
+from preload_database.model.preload import Stream, Parameter, ParameterFunction
 import numpy
 from scipy.interpolate import griddata
 import parameter_util

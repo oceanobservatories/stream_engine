@@ -116,7 +116,7 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
                     value = pd_data[qc_function_results][primary_key.as_refdes()]['data'][index]
 
                     qc_results_key = '%s_%s' % (param.name, 'qc_results')
-                    if article[qc_results_key] is None:
+                    if qc_results_key not in particle:
                         particle[qc_results_key] = 0b0000000000000000
 
                     qc_results_value = particle[qc_results_key]
@@ -132,10 +132,12 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
 
         particles.append(particle)
 
-    out = OrderedDict()
-    out['data'] = particles
     if include_provenance:
+        out = OrderedDict()
+        out['data'] = particles
         out['provenance'] = provenance_metadata.get_provenance_dict()
+    else:
+        out = particles
 
     return json.dumps(out, indent=2)
 
@@ -290,7 +292,7 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
                 }
 
             if stream_request.include_provenance:
-                for prov_uuid, deployment in zip(data_frame.provenance.values.astype(str), df.deployment.values):
+                for prov_uuid, deployment in zip(data_frame.provenance.values.astype(str), data_frame.deployment.values):
                     value = (primary_key.subsite, primary_key.node, primary_key.sensor, primary_key.method, deployment, prov_uuid)
                     provenance_metadata.add_metadata(value)
 
@@ -337,13 +339,16 @@ def _qc_check(stream_request, parameter, pd_data, primary_key):
 
     qcs = stream_request.qc_parameters.get(parameter.name)
     for function_name in qcs:
-        if qcs[function_name]['strict_validation'] is None:
+        if 'strict_validation' not in qcs[function_name]:
             qcs[function_name]['strict_validation'] = 'False'
 
         qcs[function_name]['dat'] = pd_data[parameter.id][primary_key.as_refdes()]['data']
         module = importlib.import_module(CachedFunction.from_qc_function(function_name).owner)
 
-        pd_data['%s_%s' % (parameter.name.encode('ascii', 'ignore'), function_name)][primary_key.as_refdes()] = {
+        qc_name = '%s_%s' % (parameter.name.encode('ascii', 'ignore'), function_name)
+        if qc_name not in pd_data:
+            pd_data['provenance'] = {}
+        pd_data[qc_name][primary_key.as_refdes()] = {
             'data': getattr(module, function_name)(**qcs.get(function_name)),
             'source': 'qc'
         }
@@ -367,7 +372,7 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, level=1):
 
     The products are added to the pd_data map, not returned
     """
-    log.info("\n" + ((level - 1) * 4 - 1) * ' ')
+    log.info("")
     spaces = level * 4 * ' '
     log.info("{}Running dpa for {} (PD{}){{".format((level - 1) * 4 * ' ', param.name, param.id))
 
@@ -568,7 +573,11 @@ def build_CC_argument(frames, times):
     frames.sort()
     frames = [f for f in frames if any(in_range(f, times))]
 
-    sample_value = frames[0][2]
+    try:
+        sample_value = frames[0][2]
+    except IndexError, e:
+        raise StreamEngineException('Unable to build cc arguments for algorithm: {}'.format(e))
+
     if type(sample_value) == list:
         cc = numpy.empty(times.shape + numpy.array(sample_value).shape)
     else:
@@ -606,7 +615,7 @@ class StreamRequest(object):
 
     def _initialize(self, needs_only):
         if len(self.stream_keys) == 0:
-            abort(400)
+            raise StreamEngineException('Received no stream keys', status_code=400)
 
         # virtual streams are not in cassandra, so we can't fit the time range
         if not needs_only and not self.stream_keys[0].stream.is_virtual:
@@ -616,7 +625,7 @@ class StreamRequest(object):
         handled = []
         for key in self.stream_keys:
             if key in handled:
-                abort(400)
+                raise StreamEngineException('Received duplicate stream_keys', status_code=400)
             handled.append(key)
 
         # populate self.parameters if empty or None
@@ -702,7 +711,7 @@ class StreamRequest(object):
             raise MissingStreamMetadataException('No stream metadata in cassandra for %s', self.stream_keys[0])
         else:
             if self.time_range.start >= available_time_range.stop or self.time_range.stop <= available_time_range.start:
-                log.info('No data in requested time range (%s, %s) for %s ', self.time_range.start, self.time_range.stop, self.stream_keys[0])
+                log.warning('No data in requested time range (%s, %s) for %s ', self.time_range.start, self.time_range.stop, self.stream_keys[0])
                 raise MissingDataException("No data in requested time range")
 
             start = max(self.time_range.start, available_time_range.start)

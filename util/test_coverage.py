@@ -1,5 +1,16 @@
 #!/usr/bin/env python2
 
+"""
+Queries all streams in cassandra for json
+
+Usage: ./test_coverage.py [limit|limit url]
+
+Examples:
+    ./test_coverage.py 1000
+    ./test_coverage.py
+    ./test_coverage.py 1000 http://localhost:12576
+"""
+
 import time
 
 import requests
@@ -19,6 +30,9 @@ limit = '50'
 if len(sys.argv) > 1:
     limit = sys.argv[1]
 
+if len(sys.argv) > 2:
+    sensor_inventory_url = sys.argv[2]
+
 r = requests.get(sensor_inventory_url+"/sensor/allstreams?limit="+limit, proxies={'no':'pass'})
 soup = BeautifulSoup(r.text)
 
@@ -34,6 +48,7 @@ total_particles = 0
 start_time = time.time()
 num_errors = 0
 for url in urls:
+    stime = time.time()
     print "URL: ", url
 
     stream_page = requests.get(url, proxies={'no': 'pass'})
@@ -51,7 +66,9 @@ for url in urls:
             
         print_good("{} particles".format(len_output))
         total_particles += len_output
+    print "Request took {}s".format(time.time()-stime)
     print ""
+    time.sleep(2)
 
 message = "\n\n\nNum errors: {}/{}".format(num_errors, num_streams)
 print_good(message) if num_errors == 0 else print_bad(message)
