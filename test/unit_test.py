@@ -1,7 +1,7 @@
 import copy
 import json
 import os
-import struct
+import msgpack
 import unittest
 import subprocess
 
@@ -208,17 +208,9 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
 
     def test_handle_byte_buffer(self):
         data = range(8)
-        packed = struct.pack('>8i', *data)
-        unpacked = handle_byte_buffer(packed, 'int32', [8])
-        self.assertListEqual(data, unpacked.tolist())
-
-        packed = struct.pack('>8d', *data)
-        unpacked = handle_byte_buffer(packed, 'float32', [8])
-        self.assertListEqual(data, unpacked.tolist())
-
-        packed = struct.pack('>8q', *data)
-        unpacked = handle_byte_buffer(packed, 'int64', [8])
-        self.assertListEqual(data, unpacked.tolist())
+        packed = msgpack.packb(data)
+        unpacked = handle_byte_buffer([packed])
+        self.assertListEqual([data], unpacked.tolist())
 
     def test_execute_dpa(self):
         parameter = CachedParameter.from_id(3650)
