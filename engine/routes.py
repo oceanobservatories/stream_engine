@@ -73,6 +73,45 @@ def particles():
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return resp
 
+@app.route('/full_netcdf', methods=['POST'])
+def full_netcdf():
+    """
+    POST should contain a dictionary of the following format:
+    {
+        'streams': [
+            {
+                'subsite': subsite,
+                'node': node,
+                'sensor': sensor,
+                'method': method,
+                'stream': stream,
+                'parameters': [...],
+            },
+            ...
+        ],
+        'coefficients': {
+            'CC_a0': [
+                { 'start': ntptime, 'stop': ntptime, 'value': 1.0 },
+                ...
+            ],
+            ...
+        },
+        'start': ntptime,
+        'stop': ntptime
+    }
+
+    :return: NETCDF object:
+    """
+    input_data = request.get_json()
+    validate(input_data)
+    request_start_time = time.time()
+    log.info("Handling request to offload {} - {}".format(request.url, input_data.get('streams', "")))
+    start = input_data.get('start', 1)
+    stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
+    resp = Response(util.calc.get_netcdf_raw(input_data.get('streams'), start, stop,), mimetype='application/netcdf')
+    log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
+    return resp
+
 
 @app.route('/netcdf', methods=['POST'])
 def netcdf():

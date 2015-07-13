@@ -8,8 +8,11 @@ import netCDF4
 import numexpr
 import numpy
 
+import os
+from scipy.io.netcdf import netcdf_file
+
 from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, \
-    get_available_time_range, fetch_l0_provenance
+    get_available_time_range, fetch_l0_provenance, fetch_data_sync, time_to_bin
 from util.common import log_timing, StreamKey, TimeRange, CachedParameter, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, \
@@ -22,6 +25,7 @@ from werkzeug.exceptions import abort
 import pandas as pd
 import scipy as sp
 
+from engine.routes import  app
 
 try:
     import simplejson as json
@@ -139,8 +143,82 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
 
     return json.dumps(out, indent=2)
 
+def get_netcdf_raw(streams, start, stop):
+    """
+    Return a netcdf popluated with the data from cassandra.  RAW
+    output will not calculate any other things.  This is a way
+    to dump all of the data in the cassandra repository out to netCDF files.
+    """
+    # Get data from cassandra
+    stream = StreamKey.from_dict(streams[0])
+    time_range = TimeRange(start, stop)
+    cols, data = fetch_data_sync(stream, time_range)
+    df = pd.DataFrame(data=data.result(), columns=cols)
 
-@log_timing
+    #drop duplicate time indicies and set time to be the index of the data frame
+    bl = len(df)
+    df = df.drop_duplicates(subset='time', take_last=False)
+    df = df.set_index('time')
+    parameters = [p for p in stream.stream.parameters if p.parameter_type != FUNCTION]
+    al = len(df)
+    if bl != al:
+        log.info("Dropped {:d} duplicate indicies".format(bl - al))
+
+    # create netCDF file
+    with tempfile.NamedTemporaryFile() as tf:
+        with netCDF4.Dataset(tf.name, 'w', format='NETCDF4') as ncfile:
+            # set up file level attributes
+            ncfile.subsite = stream.subsite
+            ncfile.node = stream.node
+            ncfile.sensor = stream.sensor
+            ncfile.collection_method = stream.method
+            ncfile.stream = stream.stream.name
+            time_dim = 'time'
+            ncfile.createDimension(time_dim, None)
+            visited = set()
+
+            # be sure to insert all of the parameters
+            for param in parameters:
+                if param.name != 'time':
+                    visited.add(param.name)
+                    data_slice = df[param.name].values
+                    if param.is_array:
+                        #unpack
+                        data_slice = numpy.array([msgpack.unpackb(x) for x in data_slice])
+                    data_slice = replace_values(data_slice, param)
+                    data = data_slice
+                else:
+                    data = df.index.values
+                dims = [time_dim]
+                if len(data.shape) > 1:
+                    for index, dimension in enumerate(data.shape[1:]):
+                        name = '%s_dim_%d' % (param.name, index)
+                        ncfile.createDimension(name, dimension)
+                        dims.append(name)
+                var = ncfile.createVariable(param.name,data.dtype, dims, zlib=True)
+                if param.unit is not None:
+                    var.units = param.unit
+                if param.fill_value is not None:
+                    var.fill_value = param.fill_value
+                if param.description is not None:
+                    var.long_name = param.description
+                if param.display_name is not None:
+                    var.display_name = param.display_name
+                if param.data_product_identifier is not None:
+                    var.data_product_identifier = param.data_product_identifier
+                var[:] = data
+            #add dimensions for this that we do not have in the normal string parameters but that are store in cassandra
+            for missing in list(set(df.columns) - visited):
+                data = df[missing].values
+                # cast as strings if it is an object
+                if data.dtype == 'object':
+                    data = data.astype('str')
+                var = ncfile.createVariable(missing, data.dtype, [time_dim], zlib=True)
+                var[:] = data
+        return tf.read()
+
+
+
 def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None, custom_type=None, include_provenance=True):
     """
     Returns a netcdf from the given streams, limits and times
@@ -182,6 +260,266 @@ def get_needs(streams):
     return stream_list
 
 
+def replace_values(data_slice, param):
+    '''
+    Replace any missing values in the parameter
+    :param data_slice: pandas series to replace missing values in
+    :param param: Information about the parameter
+    :return: data_slice with missing values filled with fill value
+    '''
+    # Nones can only be in ndarrays with dtype == object.  NetCDF
+    # doesn't like objects.  First replace Nones with the
+    # appropriate fill value.
+    #
+    # pandas does some funny things to missing values if the whole column is missing it becomes a None filled object
+    # Otherwise pandas will replace floats with Not A Number correctly.
+    # Integers are cast as floats and missing values replaced with Not A Number
+    # The below case will take care of instances where the whole series is missing or if it is an array or
+    # some other object we don't know how to fill.
+    if data_slice.dtype == 'object' and not param.is_array:
+        nones = numpy.equal(data_slice, None)
+        if numpy.any(nones):
+            # If there are nones either fill with specific value for ints, floats, string, or throw an error
+            if param.value_encoding in ['int', 'uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64']:
+                data_slice[nones] = -999999999
+                data_slice = data_slice.astype('int64')
+            elif param.value_encoding in ['float16', 'float32', 'float64', 'float96']:
+                data_slice[nones] = numpy.nan
+                data_slice = data_slice.astype('float64')
+            elif param.value_encoding == 'string':
+                data_slice[nones] = ''
+                data_slice = data_slice.astype('str')
+            else:
+                log.error("Do not know how to fill type: {:s}".format(param.value_encoding))
+                raise StreamEngineException('Do not know how to fill for data type ' + str(param.value_encoding))
+    # otherwise if the returned data is a float we need to check and make sure it is not supposed to be an int
+    elif data_slice.dtype == 'float64':
+        # Int's are upcast to floats if there is a missing value.
+        if param.value_encoding in ['int', 'uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64']:
+            # We had a missing value because it was upcast
+            indexes = numpy.where(numpy.isnan(data_slice))
+            data_slice[indexes] = -999999999
+            data_slice = data_slice.astype('int64')
+
+    # Pandas also treats strings as objects.  NetCDF doesn't
+    # like objects.  So convert objects to strings.
+    if data_slice.dtype == object:
+        try:
+            data_slice = data_slice.astype('str')
+        except ValueError as e:
+            log.error('Unable to convert {} (PD{}) to string (may be caused by jagged arrays): {}'.format(param.name, param.id, e))
+    return data_slice
+
+
+def fetch_nsan_data(stream_key, time_range, strict_range=False, num_points=1000):
+    """
+    Given a time range and stream key.  Genereate evenly spaced times over the inverval using data
+    from the SAN.
+    :param stream_key:
+    :param time_range:
+    :param strict_range:
+    :param num_points:
+    :return:
+    """
+    bs = time_to_bin(time_range.start)
+    be = time_to_bin(time_range.stop)
+    # get which bins we can gather data from
+    bin_list = [x for x in range(bs, be+1)]
+    # get which bins we have on the data san
+    ratio = float(len(bin_list)) / num_points
+    ref_des_dir = app.config['SAN_BASE_DIRECTORY'] + stream_key.stream_name + '/' +  stream_key.subsite + '-' + stream_key.node+ '-' + stream_key.sensor + '/'
+    dir_string = ref_des_dir + '{:d}/' + stream_key.method + '/'
+    if not os.path.exists(ref_des_dir):
+        log.warning("Reference Designator does not exist in offloaded SAN")
+        return pd.DataFrame()
+
+    # get the set of locations which store data.
+    available_bins = set([int(x) for x in  os.listdir(ref_des_dir)])
+
+    # select which bins we are going to read from disk to get data out of
+    #much more bins than particles
+    if ratio > 2.0:
+        to_sample = list(groups(bin_list, num_points))
+        selected_bins = []
+        # try to select only bins with data. But select from the whole range even if no data is present
+        # take the first bin with data
+        for subbins in to_sample:
+            intersection  = available_bins.intersection(set(subbins))
+            if len(intersection) > 0:
+                # take the first one
+                selected_bins.append(sorted(list(intersection))[0])
+            else:
+                # we aren't gonna get any data from this group so just take the first one
+                selected_bins.append(subbins[0])
+        to_sample = [(x,1) for x in selected_bins]
+    # more particles than bins
+    elif ratio < 1.0:
+        # there are more bins than particles
+        # first try and select from only bins that have data
+        bins_to_use = set(bin_list).intersection(available_bins)
+        if len(bins_to_use) < 0:
+            # no data so we cannot do anything
+            bins_to_use = bin_list
+        else:
+            bins_to_use = sorted(bins_to_use)
+
+        #calculate how many particles to select from each bin
+        points_per_bin = int(float(num_points) / len(bins_to_use))
+        base_point_number = points_per_bin * len(bins_to_use)
+        leftover = num_points - base_point_number
+        selection = numpy.floor(numpy.linspace(0, len(bins_to_use)-1, leftover)).astype(int)
+        # select which bins to get more data from
+        to_sample = []
+        for idx, time_bin in enumerate(bins_to_use):
+            if idx in selection:
+                to_sample.append((time_bin, points_per_bin + 1))
+            else:
+                to_sample.append((time_bin, points_per_bin))
+    else:
+        # randomly sample the number of points from the number of bins we have and assign one sample to each
+        bin_set = set(bin_list)
+        have_data = available_bins.intersection(bin_set)
+        no_data = bin_set.difference(available_bins)
+        if len(have_data) >= num_points:
+            indexes = numpy.floor(numpy.linspace(0, len(have_data) -1,num_points)).astype(int)
+            to_sample = numpy.array(sorted(list(have_data)))
+            to_sample = to_sample[indexes]
+        else:
+            # take all that do have data
+            to_sample = list(have_data)
+            remaining = num_points - len(have_data)
+            to_sample.extend(list(no_data)[:remaining])
+        to_sample = sorted(to_sample)
+        to_sample = zip(to_sample, (1 for _ in to_sample))
+
+    # now get data in the present we are going to start by grabbing first file in the directory with name that matches
+    # grab a random amount of particles from that file if they are within the time range.
+    missed = 0
+    data = defaultdict(list)
+    for time_bin, num_data_points in to_sample:
+        direct = dir_string.format(time_bin)
+        if os.path.exists(direct):
+            files = os.listdir(direct)
+            # Loop until we get the data we want
+            okay = False
+            for f in files:
+                # only netcdf files
+                if stream_key.stream_name in f and os.path.splitext(f)[-1] == '.nc':
+                    f = direct + f
+                    with netCDF4.Dataset(f) as dataset:
+                        t = dataset['time'][:]
+                        # get the indexes to pull out of the data
+                        indexes = numpy.where(numpy.logical_and(time_range.start < t, t < time_range.stop))[0]
+                        if len(indexes) != 0:
+                            if num_data_points > len(indexes):
+                                missed += (num_data_points - len(indexes))
+                                selection = indexes
+                            else:
+                                selection = numpy.floor(numpy.linspace(0, len(indexes)-1, num_data_points)).astype(int)
+                                selection = indexes[selection]
+                                selection = sorted(selection)
+                            variables =dataset.variables.keys()
+                            for var in dataset.variables:
+                                if var.endswith('_shape') and var[:-5] in variables:
+                                    # do not need to store shape arrays
+                                    continue
+                                try:
+                                    temp = dataset[var][selection]
+                                    if len(temp.shape) > 1:
+                                        # this is dirty but pack the array to message pack and unpack later.  This makes it easier to store
+                                        # than trying to get the correct shape into the dataframe at first
+                                        temp = [msgpack.packb(x.tolist()) for x in temp]
+                                    data[var] = numpy.append(data[var], temp)
+                                # netcdf likes to throw Index errors when trying to access strings using an array if all the indexes are odd or even.
+                                # As a workaround need to select all to get an numpy array and than take selection from that.
+                                except IndexError as e:
+                                    temp = dataset[var][:]
+                                    temp = temp[selection]
+                                    if len(temp.shape) > 1:
+                                        temp = [msgpack.packb(x.tolist()) for x in temp]
+                                    data[var] = numpy.append(data[var], temp)
+                            okay = True
+                            break
+            if not okay:
+                missed += num_data_points
+        else:
+            missed += num_data_points
+
+    log.warn("Failed to produce {:d} points due to nature of sampling".format(missed))
+    df = pd.DataFrame(data=data)
+    return df
+
+
+def fetch_full_san_data(stream_key, time_range, strict_range=False, num_points=1000):
+    """
+    Given a time range and stream key.  Genereate all data in the inverval using data
+    from the SAN.
+    :param stream_key:
+    :param time_range:
+    :param num_points:
+    :return:
+    """
+    bs = time_to_bin(time_range.start)
+    be = time_to_bin(time_range.stop)
+    # get which bins we can gather data from
+    bin_list = [x for x in range(bs, be+1)]
+    # get which bins we have on the data san
+    ref_des_dir = app.config['SAN_BASE_DIRECTORY'] + stream_key.stream_name + '/' +  stream_key.subsite + '-' + stream_key.node+ '-' + stream_key.sensor + '/'
+    dir_string = ref_des_dir + '{:d}/' + stream_key.method + '/'
+    if not os.path.exists(ref_des_dir):
+        log.warning("Reference Designator does not exist in offloaded DataSAN")
+        return pd.DataFrame()
+
+    # get the set of locations which store data.
+    available_bins = set([int(x) for x in  os.listdir(ref_des_dir)])
+    to_sample = available_bins.intersection(set(bin_list))
+    to_sample = sorted(to_sample)
+    # inital way to get uniform sampling of data points from the stream given the bins we have on the disk
+    #more bins than particles
+    data = defaultdict(list)
+    for time_bin in to_sample:
+        direct = dir_string.format(time_bin)
+        if os.path.exists(direct):
+            files = os.listdir(direct)
+            # Loop until we get the data we want
+            for f in files:
+                # only netcdf files
+                if stream_key.stream_name in f and os.path.splitext(f)[-1] == '.nc':
+                    f = direct + f
+                    with netCDF4.Dataset(f) as dataset:
+                        t = dataset['time'][:]
+                        indexes = numpy.where(numpy.logical_and(time_range.start < t, t < time_range.stop))[0]
+                        if len(indexes) != 0:
+                            variables =dataset.variables.keys()
+                            for var in dataset.variables:
+                                if var.endswith('_shape') and var[:-5] in variables:
+                                    # do not need to store shape arrays
+                                    continue
+                                temp = data[var][:]
+                                if len(temp.shape) > 1:
+                                    # Pack arrays because that is what stream engine expects
+                                    temp = [msgpack.packb(x.tolist()) for x in temp]
+                                data[var] = numpy.append(data[var], temp)
+                            break
+    df = pd.DataFrame(data=data)
+    return df
+
+
+def groups(l, n):
+    """Generate near uniform groups of data"""
+    step = len(l) /n
+    remainder =  len(l) - (step * n)
+    start_more = n - remainder
+    idx = 0
+    num = 0
+    while idx <len(l):
+        num += 1
+        yield l[idx:idx+step]
+        idx += step
+        if num == start_more:
+            step += 1
+
+
 def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata):
     """
     Fetches all parameters from the specified streams, calculates the dervived products,
@@ -216,13 +554,19 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
             fields, cass_data = fetch_nth_data(key, time_range, strict_range=False)
 
         if len(cass_data) == 0:
-            log.warning("Query for {} returned no data".format(key.as_refdes()))
-            if key == primary_key:
-                raise MissingDataException("Query returned no results for primary stream")
+            log.warning("Cassandra query for {} returned no data searching SAN".format(key.as_refdes()))
+            if limit:
+                df = fetch_nsan_data(key, time_range, strict_range=False, num_points=limit)
             else:
-                continue
-
-        df = pd.DataFrame(cass_data, columns=fields)
+                df = fetch_nsan_data(key, time_range, strict_range=False)
+            if len(df) == 0:
+                log.warning("SAN data search for {} returned no data.".format(key.as_refdes()))
+                if key == primary_key:
+                    raise MissingDataException("Query returned no results for primary stream")
+                else:
+                    continue
+        else:
+            df = pd.DataFrame(cass_data, columns=fields)
 
         # transform data from cass and put it into pd_data
         parameters = [p for p in key.stream.parameters if p.parameter_type != FUNCTION]
@@ -239,48 +583,7 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
                 # transform non scalar params
                 if param.is_array:
                     data_slice = numpy.array([msgpack.unpackb(x) for x in data_slice])
-
-                # Nones can only be in ndarrays with dtype == object.  NetCDF
-                # doesn't like objects.  First replace Nones with the
-                # appropriate fill value.
-                #
-                # pandas does some funny things to missing values if the whole column is missing it becomes a None filled object
-                # Otherwise pandas will replace floats with Not A Number correctly.
-                # Integers are cast as floats and missing values replaced with Not A Number
-                # The below case will take care of instances where the whole series is missing or if it is an array or
-                # some other object we don't know how to fill.
-                if data_slice.dtype == 'object' and not param.is_array:
-                    nones = numpy.equal(data_slice, None)
-                    if numpy.any(nones):
-                        # If there are nones either fill with specific value for ints, floats, string, or throw an error
-                        if param.value_encoding in ['int', 'uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64']:
-                            data_slice[nones] = -999999999
-                            data_slice = data_slice.astype('int64')
-                        elif param.value_encoding in ['float16', 'float32', 'float64', 'float96']:
-                            data_slice[nones] = numpy.nan
-                            data_slice = data_slice.astype('float64')
-                        elif param.value_encoding == 'string':
-                            data_slice[nones] = ''
-                            data_slice = data_slice.astype('str')
-                        else:
-                            log.error("Do not know how to fill type: {:s}".format(param.value_encoding))
-                            raise StreamEngineException('Do not know how to fill for data type ' + str(param.value_encoding))
-                # otherwise if the returned data is a float we need to check and make sure it is not supposed to be an int
-                elif data_slice.dtype == 'float64':
-                    # Int's are upcast to floats if there is a missing value.
-                    if param.value_encoding in ['int', 'uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64']:
-                        # We had a missing value because it was upcast
-                        indexes = numpy.where(numpy.isnan(data_slice))
-                        data_slice[indexes] = -999999999
-                        data_slice = data_slice.astype('int64')
-
-                # Pandas also treats strings as objects.  NetCDF doesn't
-                # like objects.  So convert objects to strings.
-                if data_slice.dtype == object:
-                    try:
-                        data_slice = data_slice.astype('str')
-                    except ValueError as e:
-                        log.error('Unable to convert {} (PD{}) to string (may be caused by jagged arrays): {}'.format(param.name, param.id, e))
+                data_slice = replace_values(data_slice, param)
 
                 if param.id not in pd_data:
                     pd_data[param.id] = {}
