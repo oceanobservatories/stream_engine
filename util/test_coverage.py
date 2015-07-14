@@ -68,6 +68,7 @@ for url in urls:
         total_particles += len_output
     print "Request took {}s".format(time.time()-stime)
     print ""
+    time.sleep(2)
 
 message = "\n\n\nNum errors: {}/{}".format(num_errors, num_streams)
 print_good(message) if num_errors == 0 else print_bad(message)
