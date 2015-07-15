@@ -25,6 +25,7 @@ import pandas as pd
 import logging
 import uuid
 from parameter_util import PDRef
+import zipfile
 
 log = logging.getLogger(__name__)
 
@@ -816,124 +817,150 @@ class NetCDF_Generator(object):
 
     def chunks(self, r):
         try:
-            return self.create_netcdf(r)
+            return self.create_zip(r)
         except GeneratorExit:
             raise
         except:
             log.exception('An unexpected error occurred.')
             raise
 
-    def create_netcdf(self, r):
-        include_provenance = r.include_provenance
-        with tempfile.NamedTemporaryFile() as tf:
-            with netCDF4.Dataset(tf.name, 'w', format='NETCDF4') as ncfile:
-                # set up file level attributes
-                ncfile.subsite = r.stream_keys[0].subsite
-                ncfile.node = r.stream_keys[0].node
-                ncfile.sensor = r.stream_keys[0].sensor
-                ncfile.collection_method = r.stream_keys[0].method
-                ncfile.stream = r.stream_keys[0].stream.name
+    def create_zip(self, r):
+        with tempfile.NamedTemporaryFile() as tzf:
+            with zipfile.ZipFile(tzf.name, 'w') as zf:
+                self.write_netcdfs_to_zipfile(r, zf)
+            return tzf.read()
 
-                variables = {}
-                last_timestamp = 0.0
-                # iterate through the chunks and populate the data
-                for chunk in self.generator.chunks(r):
-                    # sometimes we will get duplicate timestamps
-                    # INITIAL solution is to remove any duplicate timestamps
-                    # and the corresponding data.
+    def write_netcdfs_to_zipfile(self, r, zf):
+        last_timestamp = 0.0
+        last_deployment = None
+        tmpfiles = {}
+        ncfiles = {}
 
-                    # create a mask to match only valid INCREASING times
-                    # we will insert the last valid timestamp from the previous
-                    # chunk at the beginning of the array
-                    chunk_times = chunk[7]['data']
-                    chunk_valid = numpy.diff(numpy.insert(chunk_times, 0, last_timestamp)) != 0
-                    # We will need to keep track of the last timestamp of each chunk so
-                    # that we can apply this logic across chunks
-                    last_timestamp = chunk_times[chunk_valid][-1]
+        try:
+            # iterate through the chunks and populate the data
+            for chunk in self.generator.chunks(r):
+                # sometimes we will get duplicate timestamps
+                # INITIAL solution is to remove any duplicate timestamps
+                # and the corresponding data.
 
-                    deployment = str(chunk['deployment']['data'][0])
-                    time_v_key = '7_%s' % (deployment,)
-                    time_dim = 'time_%s' % (deployment,)
-                    if time_v_key not in variables:
-                        index = 0
-                        ncfile.createDimension(time_dim, None)
-                    else:
-                        index = len(variables[time_v_key])
+                # create a mask to match only valid INCREASING times
+                # we will insert the last valid timestamp from the previous
+                # chunk at the beginning of the array
+                chunk_times = chunk[7]['data']
+                chunk_valid = numpy.diff(numpy.insert(chunk_times, 0, last_timestamp)) != 0
+                # We will need to keep track of the last timestamp of each chunk so
+                # that we can apply this logic across chunks
+                last_timestamp = chunk_times[chunk_valid][-1]
 
-                    for param_id in chunk:
-                        data = chunk[param_id]['data']
-                        source = chunk[param_id]['source']
+                chunk_deployment = str(chunk['deployment']['data'][0])
+                if chunk_deployment != last_deployment:
+                    self.close_resources(ncfiles)
+                    for group, tf in tmpfiles.iteritems():
+                        zf.write(tf.name, '%s_%s' % (group, last_deployment))
+                    self.close_resources(tmpfiles)
+                    sources = set(chunk[k]['source'] for k in chunk)
+                    tmpfiles = {source: tempfile.NamedTemporaryFile() for source in sources}
+                    ncfiles = {source: self.open_new_netcdf(tmpfiles[source].name, r) for source in sources}
+                    last_deployment = chunk_deployment
 
-                        if param_id == 7:
-                            group = ncfile
-                            v_key = time_v_key
-                        else:
-                            if source in ncfile.groups:
-                                group = ncfile.groups[source]
-                            else:
-                                group = ncfile.createGroup(source)
+                for source in ncfiles:
+                    self.group_by_source(source, ncfiles[source], chunk, chunk_valid)
+        finally:
+            self.close_resources(ncfiles)
+            try:
+                for group, tf in tmpfiles.iteritems():
+                    zf.write(tf.name, '%s_%s' % (group, last_deployment))
+            except:
+                pass
+            self.close_resources(tmpfiles)
 
-                            if deployment in group.groups:
-                                group = group.groups[deployment]
-                            else:
-                                group = group.createGroup(deployment)
+    def open_new_netcdf(self, filename, r):
+        ncfile = netCDF4.Dataset(filename, 'w', format='NETCDF4')
 
-                            v_key = '/%s/%s/%s' % (source, deployment, param_id)
+        # set up file level attributes
+        ncfile.subsite = r.stream_keys[0].subsite
+        ncfile.node = r.stream_keys[0].node
+        ncfile.sensor = r.stream_keys[0].sensor
+        ncfile.collection_method = r.stream_keys[0].method
+        ncfile.stream = r.stream_keys[0].stream.name
 
-                        if v_key not in variables:
-                            param = CachedParameter.from_id(param_id)
-                            # param can be None if this is not a real parameter,
-                            # like deployment for deployment number
-                            param_name = param_id if param is None else param.name
+        # if we are including provenance put it in the top level of the netcdf.
+        if r.include_provenance:
+            prov = r.provenance_metadata.get_provenance_dict()
+            keys = []
+            values = []
+            for k,v in prov.iteritems():
+                keys.append(k)
+                values.append(v['file_name'] + " " + v['parser_name'] + " " + v['parser_version'])
+            ncfile.createDimension('l0_provenance',len(keys) )
+            pkeys = ncfile.createVariable('l0_provenance_keys', 'str',  'l0_provenance')
+            pvals = ncfile.createVariable('l0_provenance_data', 'str',  'l0_provenance')
+            pkeys[:] = numpy.array(keys)
+            pvals[:] = numpy.array(values)
 
-                            dims = [time_dim]
-                            if len(data.shape) > 1:
-                                for index, dimension in enumerate(data.shape[1:]):
-                                    name = '%s_dim_%d' % (param_name, index)
-                                    group.createDimension(name, dimension)
-                                    dims.append(name)
+        return ncfile
 
-                            try:
-                                variables[v_key] = group.createVariable(param_name if param_id != 7 else v_key,
-                                                                            data.dtype,
-                                                                            dims,
-                                                                            zlib=True)
-                            except TypeError:
-                                log.error('Unable to create variable: %s, %s, %s, %s' % (v_key, data.dtype, data.shape, traceback.format_exc()))
-                            else:
-                                if param:
-                                    if param.unit is not None:
-                                        variables[v_key].units = param.unit
-                                    if param.fill_value is not None:
-                                        variables[v_key].fill_value = param.fill_value
-                                    if param.description is not None:
-                                        variables[v_key].long_name = param.description
-                                    if param.display_name is not None:
-                                        variables[v_key].display_name = param.display_name
-                                    if param.data_product_identifier is not None:
-                                        variables[v_key].data_product_identifier = param.data_product_identifier
+    def close_resources(self, resources):
+        try:
+            for resource in resources.itervalues():
+                try:
+                    resource.close()
+                except:
+                    pass
+        except:
+            pass
 
-                        try:
-                            variables[v_key][index:] = data[chunk_valid]
-                        except KeyError:
-                            log.error('Variable identified with key %s doesn\'t exist' % (v_key))
-                        except (IndexError, ValueError):
-                            log.error('Unable to write data slice to variable: %s, %s, %s, %s' % (v_key, data.dtype, data.shape, traceback.format_exc()))
-                # if we are including provenance put it in the top level of the netcdf.
-                if include_provenance:
-                    prov = r.provenance_metadata.get_provenance_dict()
-                    keys = []
-                    values = []
-                    for k,v in prov.iteritems():
-                        keys.append(k)
-                        values.append(v['file_name'] + " " + v['parser_name'] + " " + v['parser_version'])
-                    ncfile.createDimension('l0_provenance',len(keys) )
-                    pkeys = ncfile.createVariable('l0_provenance_keys', 'str',  'l0_provenance')
-                    pvals = ncfile.createVariable('l0_provenance_data', 'str',  'l0_provenance')
-                    pkeys[:] = numpy.array(keys)
-                    pvals[:] = numpy.array(values)
+    def group_by_source(self, source_key, source_group, chunk, chunk_valid):
+        if 'time' not in source_group.variables:
+            index = 0
+            source_group.createDimension('time', None)
+        else:
+            index = len(source_group.variables['time'])
 
-            return tf.read()
+        for param_id in chunk:
+            if param_id != 7 and chunk[param_id]['source'] != source_key:
+                continue
+
+            data = chunk[param_id]['data']
+
+            param = CachedParameter.from_id(param_id)
+            # param can be None if this is not a real parameter,
+            # like deployment for deployment number
+            param_name = param_id if param is None else param.name
+            if param_name not in source_group.variables:
+                dims = ['time']
+                if len(data.shape) > 1:
+                    for index, dimension in enumerate(data.shape[1:]):
+                        name = '%s_dim_%d' % (param_name, index)
+                        source_group.createDimension(name, dimension)
+                        dims.append(name)
+
+                try:
+                    source_group.createVariable(param_name,
+                                            data.dtype,
+                                            dims,
+                                            zlib=True)
+                except TypeError:
+                    log.error('Unable to create variable: %s, %s, %s, %s' % (param_id, data.dtype, data.shape, traceback.format_exc()))
+                else:
+                    if param:
+                        if param.unit is not None:
+                            source_group.variables[param_name].units = param.unit
+                        if param.fill_value is not None:
+                            source_group.variables[param_name].fill_value = param.fill_value
+                        if param.description is not None:
+                            source_group.variables[param_name].long_name = param.description
+                        if param.display_name is not None:
+                            source_group.variables[param_name].display_name = param.display_name
+                        if param.data_product_identifier is not None:
+                            source_group.variables[param_name].data_product_identifier = param.data_product_identifier
+
+            try:
+                source_group.variables[param_name][index:] = data[chunk_valid]
+            except KeyError:
+                log.error('Variable identified with key %s doesn\'t exist' % (param_id))
+            except (IndexError, ValueError):
+                log.error('Unable to write data slice to variable: %s, %s, %s, %s' % (param_id, data.dtype, data.shape, traceback.format_exc()))
 
 
 class Average_Generator(object):
