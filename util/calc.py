@@ -10,7 +10,7 @@ import numpy
 
 from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, \
     get_available_time_range, fetch_l0_provenance
-from util.common import log_timing, StreamKey, TimeRange, CachedParameter, \
+from util.common import log_timing, ntp_to_datestring, StreamKey, TimeRange, CachedParameter, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, \
     MissingTimeException, MissingDataException, arb, MissingStreamMetadataException
@@ -526,7 +526,7 @@ def build_func_map(parameter, coefficients, pd_data, primary_key):
                 framed_CCs = coefficients[name]
                 CC_argument = build_CC_argument(framed_CCs, main_times)
                 if numpy.isnan(numpy.min(CC_argument)):
-                    raise CoefficientUnavailableException('Coefficient %s missing times in range (%s, %s)' % (name, main_times[0], main_times[-1]))
+                    raise CoefficientUnavailableException('Coefficient %s missing times in range (%s, %s)' % (name, ntp_to_datestring(main_times[0]), ntp_to_datestring(main_times[-1])))
                 else:
                     args[key] = CC_argument
             else:
@@ -550,6 +550,8 @@ def in_range(frame, times):
 
       returns a bool numpy array the same shape as times
     """
+    frame = numpy.array(frame)
+    times = numpy.array(times)
     if frame[0] is None and frame[1] is None:
         mask = numpy.ones(times.shape, dtype=bool)
     elif frame[0] is None:
@@ -568,6 +570,8 @@ def build_CC_argument(frames, times):
     frames.sort()
     frames = [f for f in frames if any(in_range(f, times))]
 
+    if len(frames) == 0:
+        return [numpy.NAN]
     sample_value = frames[0][2]
     if type(sample_value) == list:
         cc = numpy.empty(times.shape + numpy.array(sample_value).shape)
@@ -702,12 +706,15 @@ class StreamRequest(object):
             raise MissingStreamMetadataException('No stream metadata in cassandra for %s', self.stream_keys[0])
         else:
             if self.time_range.start >= available_time_range.stop or self.time_range.stop <= available_time_range.start:
-                log.info('No data in requested time range (%s, %s) for %s ', self.time_range.start, self.time_range.stop, self.stream_keys[0])
+                log.info('No data in requested time range (%s, %s) for %s ', ntp_to_datestring(self.time_range.start),
+                         ntp_to_datestring(self.time_range.stop), self.stream_keys[0])
                 raise MissingDataException("No data in requested time range")
 
             start = max(self.time_range.start, available_time_range.start)
             stop = min(self.time_range.stop, available_time_range.stop)
-            log.debug('fit (%s, %s) to (%s, %s) for %s', self.time_range.start, self.time_range.stop, start, stop, self.stream_keys[0])
+            log.debug('fit (%s, %s) to (%s, %s) for %s', ntp_to_datestring(self.time_range.start),
+                      ntp_to_datestring(self.time_range.stop), ntp_to_datestring(start), ntp_to_datestring(stop),
+                      self.stream_keys[0])
             self.time_range = TimeRange(start, stop)
 
 
