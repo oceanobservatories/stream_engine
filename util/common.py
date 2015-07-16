@@ -385,3 +385,13 @@ class MissingStreamMetadataException(StreamEngineException):
 def arb(d):
     """ Returns an arbitrary value from the given dictionary """
     return next(d.itervalues())
+
+
+def get_stream_key_with_param(pd_data, stream, parameter):
+    """Looks for a stream_key matching *stream* in pd_data that provides *parameter*"""
+    for refdes in pd_data[parameter]:
+        key = StreamKey.from_refdes(refdes)
+        if key.stream == stream:
+            return key
+
+    return None
