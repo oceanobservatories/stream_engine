@@ -1,21 +1,22 @@
 import importlib
 import logging
 import tempfile
-import netCDF4
 from threading import Event, Lock
 import traceback
+import zipfile
 
 import msgpack
 import netCDF4
 import numexpr
 import numpy
+import xray
 
 from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, \
     get_available_time_range, fetch_l0_provenance
 from util.common import log_timing, StreamKey, TimeRange, CachedParameter, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, \
-    MissingTimeException, MissingDataException, arb, MissingStreamMetadataException
+    MissingTimeException, MissingDataException, arb, MissingStreamMetadataException, get_stream_key_with_param
 from parameter_util import PDRef
 
 from collections import OrderedDict, defaultdict
@@ -164,7 +165,7 @@ def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None
                                    times=custom_times, include_provenance=include_provenance, strict_range=strict_range)
 
     pd_data = fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata)
-    return create_netcdf(stream_request, pd_data, stream_keys[0], provenance_metadata)
+    return NetCDF_Generator(pd_data).chunks(stream_request)
 
 
 @log_timing
@@ -487,17 +488,14 @@ def build_func_map(parameter, coefficients, pd_data, primary_key):
                 for stream in pd_data[pdRef.pdid]:
                     ps[pdRef.pdid][stream] = True
 
+
+
     # find correct time parameter for the main stream
     main_stream_refdes = primary_key.as_refdes()
     if primary_key.stream.is_virtual:
         # use source stream for time
         time_stream = primary_key.stream.source_streams[0]
-        time_stream_key = None
-        for refdes in pd_data[time_stream.time_parameter]:
-            key = StreamKey.from_refdes(refdes)
-            if key.stream == time_stream:
-                time_stream_key = key
-                break
+        time_stream_key = get_stream_key_with_param(pd_data, time_stream, time_stream.time_parameter)
     else:
         time_stream_key = primary_key
 
@@ -768,129 +766,161 @@ class ProvenanceMetadataStore(object):
         return prov
 
 
-def create_netcdf(r, pd_data, primary_key, provenance_metadata):
-    with tempfile.NamedTemporaryFile() as tf:
-        with netCDF4.Dataset(tf.name, 'w', format='NETCDF4') as ncfile:
-            # set up file level attributes
-            ncfile.subsite = r.stream_keys[0].subsite
-            ncfile.node = r.stream_keys[0].node
-            ncfile.sensor = r.stream_keys[0].sensor
-            ncfile.collection_method = r.stream_keys[0].method
-            ncfile.stream = r.stream_keys[0].stream.name
+class NetCDF_Generator(object):
 
-            variables = {}
+    def __init__(self, pd_data):
+        self.pd_data = pd_data
 
-            # Select times from the correct stream
-            tp = primary_key.stream.time_parameter
-            if tp in pd_data and primary_key.as_refdes() in pd_data[tp]:
-                chunk_times = pd_data[tp][primary_key.as_refdes()]['data']
-            else:
-                tp = 7
-                chunk_times = arb(pd_data[7])['data']
+    def chunks(self, r):
+        try:
+            return self.create_zip(r)
+        except GeneratorExit:
+            raise
+        except:
+            log.exception('An unexpected error occurred.')
+            raise
 
-            # sometimes we will get duplicate timestamps
-            # INITIAL solution is to remove any duplicate timestamps
-            # and the corresponding data.
+    def create_zip(self, r):
+        with tempfile.NamedTemporaryFile() as tzf:
+            with zipfile.ZipFile(tzf.name, 'w') as zf:
+                self.write_to_zipfile(r, zf)
+            return tzf.read()
 
-            # create a mask to match only valid INCREASING times
-            # we will insert the last valid timestamp from the previous
-            # chunk at the beginning of the array
-            chunk_valid = numpy.diff(numpy.insert(chunk_times, 0, 0.0)) != 0
+    def write_to_zipfile(self, r, zf):
+        last_timestamp = 0.0
+        last_deployment = None
+        datasets = {}
 
-            # Select deployment number from the correct stream
-            if not primary_key.stream.is_virtual:
-                deployment = str(pd_data['deployment'][primary_key.as_refdes()]['data'][0])
-            else:
-                deployment = str(arb(pd_data['deployment'])['data'][0])
+        # sometimes we will get duplicate timestamps
+        # INITIAL solution is to remove any duplicate timestamps
+        # and the corresponding data.
 
-            time_v_key = '%d_%s' % (primary_key.stream.time_parameter, deployment)
-            time_dim = 'time_%s' % (deployment,)
-            if time_v_key not in variables:
-                index = 0
-                ncfile.createDimension(time_dim, None)
-            else:
-                index = len(variables[time_v_key])
+        # create a mask to match only valid INCREASING times
+        # we will insert the last valid timestamp from the previous
+        # chunk at the beginning of the array
+        primary_key = r.stream_keys[0]
+        tp = primary_key.stream.time_parameter
+        chunk_times = None
+        if primary_key.stream.is_virtual:
+            source_stream = primary_key.stream.source_streams[0]
+            tp = source_stream.time_parameter  # get tp from source stream
+            source_stream_key = get_stream_key_with_param(self.pd_data, source_stream, source_stream.time_parameter)
 
-            for param_id in pd_data:
-                if primary_key.as_refdes() not in pd_data[param_id]:
-                    continue
+            chunk_times = self.pd_data[tp][source_stream_key.as_refdes()]['data']
+        elif tp in self.pd_data and primary_key.as_refdes() in self.pd_data[tp]:
+            chunk_times = self.pd_data[tp][primary_key.as_refdes()]['data']
 
-                param = CachedParameter.from_id(param_id)
+        if chunk_times is None:
+            raise MissingTimeException("Could not find time parameter for netcdf")
 
-                data = pd_data[param_id][primary_key.as_refdes()]['data']
-                source = pd_data[param_id][primary_key.as_refdes()]['source']
+        self.tp = tp
 
-                if param_id == tp:
-                    group = ncfile
-                    v_key = time_v_key
-                else:
-                    if source in ncfile.groups:
-                        group = ncfile.groups[source]
-                    else:
-                        group = ncfile.createGroup(source)
+        chunk_valid = numpy.diff(numpy.insert(chunk_times, 0, last_timestamp)) != 0
+        # We will need to keep track of the last timestamp of each chunk so
+        # that we can apply this logic across chunks
+        last_timestamp = chunk_times[chunk_valid][-1]
 
-                    if deployment in group.groups:
-                        group = group.groups[deployment]
-                    else:
-                        group = group.createGroup(deployment)
+        # Select deployment number from the correct stream
+        if not primary_key.stream.is_virtual:
+            chunk_deployment = str(self.pd_data['deployment'][primary_key.as_refdes()]['data'][0])
+        else:
+            chunk_deployment = str(self.pd_data['deployment'][source_stream_key.as_refdes()]['data'][0])
 
-                    v_key = '/%s/%s/%s' % (source, deployment, param_id)
+        if chunk_deployment != last_deployment:
+            for group, ds in datasets.iteritems():
+                with tempfile.NamedTemporaryFile() as tf:
+                    ds.to_netcdf(tf.name)
+                    zf.write(tf.name, '%s_%s' % (group, last_deployment))
+            sources = set(self.pd_data[k][primary_key.as_refdes()]['source'] for k in self.pd_data if primary_key.as_refdes() in self.pd_data[k])
+            datasets = {source: self.open_new_ds(r) for source in sources}
+            last_deployment = chunk_deployment
 
-                if v_key not in variables:
-                    param = CachedParameter.from_id(param_id)
-                    # param can be None if this is not a real parameter,
-                    # like deployment for deployment number
-                    param_name = param_id if param is None else param.name
+        for source in datasets:
+            datasets[source] = self.group_by_source(source, datasets[source], chunk_valid, chunk_times[chunk_valid])
 
-                    dims = [time_dim]
-                    if len(data.shape) > 1:
-                        for index, dimension in enumerate(data.shape[1:]):
-                            name = '%s_dim_%d' % (param_name, index)
-                            group.createDimension(name, dimension)
-                            dims.append(name)
+        # dump remaining datasets
+        for group, ds in datasets.iteritems():
+            with tempfile.NamedTemporaryFile() as tf:
+                ds.to_netcdf(tf.name)
+                zf.write(tf.name, '%s_%s.nc' % (group, last_deployment))
 
-                    try:
-                        variables[v_key] = group.createVariable(param_name if param_id != tp else v_key,
-                                                                data.dtype,
-                                                                dims,
-                                                                zlib=True)
-                    except TypeError:
-                        log.error('Unable to create variable: %s, %s, %s, %s' % (v_key, data.dtype, data.shape, traceback.format_exc()))
-                    else:
-                        if param:
-                            if param.unit is not None:
-                                variables[v_key].units = param.unit
-                            if param.fill_value is not None:
-                                variables[v_key].fill_value = param.fill_value
-                            if param.description is not None:
-                                variables[v_key].long_name = param.description
-                            if param.display_name is not None:
-                                variables[v_key].display_name = param.display_name
-                            if param.data_product_identifier is not None:
-                                variables[v_key].data_product_identifier = param.data_product_identifier
+    def open_new_ds(self, r):
+        # set up file level attributes
+        attrs = {
+            'subsite': r.stream_keys[0].subsite,
+            'node': r.stream_keys[0].node,
+            'sensor': r.stream_keys[0].sensor,
+            'collection_method': r.stream_keys[0].method,
+            'stream': r.stream_keys[0].stream.name
+        }
 
+        provenance = {}
+        if r.include_provenance:
+            prov = r.provenance_metadata.get_provenance_dict()
+            keys = []
+            values = []
+            for k,v in prov.iteritems():
+                keys.append(k)
+                values.append(v['file_name'] + " " + v['parser_name'] + " " + v['parser_version'])
+            provenance['l0_provenance_keys'] = xray.DataArray(numpy.array(keys), dims=['l0_provenance'])
+            provenance['l0_provenance_data'] = xray.DataArray(numpy.array(values), dims=['l0_provenance'])
+
+        return xray.Dataset(provenance, attrs=attrs)
+
+    def group_by_source(self, source_key, source_group, chunk_valid, time_data):
+        this_group = xray.Dataset()
+        for param_id in self.pd_data:
+            if param_id == self.tp or arb(self.pd_data[param_id])['source'] != source_key:
+                continue
+
+            param = CachedParameter.from_id(param_id)
+            # param can be None if this is not a real parameter,
+            # like deployment for deployment number
+            param_name = param_id if param is None else param.name
+
+            data = arb(self.pd_data[param_id])['data'][chunk_valid]
+            if param is not None:
                 try:
-                    variables[v_key][index:] = data[chunk_valid]
-                except KeyError:
-                    log.error('Variable identified with key %s doesn\'t exist' % (v_key))
-                except (IndexError, ValueError):
-                    log.error('Unable to write data slice to variable: %s, %s, %s, %s' % (v_key, data.dtype, data.shape, traceback.format_exc()))
+                    data = data.astype(param.value_encoding)
+                except ValueError:
+                    log.warning(
+                        'Unable to transform data %s of type %s to preload value_encoding %s, using fill_value instead\n%s' % (
+                        param_id, data.dtype, param.value_encoding,
+                        traceback.format_exc()))
+                    data = numpy.full(data.shape, param.fill_value, param.value_encoding)
 
-            # if we are including provenance put it in the top level of the netcdf.
-            if r.include_provenance:
-                prov = provenance_metadata.get_provenance_dict()
-                keys = []
-                values = []
-                for k, v in prov.iteritems():
-                    keys.append(k)
-                    values.append(v['file_name'] + " " + v['parser_name'] + " " + v['parser_version'])
-                ncfile.createDimension('l0_provenance', len(keys))
-                pkeys = ncfile.createVariable('l0_provenance_keys', 'str', 'l0_provenance')
-                pvals = ncfile.createVariable('l0_provenance_data', 'str', 'l0_provenance')
-                pkeys[:] = numpy.array(keys)
-                pvals[:] = numpy.array(values)
+            dims = ['time']
+            coords = {'time': time_data}
+            if len(data.shape) > 1:
+                for index, dimension in enumerate(data.shape[1:]):
+                    name = '%s_dim_%d' % (param_name, index)
+                    dims.append(name)
 
-        return tf.read()
+            array_attrs = {}
+            if param:
+                if param.unit is not None:
+                    array_attrs['units'] = param.unit
+                if param.fill_value is not None:
+                    array_attrs['_FillValue'] = param.fill_value
+                if param.description is not None:
+                    array_attrs['long_name'] = param.description
+                if param.display_name is not None:
+                    array_attrs['display_name'] = param.display_name
+                if param.data_product_identifier is not None:
+                    array_attrs['data_product_identifier'] = param.data_product_identifier
+
+            this_group.update({param_name: xray.DataArray(data, dims=dims, coords=coords, attrs=array_attrs)})
+
+        if 'time' in source_group:
+            try:
+                source_group = xray.concat((source_group, this_group), dim='time')
+            except ValueError:
+                log.warning(
+                    'Unable to concatenate, discarding time range [%s, %s]\n%s' % (
+                    time_data[0], time_data[-1], traceback.format_exc()))
+        else:
+            source_group = this_group
+        return source_group
 
 
 def find_stream(stream_key, streams, distinct_sensors):
