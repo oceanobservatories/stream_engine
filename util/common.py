@@ -1,5 +1,7 @@
 from functools import wraps
 import time
+import datetime
+import ntplib
 from engine import app
 from preload_database.model.preload import Stream, Parameter, ParameterFunction
 import numpy
@@ -100,6 +102,12 @@ def parse_pdid(pdid_string):
         app.logger.warn('Unable to parse PDID: %s', pdid_string)
         return None
 
+def ntp_to_datestring(ntp_time):
+    try:
+        ntp_time = float(ntp_time)
+        return datetime.datetime.utcfromtimestamp( ntplib.ntp_to_system_time(ntp_time) ).strftime("%Y-%m-%d %H:%M:%S")
+    except:
+        return str(ntp_time)
 
 class TimeRange(object):
     def __init__(self, start, stop):
