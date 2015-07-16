@@ -221,6 +221,8 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
             log.warning("Query for {} returned no data".format(key.as_refdes()))
             if key == primary_key:
                 raise MissingDataException("Query returned no results for primary stream")
+            elif primary_key.stream.is_virtual and key.stream in primary_key.stream.source_streams:
+                raise MissingDataException("Query returned no results for source stream")
             else:
                 continue
 
@@ -510,15 +512,29 @@ def build_func_map(parameter, coefficients, pd_data, primary_key):
         if PDRef.is_pdref(func_map[key]):
             pdRef = PDRef.from_str(func_map[key])
 
-            if pdRef.chunk_key not in pd_data:
+            if pdRef.pdid not in pd_data:
                 raise StreamEngineException('Required parameter %s not found in pd_data when calculating %s (PD%s) ' % (func_map[key], parameter.name, parameter.id))
 
-            # try to get param from primary stream first, else get arbitrary one
-            if main_stream_refdes in pd_data[pdRef.chunk_key]:
-                args[key] = pd_data[pdRef.chunk_key][main_stream_refdes]['data']
+            # if pdref has a required stream, try to find it in pd_data
+            pdref_refdes = None
+            if pdRef.is_fqn():
+                required_stream_name = pdRef.stream_name
+                for refdes in pd_data[pdRef.pdid]:
+                    skey = StreamKey.from_refdes(refdes)
+                    if skey.stream_name == required_stream_name:
+                        pdref_refdes = refdes
+                        break
+
+            if pdref_refdes is None and main_stream_refdes in pd_data[pdRef.chunk_key]:
+                args[key] = pd_data[pdRef.pdid][main_stream_refdes]['data']
             else:
+                # Need to get data from non-main stream, so it must be interpolated to match main stream
+                if pdref_refdes is None:
+                    data_stream_refdes = next(ps[pdRef.pdid].iterkeys())  # get arbitrary stream that provides pdid
+                else:
+                    data_stream_refdes = pdref_refdes
+
                 # perform interpolation
-                data_stream_refdes = next(ps[pdRef.pdid].iterkeys())  # get arbitrary stream that provides pdid
                 data = pd_data[pdRef.pdid][data_stream_refdes]['data']
                 data_time = pd_data[StreamKey.from_refdes(data_stream_refdes).stream.time_parameter][data_stream_refdes]['data']
 
@@ -708,7 +724,7 @@ class StreamRequest(object):
             available_time_range = get_available_time_range(self.stream_keys[0])
         except IndexError:
             log.info('No stream metadata in cassandra for %s', self.stream_keys[0])
-            raise MissingStreamMetadataException('No stream metadata in cassandra for %s', self.stream_keys[0])
+            raise MissingStreamMetadataException('No stream metadata in cassandra for %s' % self.stream_keys[0])
         else:
             if self.time_range.start >= available_time_range.stop or self.time_range.stop <= available_time_range.start:
                 log.warning('No data in requested time range (%s, %s) for %s ', self.time_range.start, self.time_range.stop, self.stream_keys[0])
@@ -780,8 +796,7 @@ def create_netcdf(r, pd_data, primary_key, provenance_metadata):
             if not primary_key.stream.is_virtual:
                 deployment = str(pd_data['deployment'][primary_key.as_refdes()]['data'][0])
             else:
-                # get the first parent stream's deployment
-                deployment = str(pd_data['deployment'][primary_key.stream.source_streams[0].as_refdes()]['data'][0])
+                deployment = str(arb(pd_data['deployment'])['data'][0])
 
             time_v_key = '%d_%s' % (primary_key.stream.time_parameter, deployment)
             time_dim = 'time_%s' % (deployment,)
@@ -792,6 +807,9 @@ def create_netcdf(r, pd_data, primary_key, provenance_metadata):
                 index = len(variables[time_v_key])
 
             for param_id in pd_data:
+                if primary_key.as_refdes() not in pd_data[param_id]:
+                    continue
+
                 param = CachedParameter.from_id(param_id)
 
                 data = pd_data[param_id][primary_key.as_refdes()]['data']
