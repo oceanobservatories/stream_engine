@@ -4,6 +4,7 @@ import numpy.ma as ma
 import os
 import preload_database.database
 import netCDF4
+import zipfile
 
 preload_database.database.initialize_connection(preload_database.database.PreloadDatabaseMode.POPULATED_FILE)
 preload_database.database.open_connection()
@@ -128,39 +129,40 @@ def test_NetCDF_Generator():
     except Exception as e:
         raise AssertionError(e)
 
-    ncfile = open('tmp.nc', 'w')
+    ncfile = open('tmp.zip', 'w')
     ncfile.write(file_output)
     ncfile.close()
 
-    ncfile = netCDF4.Dataset('tmp.nc', 'r')
-    assert len(ncfile.groups) == 2
-    assert 'source' in ncfile.groups
-    assert 'derived' in ncfile.groups
+    zf = zipfile.ZipFile('tmp.zip', 'r')
+    namelist = zf.namelist()
+    assert len(namelist) == 4
+    assert 'source_1' in namelist
+    assert 'derived_1' in namelist
+    assert 'source_2' in namelist
+    assert 'derived_2' in namelist
 
-    source_group = ncfile.groups['source']
-    derived_group = ncfile.groups['derived']
-    for i in (source_group, derived_group):
-        assert len(i.groups) == 2
-        assert '1' in i.groups
-        assert '2' in i.groups
-
-    source_group_1 = source_group.groups['1']
-    source_group_2 = source_group.groups['2']
-    derived_group_1 = derived_group.groups['1']
-    derived_group_2 = derived_group.groups['2']
+    zf.extractall()
+    source_group_1 = netCDF4.Dataset('source_1', 'r')
+    derived_group_1 = netCDF4.Dataset('derived_1', 'r')
+    source_group_2 = netCDF4.Dataset('source_2', 'r')
+    derived_group_2 = netCDF4.Dataset('derived_2', 'r')
 
     assert ma.allequal(source_group_1.variables['deployment'], [1,1,1,1])
     assert ma.allequal(source_group_1.variables['notaparm'], [[1,2],[1,2],[1,2],[1,2]])
-    assert ma.allequal(source_group_1.variables['temperature'], ma.array([[1,2],[1,2],[1,2],[1,2]], mask=[0,0,0,0,1,1,1,1]))
-    assert ma.allequal(source_group_1.variables['pressure'], ma.array([1,2,1,2], mask=[1,1,0,0]))
+    np.testing.assert_array_equal(source_group_1.variables['temperature'], [[1,2],[1,2],[np.nan,np.nan],[np.nan,np.nan]])
+    assert ma.allequal(source_group_1.variables['pressure'], [1,2,1,2])
 
-    assert ma.allequal(derived_group_1.variables['ctdpf_ckl_seawater_density'], ma.array([1,2,1,2], mask=[0,0,1,1]))
+    np.testing.assert_array_equal(derived_group_1.variables['ctdpf_ckl_seawater_density'], [1,2,np.nan,np.nan])
 
     assert ma.allequal(source_group_2.variables['deployment'], [2,2])
     assert ma.allequal(source_group_2.variables['notaparm'], [[1,2,3],[1,2,3]])
     assert ma.allequal(source_group_2.variables['temperature'], [[1,2,3],[1,2,3]])
     assert ma.allequal(source_group_2.variables['pressure'], [1,2])
 
-    assert ma.allequal(derived_group_2.variables['ctdpf_ckl_seawater_density'], ['foo', 'foo'])
+    np.testing.assert_array_equal(derived_group_2.variables['ctdpf_ckl_seawater_density'], [['f','o','o'],['f','o','o']])
 
-    os.remove('tmp.nc')
+    os.remove('source_1')
+    os.remove('derived_1')
+    os.remove('source_2')
+    os.remove('derived_2')
+    os.remove('tmp.zip')
