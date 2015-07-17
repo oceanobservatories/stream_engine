@@ -1,16 +1,21 @@
 import numpy
 import engine
 
+from collections import deque
+import logging
+
 from functools import wraps
 from multiprocessing.pool import Pool
 from multiprocessing import BoundedSemaphore
 from threading import Lock, Thread
 
-from cassandra.cluster import Cluster, QueryExhausted, ResponseFuture, PagedResult
+from cassandra.cluster import Cluster, QueryExhausted, ResponseFuture, PagedResult, _NOT_SET
 from cassandra.query import _clean_column_name, tuple_factory
 from cassandra.concurrent import execute_concurrent_with_args
 
 from util.common import log_timing, TimeRange
+
+log = logging.getLogger(__name__)
 
 
 # cassandra database handle
@@ -30,7 +35,7 @@ where SUBSITE=? and NODE=? and SENSOR=? and METHOD=? and STREAM=?
 
 METADATA_FOR_REFDES_RAW = \
     '''
-SELECT stream FROM STREAM_METADATA
+SELECT stream, count FROM STREAM_METADATA
 where SUBSITE=? and NODE=? and SENSOR=? and METHOD=?
 '''
 
@@ -49,7 +54,7 @@ def get_session():
     """
     if global_cassandra_state.get('cluster') is None:
         with multiprocess_lock:
-            engine.app.logger.info('Creating cassandra session')
+            log.debug('Creating cassandra session')
             global_cassandra_state['cluster'] = Cluster(
                 engine.app.config['CASSANDRA_CONTACT_POINTS'],
                 control_connection_timeout=engine.app.config['CASSANDRA_CONNECT_TIMEOUT'],
@@ -59,6 +64,7 @@ def get_session():
         with multiprocess_lock:
             session = global_cassandra_state['cluster'].connect(engine.app.config['CASSANDRA_KEYSPACE'])
             session.row_factory = tuple_factory
+            session.default_timeout = engine.app.config['CASSANDRA_DEFAULT_TIMEOUT']
             global_cassandra_state['session'] = session
             prep = global_cassandra_state['prepared_statements'] = {}
             prep[STREAM_EXISTS_PS] = session.prepare(STREAM_EXISTS_RAW)
@@ -193,7 +199,7 @@ def get_distinct_sensors(session=None, prepared=None):
 @cassandra_session
 def get_streams(subsite, node, sensor, method, session=None, prepared=None):
     rows = session.execute(prepared[METADATA_FOR_REFDES_PS], (subsite, node, sensor, method))
-    return [row[0] for row in rows]
+    return [row[0] for row in rows]  # return streams with count>0
 
 
 @log_timing
@@ -210,9 +216,10 @@ def get_query_columns(stream_key, session=None, prepared=None):
 
 @log_timing
 @cassandra_session
-def fetch_data(stream_key, time_range, strict_range=False, session=None, prepared=None):
+def fetch_data_sync(stream_key, time_range, strict_range=False, session=None, prepared=None):
     cols = get_query_columns(stream_key)
 
+    # attempt to find one data point beyond the requested start/stop times
     start = time_range.start
     stop = time_range.stop
     base = "select %%s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=%%s and method='%s'" % \
@@ -238,10 +245,10 @@ def fetch_data(stream_key, time_range, strict_range=False, session=None, prepare
 @cassandra_session
 def fetch_concurrent(stream_key, cols, times, concurrency=50, session=None, prepared=None):
     query_name = 'fetch_data_%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite,
-                                 stream_key.node, stream_key.sensor, stream_key.method)
+                                                stream_key.node, stream_key.sensor, stream_key.method)
     if query_name not in prepared:
         base = "select %%s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s'" % \
-           (stream_key.stream.name, stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method)
+               (stream_key.stream.name, stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method)
         query = session.prepare(base % ','.join(cols) + ' and time>=? and time<=?')
         query.fetch_size = engine.app.config['CASSANDRA_FETCH_SIZE']
         prepared[query_name] = query
@@ -277,30 +284,11 @@ def fetch_nth_data(stream_key, time_range, strict_range=False, num_points=1000, 
     :param prepared:
     :return:
     """
-    # first, fetch the stream_metadata record for this refdes/stream
-    # to calculate an estimated data rate
-    rows = session.execute(prepared[STREAM_EXISTS_PS], (stream_key.subsite, stream_key.node,
-                                                        stream_key.sensor, stream_key.method,
-                                                        stream_key.stream.name))
-
-    if rows:
-        stream, count, first, last = rows[0]
-        elapsed = last - first
-        if elapsed > 0:
-            rate = count / elapsed
-
-            # if we estimate a small number of rows we should just fetch everything
-            estimated_count = time_range.secs() * rate
-            if estimated_count < num_points * 4:
-                return fetch_data(stream_key, time_range, strict_range)
-
-    # lots of rows or we were unable to estimate, fetch every ~nth record
     cols = get_query_columns(stream_key)
 
     start = time_range.start
     stop = time_range.stop
     times = [(time_to_bin(t), t) for t in numpy.linspace(start, stop, num_points)]
-
     futures = []
     for i in xrange(0, num_points, chunk_size):
         futures.append(execution_pool.apply_async(execute_query, (stream_key, cols, times[i:i + chunk_size], time_range, strict_range)))
@@ -309,20 +297,26 @@ def fetch_nth_data(stream_key, time_range, strict_range=False, num_points=1000, 
     for future in futures:
         rows.extend(future.get())
 
+    uniq = {}
+    for row in rows:
+        key = "{}{}".format(row[0], row[-1])  # this should include more than the time and the last value
+        uniq[key] = row
+
+    rows = sorted(uniq.values())
+
     rows = [r[1][0] for r in rows if r[0] and len(r[1]) > 0]
-    return cols, FakeFuture(rows)
+    return cols, rows
 
 
 @cassandra_session
 @log_timing
 def execute_query(stream_key, cols, times, time_range, strict_range=False, session=None, prepared=None):
     if strict_range:
-        query = session.prepare(
-            "select %s from %s where subsite='%s' and node='%s'"
-            " and sensor='%s' and bin=? and method='%s' and time>=%s and time<=?"
-            " order by method desc limit 1" % (','.join(cols),
-                stream_key.stream.name, stream_key.subsite, stream_key.node,
-                stream_key.sensor, stream_key.method, time_range.start))
+        query = session.prepare("select %s from %s where subsite='%s' and node='%s'"
+                                " and sensor='%s' and bin=? and method='%s' and time>=%s and time<=?"
+                                " order by method desc limit 1" % (','.join(cols),
+                                                                   stream_key.stream.name, stream_key.subsite, stream_key.node,
+                                                                   stream_key.sensor, stream_key.method, time_range.start))
     else:
         query_name = '%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite,
                                          stream_key.node, stream_key.sensor, stream_key.method)
@@ -333,7 +327,6 @@ def execute_query(stream_key, cols, times, time_range, strict_range=False, sessi
             query = session.prepare(base + ' and time<=? order by method desc limit 1')
             prepared[query_name] = query
         query = prepared[query_name]
-
     result = list(execute_concurrent_with_args(session, query, times, concurrency=50))
     return result
 
@@ -349,6 +342,7 @@ def initialize_worker():
     global global_cassandra_state
     global_cassandra_state = {}
 
+
 def connect_worker():
     get_session()
 
@@ -359,7 +353,7 @@ def create_execution_pool():
     execution_pool = Pool(pool_size, initializer=initialize_worker)
 
     futures = []
-    for i in xrange(pool_size*2):
+    for i in xrange(pool_size * 2):
         futures.append(execution_pool.apply_async(connect_worker))
 
     [f.get() for f in futures]
@@ -368,10 +362,11 @@ def create_execution_pool():
 def time_to_bin(t):
     return int(t / (24 * 60 * 60))
 
+
 @cassandra_session
 def get_available_time_range(stream_key, session=None, prepared=None):
     rows = session.execute(prepared[STREAM_EXISTS_PS], (stream_key.subsite, stream_key.node,
-                                                    stream_key.sensor, stream_key.method,
-                                                    stream_key.stream.name))
+                                                        stream_key.sensor, stream_key.method,
+                                                        stream_key.stream.name))
     stream, count, first, last = rows[0]
-    return TimeRange(first, last+1)
+    return TimeRange(first, last + 1)
