@@ -68,7 +68,8 @@ def particles():
     prov = input_data.get('include_provenance', False)
     resp = Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
                     input_data.get('qcParameters', {}), limit=limit, custom_times=input_data.get('custom_times'),
-                    custom_type=input_data.get('custom_type'), include_provenance=prov), mimetype='application/json')
+                    custom_type=input_data.get('custom_type'), include_provenance=prov, strict_range=input_data.get('strict_range', False)),
+                mimetype='application/json')
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return resp
