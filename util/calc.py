@@ -1,77 +1,43 @@
-from Queue import Queue, Empty
 import importlib
-import msgpack
-import json
-import struct
+import logging
 import tempfile
 import netCDF4
 from threading import Event, Lock
 import traceback
+
+import msgpack
+import netCDF4
 import numexpr
 import numpy
-import time
-from werkzeug.exceptions import abort
-from engine import app
-from collections import OrderedDict, namedtuple
-from util.cass import get_streams, fetch_data, get_distinct_sensors, fetch_nth_data, get_available_time_range, fetch_l0_provenance
-from util.common import log_timing, StreamKey, TimeRange, CachedParameter, UnknownEncodingException, \
-    FUNCTION, CoefficientUnavailableException, parse_pdid, UnknownFunctionTypeException, \
-    CachedStream, StreamEngineException, StreamUnavailableException, InvalidStreamException, CachedFunction
-import bisect
-from util import common
-from util import chunks
-from util.chunks import Chunk
-import pandas as pd
-import logging
-import uuid
+
+from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, \
+    get_available_time_range, fetch_l0_provenance
+from util.common import log_timing, StreamKey, TimeRange, CachedParameter, \
+    FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
+    CachedStream, StreamEngineException, CachedFunction, \
+    MissingTimeException, MissingDataException, arb, MissingStreamMetadataException
 from parameter_util import PDRef
 
+from collections import OrderedDict, defaultdict
+from werkzeug.exceptions import abort
+
+import pandas as pd
+import scipy as sp
+
+
+try:
+    import simplejson as json
+except ImportError:
+    import json
+
 log = logging.getLogger(__name__)
-
-def find_stream(stream_key, streams, distinct_sensors):
-    """
-    Attempt to find a "related" sensor which provides one of these streams
-    :param stream_key
-    :return:
-    """
-    stream_map = {s.name: s for s in streams}
-
-    # check our specific reference designator first
-    for stream in get_streams(stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method):
-        if stream in stream_map:
-            return stream_key.sensor, stream_map[stream]
-
-    # check other reference designators in the same family
-    for subsite1, node1, sensor in distinct_sensors:
-        if subsite1 == stream_key.subsite and node1 == stream_key.node:
-            for stream in get_streams(stream_key.subsite, stream_key.node, sensor, stream_key.method):
-                if stream in stream_map:
-                    return sensor, stream_map[stream]
-
-    return None, None
-
-
-def get_generator(time_range, custom_times=None, custom_type=None):
-    if custom_type is None:
-        return Chunk_Generator()
-    else:
-        # Make sure custom_times is strictly increasing and has at least
-        # two values
-        if len(custom_times) < 2:
-            abort(400)
-        if any(numpy.diff(custom_times) <= 0):
-            abort(400)
-
-        if custom_type != 'average':
-            return Interpolation_Generator(Chunk_Generator())
-        else:
-            if custom_times[-1] < time_range.stop:
-                custom_times.append(time_range.stop)
-            return Average_Generator(Chunk_Generator())
 
 
 @log_timing
 def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None, custom_times=None, custom_type=None, include_provenance=True):
+    """
+    Returns a list of particles from the given streams, limits and times
+    """
     stream_keys = [StreamKey.from_dict(d) for d in streams]
     parameters = []
     for s in streams:
@@ -81,56 +47,130 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
 
     qc_stream_parameters = {}
     for qc_parameter in qc_parameters:
-        qc_pk = qc_parameter.get('qcParameterPK')
-        current_stream_parameter = qc_pk.get('streamParameter').encode('ascii', 'ignore')
-        qc_ids = qc_stream_parameters.get(current_stream_parameter)
+        qc_pk = qc_parameter['qcParameterPK']
+        current_stream_parameter = qc_pk['streamParameter'].encode('ascii', 'ignore')
+        qc_ids = qc_stream_parameters.get(current_stream_parameter, None)
         if qc_ids is None:
             qc_ids = {}
             qc_stream_parameters[current_stream_parameter] = qc_ids
-        current_qc_id = qc_pk.get('qcId').encode('ascii', 'ignore')
-        parameter_dict = qc_ids.get(current_qc_id)
+
+        current_qc_id = qc_pk['qcId'].encode('ascii', 'ignore')
+        parameter_dict = qc_ids.get(current_qc_id, None)
         if parameter_dict is None:
             parameter_dict = {}
             qc_ids[current_qc_id] = parameter_dict
-        current_parameter_name = qc_pk.get('parameter').encode('ascii', 'ignore')
+
+        current_parameter_name = qc_pk.get('parameter', None)
         if current_parameter_name is not None:
-            qc_parameter_value = qc_parameter.get('value').encode('ascii', 'ignore')
-            if qc_parameter.get('valueType').encode('ascii', 'ignore') == 'INT':
+            current_parameter_name = current_parameter_name.encode('ascii', 'ignore')
+            qc_parameter_value = qc_parameter['value'].encode('ascii', 'ignore')
+            if qc_parameter['valueType'].encode('ascii', 'ignore') == 'INT':
                 parameter_dict[current_parameter_name] = int(qc_parameter_value)
-            elif qc_parameter.get('valueType').encode('ascii', 'ignore') == 'FLOAT':
+            elif qc_parameter['valueType'].encode('ascii', 'ignore') == 'FLOAT':
                 parameter_dict[current_parameter_name] = float(qc_parameter_value)
             else:
                 parameter_dict[current_parameter_name] = qc_parameter_value
 
-    # limit defined by user without custom times
-    # we're going to return every nth point unless the dataset is sufficiently small
-    if custom_times is None and limit is not None:
-        custom_times = numpy.linspace(start, stop, num=limit)
-
     # create the store that will keep track of provenance for all streams/datasources
-    provenance_meta = ProvenanceMetadataStore()
+    provenance_metadata = ProvenanceMetadataStore()
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range,
-                                   qc_parameters=qc_stream_parameters, limit=limit, times=custom_times, include_provenance=include_provenance, provenance_metadata=provenance_meta)
-    return Particle_Generator(get_generator(time_range, custom_times, custom_type)).chunks(stream_request)
+                                   qc_parameters=qc_stream_parameters, limit=limit, times=custom_times, include_provenance=include_provenance)
+
+    pd_data = fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata)
+
+    # convert data into a list of particles
+    primary_key = stream_keys[0]
+    particles = []
+
+    time_param = primary_key.stream.time_parameter
+    if time_param not in pd_data:
+        raise MissingTimeException("Time param: {} is missing from the primary stream".format(time_param))
+
+    for index in range(len(pd_data[time_param][primary_key.as_refdes()]['data'])):
+        particle = OrderedDict()
+
+        if not primary_key.stream.is_virtual:
+            particle['pk'] = primary_key.as_dict()
+
+            # Add non-param data to particle
+            particle['pk']['deployment'] = pd_data['deployment'][primary_key.as_refdes()]['data'][index]
+            particle['pk']['time'] = pd_data[primary_key.stream.time_parameter][primary_key.as_refdes()]['data'][index]
+            particle['provenance'] = str(pd_data['provenance'][primary_key.as_refdes()]['data'][index])
+
+        for param in stream_request.parameters:
+            if param.id in pd_data:
+                val = None
+                try:
+                    val = pd_data[param.id][primary_key.as_refdes()]['data'][index]
+                except Exception as e:
+                    log.info("Failed to get data for {}: {}".format(param.id, e))
+                    continue
+
+                if isinstance(val, numpy.ndarray):
+                    val = val.tolist()
+
+                particle[param.name] = val
+
+            # add qc results to particle
+            for qc_function_name in qc_stream_parameters.get(param.name, []):
+                qc_function_results = '%s_%s' % (param.name, qc_function_name)
+
+                if qc_function_results in pd_data:
+                    value = pd_data[qc_function_results][primary_key.as_refdes()]['data'][index]
+
+                    qc_results_key = '%s_%s' % (param.name, 'qc_results')
+                    if qc_results_key not in particle:
+                        particle[qc_results_key] = 0b0000000000000000
+
+                    qc_results_value = particle[qc_results_key]
+                    qc_cached_function = CachedFunction.from_qc_function(qc_function_name)
+                    qc_results_mask = int(qc_cached_function.qc_flag, 2)
+
+                    if value == 0:
+                        qc_results_value = ~qc_results_mask & qc_results_value
+                    elif value == 1:
+                        qc_results_value = qc_results_mask ^ qc_results_value
+
+                    particle[qc_results_key] = qc_results_value
+
+        particles.append(particle)
+
+    if include_provenance:
+        out = OrderedDict()
+        out['data'] = particles
+        out['provenance'] = provenance_metadata.get_provenance_dict()
+    else:
+        out = particles
+
+    return json.dumps(out, indent=2)
 
 
 @log_timing
 def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None, custom_type=None, include_provenance=True):
+    """
+    Returns a netcdf from the given streams, limits and times
+    """
     stream_keys = [StreamKey.from_dict(d) for d in streams]
     parameters = []
     for s in streams:
         for p in s.get('parameters', []):
             parameters.append(CachedParameter.from_id(p))
     time_range = TimeRange(start, stop)
+
     # Create the provenance metadata store to keep track of all files that are used
-    provenance_meta = ProvenanceMetadataStore()
+    provenance_metadata = ProvenanceMetadataStore()
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit,
-                                   times=custom_times, include_provenance=include_provenance, provenance_metadata=provenance_meta)
-    return NetCDF_Generator(get_generator(time_range, provenance_meta, custom_times, custom_type)).chunks(stream_request)
+                                   times=custom_times, include_provenance=include_provenance)
+
+    pd_data = fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata)
+    return create_netcdf(stream_request, pd_data, stream_keys[0], provenance_metadata)
 
 
 @log_timing
 def get_needs(streams):
+    """
+    Returns a list of required calibration constants for a list of streams
+    """
     stream_keys = [StreamKey.from_dict(d) for d in streams]
     parameters = []
     for s in streams:
@@ -147,49 +187,374 @@ def get_needs(streams):
     return stream_list
 
 
-def handle_byte_buffer(data):
-    return numpy.array([msgpack.unpackb(x) for x in data])
+def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata):
+    """
+    Fetches all parameters from the specified streams, calculates the dervived products,
+    and returns the parameters in a map
+
+    example return value:
+    {'7':
+        {u'CP02PMUO-WFP01-03-CTDPFK000-telemetered-ctdpf_ckl_wfp_instrument':
+            {'source': u'CP02PMUO-WFP01-03-CTDPFK000-telemetered-ctdpf_ckl_wfp_instrument', 'data': array([...]) }},
+        {u'CP02PMUO-WFP01-03-CTDPFK000-telemetered-ctdpf_ckl_wfp_instrument_recovered':
+            {'source': u'derived', 'data': array([...]) }},
+    '1337':
+        {u'CP02PMUO-WFP01-03-CTDPFK000-telemetered-ctdpf_ckl_wfp_instrument':
+            {'source': u'CP02PMUO-WFP01-03-CTDPFK000-telemetered-ctdpf_ckl_wfp_instrument', 'data': array([...]) }},
+    }
+    """
+    primary_key = stream_request.stream_keys[0]
+    time_range = TimeRange(start, stop)
+
+    log.info("Fetching data from {} stream(s): {}".format(len(stream_request.stream_keys), [x.as_refdes() for x in stream_request.stream_keys]))
+
+    pd_data = {}
+    first_time = None
+    for key_index, key in enumerate(stream_request.stream_keys):
+        if key.stream.is_virtual:
+            log.info("Skipping virtual stream: {}".format(key.stream.name))
+            continue
+
+        if limit:
+            fields, cass_data = fetch_nth_data(key, time_range, strict_range=False, num_points=limit)
+        else:
+            fields, cass_data = fetch_nth_data(key, time_range, strict_range=False)
+
+        if len(cass_data) == 0:
+            log.warning("Query for {} returned no data".format(key.as_refdes()))
+            if key == primary_key:
+                raise MissingDataException("Query returned no results for primary stream")
+            elif primary_key.stream.is_virtual and key.stream in primary_key.stream.source_streams:
+                raise MissingDataException("Query returned no results for source stream")
+            else:
+                continue
+
+        df = pd.DataFrame(cass_data, columns=fields)
+
+        # transform data from cass and put it into pd_data
+        parameters = [p for p in key.stream.parameters if p.parameter_type != FUNCTION]
+
+        # save first time for interpolation later
+        if first_time is None:
+            first_time = df['time'].values
+
+        deployments = df.groupby('deployment')
+        for dep_num, data_frame in deployments:
+            for param in parameters:
+                data_slice = data_frame[param.name].values
+
+                # transform non scalar params
+                if param.is_array:
+                    data_slice = numpy.array([msgpack.unpackb(x) for x in data_slice])
+
+                # Nones can only be in ndarrays with dtype == object.  NetCDF
+                # doesn't like objects.  First replace Nones with the
+                # appropriate fill value.
+                #
+                # pandas does some funny things to missing values if the whole column is missing it becomes a None filled object
+                # Otherwise pandas will replace floats with Not A Number correctly.
+                # Integers are cast as floats and missing values replaced with Not A Number
+                # The below case will take care of instances where the whole series is missing or if it is an array or
+                # some other object we don't know how to fill.
+                if data_slice.dtype == 'object' and not param.is_array:
+                    nones = numpy.equal(data_slice, None)
+                    if numpy.any(nones):
+                        # If there are nones either fill with specific value for ints, floats, string, or throw an error
+                        if param.value_encoding in ['int', 'uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64']:
+                            data_slice[nones] = -999999999
+                            data_slice = data_slice.astype('int64')
+                        elif param.value_encoding in ['float16', 'float32', 'float64', 'float96']:
+                            data_slice[nones] = numpy.nan
+                            data_slice = data_slice.astype('float64')
+                        elif param.value_encoding == 'string':
+                            data_slice[nones] = ''
+                            data_slice = data_slice.astype('str')
+                        else:
+                            log.error("Do not know how to fill type: {:s}".format(param.value_encoding))
+                            raise StreamEngineException('Do not know how to fill for data type ' + str(param.value_encoding))
+                # otherwise if the returned data is a float we need to check and make sure it is not supposed to be an int
+                elif data_slice.dtype == 'float64':
+                    # Int's are upcast to floats if there is a missing value.
+                    if param.value_encoding in ['int', 'uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64']:
+                        # We had a missing value because it was upcast
+                        indexes = numpy.where(numpy.isnan(data_slice))
+                        data_slice[indexes] = -999999999
+                        data_slice = data_slice.astype('int64')
+
+                # Pandas also treats strings as objects.  NetCDF doesn't
+                # like objects.  So convert objects to strings.
+                if data_slice.dtype == object:
+                    try:
+                        data_slice = data_slice.astype('str')
+                    except ValueError as e:
+                        log.error('Unable to convert {} (PD{}) to string (may be caused by jagged arrays): {}'.format(param.name, param.id, e))
+
+                if param.id not in pd_data:
+                    pd_data[param.id] = {}
+                pd_data[param.id][key.as_refdes()] = {
+                    'data': data_slice,
+                    'source': key.as_refdes()
+                }
+
+            if stream_request.include_provenance:
+                for prov_uuid, deployment in zip(data_frame.provenance.values.astype(str), data_frame.deployment.values):
+                    value = (primary_key.subsite, primary_key.node, primary_key.sensor, primary_key.method, deployment, prov_uuid)
+                    provenance_metadata.add_metadata(value)
+
+            # Add non-param data to particle
+            if 'provenance' not in pd_data:
+                pd_data['provenance'] = {}
+            pd_data['provenance'][key.as_refdes()] = {
+                'data': data_frame.provenance.values.astype('str'),
+                'source': key.as_refdes()
+            }
+
+            if 'deployment' not in pd_data:
+                pd_data['deployment'] = {}
+            pd_data['deployment'][key.as_refdes()] = {
+                'data': data_frame.deployment.values,
+                'source': key.as_refdes()
+            }
+
+    # exec dpa for stream
+
+    # calculate time param first if it's a derived product
+    time_param = CachedParameter.from_id(primary_key.stream.time_parameter)
+    if time_param.parameter_type == FUNCTION:
+        calculate_derived_product(time_param, stream_request.coefficients, pd_data, primary_key)
+
+        if time_param.id not in pd_data or primary_key.as_refdes() not in pd_data[time_param.id]:
+            raise MissingTimeException("Time param is missing from main stream")
+
+    for param in primary_key.stream.parameters:
+        if param.id not in pd_data:
+            if param.parameter_type == FUNCTION:
+                # calculate inserts derived products directly into pd_data
+                calculate_derived_product(param, stream_request.coefficients, pd_data, primary_key)
+            else:
+                log.warning("Required parameter not present: {}".format(param.name))
+
+            if stream_request.qc_parameters.get(param.name) is not None:
+                _qc_check(stream_request, param, pd_data, primary_key)
+
+    return pd_data
+
+
+def _qc_check(stream_request, parameter, pd_data, primary_key):
+
+    qcs = stream_request.qc_parameters.get(parameter.name)
+    for function_name in qcs:
+        if 'strict_validation' not in qcs[function_name]:
+            qcs[function_name]['strict_validation'] = 'False'
+
+        qcs[function_name]['dat'] = pd_data[parameter.id][primary_key.as_refdes()]['data']
+        module = importlib.import_module(CachedFunction.from_qc_function(function_name).owner)
+
+        qc_name = '%s_%s' % (parameter.name.encode('ascii', 'ignore'), function_name)
+        if qc_name not in pd_data:
+            pd_data['provenance'] = {}
+        pd_data[qc_name][primary_key.as_refdes()] = {
+            'data': getattr(module, function_name)(**qcs.get(function_name)),
+            'source': 'qc'
+        }
+
+
+def interpolate_list(desired_time, data_time, data):
+    if len(data) == 0:
+        return data
+
+    try:
+        float(data[0])  # check that data can be interpolated
+    except (ValueError, TypeError):
+        return data
+    else:
+        return sp.interp(desired_time, data_time, data)
+
+
+def calculate_derived_product(param, coeffs, pd_data, primary_key, level=1):
+    """
+    Calculates a derived product by (recursively) calulating its derived products.
+
+    The products are added to the pd_data map, not returned
+    """
+    log.info("")
+    spaces = level * 4 * ' '
+    log.info("{}Running dpa for {} (PD{}){{".format((level - 1) * 4 * ' ', param.name, param.id))
+
+    this_ref = PDRef(None, param.id)
+    needs = [pdref for pdref in param.needs if pdref.chunk_key not in pd_data.keys()]
+
+    # prevent loops since they are only warned against
+    if this_ref in needs:
+        needs.remove(this_ref)
+
+    for pdref in needs:
+        needed_parameter = CachedParameter.from_id(pdref.pdid)
+        if needed_parameter.parameter_type == FUNCTION:
+            calculate_derived_product(needed_parameter, coeffs, pd_data, primary_key, level=level + 1)
+
+        if pdref.chunk_key not in pd_data:
+            # _get_param
+            pass
+
+    try:
+        args = build_func_map(param, coeffs, pd_data, primary_key)
+        args = munge_args(args, primary_key)
+        data = execute_dpa(param, args)
+    except StreamEngineException as e:
+        log.info("{}aborting - {}".format(spaces, e.message))
+    else:
+        if param.id not in pd_data:
+            pd_data[param.id] = {}
+
+        if not isinstance(data, (list, tuple, numpy.ndarray)):
+            data = [data]
+
+        pd_data[param.id][primary_key.as_refdes()] = {'data': data, 'source': 'derived'}
+
+        log.info(spaces + "returning data")
+    log.info("{}}}".format((level - 1) * 4 * ' '))
+
+
+def munge_args(args, primary_key):
+    """
+    Munges algorithm arguments, most of this should be preload/algorithm changes
+    """
+    # jcool and jwarm must *always* be 1
+    if "jcool" in args:
+        args["jcool"] = 1
+
+    if "jwarm" in args:
+        args["jwarm"] = 1
+
+    # zwindsp, ztmpwat, ztmpair, zhumair should be scalars when calculating metbk
+    if "zwindsp" in args:
+        args["zwindsp"] = args["zwindsp"][0]
+
+    if "ztmpwat" in args:
+        args["ztmpwat"] = args["ztmpwat"][0]
+
+    if "ztmpair" in args:
+        args["ztmpair"] = args["ztmpair"][0]
+
+    if "zhumair" in args:
+        args["zhumair"] = args["zhumair"][0]
+    return args
 
 
 def execute_dpa(parameter, kwargs):
+    """
+    Executes a derived product algorithm
+    """
     func = parameter.parameter_function
     func_map = parameter.parameter_function_map
 
     if len(kwargs) == len(func_map):
         if func.function_type == 'PythonFunction':
             module = importlib.import_module(func.owner)
-            result = getattr(module, func.function)(**kwargs)
+
+            result = None
+            try:
+                result = getattr(module, func.function)(**kwargs)
+            except Exception as e:
+                raise StreamEngineException('DPA threw exception: %s' % e)
         elif func.function_type == 'NumexprFunction':
-            result = numexpr.evaluate(func.function, kwargs)
+            try:
+                result = numexpr.evaluate(func.function, kwargs)
+            except Exception as e:
+                raise StreamEngineException('Numexpr function threw exception: %s' % e)
         else:
             raise UnknownFunctionTypeException(func.function_type)
         return result
 
+    return None
 
-def build_func_map(parameter, chunk, coefficients):
+
+def build_func_map(parameter, coefficients, pd_data, primary_key):
+    """
+    Builds a map of arguments to be passed to an algorithm
+    """
     func_map = parameter.parameter_function_map
     args = {}
-    times = chunk[7]['data']
+
+    # find stream that provide each parameter
+    ps = defaultdict(dict)
+    for key, val in func_map.iteritems():
+        if PDRef.is_pdref(val):
+            pdRef = PDRef.from_str(val)
+            if pdRef.pdid in pd_data:
+                for stream in pd_data[pdRef.pdid]:
+                    ps[pdRef.pdid][stream] = True
+
+    # find correct time parameter for the main stream
+    main_stream_refdes = primary_key.as_refdes()
+    if primary_key.stream.is_virtual:
+        # use source stream for time
+        time_stream = primary_key.stream.source_streams[0]
+        time_stream_key = None
+        for refdes in pd_data[time_stream.time_parameter]:
+            key = StreamKey.from_refdes(refdes)
+            if key.stream == time_stream:
+                time_stream_key = key
+                break
+    else:
+        time_stream_key = primary_key
+
+    if time_stream_key is None:
+        raise MissingTimeException("Could not find time parameter for dpa")
+
+    time_stream_refdes = time_stream_key.as_refdes()
+    if time_stream_key.stream.time_parameter in pd_data and time_stream_refdes in pd_data[time_stream_key.stream.time_parameter]:
+        main_times = pd_data[time_stream_key.stream.time_parameter][time_stream_refdes]['data']
+    elif 7 in pd_data and time_stream_refdes in pd_data[7]:
+        main_times = pd_data[7][time_stream_refdes]['data']
+    else:
+        raise MissingTimeException("Could not find time parameter for dpa")
+
     for key in func_map:
         if PDRef.is_pdref(func_map[key]):
             pdRef = PDRef.from_str(func_map[key])
 
-            if pdRef.chunk_key not in chunk:
-                raise StreamEngineException('Needed parameter %s not found in chunk when calculating PD%s %s' % (func_map[key], parameter.id, parameter.name))
+            if pdRef.pdid not in pd_data:
+                raise StreamEngineException('Required parameter %s not found in pd_data when calculating %s (PD%s) ' % (func_map[key], parameter.name, parameter.id))
 
-            args[key] = chunk[pdRef.chunk_key]['data']
+            # if pdref has a required stream, try to find it in pd_data
+            pdref_refdes = None
+            if pdRef.is_fqn():
+                required_stream_name = pdRef.stream_name
+                for refdes in pd_data[pdRef.pdid]:
+                    skey = StreamKey.from_refdes(refdes)
+                    if skey.stream_name == required_stream_name:
+                        pdref_refdes = refdes
+                        break
+
+            if pdref_refdes is None and main_stream_refdes in pd_data[pdRef.chunk_key]:
+                args[key] = pd_data[pdRef.pdid][main_stream_refdes]['data']
+            else:
+                # Need to get data from non-main stream, so it must be interpolated to match main stream
+                if pdref_refdes is None:
+                    data_stream_refdes = next(ps[pdRef.pdid].iterkeys())  # get arbitrary stream that provides pdid
+                else:
+                    data_stream_refdes = pdref_refdes
+
+                # perform interpolation
+                data = pd_data[pdRef.pdid][data_stream_refdes]['data']
+                data_time = pd_data[StreamKey.from_refdes(data_stream_refdes).stream.time_parameter][data_stream_refdes]['data']
+
+                interpolated_data = interpolate_list(main_times, data_time, data)
+                args[key] = interpolated_data
 
         elif str(func_map[key]).startswith('CC'):
             name = func_map[key]
             if name in coefficients:
                 framed_CCs = coefficients[name]
-                CC_argument = build_CC_argument(framed_CCs, times)
-                if(numpy.isnan(numpy.min(CC_argument))):
-                    raise CoefficientUnavailableException('Coefficient %s missing times in range (%s, %s) for PD%s %s' % (name, times[0], times[-1], parameter.id, parameter.name))
+                CC_argument = build_CC_argument(framed_CCs, main_times)
+                if numpy.isnan(numpy.min(CC_argument)):
+                    raise CoefficientUnavailableException('Coefficient %s missing times in range (%s, %s)' % (name, main_times[0], main_times[-1]))
                 else:
                     args[key] = CC_argument
             else:
-                raise CoefficientUnavailableException('Coefficient %s not provided for PD%s %s' % (name, parameter.id, parameter.name))
+                raise CoefficientUnavailableException('Coefficient %s not provided' % name)
         elif isinstance(func_map[key], (int, float, long, complex)):
             args[key] = func_map[key]
         else:
@@ -209,13 +574,13 @@ def in_range(frame, times):
 
       returns a bool numpy array the same shape as times
     """
-    if(frame[0] is None and frame[1] is None):
+    if frame[0] is None and frame[1] is None:
         mask = numpy.ones(times.shape, dtype=bool)
-    elif(frame[0] is None):
+    elif frame[0] is None:
         mask = (times < frame[1])
-    elif(frame[1] is None):
+    elif frame[1] is None:
         mask = (times >= frame[0])
-    elif(frame[0] == frame[1]):
+    elif frame[0] == frame[1]:
         mask = (times == frame[0])
     else:
         mask = numpy.logical_and(times >= frame[0], times < frame[1])
@@ -227,302 +592,59 @@ def build_CC_argument(frames, times):
     frames.sort()
     frames = [f for f in frames if any(in_range(f, times))]
 
-    sample_value = frames[0][2]
-    if(type(sample_value) == list) :
+    try:
+        sample_value = frames[0][2]
+    except IndexError, e:
+        raise StreamEngineException('Unable to build cc arguments for algorithm: {}'.format(e))
+
+    if type(sample_value) == list:
         cc = numpy.empty(times.shape + numpy.array(sample_value).shape)
     else:
         cc = numpy.empty(times.shape)
     cc[:] = numpy.NAN
-    
+
     for frame in frames[::-1]:
         mask = in_range(frame, times)
-        cc[mask] = frame[2]
+        try:
+            cc[mask] = frame[2]
+        except ValueError, e:
+            raise StreamEngineException('Unable to build cc arguments for algorithm: {}'.format(e))
 
     return cc
 
-class ProvenanceMetadataStore(object):
-    def __init__(self):
-        self._prov_set= set()
-
-    def add_metadata(self, value):
-        self._prov_set.add(value)
-
-    def _get_metadata(self):
-        return list(self._prov_set)
-
-
-    def get_provenance_dict(self):
-        prov = {}
-        for i in self._get_metadata():
-            prov_data =  fetch_l0_provenance(*i)
-            fname = prov_data[0][-3]
-            pname = prov_data[0][-2]
-            pversion = prov_data[0][-1]
-            prov[i[-1]] = {}
-            prov[i[-1]]['file_name'] = fname
-            prov[i[-1]]['parser_name'] = pname
-            prov[i[-1]]['parser_version'] = pversion
-        return prov
-
-class DataStream(object):
-
-    def __init__(self, stream_key, time_range, provenance_metadata, limit=None, ):
-        # store for the metadata
-        self.provenance_metadata = provenance_metadata
-        self.stream_key = stream_key
-        self.query_time_range = time_range
-        self.strict_range = False
-        self.available_time_range = TimeRange(0, 0)
-        self.future = None
-        self.row_cache = []
-        self.queue = Queue()
-        self.finished_event = Event()
-        self.error = None
-        self.data_cache = {}
-        self.id_map = {}
-        self.param_map = {}
-        self.func_params = []
-        self.times = []
-        self.needs_cc = []
-        self.cols = None
-        self.terminate = False
-        self.limit = limit
-        self.nf_parameters = None
-        self._initialize()
-
-    def _initialize(self):
-        self.nf_parameters = [p for p in self.stream_key.stream.parameters if p.parameter_type != FUNCTION]
-
-        needs_cc = set()
-        for param in self.stream_key.stream.parameters:
-            if not param.parameter_type == FUNCTION:
-                self.id_map[param.id] = param.name
-            else:
-                needs_cc = needs_cc.union(param.needs_cc)
-        self.needs_cc = list(needs_cc)
-
-    def provides(self, key):
-        return key in self.id_map
-
-    def async_query(self):
-        if self.limit is not None:
-            self.cols, self.future = fetch_nth_data(self.stream_key, self.query_time_range, strict_range=self.strict_range, num_points=self.limit)
-        else:
-            self.cols, self.future = fetch_data(self.stream_key, self.query_time_range, strict_range=self.strict_range)
-        self.future.add_callbacks(callback=self.handle_page, errback=self.handle_error)
-
-    def handle_page(self, rows):
-        if rows:
-            Row = namedtuple('Row', self.cols, rename=True)
-            rows = [Row(*row) for row in rows]
-            self.queue.put(rows)
-
-        if self.future.has_more_pages and not self.terminate:
-            self.future.start_fetching_next_page()
-        else:
-            self.finished_event.set()
-
-    def terminate_query(self):
-        self.terminate = True
-
-    def handle_error(self, exc):
-        self.error = exc
-        self.finished_event.set()
-
-    def _get_chunk(self):
-        # try/except because we can reach this code occasionally
-        # when the query is complete but the complete flag hasn't
-        # been set.
-        try:
-            chunk = self.queue.get_nowait()
-            if hasattr(chunk, '_asdict'):
-                self.row_cache.append(chunk)
-            else:
-                self.row_cache.extend(chunk)
-
-            self.available_time_range.start = self.row_cache[0].time
-            self.available_time_range.stop = self.row_cache[-1].time
-        except Empty:
-            time.sleep(.001)
-
-    def create_generator(self):
-        """
-        generator to return the data from a single chunk
-        dropping the previous row cache each cycle
-        this is the preferred method of retrieving data
-        from the primary stream
-        """
-        while True:
-            if self.queue.empty() and self.finished_event.is_set():
-                raise StopIteration()
-
-            self.row_cache = []
-            self._get_chunk()
-
-            if len(self.row_cache) == 0:
-                continue
-
-            fields = self.row_cache[0]._fields
-            df = pd.DataFrame(self.row_cache, columns=fields)
-
-            deployments = df.groupby('deployment')
-            for dep_num, data_frame in deployments:
-                self.populate_data_cache(data_frame)
-                yield self.data_cache
-
-    def populate_data_cache(self, df):
-        source = self.stream_key.as_refdes()
-        # we need to keep this information for the provenance metadata and future queries
-        subsite = self.stream_key.subsite
-        method = self.stream_key.method
-        node = self.stream_key.node
-        sensor = self.stream_key.sensor
-
-        self.data_cache = {}
-
-        # special cases for deployment number and provenance key
-        self.data_cache['deployment'] = {
-            'data': df.deployment.values,
-            'source': source
-        }
-
-        # Store provenance metadata
-        for prov_uuid,  deployment in zip(df.provenance.values.astype(str), df.deployment.values):
-            value = (subsite, node, sensor, method, deployment, prov_uuid)
-            self.provenance_metadata.add_metadata(value)
-
-        self.data_cache['provenance'] = {
-            'data': df.provenance.values.astype('str'),
-            'source': source
-        }
-
-        for p in self.nf_parameters:
-            data_slice = df[p.name].values
-            shape_name = p.name + '_shape'
-            if shape_name in df:
-                shape = [len(data_slice)] + df[shape_name].iloc[0]
-                if p.value_encoding == 'string':
-                    temp = [item for sublist in data_slice for item in sublist]
-                    data_slice = numpy.array(temp).reshape(shape)
-                else:
-                    data_slice = handle_byte_buffer(data_slice)
-
-            # Nones can only be in ndarrays with dtype == object.  NetCDF
-            # doesn't like objects.  First replace Nones with the
-            # appropriate fill value.
-            # pandas does some funny things to missing values if the whole column is missing it becomes a None filled object
-            # Otherwise pandas will replace floats with Not A Number correctly.
-            # Integers are cast as floats and missing values replaced with Not A Number
-            # The below case will take care of instances where the whole series is missing or if it is an array or
-            # some other object we don't know how to fill.
-            if data_slice.dtype == 'object':
-                nones = numpy.equal(data_slice, None)
-                if numpy.any(nones):
-                    # If there are nones either fill with specific vlaue for ints, floats, string, or throw an error
-                    if p.value_encoding in ['int', 'uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64']:
-                        data_slice[nones] =  -999999999
-                        data_slice = data_slice.astype('int64')
-                    elif p.value_encoding in ['float16', 'float32', 'float64', 'float96']:
-                        data_slice[nones] = numpy.nan
-                        data_slice = data_slice.astype('float64')
-                    elif p.value_encoding == 'string':
-                        data_slice[nones] = ''
-                        data_slice = data_slice.astype('str')
-                    else:
-                        log.error("Do not know how to fill type: {:s}".format(p.value_encoding))
-                        raise StreamEngineException('Do Not Know how to fill for data type ' + str(p.value_encoding))
-            #otherwise if the returned data is a float we need to check and make sure it is not supposed to be an int
-            elif data_slice.dtype == 'float64':
-                #Int's are upcast to floats if there is a missing value.
-                if p.value_encoding in ['int', 'uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64']:
-                    # We had a missing value because it was upcast
-                    indexes = numpy.where(numpy.isnan(data_slice))
-                    data_slice[indexes] = -999999999
-                    data_slice = data_slice.astype('int64')
-
-            # Pandas also treats strings as objects.  NetCDF doesn't
-            # like objects.  So convert objects to strings.
-            # if it is still an object we need to convert it here as a final catch all
-            if data_slice.dtype == object:
-                data_slice = data_slice.astype('str')
-
-            self.data_cache[p.id] = {
-                'data': data_slice,
-                'source': source
-            }
-
-    def get_param(self, pdid, time_range):
-        if pdid not in self.id_map:
-            raise StreamEngineException('Internal error: unable to find parameter in stream')
-
-        if not all([self.queue.empty(), self.finished_event.is_set()]):
-            while time_range.stop >= self.available_time_range.stop:
-                if self.queue.empty() and self.finished_event.is_set():
-                    break
-                # grabbing new data, invalidate the old cache
-                self.data_cache = {}
-                self._get_chunk()
-
-        if pdid not in self.data_cache:
-            self._fill_cache(pdid)
-
-        # copy the data in case of interpolation
-        return self.data_cache[7]['data'][:], self.data_cache[pdid]['data'][:]
-
-    def _fill_cache(self, pdid):
-        name = self.id_map[pdid]
-        if 7 not in self.data_cache:
-            self.data_cache[7] = {'data': [], 'source': self.stream_key.as_refdes()}
-            for row in self.row_cache:
-                self.data_cache[7]['data'].append(row.time)
-
-        self.data_cache[pdid] = {'data': [], 'source': self.stream_key.as_refdes()}
-        for row in self.row_cache:
-            if hasattr(row, name):
-                item = getattr(row, name)
-                if hasattr(row, name + '_shape'):
-                    shape = getattr(row, name + '_shape')
-                    item = handle_byte_buffer([item])
-                self.data_cache[pdid]['data'].append(item)
-            else:
-                self.data_cache[pdid]['data'].append(None)
-
-    def get_param_interp(self, pdid, interp_times):
-        times, data = self.get_param(pdid, TimeRange(interp_times[0], interp_times[-1]))
-        times, data = common.stretch(times, data, interp_times)
-        times, data = common.interpolate(times, data, interp_times)
-        return times, data
-
 
 class StreamRequest(object):
-
+    """
+    Stores the information from a request, and calculates the required
+    parameters and their streams
+    """
     def __init__(self, stream_keys, parameters, coefficients, time_range, qc_parameters={},
-                 needs_only=False, limit=None, times=None, include_provenance=False, provenance_metadata=ProvenanceMetadataStore()):
+                 needs_only=False, limit=None, times=None, include_provenance=False):
         self.stream_keys = stream_keys
         self.time_range = time_range
+        self.qc_parameters = qc_parameters if qc_parameters is not None else {}
         self.parameters = parameters
         self.coefficients = coefficients
-        self.qc_parameters = qc_parameters
         self.needs_cc = None
         self.needs_params = None
         self.limit = limit
         self.times = times
         self.include_provenance = include_provenance
-        self.provenance_metadata = provenance_metadata
         self._initialize(needs_only)
 
     def _initialize(self, needs_only):
         if len(self.stream_keys) == 0:
-            abort(400)
+            raise StreamEngineException('Received no stream keys', status_code=400)
 
-        if not needs_only:
+        # virtual streams are not in cassandra, so we can't fit the time range
+        if not needs_only and not self.stream_keys[0].stream.is_virtual:
             self._fit_time_range()
 
         # no duplicates allowed
         handled = []
         for key in self.stream_keys:
             if key in handled:
-                abort(400)
+                raise StreamEngineException('Received duplicate stream_keys', status_code=400)
             handled.append(key)
 
         # populate self.parameters if empty or None
@@ -532,16 +654,12 @@ class StreamRequest(object):
                 self.parameters = self.parameters.union(each.stream.parameters)
 
         # sort parameters by name for particle output
-        params = [(p.name, p) for p in self.parameters]
-        params.sort()
-        self.parameters = [p[1] for p in params]
+        self.parameters = sorted(self.parameters, key=lambda x: x.name)
 
-        # determine if any other parameters are needed
-        distinct_sensors = get_distinct_sensors()
         needs = set()
-        for each in self.parameters:
-            if each.parameter_type == FUNCTION:
-                needs = needs.union([pdref for pdref in each.needs])
+        for parameter in self.parameters:
+            if parameter.parameter_type == FUNCTION:
+                needs = needs.union([pdref for pdref in parameter.needs])
 
         needs_fqn = set([pdref for pdref in needs if pdref.is_fqn()])
         needs = set([pdref.pdid for pdref in needs if not pdref.is_fqn()])
@@ -553,23 +671,29 @@ class StreamRequest(object):
 
         needs = needs.difference(provided)
 
+        distinct_sensors = get_distinct_sensors()
+
         # find the available streams which provide any needed parameters
         found = set()
-        for each in needs:
-            each = CachedParameter.from_id(each)
-            if each in found:
+        for need in needs:
+            need = CachedParameter.from_id(need)
+            if need in found:
                 continue
-            streams = [CachedStream.from_id(sid) for sid in each.streams]
-            sensor1, stream1 = find_stream(self.stream_keys[0], streams, distinct_sensors)
-            if not any([sensor1 is None, stream1 is None]):
-                new_stream_key = StreamKey.from_stream_key(self.stream_keys[0], sensor1, stream1.name)
-                self.stream_keys.append(new_stream_key)
-                found = found.union(stream1.parameters)
+
+            streams = [CachedStream.from_id(sid) for sid in need.streams]
+            found_stream_key = find_stream(self.stream_keys[0], streams, distinct_sensors)
+
+            if found_stream_key is not None:
+                self.stream_keys.append(found_stream_key)
+                found = found.union(found_stream_key.stream.parameters)
+
         found = [p.id for p in found]
+        self.found = found
 
         self.needs_params = needs.difference(found)
 
         log.debug('Found FQN needs %s' % (', '.join(map(str, needs_fqn))))
+
         # find the available streams which provide any needed fqn parameters
         found = set([stream_key.stream_name for stream_key in self.stream_keys])
         for pdref in needs_fqn:
@@ -578,11 +702,12 @@ class StreamRequest(object):
             parameter = CachedParameter.from_id(pdref.pdid)
             streams = [CachedStream.from_id(sid) for sid in parameter.streams]
             streams = [s for s in streams if s.name == pdref.stream_name]
-            sensor1, stream1 = find_stream(self.stream_keys[0], streams, distinct_sensors)
-            if not any([sensor1 is None, stream1 is None]):
-                new_stream_key = StreamKey.from_stream_key(self.stream_keys[0], sensor1, stream1.name)
-                self.stream_keys.append(new_stream_key)
-                found = found.union(stream1.name)
+
+            found_stream_key = find_stream(self.stream_keys[0], streams, distinct_sensors)
+
+            if found_stream_key is not None:
+                self.stream_keys.append(found_stream_key)
+                found = found.union(found_stream_key.stream.name)
 
         needs_cc = set()
         for sk in self.stream_keys:
@@ -590,19 +715,11 @@ class StreamRequest(object):
 
         self.needs_cc = needs_cc.difference(self.coefficients.keys())
 
-        # if not needs_only:
-        #     self._abort_if_missing_params()
-
-    def _abort_if_missing_params(self):
         if len(self.needs_params) > 0:
-            app.logger.error('Unable to find needed parameters: %s', self.needs_params)
-            raise StreamUnavailableException('Unable to find a stream to provide needed parameters',
-                                             payload={'parameters': list(self.needs_params)})
+            log.error('Unable to find needed parameters: %s', self.needs_params)
 
         if len(self.needs_cc) > 0:
-            app.logger.error('Missing calibration coefficients: %s', self.needs_cc)
-            raise CoefficientUnavailableException('Missing calibration coefficients',
-                                                  payload={'coefficients': list(self.needs_cc)})
+            log.error('Missing calibration coefficients: %s', self.needs_cc)
 
     def _fit_time_range(self):
         # assumes start <= stop for time ranges
@@ -610,11 +727,11 @@ class StreamRequest(object):
             available_time_range = get_available_time_range(self.stream_keys[0])
         except IndexError:
             log.info('No stream metadata in cassandra for %s', self.stream_keys[0])
-            abort(400)
+            raise MissingStreamMetadataException('No stream metadata in cassandra for %s' % self.stream_keys[0])
         else:
             if self.time_range.start >= available_time_range.stop or self.time_range.stop <= available_time_range.start:
-                log.info('No data in requested time range (%s, %s) for %s ', self.time_range.start, self.time_range.stop, self.stream_keys[0])
-                abort(400)
+                log.warning('No data in requested time range (%s, %s) for %s ', self.time_range.start, self.time_range.stop, self.stream_keys[0])
+                raise MissingDataException("No data in requested time range")
 
             start = max(self.time_range.start, available_time_range.start)
             stop = min(self.time_range.stop, available_time_range.stop)
@@ -622,436 +739,199 @@ class StreamRequest(object):
             self.time_range = TimeRange(start, stop)
 
 
-class Chunk_Generator(object):
-
+class ProvenanceMetadataStore(object):
     def __init__(self):
-        self.streams = None
-        self.parameters = None
-        self.coefficients = None
-        self.time_range = None
-        self.qc_functions = None
+        self._prov_set = set()
 
-    def _create_data_stream(self, stream_key, limit, provenance_metadata):
-        if stream_key.stream is None:
-            raise InvalidStreamException('The requested stream does not exist in preload',
-                                         payload={'stream': stream_key.as_dict()})
+    def add_metadata(self, value):
+        self._prov_set.add(value)
 
-        return DataStream(stream_key, self.time_range,  provenance_metadata, limit)
+    def _get_metadata(self):
+        return list(self._prov_set)
 
-    def _query_all(self):
-        for stream in self.streams:
-            stream.async_query()
-
-    def _terminate_all(self):
-        for stream in self.streams:
-            stream.terminate_query()
-
-    def _calculate(self, parameter, chunk):
-        this_ref = PDRef(None, parameter.id)
-        needs = [pdref for pdref in parameter.needs if pdref.chunk_key not in chunk.keys()]
-        # prevent loops since they are only warned against
-        if this_ref in needs:
-            needs.remove(this_ref)
-        for pdref in needs:
-            # this should descend through any L2 functions to
-            # calculate the underlying L1 functions first
-            needed_parameter = CachedParameter.from_id(pdref.pdid)
-            if needed_parameter.parameter_type == FUNCTION:
-                self._calculate(needed_parameter, chunk)
-            # we may have already inserted this during recursion
-            if pdref.chunk_key not in chunk:
-                self._get_param(pdref, chunk)
-
-        try:
-            args = build_func_map(parameter, chunk, self.coefficients)
-            chunk[parameter.id] = {'data': execute_dpa(parameter, args), 'source': 'derived'}
-        except StreamEngineException as e:
-            log.warning(e.message)
-
-
-    def _get_param(self, pdref, chunk):
-        found_stream = None
-        if pdref.is_fqn():
-            log.debug('Requesting FQN Parameter %s' % (pdref))
-            for stream in self.streams:
-                if stream.stream_key.stream_name == pdref.stream_name:
-                    log.debug('Found FQN Parameter %s' % (pdref))
-                    found_stream = stream
-                    break
-        else:
-            for stream in self.streams[1:]:
-                if stream.provides(pdref.pdid):
-                    found_stream = stream
-                    break
-
-        if found_stream is None:
-            log.warning('Failed to resolve %s' % (pdref))
-        elif found_stream is not self.streams[0]:
-            chunk[pdref.chunk_key] = {
-                'data': found_stream.get_param_interp(pdref.pdid, chunk[7]['data'])[1],
-                'source': found_stream.stream_key.as_refdes()
-            }
-        else:
-            chunk[pdref.chunk_key] = chunk[pdref.pdid]
-
-    def _execute_dpas_chunk(self, chunk):
-        for parameter in self.parameters:
-            if parameter.id not in chunk:
-                if parameter.parameter_type == FUNCTION:
-                    self._calculate(parameter, chunk)
-                else:
-                    self._get_param(PDRef(None, parameter.id), chunk)
-                if self.qc_functions.get(parameter.name) is not None:
-                    self._qc_check(parameter, chunk)
-
-
-    def _qc_check(self, parameter, chunk):
-        qcs = self.qc_functions.get(parameter.name)
-        for function_name in qcs:
-            if qcs.get(function_name).get('strict_validation') is None:
-                qcs.get(function_name)['strict_validation'] = 'False'
-            qcs.get(function_name)['dat'] = chunk.get(parameter.id).get('data')
-            module = importlib.import_module(CachedFunction.from_qc_function(function_name).owner)
-            chunk['%s_%s' %(parameter.name.encode('ascii', 'ignore'), function_name)] = \
-                {'data': getattr(module, function_name)(**qcs.get(function_name)), 'source': 'qc'}
-
-    def chunks(self, r):
-        self.parameters = r.parameters
-        self.coefficients = r.coefficients
-        self.time_range = r.time_range
-        self.streams = [self._create_data_stream(key, r.limit, r.provenance_metadata) for key in r.stream_keys]
-        self.streams[0].strict_range = True
-        self.qc_functions = r.qc_parameters
-
-        self._query_all()
-        for chunk in self.streams[0].create_generator():
-            self._execute_dpas_chunk(chunk)
-            yield(chunk)
-
-
-class Particle_Generator(object):
-
-    def __init__(self, generator):
-        self.generator = generator
-
-    def chunk_to_particles(self, stream_key, parameters, chunk, qc_parameters={}):
-        pk = stream_key.as_dict()
-        #pprint.pprint(qc_parameters)
-        for index, t in enumerate(chunk[7]['data']):
-            particle = OrderedDict()
-            particle['pk'] = pk
-            pk['time'] = t
-
-            # special cases for deployment number and provenance key
-            pk['deployment'] = chunk['deployment']['data'][index]
-            particle['provenance'] = str(chunk['provenance']['data'][index])
-            for param in parameters:
-                if param.id in chunk:
-                    value = chunk[param.id]['data'][index]
-                    if type(value) == numpy.ndarray:
-                        value = value.tolist()
-                    particle[param.name] = value
-                if qc_parameters.get(param.name) is not None:
-                    for qc_function_name in qc_parameters.get(param.name):
-                        qc_function_results = '%s_%s' %(param.name, qc_function_name)
-                        if qc_function_results in chunk:
-                            value = chunk[qc_function_results]['data'][index]
-                            qc_results_key = '%s_%s' %(param.name, 'qc_results')
-                            if(particle.get(qc_results_key) is None):
-                                particle[qc_results_key] = 0b0000000000000000
-                            qc_results_value = particle.get(qc_results_key)
-                            qc_cached_function = CachedFunction.from_qc_function(qc_function_name)
-                            qc_results_mask = int(qc_cached_function.qc_flag, 2)
-                            if value == 0:
-                                qc_results_value = ~qc_results_mask & qc_results_value
-                            elif value == 1:
-                                qc_results_value = qc_results_mask ^ qc_results_value
-                            particle[qc_results_key] = qc_results_value
-            yield json.dumps(particle, indent=2)
-
-    def chunks(self, r):
-        count = 0
-        # if including provenenace we need to add an additional field to our response
-        if r.include_provenance:
-            yield "{ \"data\": "
-
-        yield '[ '
-        try:
-            first = True
-            for chunk in self.generator.chunks(r):
-                for particle in self.chunk_to_particles(r.stream_keys[0], r.parameters, chunk, r.qc_parameters):
-                    count += 1
-                    if first:
-                        first = False
-                    else:
-                        yield ', '
-                    yield particle
-                if r.limit is not None :
-                    if r.limit <= count :
-                        break
-            # spit out the provenance dict if we are including it.  Otherwise close out the data array.
-            if r.include_provenance:
-                yield '], \n'
-                yield '\"provenance\": \n'
-                prov = r.provenance_metadata.get_provenance_dict()
-                yield json.dumps(prov, indent=2)
-                yield '\n}'
+    def get_provenance_dict(self):
+        prov = {}
+        for i in self._get_metadata():
+            prov_data = fetch_l0_provenance(*i)
+            if prov_data:
+                fname = prov_data[0][-3]
+                pname = prov_data[0][-2]
+                pversion = prov_data[0][-1]
+                prov[i[-1]] = {}
+                prov[i[-1]]['file_name'] = fname
+                prov[i[-1]]['parser_name'] = pname
+                prov[i[-1]]['parser_version'] = pversion
             else:
-                yield ']'
-        except GeneratorExit as e:
-            raise e
-        except Exception as e:
-            log.exception('An unexpected error occurred.')
-            exception_output = ', ' if not first else ''
-            exception_output += json.dumps(traceback.format_exc()) + ']'
-            yield exception_output
-        finally:
-            self.generator._terminate_all()
+                log.info("Received empty provenance row")
+        return prov
 
 
-class NetCDF_Generator(object):
+def create_netcdf(r, pd_data, primary_key, provenance_metadata):
+    with tempfile.NamedTemporaryFile() as tf:
+        with netCDF4.Dataset(tf.name, 'w', format='NETCDF4') as ncfile:
+            # set up file level attributes
+            ncfile.subsite = r.stream_keys[0].subsite
+            ncfile.node = r.stream_keys[0].node
+            ncfile.sensor = r.stream_keys[0].sensor
+            ncfile.collection_method = r.stream_keys[0].method
+            ncfile.stream = r.stream_keys[0].stream.name
 
-    def __init__(self, generator):
-        self.generator = generator
+            variables = {}
 
-    def chunks(self, r):
-        try:
-            return self.create_netcdf(r)
-        except GeneratorExit:
-            raise
-        except:
-            log.exception('An unexpected error occurred.')
-            raise
+            # Select times from the correct stream
+            tp = primary_key.stream.time_parameter
+            if tp in pd_data and primary_key.as_refdes() in pd_data[tp]:
+                chunk_times = pd_data[tp][primary_key.as_refdes()]['data']
+            else:
+                tp = 7
+                chunk_times = arb(pd_data[7])['data']
 
-    def create_netcdf(self, r):
-        include_provenance = r.include_provenance
-        with tempfile.NamedTemporaryFile() as tf:
-            with netCDF4.Dataset(tf.name, 'w', format='NETCDF4') as ncfile:
-                # set up file level attributes
-                ncfile.subsite = r.stream_keys[0].subsite
-                ncfile.node = r.stream_keys[0].node
-                ncfile.sensor = r.stream_keys[0].sensor
-                ncfile.collection_method = r.stream_keys[0].method
-                ncfile.stream = r.stream_keys[0].stream.name
+            # sometimes we will get duplicate timestamps
+            # INITIAL solution is to remove any duplicate timestamps
+            # and the corresponding data.
 
-                variables = {}
-                last_timestamp = 0.0
-                # iterate through the chunks and populate the data
-                for chunk in self.generator.chunks(r):
-                    # sometimes we will get duplicate timestamps
-                    # INITIAL solution is to remove any duplicate timestamps
-                    # and the corresponding data.
+            # create a mask to match only valid INCREASING times
+            # we will insert the last valid timestamp from the previous
+            # chunk at the beginning of the array
+            chunk_valid = numpy.diff(numpy.insert(chunk_times, 0, 0.0)) != 0
 
-                    # create a mask to match only valid INCREASING times
-                    # we will insert the last valid timestamp from the previous
-                    # chunk at the beginning of the array
-                    chunk_times = chunk[7]['data']
-                    chunk_valid = numpy.diff(numpy.insert(chunk_times, 0, last_timestamp)) != 0
-                    # We will need to keep track of the last timestamp of each chunk so
-                    # that we can apply this logic across chunks
-                    last_timestamp = chunk_times[chunk_valid][-1]
+            # Select deployment number from the correct stream
+            if not primary_key.stream.is_virtual:
+                deployment = str(pd_data['deployment'][primary_key.as_refdes()]['data'][0])
+            else:
+                deployment = str(arb(pd_data['deployment'])['data'][0])
 
-                    deployment = str(chunk['deployment']['data'][0])
-                    time_v_key = '7_%s' % (deployment,)
-                    time_dim = 'time_%s' % (deployment,)
-                    if time_v_key not in variables:
-                        index = 0
-                        ncfile.createDimension(time_dim, None)
+            time_v_key = '%d_%s' % (primary_key.stream.time_parameter, deployment)
+            time_dim = 'time_%s' % (deployment,)
+            if time_v_key not in variables:
+                index = 0
+                ncfile.createDimension(time_dim, None)
+            else:
+                index = len(variables[time_v_key])
+
+            for param_id in pd_data:
+                if primary_key.as_refdes() not in pd_data[param_id]:
+                    continue
+
+                param = CachedParameter.from_id(param_id)
+
+                data = pd_data[param_id][primary_key.as_refdes()]['data']
+                source = pd_data[param_id][primary_key.as_refdes()]['source']
+
+                if param_id == tp:
+                    group = ncfile
+                    v_key = time_v_key
+                else:
+                    if source in ncfile.groups:
+                        group = ncfile.groups[source]
                     else:
-                        index = len(variables[time_v_key])
+                        group = ncfile.createGroup(source)
 
-                    for param_id in chunk:
-                        data = chunk[param_id]['data']
-                        source = chunk[param_id]['source']
+                    if deployment in group.groups:
+                        group = group.groups[deployment]
+                    else:
+                        group = group.createGroup(deployment)
 
-                        if param_id == 7:
-                            group = ncfile
-                            v_key = time_v_key
-                        else:
-                            if source in ncfile.groups:
-                                group = ncfile.groups[source]
-                            else:
-                                group = ncfile.createGroup(source)
+                    v_key = '/%s/%s/%s' % (source, deployment, param_id)
 
-                            if deployment in group.groups:
-                                group = group.groups[deployment]
-                            else:
-                                group = group.createGroup(deployment)
+                if v_key not in variables:
+                    param = CachedParameter.from_id(param_id)
+                    # param can be None if this is not a real parameter,
+                    # like deployment for deployment number
+                    param_name = param_id if param is None else param.name
 
-                            v_key = '/%s/%s/%s' % (source, deployment, param_id)
+                    dims = [time_dim]
+                    if len(data.shape) > 1:
+                        for index, dimension in enumerate(data.shape[1:]):
+                            name = '%s_dim_%d' % (param_name, index)
+                            group.createDimension(name, dimension)
+                            dims.append(name)
 
-                        if v_key not in variables:
-                            param = CachedParameter.from_id(param_id)
-                            # param can be None if this is not a real parameter,
-                            # like deployment for deployment number
-                            param_name = param_id if param is None else param.name
+                    try:
+                        variables[v_key] = group.createVariable(param_name if param_id != tp else v_key,
+                                                                data.dtype,
+                                                                dims,
+                                                                zlib=True)
+                    except TypeError:
+                        log.error('Unable to create variable: %s, %s, %s, %s' % (v_key, data.dtype, data.shape, traceback.format_exc()))
+                    else:
+                        if param:
+                            if param.unit is not None:
+                                variables[v_key].units = param.unit
+                            if param.fill_value is not None:
+                                variables[v_key].fill_value = param.fill_value
+                            if param.description is not None:
+                                variables[v_key].long_name = param.description
+                            if param.display_name is not None:
+                                variables[v_key].display_name = param.display_name
+                            if param.data_product_identifier is not None:
+                                variables[v_key].data_product_identifier = param.data_product_identifier
 
-                            dims = [time_dim]
-                            if len(data.shape) > 1:
-                                for index, dimension in enumerate(data.shape[1:]):
-                                    name = '%s_dim_%d' % (param_name, index)
-                                    group.createDimension(name, dimension)
-                                    dims.append(name)
+                try:
+                    variables[v_key][index:] = data[chunk_valid]
+                except KeyError:
+                    log.error('Variable identified with key %s doesn\'t exist' % (v_key))
+                except (IndexError, ValueError):
+                    log.error('Unable to write data slice to variable: %s, %s, %s, %s' % (v_key, data.dtype, data.shape, traceback.format_exc()))
 
-                            try:
-                                variables[v_key] = group.createVariable(param_name if param_id != 7 else v_key,
-                                                                            data.dtype,
-                                                                            dims,
-                                                                            zlib=True)
-                            except TypeError:
-                                log.error('Unable to create variable: %s, %s, %s, %s' % (v_key, data.dtype, data.shape, traceback.format_exc()))
-                            else:
-                                if param:
-                                    if param.unit is not None:
-                                        variables[v_key].units = param.unit
-                                    if param.fill_value is not None:
-                                        variables[v_key].fill_value = param.fill_value
-                                    if param.description is not None:
-                                        variables[v_key].long_name = param.description
-                                    if param.display_name is not None:
-                                        variables[v_key].display_name = param.display_name
-                                    if param.data_product_identifier is not None:
-                                        variables[v_key].data_product_identifier = param.data_product_identifier
+            # if we are including provenance put it in the top level of the netcdf.
+            if r.include_provenance:
+                prov = provenance_metadata.get_provenance_dict()
+                keys = []
+                values = []
+                for k, v in prov.iteritems():
+                    keys.append(k)
+                    values.append(v['file_name'] + " " + v['parser_name'] + " " + v['parser_version'])
+                ncfile.createDimension('l0_provenance', len(keys))
+                pkeys = ncfile.createVariable('l0_provenance_keys', 'str', 'l0_provenance')
+                pvals = ncfile.createVariable('l0_provenance_data', 'str', 'l0_provenance')
+                pkeys[:] = numpy.array(keys)
+                pvals[:] = numpy.array(values)
 
-                        try:
-                            variables[v_key][index:] = data[chunk_valid]
-                        except KeyError:
-                            log.error('Variable identified with key %s doesn\'t exist' % (v_key))
-                        except (IndexError, ValueError):
-                            log.error('Unable to write data slice to variable: %s, %s, %s, %s' % (v_key, data.dtype, data.shape, traceback.format_exc()))
-                # if we are including provenance put it in the top level of the netcdf.
-                if include_provenance:
-                    prov = r.provenance_metadata.get_provenance_dict()
-                    keys = []
-                    values = []
-                    for k,v in prov.iteritems():
-                        keys.append(k)
-                        values.append(v['file_name'] + " " + v['parser_name'] + " " + v['parser_version'])
-                    ncfile.createDimension('l0_provenance',len(keys) )
-                    pkeys = ncfile.createVariable('l0_provenance_keys', 'str',  'l0_provenance')
-                    pvals = ncfile.createVariable('l0_provenance_data', 'str',  'l0_provenance')
-                    pkeys[:] = numpy.array(keys)
-                    pvals[:] = numpy.array(values)
-
-            return tf.read()
+        return tf.read()
 
 
-class Average_Generator(object):
+def find_stream(stream_key, streams, distinct_sensors):
     """
-    Generator to average chunks into time bins.
+    Attempt to find a "related" sensor which provides one of these streams
+    :param stream_key
+    :return:
     """
+    stream_map = {s.name: s for s in streams}
+    # check our specific reference designator first
+    for stream in get_streams(stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method):
+        if stream in stream_map:
+            return StreamKey.from_dict({
+                "subsite": stream_key.subsite,
+                "node": stream_key.node,
+                "sensor": stream_key.sensor,
+                "method": stream_key.method,
+                "stream": stream
+            })
 
-    def __init__(self, generator):
-        self.generator = generator
+    # check other reference designators in the same subsite-node
+    for subsite1, node1, sensor in distinct_sensors:
+        if subsite1 == stream_key.subsite and node1 == stream_key.node:
+            for stream in get_streams(stream_key.subsite, stream_key.node, sensor, stream_key.method):
+                if stream in stream_map:
+                    return StreamKey.from_dict({
+                        "subsite": stream_key.subsite,
+                        "node": stream_key.node,
+                        "sensor": sensor,
+                        "method": stream_key.method,
+                        "stream": stream
+                    })
 
-    def chunks(self, r):
-        """
-        Generator to average chunks into time bins.  Expects a list of times
-        to be provided in the request r.  Times is a monotonically increasing
-        list of ntp times.  Each time bin i that will be averaged is defined by
-        (times[i] inclusively,times[j] exclusively).
-
-        If the underlying generator has no chunks this generator will return
-        no chunks.  In the future it may be better to return a empty chunk
-        extended to the times specified, but without something to use as a
-        template, this code would not know how to generate a chunk compatible
-        with the data stream.
-
-        :param r:
-        :return:
-        """
-        times = r.times
-        first_chunk = None
-        remaining_chunk = None
-        for chunk in self.generator.chunks(r):
-            chunk = Chunk(chunk)
-            if first_chunk is None:
-                first_chunk = chunk
-
-            if remaining_chunk:
-                chunk = chunks.concatenate(remaining_chunk, chunk)
-
-            # Find bin for the last time in the chunk
-            # Find rightmost index of times less than or equal to last_time
-            last_time = chunk.times()[-1]
-            i = bisect.bisect_right(times, last_time) - 1
-            if i >= 0:
-                # Find index in chunk that starts the bin identified above and
-                # split the chunk into averaging and remaining chunks
-                j = numpy.searchsorted(chunk.times(), times[i])
-                avg_chunk = chunk[:j]
-                remaining_chunk = chunk[j:]
-                avg_times = times[:i]
-                times = times[i:]
-
-                # Yield the average
-                if avg_times:
-                    avg_chunk = avg_chunk.with_times(avg_times, strategy='Average')
-                    yield avg_chunk.to_dict()
-
-            # Break when done processing last bin
-            if len(times) < 2:
-                break
-
-        # Average any remaining data
-        if (first_chunk or remaining_chunk) and len(times) >= 2:
-            if remaining_chunk is None:
-                remaining_chunk = first_chunk
-            yield remaining_chunk.with_times(times[:-1], strategy='Average').to_dict()
-
-    def _terminate_all(self):
-        self.generator._terminate_all()
-
-
-class Interpolation_Generator(object):
-    """
-    Generator to interpolate chunks to times.
-    """
-
-    def __init__(self, generator):
-        self.generator = generator
-
-    def chunks(self, r):
-        """
-        Generator to interpolate chunks to times.  Expects a list of times
-        to be provided in the request r.  Times is a monotonically increasing
-        list of ntp times.
-
-        If the underlying generator has no chunks this generator will return
-        no chunks.  In the future it may be better to return a empty chunk
-        extended to the times specified, but without something to use as a
-        template, this code would not know how to generate a chunk compatible
-        with the data stream.
-
-        :param r:
-        :return:
-        """
-        times = r.times
-        # Save the last data point of chunk i to help interpolate times[0] of
-        # iteration j.  Chunk i comes before time[0] of iteration j, but chunk j
-        # may come after.
-        remaining_chunk = None
-        for chunk in self.generator.chunks(r):
-            chunk = Chunk(chunk)
-            if remaining_chunk:
-                chunk = chunks.concatenate(remaining_chunk, chunk)
-            remaining_chunk = chunk[-1]
-
-            # Find the times that can be interpolated by this chunk,
-            # Find rightmost index of times less than or equal to last_time
-            last_time = chunk.times()[-1]
-            i = bisect.bisect_right(times, last_time) - 1
-            if i >= 0:
-                yield chunk.with_times(times[:i+1]).to_dict()
-                times = times[i+1:]
-
-            # Break if we have processed all the times.
-            if len(times) == 0:
-                break
-
-        # Interpolate any times we have left
-        if remaining_chunk and len(times) > 0:
-            yield remaining_chunk.with_times(times).to_dict()
-
-    def _terminate_all(self):
-        self.generator._terminate_all()
+    # check other reference designators in the same subsite
+    for subsite1, node, sensor in distinct_sensors:
+        if subsite1 == stream_key.subsite:
+            for stream in get_streams(stream_key.subsite, node, sensor, stream_key.method):
+                if stream in stream_map:
+                    return StreamKey.from_dict({
+                        "subsite": stream_key.subsite,
+                        "node": node,
+                        "sensor": sensor,
+                        "method": stream_key.method,
+                        "stream": stream
+                    })
+    return None
