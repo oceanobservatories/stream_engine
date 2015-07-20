@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 
 
 @log_timing
-def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None, custom_times=None, custom_type=None, include_provenance=True):
+def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None, custom_times=None, custom_type=None, include_provenance=False, strict_range=False):
     """
     Returns a list of particles from the given streams, limits and times
     """
@@ -74,7 +74,8 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
     # create the store that will keep track of provenance for all streams/datasources
     provenance_metadata = ProvenanceMetadataStore()
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range,
-                                   qc_parameters=qc_stream_parameters, limit=limit, times=custom_times, include_provenance=include_provenance)
+                                   qc_parameters=qc_stream_parameters, limit=limit, times=custom_times, include_provenance=include_provenance,
+                                   strict_range=strict_range)
 
     pd_data = fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata)
 
@@ -146,7 +147,7 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
 
 
 @log_timing
-def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None, custom_type=None, include_provenance=True):
+def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None, custom_type=None, include_provenance=False, strict_range=False):
     """
     Returns a netcdf from the given streams, limits and times
     """
@@ -160,7 +161,7 @@ def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None
     # Create the provenance metadata store to keep track of all files that are used
     provenance_metadata = ProvenanceMetadataStore()
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit,
-                                   times=custom_times, include_provenance=include_provenance)
+                                   times=custom_times, include_provenance=include_provenance, strict_range=strict_range)
 
     pd_data = fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata)
     return create_netcdf(stream_request, pd_data, stream_keys[0], provenance_metadata)
@@ -216,9 +217,9 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
             continue
 
         if limit:
-            fields, cass_data = fetch_nth_data(key, time_range, strict_range=False, num_points=limit)
+            fields, cass_data = fetch_nth_data(key, time_range, strict_range=stream_request.strict_range, num_points=limit)
         else:
-            fields, cass_data = fetch_nth_data(key, time_range, strict_range=False)
+            fields, cass_data = fetch_nth_data(key, time_range, strict_range=stream_request.strict_range)
 
         if len(cass_data) == 0:
             log.warning("Query for {} returned no data".format(key.as_refdes()))
@@ -621,7 +622,7 @@ class StreamRequest(object):
     parameters and their streams
     """
     def __init__(self, stream_keys, parameters, coefficients, time_range, qc_parameters={},
-                 needs_only=False, limit=None, times=None, include_provenance=False):
+                 needs_only=False, limit=None, times=None, include_provenance=False, strict_range=False):
         self.stream_keys = stream_keys
         self.time_range = time_range
         self.qc_parameters = qc_parameters if qc_parameters is not None else {}
@@ -632,6 +633,7 @@ class StreamRequest(object):
         self.limit = limit
         self.times = times
         self.include_provenance = include_provenance
+        self.strict_range = strict_range
         self._initialize(needs_only)
 
     def _initialize(self, needs_only):
