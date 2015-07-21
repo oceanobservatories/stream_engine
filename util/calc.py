@@ -384,7 +384,7 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, level=1):
     log.info("{}Running dpa for {} (PD{}){{".format((level - 1) * 4 * ' ', param.name, param.id))
 
     this_ref = PDRef(None, param.id)
-    needs = [pdref for pdref in param.needs if pdref.chunk_key not in pd_data.keys()]
+    needs = [pdref for pdref in param.needs if pdref.pdid not in pd_data.keys()]
 
     # prevent loops since they are only warned against
     if this_ref in needs:
@@ -395,7 +395,7 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, level=1):
         if needed_parameter.parameter_type == FUNCTION:
             calculate_derived_product(needed_parameter, coeffs, pd_data, primary_key, level=level + 1)
 
-        if pdref.chunk_key not in pd_data:
+        if pdref.pdid not in pd_data:
             # _get_param
             pass
 
@@ -527,7 +527,7 @@ def build_func_map(parameter, coefficients, pd_data, primary_key):
                         pdref_refdes = refdes
                         break
 
-            if pdref_refdes is None and main_stream_refdes in pd_data[pdRef.chunk_key]:
+            if pdref_refdes is None and main_stream_refdes in pd_data[pdRef.pdid]:
                 args[key] = pd_data[pdRef.pdid][main_stream_refdes]['data']
             else:
                 # Need to get data from non-main stream, so it must be interpolated to match main stream
