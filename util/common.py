@@ -1,5 +1,7 @@
 from functools import wraps
 import time
+import datetime
+import ntplib
 from engine import app
 from preload_database.model.preload import Stream, Parameter, ParameterFunction
 import numpy
@@ -100,6 +102,12 @@ def parse_pdid(pdid_string):
         app.logger.warn('Unable to parse PDID: %s', pdid_string)
         return None
 
+def ntp_to_datestring(ntp_time):
+    try:
+        ntp_time = float(ntp_time)
+        return datetime.datetime.utcfromtimestamp( ntplib.ntp_to_system_time(ntp_time) ).strftime("%Y-%m-%d %H:%M:%S")
+    except:
+        return str(ntp_time)
 
 class TimeRange(object):
     def __init__(self, start, stop):
@@ -156,6 +164,9 @@ class StreamKey(object):
 
     def as_refdes(self):
         return '%(subsite)s|%(node)s|%(sensor)s|%(method)s|%(stream)s' % self.as_dict()
+
+    def as_dashed_refdes(self):
+        return self.as_refdes().replace('|', '-')
 
     def __repr__(self):
         return repr(self.as_dict())
@@ -385,3 +396,13 @@ class MissingStreamMetadataException(StreamEngineException):
 def arb(d):
     """ Returns an arbitrary value from the given dictionary """
     return next(d.itervalues())
+
+
+def get_stream_key_with_param(pd_data, stream, parameter):
+    """Looks for a stream_key matching *stream* in pd_data that provides *parameter*"""
+    for refdes in pd_data[parameter]:
+        key = StreamKey.from_refdes(refdes)
+        if key.stream == stream:
+            return key
+
+    return None

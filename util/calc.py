@@ -1,21 +1,22 @@
 import importlib
 import logging
 import tempfile
-import netCDF4
 from threading import Event, Lock
 import traceback
+import zipfile
 
 import msgpack
 import netCDF4
 import numexpr
 import numpy
+import xray
 
 from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, \
     get_available_time_range, fetch_l0_provenance
-from util.common import log_timing, StreamKey, TimeRange, CachedParameter, \
+from util.common import log_timing, ntp_to_datestring, StreamKey, TimeRange, CachedParameter, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, \
-    MissingTimeException, MissingDataException, arb, MissingStreamMetadataException
+    MissingTimeException, MissingDataException, arb, MissingStreamMetadataException, get_stream_key_with_param
 from parameter_util import PDRef
 
 from collections import OrderedDict, defaultdict
@@ -34,7 +35,7 @@ log = logging.getLogger(__name__)
 
 
 @log_timing
-def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None, custom_times=None, custom_type=None, include_provenance=True):
+def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None, custom_times=None, custom_type=None, include_provenance=False, strict_range=False):
     """
     Returns a list of particles from the given streams, limits and times
     """
@@ -74,7 +75,8 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
     # create the store that will keep track of provenance for all streams/datasources
     provenance_metadata = ProvenanceMetadataStore()
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range,
-                                   qc_parameters=qc_stream_parameters, limit=limit, times=custom_times, include_provenance=include_provenance)
+                                   qc_parameters=qc_stream_parameters, limit=limit, times=custom_times, include_provenance=include_provenance,
+                                   strict_range=strict_range)
 
     pd_data = fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata)
 
@@ -146,7 +148,7 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
 
 
 @log_timing
-def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None, custom_type=None, include_provenance=True):
+def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None, custom_type=None, include_provenance=False, strict_range=False):
     """
     Returns a netcdf from the given streams, limits and times
     """
@@ -160,10 +162,10 @@ def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None
     # Create the provenance metadata store to keep track of all files that are used
     provenance_metadata = ProvenanceMetadataStore()
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit,
-                                   times=custom_times, include_provenance=include_provenance)
+                                   times=custom_times, include_provenance=include_provenance, strict_range=strict_range)
 
     pd_data = fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata)
-    return create_netcdf(stream_request, pd_data, stream_keys[0], provenance_metadata)
+    return NetCDF_Generator(pd_data, provenance_metadata).chunks(stream_request)
 
 
 @log_timing
@@ -216,9 +218,9 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
             continue
 
         if limit:
-            fields, cass_data = fetch_nth_data(key, time_range, strict_range=False, num_points=limit)
+            fields, cass_data = fetch_nth_data(key, time_range, strict_range=stream_request.strict_range, num_points=limit)
         else:
-            fields, cass_data = fetch_nth_data(key, time_range, strict_range=False)
+            fields, cass_data = fetch_nth_data(key, time_range, strict_range=stream_request.strict_range)
 
         if len(cass_data) == 0:
             log.warning("Query for {} returned no data".format(key.as_refdes()))
@@ -293,7 +295,7 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
                     pd_data[param.id] = {}
                 pd_data[param.id][key.as_refdes()] = {
                     'data': data_slice,
-                    'source': key.as_refdes()
+                    'source': key.as_dashed_refdes()
                 }
 
             if stream_request.include_provenance:
@@ -306,14 +308,14 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
                 pd_data['provenance'] = {}
             pd_data['provenance'][key.as_refdes()] = {
                 'data': data_frame.provenance.values.astype('str'),
-                'source': key.as_refdes()
+                'source': key.as_dashed_refdes()
             }
 
             if 'deployment' not in pd_data:
                 pd_data['deployment'] = {}
             pd_data['deployment'][key.as_refdes()] = {
                 'data': data_frame.deployment.values,
-                'source': key.as_refdes()
+                'source': key.as_dashed_refdes()
             }
 
     # exec dpa for stream
@@ -382,7 +384,7 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, level=1):
     log.info("{}Running dpa for {} (PD{}){{".format((level - 1) * 4 * ' ', param.name, param.id))
 
     this_ref = PDRef(None, param.id)
-    needs = [pdref for pdref in param.needs if pdref.chunk_key not in pd_data.keys()]
+    needs = [pdref for pdref in param.needs if pdref.pdid not in pd_data.keys()]
 
     # prevent loops since they are only warned against
     if this_ref in needs:
@@ -393,7 +395,7 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, level=1):
         if needed_parameter.parameter_type == FUNCTION:
             calculate_derived_product(needed_parameter, coeffs, pd_data, primary_key, level=level + 1)
 
-        if pdref.chunk_key not in pd_data:
+        if pdref.pdid not in pd_data:
             # _get_param
             pass
 
@@ -486,17 +488,14 @@ def build_func_map(parameter, coefficients, pd_data, primary_key):
                 for stream in pd_data[pdRef.pdid]:
                     ps[pdRef.pdid][stream] = True
 
+
+
     # find correct time parameter for the main stream
     main_stream_refdes = primary_key.as_refdes()
     if primary_key.stream.is_virtual:
         # use source stream for time
         time_stream = primary_key.stream.source_streams[0]
-        time_stream_key = None
-        for refdes in pd_data[time_stream.time_parameter]:
-            key = StreamKey.from_refdes(refdes)
-            if key.stream == time_stream:
-                time_stream_key = key
-                break
+        time_stream_key = get_stream_key_with_param(pd_data, time_stream, time_stream.time_parameter)
     else:
         time_stream_key = primary_key
 
@@ -528,7 +527,7 @@ def build_func_map(parameter, coefficients, pd_data, primary_key):
                         pdref_refdes = refdes
                         break
 
-            if pdref_refdes is None and main_stream_refdes in pd_data[pdRef.chunk_key]:
+            if pdref_refdes is None and main_stream_refdes in pd_data[pdRef.pdid]:
                 args[key] = pd_data[pdRef.pdid][main_stream_refdes]['data']
             else:
                 # Need to get data from non-main stream, so it must be interpolated to match main stream
@@ -550,7 +549,7 @@ def build_func_map(parameter, coefficients, pd_data, primary_key):
                 framed_CCs = coefficients[name]
                 CC_argument = build_CC_argument(framed_CCs, main_times)
                 if numpy.isnan(numpy.min(CC_argument)):
-                    raise CoefficientUnavailableException('Coefficient %s missing times in range (%s, %s)' % (name, main_times[0], main_times[-1]))
+                    raise CoefficientUnavailableException('Coefficient %s missing times in range (%s, %s)' % (name, ntp_to_datestring(main_times[0]), ntp_to_datestring(main_times[-1])))
                 else:
                     args[key] = CC_argument
             else:
@@ -574,6 +573,8 @@ def in_range(frame, times):
 
       returns a bool numpy array the same shape as times
     """
+    frame = numpy.array(frame)
+    times = numpy.array(times)
     if frame[0] is None and frame[1] is None:
         mask = numpy.ones(times.shape, dtype=bool)
     elif frame[0] is None:
@@ -619,7 +620,7 @@ class StreamRequest(object):
     parameters and their streams
     """
     def __init__(self, stream_keys, parameters, coefficients, time_range, qc_parameters={},
-                 needs_only=False, limit=None, times=None, include_provenance=False):
+                 needs_only=False, limit=None, times=None, include_provenance=False, strict_range=False):
         self.stream_keys = stream_keys
         self.time_range = time_range
         self.qc_parameters = qc_parameters if qc_parameters is not None else {}
@@ -630,6 +631,7 @@ class StreamRequest(object):
         self.limit = limit
         self.times = times
         self.include_provenance = include_provenance
+        self.strict_range = strict_range
         self._initialize(needs_only)
 
     def _initialize(self, needs_only):
@@ -730,12 +732,15 @@ class StreamRequest(object):
             raise MissingStreamMetadataException('No stream metadata in cassandra for %s' % self.stream_keys[0])
         else:
             if self.time_range.start >= available_time_range.stop or self.time_range.stop <= available_time_range.start:
-                log.warning('No data in requested time range (%s, %s) for %s ', self.time_range.start, self.time_range.stop, self.stream_keys[0])
+                log.info('No data in requested time range (%s, %s) for %s ', ntp_to_datestring(self.time_range.start),
+                         ntp_to_datestring(self.time_range.stop), self.stream_keys[0])
                 raise MissingDataException("No data in requested time range")
 
             start = max(self.time_range.start, available_time_range.start)
             stop = min(self.time_range.stop, available_time_range.stop)
-            log.debug('fit (%s, %s) to (%s, %s) for %s', self.time_range.start, self.time_range.stop, start, stop, self.stream_keys[0])
+            log.debug('fit (%s, %s) to (%s, %s) for %s', ntp_to_datestring(self.time_range.start),
+                      ntp_to_datestring(self.time_range.stop), ntp_to_datestring(start), ntp_to_datestring(stop),
+                      self.stream_keys[0])
             self.time_range = TimeRange(start, stop)
 
 
@@ -766,129 +771,145 @@ class ProvenanceMetadataStore(object):
         return prov
 
 
-def create_netcdf(r, pd_data, primary_key, provenance_metadata):
-    with tempfile.NamedTemporaryFile() as tf:
-        with netCDF4.Dataset(tf.name, 'w', format='NETCDF4') as ncfile:
-            # set up file level attributes
-            ncfile.subsite = r.stream_keys[0].subsite
-            ncfile.node = r.stream_keys[0].node
-            ncfile.sensor = r.stream_keys[0].sensor
-            ncfile.collection_method = r.stream_keys[0].method
-            ncfile.stream = r.stream_keys[0].stream.name
+class NetCDF_Generator(object):
 
-            variables = {}
+    def __init__(self, pd_data, provenance_metadata):
+        self.pd_data = pd_data
+        self.provenance_metadata = provenance_metadata
 
-            # Select times from the correct stream
-            tp = primary_key.stream.time_parameter
-            if tp in pd_data and primary_key.as_refdes() in pd_data[tp]:
-                chunk_times = pd_data[tp][primary_key.as_refdes()]['data']
-            else:
-                tp = 7
-                chunk_times = arb(pd_data[7])['data']
+    def chunks(self, r):
+        try:
+            return self.create_zip(r)
+        except GeneratorExit:
+            raise
+        except:
+            log.exception('An unexpected error occurred.')
+            raise
 
-            # sometimes we will get duplicate timestamps
-            # INITIAL solution is to remove any duplicate timestamps
-            # and the corresponding data.
+    def create_zip(self, r):
+        with tempfile.NamedTemporaryFile() as tzf:
+            with zipfile.ZipFile(tzf.name, 'w') as zf:
+                self.write_to_zipfile(r, zf)
+            return tzf.read()
 
-            # create a mask to match only valid INCREASING times
-            # we will insert the last valid timestamp from the previous
-            # chunk at the beginning of the array
-            chunk_valid = numpy.diff(numpy.insert(chunk_times, 0, 0.0)) != 0
+    def write_to_zipfile(self, r, zf):
+        datasets = {}
 
-            # Select deployment number from the correct stream
-            if not primary_key.stream.is_virtual:
-                deployment = str(pd_data['deployment'][primary_key.as_refdes()]['data'][0])
-            else:
-                deployment = str(arb(pd_data['deployment'])['data'][0])
+        # sometimes we will get duplicate timestamps
+        # INITIAL solution is to remove any duplicate timestamps
+        # and the corresponding data.
 
-            time_v_key = '%d_%s' % (primary_key.stream.time_parameter, deployment)
-            time_dim = 'time_%s' % (deployment,)
-            if time_v_key not in variables:
-                index = 0
-                ncfile.createDimension(time_dim, None)
-            else:
-                index = len(variables[time_v_key])
+        # create a mask to match only valid INCREASING times
+        # we will insert the last valid timestamp from the previous
+        # chunk at the beginning of the array
+        primary_key = r.stream_keys[0]
 
-            for param_id in pd_data:
-                if primary_key.as_refdes() not in pd_data[param_id]:
-                    continue
+        # Find appropriate times for stream
+        tp = primary_key.stream.time_parameter
+        chunk_times = None
+        if primary_key.stream.is_virtual:
+            source_stream = primary_key.stream.source_streams[0]
+            tp = source_stream.time_parameter  # get tp from source stream
+            source_stream_key = get_stream_key_with_param(self.pd_data, source_stream, source_stream.time_parameter)
 
-                param = CachedParameter.from_id(param_id)
+            chunk_times = self.pd_data[tp][source_stream_key.as_refdes()]['data']
+        elif tp in self.pd_data and primary_key.as_refdes() in self.pd_data[tp]:
+            chunk_times = self.pd_data[tp][primary_key.as_refdes()]['data']
 
-                data = pd_data[param_id][primary_key.as_refdes()]['data']
-                source = pd_data[param_id][primary_key.as_refdes()]['source']
+        if chunk_times is None:
+            raise MissingTimeException("Could not find time parameter for netcdf")
 
-                if param_id == tp:
-                    group = ncfile
-                    v_key = time_v_key
-                else:
-                    if source in ncfile.groups:
-                        group = ncfile.groups[source]
-                    else:
-                        group = ncfile.createGroup(source)
+        chunk_valid = numpy.diff(numpy.insert(chunk_times, 0, 0.0)) != 0
 
-                    if deployment in group.groups:
-                        group = group.groups[deployment]
-                    else:
-                        group = group.createGroup(deployment)
+        # Select deployment number from the correct stream
+        if not primary_key.stream.is_virtual:
+            chunk_deployment = str(self.pd_data['deployment'][primary_key.as_refdes()]['data'][0])
+        else:
+            chunk_deployment = str(self.pd_data['deployment'][source_stream_key.as_refdes()]['data'][0])
 
-                    v_key = '/%s/%s/%s' % (source, deployment, param_id)
+        sources = set(self.pd_data[k][primary_key.as_refdes()]['source'] for k in self.pd_data if primary_key.as_refdes() in self.pd_data[k])
 
-                if v_key not in variables:
-                    param = CachedParameter.from_id(param_id)
-                    # param can be None if this is not a real parameter,
-                    # like deployment for deployment number
-                    param_name = param_id if param is None else param.name
+        for source in sources:
+            datasets[source] = self.group_by_source(r, source, chunk_valid, chunk_times[chunk_valid], primary_key, tp)
 
-                    dims = [time_dim]
-                    if len(data.shape) > 1:
-                        for index, dimension in enumerate(data.shape[1:]):
-                            name = '%s_dim_%d' % (param_name, index)
-                            group.createDimension(name, dimension)
-                            dims.append(name)
+        # dump remaining datasets
+        for group, ds in datasets.iteritems():
+            with tempfile.NamedTemporaryFile() as tf:
+                ds.to_netcdf(tf.name)
+                zf.write(tf.name, '%s_%s.nc' % (group, chunk_deployment))
 
-                    try:
-                        variables[v_key] = group.createVariable(param_name if param_id != tp else v_key,
-                                                                data.dtype,
-                                                                dims,
-                                                                zlib=True)
-                    except TypeError:
-                        log.error('Unable to create variable: %s, %s, %s, %s' % (v_key, data.dtype, data.shape, traceback.format_exc()))
-                    else:
-                        if param:
-                            if param.unit is not None:
-                                variables[v_key].units = param.unit
-                            if param.fill_value is not None:
-                                variables[v_key].fill_value = param.fill_value
-                            if param.description is not None:
-                                variables[v_key].long_name = param.description
-                            if param.display_name is not None:
-                                variables[v_key].display_name = param.display_name
-                            if param.data_product_identifier is not None:
-                                variables[v_key].data_product_identifier = param.data_product_identifier
+    def open_new_ds(self, r):
+        # set up file level attributes
+        attrs = {
+            'subsite': r.stream_keys[0].subsite,
+            'node': r.stream_keys[0].node,
+            'sensor': r.stream_keys[0].sensor,
+            'collection_method': r.stream_keys[0].method,
+            'stream': r.stream_keys[0].stream.name
+        }
 
+        provenance = {}
+        if r.include_provenance:
+            prov = self.provenance_metadata.get_provenance_dict()
+            keys = []
+            values = []
+            for k,v in prov.iteritems():
+                keys.append(k)
+                values.append(v['file_name'] + " " + v['parser_name'] + " " + v['parser_version'])
+            provenance['l0_provenance_keys'] = xray.DataArray(numpy.array(keys), dims=['l0_provenance'])
+            provenance['l0_provenance_data'] = xray.DataArray(numpy.array(values), dims=['l0_provenance'])
+
+        return xray.Dataset(provenance, attrs=attrs)
+
+    def group_by_source(self, r, source_key, chunk_valid, time_data, primary_key, time_parameter):
+        this_group = self.open_new_ds(r)
+
+        for param_id in self.pd_data:
+            if (
+                param_id == time_parameter or
+                primary_key.as_refdes() not in self.pd_data[param_id] or
+                self.pd_data[param_id][primary_key.as_refdes()]['source'] != source_key
+               ):
+                continue
+
+            param = CachedParameter.from_id(param_id)
+            # param can be None if this is not a real parameter,
+            # like deployment for deployment number
+            param_name = param_id if param is None else param.name
+
+            data = self.pd_data[param_id][primary_key.as_refdes()]['data'][chunk_valid]
+            if param is not None:
                 try:
-                    variables[v_key][index:] = data[chunk_valid]
-                except KeyError:
-                    log.error('Variable identified with key %s doesn\'t exist' % (v_key))
-                except (IndexError, ValueError):
-                    log.error('Unable to write data slice to variable: %s, %s, %s, %s' % (v_key, data.dtype, data.shape, traceback.format_exc()))
+                    data = data.astype(param.value_encoding)
+                except ValueError:
+                    log.warning(
+                        'Unable to transform data %s of type %s to preload value_encoding %s, using fill_value instead\n%s' % (
+                        param_id, data.dtype, param.value_encoding,
+                        traceback.format_exc()))
+                    data = numpy.full(data.shape, param.fill_value, param.value_encoding)
 
-            # if we are including provenance put it in the top level of the netcdf.
-            if r.include_provenance:
-                prov = provenance_metadata.get_provenance_dict()
-                keys = []
-                values = []
-                for k, v in prov.iteritems():
-                    keys.append(k)
-                    values.append(v['file_name'] + " " + v['parser_name'] + " " + v['parser_version'])
-                ncfile.createDimension('l0_provenance', len(keys))
-                pkeys = ncfile.createVariable('l0_provenance_keys', 'str', 'l0_provenance')
-                pvals = ncfile.createVariable('l0_provenance_data', 'str', 'l0_provenance')
-                pkeys[:] = numpy.array(keys)
-                pvals[:] = numpy.array(values)
+            dims = ['time']
+            coords = {'time': time_data}
+            if len(data.shape) > 1:
+                for index, dimension in enumerate(data.shape[1:]):
+                    name = '%s_dim_%d' % (param_name, index)
+                    dims.append(name)
 
-        return tf.read()
+            array_attrs = {}
+            if param:
+                if param.unit is not None:
+                    array_attrs['units'] = param.unit
+                if param.fill_value is not None:
+                    array_attrs['_FillValue'] = param.fill_value
+                if param.description is not None:
+                    array_attrs['long_name'] = param.description
+                if param.display_name is not None:
+                    array_attrs['display_name'] = param.display_name
+                if param.data_product_identifier is not None:
+                    array_attrs['data_product_identifier'] = param.data_product_identifier
+
+            this_group.update({param_name: xray.DataArray(data, dims=dims, coords=coords, attrs=array_attrs)})
+        return this_group
 
 
 def find_stream(stream_key, streams, distinct_sensors):
