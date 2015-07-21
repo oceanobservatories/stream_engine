@@ -295,7 +295,7 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
                     pd_data[param.id] = {}
                 pd_data[param.id][key.as_refdes()] = {
                     'data': data_slice,
-                    'source': key.as_refdes()
+                    'source': key.as_dashed_refdes()
                 }
 
             if stream_request.include_provenance:
@@ -308,14 +308,14 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
                 pd_data['provenance'] = {}
             pd_data['provenance'][key.as_refdes()] = {
                 'data': data_frame.provenance.values.astype('str'),
-                'source': key.as_refdes()
+                'source': key.as_dashed_refdes()
             }
 
             if 'deployment' not in pd_data:
                 pd_data['deployment'] = {}
             pd_data['deployment'][key.as_refdes()] = {
                 'data': data_frame.deployment.values,
-                'source': key.as_refdes()
+                'source': key.as_dashed_refdes()
             }
 
     # exec dpa for stream
