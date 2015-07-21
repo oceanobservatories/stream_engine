@@ -157,6 +157,9 @@ class StreamKey(object):
     def as_refdes(self):
         return '%(subsite)s|%(node)s|%(sensor)s|%(method)s|%(stream)s' % self.as_dict()
 
+    def as_dashed_refdes(self):
+        return self.as_refdes().replace('|', '-')
+
     def __repr__(self):
         return repr(self.as_dict())
 
