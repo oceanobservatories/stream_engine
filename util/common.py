@@ -411,6 +411,12 @@ class MissingStreamMetadataException(StreamEngineException):
     """
     status_code = 400
 
+class InvalidInterpolationException(StreamEngineException):
+    """
+    Internal error. Invalid interpolation was attempted.
+    """
+    status_code = 500
+
 def arb(d):
     """ Returns an arbitrary value from the given dictionary """
     return next(d.itervalues())
