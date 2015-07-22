@@ -15,7 +15,8 @@ from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, \
 from util.common import log_timing, ntp_to_datestring, StreamKey, TimeRange, CachedParameter, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, \
-    MissingTimeException, MissingDataException, arb, MissingStreamMetadataException
+    MissingTimeException, MissingDataException, arb, MissingStreamMetadataException, \
+    isfillvalue
 from parameter_util import PDRef
 
 from collections import OrderedDict, defaultdict
@@ -369,6 +370,11 @@ def interpolate_list(desired_time, data_time, data):
     except (ValueError, TypeError):
         return data
     else:
+        mask = numpy.logical_not(isfillvalue(data))
+        data_time = numpy.asarray(data_time)[mask]
+        data = numpy.asarray(data)[mask]
+        if len(data) == 0:
+            return data
         return sp.interp(desired_time, data_time, data)
 
 
