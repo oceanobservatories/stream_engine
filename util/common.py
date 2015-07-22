@@ -15,6 +15,24 @@ parameter_cache = {}
 function_cache = {}
 
 
+def isfillvalue(a):
+    """
+    Test element-wise for fill values and return result as a boolean array.
+    :param a: array_like
+    :return: ndarray
+    """
+    a = numpy.asarray(a)
+    if a.dtype.kind == 'i':
+        mask = a == -999999999
+    elif a.dtype.kind == 'f':
+        mask = numpy.isnan(a)
+    elif a.dtype.kind == 'S':
+        mask = a == ''
+    else:
+        raise ValueError('Fill value not known for dtype %s' % (a.dtype))
+    return mask
+
+
 def with_size_and_fill(a, size):
     """
     Return array with same dtype and shape as a, but with axis 0 of length size.
