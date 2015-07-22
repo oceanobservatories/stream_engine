@@ -17,7 +17,7 @@ from util.common import log_timing, ntp_to_datestring, StreamKey, TimeRange, Cac
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, \
     MissingTimeException, MissingDataException, arb, MissingStreamMetadataException, get_stream_key_with_param, \
-    isfillvalue
+    isfillvalue, InvalidInterpolationException
 from parameter_util import PDRef
 
 from collections import OrderedDict, defaultdict
@@ -324,7 +324,7 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
     # calculate time param first if it's a derived product
     time_param = CachedParameter.from_id(primary_key.stream.time_parameter)
     if time_param.parameter_type == FUNCTION:
-        calculate_derived_product(time_param, stream_request.coefficients, pd_data, primary_key)
+        calculate_derived_product(time_param, stream_request.coefficients, pd_data, primary_key, stream_request)
 
         if time_param.id not in pd_data or primary_key.as_refdes() not in pd_data[time_param.id]:
             raise MissingTimeException("Time param is missing from main stream")
@@ -333,7 +333,7 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
         if param.id not in pd_data:
             if param.parameter_type == FUNCTION:
                 # calculate inserts derived products directly into pd_data
-                calculate_derived_product(param, stream_request.coefficients, pd_data, primary_key)
+                calculate_derived_product(param, stream_request.coefficients, pd_data, primary_key, stream_request)
             else:
                 log.warning("Required parameter not present: {}".format(param.name))
 
@@ -344,7 +344,6 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
 
 
 def _qc_check(stream_request, parameter, pd_data, primary_key):
-
     qcs = stream_request.qc_parameters.get(parameter.name)
     for function_name in qcs:
         if 'strict_validation' not in qcs[function_name]:
@@ -366,10 +365,13 @@ def interpolate_list(desired_time, data_time, data):
     if len(data) == 0:
         return data
 
+    if len(data_time) != len(data):
+        raise InvalidInterpolationException("Can't perform interpolation, time len ({}) does not equal data len ({})".format(len(data_time), len(data)))
+
     try:
         float(data[0])  # check that data can be interpolated
     except (ValueError, TypeError):
-        return data
+        raise InvalidInterpolationException("Can't perform interpolation, type ({}) cannot be interpolated".format(type(data[0])))
     else:
         mask = numpy.logical_not(isfillvalue(data))
         data_time = numpy.asarray(data_time)[mask]
@@ -379,7 +381,7 @@ def interpolate_list(desired_time, data_time, data):
         return sp.interp(desired_time, data_time, data)
 
 
-def calculate_derived_product(param, coeffs, pd_data, primary_key, level=1):
+def calculate_derived_product(param, coeffs, pd_data, primary_key, stream_request, level=1):
     """
     Calculates a derived product by (recursively) calulating its derived products.
 
@@ -387,7 +389,7 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, level=1):
     """
     log.info("")
     spaces = level * 4 * ' '
-    log.info("{}Running dpa for {} (PD{}){{".format((level - 1) * 4 * ' ', param.name, param.id))
+    log.info("{}Running dpa for {} (PD{}){{".format(spaces[:-4], param.name, param.id))
 
     this_ref = PDRef(None, param.id)
     needs = [pdref for pdref in param.needs if pdref.pdid not in pd_data.keys()]
@@ -399,7 +401,7 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, level=1):
     for pdref in needs:
         needed_parameter = CachedParameter.from_id(pdref.pdid)
         if needed_parameter.parameter_type == FUNCTION:
-            calculate_derived_product(needed_parameter, coeffs, pd_data, primary_key, level=level + 1)
+            calculate_derived_product(needed_parameter, coeffs, pd_data, primary_key, stream_request, level=level + 1)
 
         if pdref.pdid not in pd_data:
             # _get_param
@@ -418,10 +420,27 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, level=1):
         if not isinstance(data, (list, tuple, numpy.ndarray)):
             data = [data]
 
-        pd_data[param.id][primary_key.as_refdes()] = {'data': data, 'source': 'derived'}
+        # if the parameter is from a virtual stream, put it into its
+        # own stream key, otherwise put the result into the stream key
+        # corresponding to its time base
+        parameter_key = None
+        for key in stream_request.stream_keys:
+            if param in key.stream.parameters:
+                parameter_key = key
+                break
 
-        log.info(spaces + "returning data")
-    log.info("{}}}".format((level - 1) * 4 * ' '))
+        if parameter_key is None:
+            parameter_key = primary_key
+
+        if not parameter_key.stream.is_virtual:
+            dpa_key = primary_key
+        else:
+            dpa_key = parameter_key
+
+        pd_data[param.id][dpa_key.as_refdes()] = {'data': data, 'source': 'derived'}
+
+        log.info("{}returning data (t: {}, l: {})".format(spaces, type(data[0]).__name__, len(data)))
+    log.info("{}}}".format(spaces[:-4]))
 
 
 def munge_args(args, primary_key):
@@ -541,10 +560,11 @@ def build_func_map(parameter, coefficients, pd_data, primary_key):
                     data_stream_refdes = next(ps[pdRef.pdid].iterkeys())  # get arbitrary stream that provides pdid
                 else:
                     data_stream_refdes = pdref_refdes
+                data_stream_key = StreamKey.from_refdes(data_stream_refdes)
 
                 # perform interpolation
                 data = pd_data[pdRef.pdid][data_stream_refdes]['data']
-                data_time = pd_data[StreamKey.from_refdes(data_stream_refdes).stream.time_parameter][data_stream_refdes]['data']
+                data_time = pd_data[data_stream_key.stream.time_parameter][data_stream_refdes]['data']
 
                 interpolated_data = interpolate_list(main_times, data_time, data)
                 args[key] = interpolated_data
