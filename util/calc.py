@@ -10,6 +10,7 @@ import netCDF4
 import numexpr
 import numpy
 import xray
+import uuid
 
 from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, \
     get_available_time_range, fetch_l0_provenance
@@ -142,6 +143,7 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
         out = OrderedDict()
         out['data'] = particles
         out['provenance'] = provenance_metadata.get_provenance_dict()
+        out['computed_provenance'] = provenance_metadata.calculated_metatdata.get_dict()
     else:
         out = particles
 
@@ -324,7 +326,7 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
     # calculate time param first if it's a derived product
     time_param = CachedParameter.from_id(primary_key.stream.time_parameter)
     if time_param.parameter_type == FUNCTION:
-        calculate_derived_product(time_param, stream_request.coefficients, pd_data, primary_key)
+        calculate_derived_product(time_param, stream_request.coefficients, pd_data, primary_key, provenance_metadata)
 
         if time_param.id not in pd_data or primary_key.as_refdes() not in pd_data[time_param.id]:
             raise MissingTimeException("Time param is missing from main stream")
@@ -333,7 +335,7 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
         if param.id not in pd_data:
             if param.parameter_type == FUNCTION:
                 # calculate inserts derived products directly into pd_data
-                calculate_derived_product(param, stream_request.coefficients, pd_data, primary_key)
+                calculate_derived_product(param, stream_request.coefficients, pd_data, primary_key, provenance_metadata)
             else:
                 log.warning("Required parameter not present: {}".format(param.name))
 
@@ -379,36 +381,86 @@ def interpolate_list(desired_time, data_time, data):
         return sp.interp(desired_time, data_time, data)
 
 
-def calculate_derived_product(param, coeffs, pd_data, primary_key, level=1):
+def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_metadata, level=1):
     """
     Calculates a derived product by (recursively) calulating its derived products.
 
     The products are added to the pd_data map, not returned
+
+    Calculated provenance information added and not returned
+
+    Does *return* a unique calculation id for this calculation.
     """
     log.info("")
     spaces = level * 4 * ' '
     log.info("{}Running dpa for {} (PD{}){{".format((level - 1) * 4 * ' ', param.name, param.id))
 
+    func_map = param.parameter_function_map
+    rev_func_map = {v : k for k,v in func_map.iteritems()}
+    ref_to_name = {}
+    for i in rev_func_map:
+        if PDRef.is_pdref(i):
+            ref_to_name[PDRef.from_str(i)] = rev_func_map[i]
     this_ref = PDRef(None, param.id)
     needs = [pdref for pdref in param.needs if pdref.pdid not in pd_data.keys()]
 
+    calc_meta = {}
+    calc_meta['arguments'] = {}
+    subs = []
+    parameters = {}
+    functions = {}
+
     # prevent loops since they are only warned against
+    other = set([pdref for pdref in param.needs if pdref != this_ref]) - set(needs)
     if this_ref in needs:
         needs.remove(this_ref)
 
     for pdref in needs:
         needed_parameter = CachedParameter.from_id(pdref.pdid)
         if needed_parameter.parameter_type == FUNCTION:
-            calculate_derived_product(needed_parameter, coeffs, pd_data, primary_key, level=level + 1)
+            sub_id = calculate_derived_product(needed_parameter, coeffs, pd_data, primary_key, provenance_metadata, level + 1)
+            # Keep track of all sub function we used.
+            if sub_id is not None:
+                subs.append(sub_id)
+                try:
+                    functions[ref_to_name[pdref]] = sub_id
+                except KeyError as e:
+                    log.warn("Could not find subfunction name: " + str(pdref)  + " " +  str(sub_id))
+
+        else:
+            # add a placeholder
+            parameters[pdref] = pdref
 
         if pdref.pdid not in pd_data:
             # _get_param
             pass
 
+    # Gather information about all other things that we already have.
+    for i in other:
+        local_param = CachedParameter.from_id(i.pdid)
+        if local_param.parameter_type == FUNCTION:
+                pass
+        else:
+            parameters[i] = i
+
+    calc_id = None
     try:
-        args = build_func_map(param, coeffs, pd_data, primary_key)
+        args, arg_meta = build_func_map(param, coeffs, pd_data, primary_key)
         args = munge_args(args, primary_key)
         data = execute_dpa(param, args)
+        calc_meta['function_id'] = param.parameter_function.id
+        calc_meta['function_name'] = param.parameter_function.function
+        calc_meta['function_type'] = param.parameter_function.function_type
+        calc_meta['function_owner'] = param.parameter_function.owner
+        calc_meta['argument_list'] = [arg for arg in param.parameter_function_map]
+        calc_meta['sub_calculations'] = subs
+        for k, v in arg_meta.iteritems():
+            if k in functions:
+                v['type'] = 'sub_calculation'
+                v['source'] = functions[k]
+                calc_meta['arguments'][k] = v
+            else:
+                calc_meta['arguments'][k] = v
     except StreamEngineException as e:
         log.info("{}aborting - {}".format(spaces, e.message))
     else:
@@ -420,9 +472,11 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, level=1):
 
         pd_data[param.id][primary_key.as_refdes()] = {'data': data, 'source': 'derived'}
 
+        calc_id = provenance_metadata.calculated_metatdata.insert_metadata(param, calc_meta)
         log.info(spaces + "returning data")
     log.info("{}}}".format((level - 1) * 4 * ' '))
 
+    return calc_id
 
 def munge_args(args, primary_key):
     """
@@ -484,6 +538,7 @@ def build_func_map(parameter, coefficients, pd_data, primary_key):
     """
     func_map = parameter.parameter_function_map
     args = {}
+    arg_metadata = {}
 
     # find stream that provide each parameter
     ps = defaultdict(dict)
@@ -497,6 +552,7 @@ def build_func_map(parameter, coefficients, pd_data, primary_key):
 
 
     # find correct time parameter for the main stream
+    time_meta = {}
     main_stream_refdes = primary_key.as_refdes()
     if primary_key.stream.is_virtual:
         # use source stream for time
@@ -511,15 +567,24 @@ def build_func_map(parameter, coefficients, pd_data, primary_key):
     time_stream_refdes = time_stream_key.as_refdes()
     if time_stream_key.stream.time_parameter in pd_data and time_stream_refdes in pd_data[time_stream_key.stream.time_parameter]:
         main_times = pd_data[time_stream_key.stream.time_parameter][time_stream_refdes]['data']
+        time_meta['type'] = 'time_source'
+        time_meta['source'] = pd_data[time_stream_key.stream.time_parameter][time_stream_refdes]['source']
     elif 7 in pd_data and time_stream_refdes in pd_data[7]:
         main_times = pd_data[7][time_stream_refdes]['data']
+        time_meta['type'] = 'time_source'
+        time_meta['source'] = pd_data[7][time_stream_refdes]['source']
     else:
         raise MissingTimeException("Could not find time parameter for dpa")
+    time_meta['start'] = main_times[0]
+    time_meta['end'] = main_times[-1]
+    time_meta['startDT'] = ntp_to_datestring(main_times[0])
+    time_meta['endDT'] = ntp_to_datestring(main_times[-1])
+    arg_metadata['time_source'] = time_meta
 
     for key in func_map:
         if PDRef.is_pdref(func_map[key]):
             pdRef = PDRef.from_str(func_map[key])
-
+            param_meta = {}
             if pdRef.pdid not in pd_data:
                 raise StreamEngineException('Required parameter %s not found in pd_data when calculating %s (PD%s) ' % (func_map[key], parameter.name, parameter.id))
 
@@ -535,6 +600,17 @@ def build_func_map(parameter, coefficients, pd_data, primary_key):
 
             if pdref_refdes is None and main_stream_refdes in pd_data[pdRef.pdid]:
                 args[key] = pd_data[pdRef.pdid][main_stream_refdes]['data']
+                param = CachedParameter.from_id(pdRef.pdid)
+                param_meta['type'] = "parameter"
+                param_meta['source'] = pd_data[pdRef.pdid][main_stream_refdes]['source']
+                param_meta['parameter_id'] = param.id
+                param_meta['name'] = param.name
+                param_meta['data_product_identifier'] = param.data_product_identifier
+                param_meta['iterpolated'] = False
+                try:
+                    param_meta['deployments'] = list(set(pd_data['deployment'][main_stream_refdes]['data']))
+                except:
+                    pass
             else:
                 # Need to get data from non-main stream, so it must be interpolated to match main stream
                 if pdref_refdes is None:
@@ -548,23 +624,37 @@ def build_func_map(parameter, coefficients, pd_data, primary_key):
 
                 interpolated_data = interpolate_list(main_times, data_time, data)
                 args[key] = interpolated_data
+                param = CachedParameter.from_id(pdRef.pdid)
+                param_meta['type'] = "parameter"
+                param_meta['source'] = pd_data[pdRef.pdid][data_stream_refdes]['source']
+                param_meta['parameter_id'] = param.id
+                param_meta['name'] = param.name
+                param_meta['data_product_identifier'] = param.data_product_identifier
+                param_meta['iterpolated'] = True
+                try:
+                    param_meta['deployments'] = list(set(pd_data['deployment'][data_stream_refdes]['data']))
+                except:
+                    pass
+            arg_metadata[key] = param_meta
 
         elif str(func_map[key]).startswith('CC'):
             name = func_map[key]
             if name in coefficients:
                 framed_CCs = coefficients[name]
-                CC_argument = build_CC_argument(framed_CCs, main_times)
+                CC_argument, CC_meta = build_CC_argument(framed_CCs, main_times)
                 if numpy.isnan(numpy.min(CC_argument)):
                     raise CoefficientUnavailableException('Coefficient %s missing times in range (%s, %s)' % (name, ntp_to_datestring(main_times[0]), ntp_to_datestring(main_times[-1])))
                 else:
                     args[key] = CC_argument
+                    arg_metadata[key] = CC_meta
             else:
                 raise CoefficientUnavailableException('Coefficient %s not provided' % name)
         elif isinstance(func_map[key], (int, float, long, complex)):
             args[key] = func_map[key]
+            arg_metadata[key] = {'type' : 'constant', 'value' : func_map[key]}
         else:
             raise StreamEngineException('Unable to resolve parameter \'%s\' in PD%s %s' % (func_map[key], parameter.id, parameter.name))
-    return args
+    return args, arg_metadata
 
 
 def in_range(frame, times):
@@ -595,7 +685,11 @@ def in_range(frame, times):
 
 
 def build_CC_argument(frames, times):
-    frames = [(f.get('start'), f.get('stop'), f['value']) for f in frames]
+    st = times[0]
+    et = times[-1]
+    startDt = ntp_to_datestring(st)
+    endDt = ntp_to_datestring(et)
+    frames = [(f.get('start'), f.get('stop'), f['value'], f['deployment']) for f in frames]
     frames.sort()
     frames = [f for f in frames if any(in_range(f, times))]
 
@@ -610,14 +704,24 @@ def build_CC_argument(frames, times):
         cc = numpy.empty(times.shape)
     cc[:] = numpy.NAN
 
+    values = []
     for frame in frames[::-1]:
+        values.append({'CC_start' : frame[0], 'CC_stop' : frame[1], 'value' : frame[2], 'deployment' : frame[3],
+                       'CC_startDT' : ntp_to_datestring(frame[0]), 'CC_stopDT' : ntp_to_datestring(frame[1])})
         mask = in_range(frame, times)
         try:
             cc[mask] = frame[2]
         except ValueError, e:
             raise StreamEngineException('Unable to build cc arguments for algorithm: {}'.format(e))
-
-    return cc
+    cc_meta = {
+        'sources' : values,
+        'data_start' :  st,
+        'data_end' : et,
+        'startDT' : startDt,
+        'endDT' : endDt,
+        'type' : 'CC',
+        }
+    return cc, cc_meta
 
 
 class StreamRequest(object):
@@ -753,6 +857,7 @@ class StreamRequest(object):
 class ProvenanceMetadataStore(object):
     def __init__(self):
         self._prov_set = set()
+        self.calculated_metatdata = CalculatedProvenanceMetadataStore()
 
     def add_metadata(self, value):
         self._prov_set.add(value)
@@ -776,6 +881,55 @@ class ProvenanceMetadataStore(object):
                 log.info("Received empty provenance row")
         return prov
 
+
+class CalculatedProvenanceMetadataStore(object):
+    """Metadata store for provenance values"""
+
+    def __init__(self):
+        self.params = defaultdict(list)
+        self.calls = {}
+
+    def insert_metadata(self, parameter, to_insert):
+        # check to see if we have a matching metadata call
+        # if we do return that id otherwise store it.
+        for call in self.params[parameter.name]:
+            if dict_equal(to_insert, self.calls[call]):
+                return call
+        # create and id and append it to the list
+        call_id = str(uuid.uuid4())
+        self.calls[call_id] = to_insert
+        self.params[parameter.name].append(call_id)
+        return call_id
+
+    def get_dict(self):
+        """return dictonary representation"""
+        res = {}
+        res['parameters'] = self.params
+        res['calculations'] = self.calls
+        return res
+
+
+def dict_equal(d1, d2):
+    """Function to recursively check if two dicts are equal"""
+    if isinstance(d1, dict) and isinstance(d2, dict):
+        # check keysets
+        s1 = set(d1.keys())
+        s2 = set(d2.keys())
+        sd = s1.symmetric_difference(s2)
+        # If there is a symetric difference they do not contain the same keys
+        if len(sd) > 0:
+            return False
+
+        #otherwise loop through all the keys and check if the dicts and items are equal
+        for key, value in d1.iteritems():
+            if key in d2:
+                if not dict_equal(d1[key], d2[key]):
+                    return False
+        # we made it through
+        return True
+    # check equality on other objects
+    else:
+        return d1 == d2
 
 class NetCDF_Generator(object):
 
@@ -864,6 +1018,7 @@ class NetCDF_Generator(object):
                 values.append(v['file_name'] + " " + v['parser_name'] + " " + v['parser_version'])
             provenance['l0_provenance_keys'] = xray.DataArray(numpy.array(keys), dims=['l0_provenance'])
             provenance['l0_provenance_data'] = xray.DataArray(numpy.array(values), dims=['l0_provenance'])
+        #TODO Added computed provenence to NETCDF
 
         return xray.Dataset(provenance, attrs=attrs)
 
