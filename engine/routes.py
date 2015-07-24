@@ -23,6 +23,12 @@ def handle_stream_not_found(error):
     log.info("Returning exception: {}".format(error.to_dict()))
     return response
 
+@app.errorhandler(Exception)
+def handle_stream_not_found(error):
+    msg = "Unexpected internal error during request"
+    log.exception(msg)
+    return '{{\n  "message": "{}"\n}}'.format(msg)
+
 
 @app.route('/particles', methods=['POST'])
 def particles():
