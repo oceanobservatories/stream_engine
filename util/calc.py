@@ -617,7 +617,7 @@ def in_range(frame, times):
 def build_CC_argument(frames, times):
     frames = [(f.get('start'), f.get('stop'), f['value']) for f in frames]
     frames.sort()
-    frames = [f for f in frames if any(in_range(f, times))]
+    frames = [f for f in frames if any(in_range(f[0:2], times))]
 
     try:
         sample_value = frames[0][2]
@@ -631,7 +631,7 @@ def build_CC_argument(frames, times):
     cc[:] = numpy.NAN
 
     for frame in frames[::-1]:
-        mask = in_range(frame, times)
+        mask = in_range(frame[0:2], times)
         try:
             cc[mask] = frame[2]
         except ValueError, e:
