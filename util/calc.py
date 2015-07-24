@@ -705,7 +705,7 @@ def build_CC_argument(frames, times):
     endDt = ntp_to_datestring(et)
     frames = [(f.get('start'), f.get('stop'), f['value'], f['deployment']) for f in frames]
     frames.sort()
-    frames = [f for f in frames if any(in_range(f, times))]
+    frames = [f for f in frames if any(in_range(f[0:2], times))]
 
     try:
         sample_value = frames[0][2]
@@ -722,7 +722,7 @@ def build_CC_argument(frames, times):
     for frame in frames[::-1]:
         values.append({'CC_start' : frame[0], 'CC_stop' : frame[1], 'value' : frame[2], 'deployment' : frame[3],
                        'CC_startDT' : ntp_to_datestring(frame[0]), 'CC_stopDT' : ntp_to_datestring(frame[1])})
-        mask = in_range(frame, times)
+        mask = in_range(frame[0:2], times)
         try:
             cc[mask] = frame[2]
         except ValueError, e:
