@@ -7,6 +7,7 @@ CASSANDRA_FETCH_SIZE = 1000
 CASSANDRA_DEFAULT_TIMEOUT = 60
 
 SAN_BASE_DIRECTORY = '/opt/ooi/SAN/'
+ANNOTATION_URL = 'http://localhost:12580/annotations/find/'
 
 POOL_SIZE = 4
 
