@@ -354,7 +354,7 @@ def _qc_check(stream_request, parameter, pd_data, primary_key):
 
         qc_name = '%s_%s' % (parameter.name.encode('ascii', 'ignore'), function_name)
         if qc_name not in pd_data:
-            pd_data['provenance'] = {}
+            pd_data[qc_name] = {}
         pd_data[qc_name][primary_key.as_refdes()] = {
             'data': getattr(module, function_name)(**qcs.get(function_name)),
             'source': 'qc'
