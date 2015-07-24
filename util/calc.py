@@ -469,6 +469,27 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
             else:
                 calc_meta['arguments'][k] = v
     except StreamEngineException as e:
+        #build an error dictonary to pass to computed provenance.
+        error_info = e.payload
+        if error_info is None:
+            provenance_metadata.calculated_metatdata.errors.append(e.message)
+        else:
+            target_param = error_info.pop('parameter')#error_info['parameter']
+            error_info['derived_id'] = target_param.id
+            error_info['derived_name'] = target_param.name
+            error_info['derived_display_name'] = target_param.display_name
+            if 'pdRef' in error_info:
+                pdRef = error_info.pop('pdRef')
+                error_parameter = CachedParameter.from_id(pdRef.pdid)
+                error_info['missing_id'] = error_parameter.id
+                error_info['missing_name'] = error_parameter.name
+                error_info['missing_display_name'] = error_parameter.display_name
+                error_info['missing_possible_stream_names'] = [CachedStream.from_id(s).name for s in error_parameter.streams]
+                error_info['missing_possible_stream_ids'] = [s for s in error_parameter.streams]
+
+            error_info['message'] = e.message
+            provenance_metadata.calculated_metatdata.errors.append(error_info)
+
         log.info("{}aborting - {}".format(spaces, e.message))
     else:
         if param.id not in pd_data:
@@ -526,14 +547,17 @@ def execute_dpa(parameter, kwargs):
             try:
                 result = getattr(module, func.function)(**kwargs)
             except Exception as e:
-                raise StreamEngineException('DPA threw exception: %s' % e)
+                to_attach= {'type' : 'FunctionError', parameter : parameter, 'function' : str(func.id) + " " + str(func.description)}
+                raise StreamEngineException('DPA threw exception: %s' % e, payload=to_attach)
         elif func.function_type == 'NumexprFunction':
             try:
                 result = numexpr.evaluate(func.function, kwargs)
             except Exception as e:
-                raise StreamEngineException('Numexpr function threw exception: %s' % e)
+                to_attach= {'type' : 'FunctionError', parameter : parameter, 'function' : str(func.id) + " " + str(func.description)}
+                raise StreamEngineException('Numexpr function threw exception: %s' % e, payload=to_attach)
         else:
-            raise UnknownFunctionTypeException(func.function_type)
+            to_attach= {'type' : 'UnkownFunctionError', parameter : parameter, 'function' : str(func.function_type)}
+            raise UnknownFunctionTypeException(func.function_type, payload=to_attach)
         return result
 
     return None
@@ -569,7 +593,8 @@ def build_func_map(parameter, coefficients, pd_data, primary_key):
         time_stream_key = primary_key
 
     if time_stream_key is None:
-        raise MissingTimeException("Could not find time parameter for dpa")
+        to_attach = {'type' : 'TimeMissingError', 'parameter' : parameter}
+        raise MissingTimeException("Could not find time parameter for dpa", payload=to_attach)
 
     time_stream_refdes = time_stream_key.as_refdes()
     if time_stream_key.stream.time_parameter in pd_data and time_stream_refdes in pd_data[time_stream_key.stream.time_parameter]:
@@ -581,7 +606,8 @@ def build_func_map(parameter, coefficients, pd_data, primary_key):
         time_meta['type'] = 'time_source'
         time_meta['source'] = pd_data[7][time_stream_refdes]['source']
     else:
-        raise MissingTimeException("Could not find time parameter for dpa")
+        to_attach = {'type' : 'TimeMissingError', 'parameter' : parameter}
+        raise MissingTimeException("Could not find time parameter for dpa", payload=to_attach)
     time_meta['start'] = main_times[0]
     time_meta['end'] = main_times[-1]
     time_meta['startDT'] = ntp_to_datestring(main_times[0])
@@ -593,7 +619,8 @@ def build_func_map(parameter, coefficients, pd_data, primary_key):
             pdRef = PDRef.from_str(func_map[key])
             param_meta = {}
             if pdRef.pdid not in pd_data:
-                raise StreamEngineException('Required parameter %s not found in pd_data when calculating %s (PD%s) ' % (func_map[key], parameter.name, parameter.id))
+                to_attach = {'type' : 'ParameterMissingError', 'parameter' : parameter, 'pdRef' : pdRef, 'missing_argument_name' : key}
+                raise StreamEngineException('Required parameter %s not found in pd_data when calculating %s (PD%s) ' % (func_map[key], parameter.name, parameter.id), payload=to_attach)
 
             # if pdref has a required stream, try to find it in pd_data
             pdref_refdes = None
@@ -650,16 +677,27 @@ def build_func_map(parameter, coefficients, pd_data, primary_key):
                 framed_CCs = coefficients[name]
                 CC_argument, CC_meta = build_CC_argument(framed_CCs, main_times)
                 if numpy.isnan(numpy.min(CC_argument)):
-                    raise CoefficientUnavailableException('Coefficient %s missing times in range (%s, %s)' % (name, ntp_to_datestring(main_times[0]), ntp_to_datestring(main_times[-1])))
+                    to_attach = {
+                        'type' : 'CCTimeError', 'parameter' : parameter, 'start' : main_times[0], 'end' : main_times[-1],
+                        'startDT' : ntp_to_datestring(main_times[0]), 'endDT' : ntp_to_datestring(main_times[-1]),
+                        'CC_present' : coefficients.keys(), 'missing_argument_name' : key
+                                 }
+                    raise CoefficientUnavailableException('Coefficient %s missing times in range (%s, %s)' % (name, ntp_to_datestring(main_times[0]), ntp_to_datestring(main_times[-1])), payload=to_attach)
                 else:
                     args[key] = CC_argument
                     arg_metadata[key] = CC_meta
             else:
-                raise CoefficientUnavailableException('Coefficient %s not provided' % name)
+                to_attach = {
+                    'type' : 'CCMissingError', 'parameter' : parameter, 'start' : main_times[0], 'end' : main_times[-1],
+                    'startDT' : ntp_to_datestring(main_times[0]), 'endDT' : ntp_to_datestring(main_times[-1]),
+                    'CC_present' : coefficients.keys(), 'missing_argument_name' : key
+                }
+                raise CoefficientUnavailableException('Coefficient %s not provided' % name, payload=to_attach)
         elif isinstance(func_map[key], (int, float, long, complex)):
             args[key] = func_map[key]
             arg_metadata[key] = {'type' : 'constant', 'value' : func_map[key]}
         else:
+            to_attach = {'type' : 'UnknownParameter', 'parameter' : parameter, 'value' : str(func_map[key]), 'missing_argument_name' : key}
             raise StreamEngineException('Unable to resolve parameter \'%s\' in PD%s %s' % (func_map[key], parameter.id, parameter.name))
     return args, arg_metadata
 
@@ -703,7 +741,8 @@ def build_CC_argument(frames, times):
     try:
         sample_value = frames[0][2]
     except IndexError, e:
-        raise StreamEngineException('Unable to build cc arguments for algorithm: {}'.format(e))
+        # return a single NaN and throw the error in the above function
+        return [np.NaN], {}
 
     if type(sample_value) == list:
         cc = numpy.empty(times.shape + numpy.array(sample_value).shape)
@@ -719,7 +758,8 @@ def build_CC_argument(frames, times):
         try:
             cc[mask] = frame[2]
         except ValueError, e:
-            raise StreamEngineException('Unable to build cc arguments for algorithm: {}'.format(e))
+            # return NaN and throw the error in the aboce function.
+            return [np.NaN], {}
     cc_meta = {
         'sources' : values,
         'data_start' :  st,
@@ -865,7 +905,6 @@ class ProvenanceMetadataStore(object):
     def __init__(self):
         self._prov_set = set()
         self.calculated_metatdata = CalculatedProvenanceMetadataStore()
-        self.errors = []
 
     def add_metadata(self, value):
         self._prov_set.add(value)
@@ -897,6 +936,7 @@ class CalculatedProvenanceMetadataStore(object):
         self.params = defaultdict(list)
         self.calls = {}
         self.ref_map = defaultdict(list)
+        self.errors = []
 
     def insert_metadata(self, parameter, ref,  to_insert):
         # check to see if we have a matching metadata call
@@ -916,6 +956,7 @@ class CalculatedProvenanceMetadataStore(object):
         res = {}
         res['parameters'] = {parameter.name : v  for parameter, v in self.params.iteritems()}
         res['calculations'] = self.calls
+        res['errors'] = self.errors
         return res
 
     def get_keys_for_calculated(self, parameter):
@@ -1031,7 +1072,7 @@ class NetCDF_Generator(object):
                 values.append(v['file_name'] + " " + v['parser_name'] + " " + v['parser_version'])
             provenance['l0_provenance_keys'] = xray.DataArray(numpy.array(keys), dims=['l0_provenance'])
             provenance['l0_provenance_data'] = xray.DataArray(numpy.array(values), dims=['l0_provenance'])
-        #TODO Added computed provenence to NETCDF
+            provenance['computed_provenance'] = xray.DataArray([json.dumps(self.provenance_metadata.calculated_metatdata.get_dict())], dims=['computed_provenance_dim'])
 
         return xray.Dataset(provenance, attrs=attrs)
 
