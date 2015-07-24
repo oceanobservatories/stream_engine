@@ -14,11 +14,11 @@ import uuid
 
 from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, \
     get_available_time_range, fetch_l0_provenance
-from util.common import log_timing, ntp_to_datestring, StreamKey, TimeRange, CachedParameter, \
+from util.common import log_timing, ntp_to_datestring, ntp_to_ISO_date, StreamKey, TimeRange, CachedParameter, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, \
-    MissingTimeException, MissingDataException, arb, MissingStreamMetadataException, get_stream_key_with_param, \
-    isfillvalue
+    MissingTimeException, MissingDataException, MissingStreamMetadataException, get_stream_key_with_param, \
+    isfillvalue, Annotation
 from parameter_util import PDRef
 
 from collections import OrderedDict, defaultdict
@@ -26,6 +26,8 @@ from werkzeug.exceptions import abort
 
 import pandas as pd
 import scipy as sp
+from engine import app
+import requests
 
 
 try:
@@ -37,7 +39,8 @@ log = logging.getLogger(__name__)
 
 
 @log_timing
-def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None, custom_times=None, custom_type=None, include_provenance=False, strict_range=False):
+def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None, custom_times=None, custom_type=None,
+                  include_provenance=False, include_annotations=False, strict_range=False):
     """
     Returns a list of particles from the given streams, limits and times
     """
@@ -76,11 +79,13 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
 
     # create the store that will keep track of provenance for all streams/datasources
     provenance_metadata = ProvenanceMetadataStore()
+    annotation_store = AnnotationStore()
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range,
-                                   qc_parameters=qc_stream_parameters, limit=limit, times=custom_times, include_provenance=include_provenance,
+                                   qc_parameters=qc_stream_parameters, limit=limit, times=custom_times,
+                                   include_provenance=include_provenance,include_annotations=include_annotations,
                                    strict_range=strict_range)
 
-    pd_data = fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata)
+    pd_data = fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
 
     # convert data into a list of particles
     primary_key = stream_keys[0]
@@ -139,11 +144,14 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
 
         particles.append(particle)
 
-    if include_provenance:
+    if include_provenance or include_annotations:
         out = OrderedDict()
         out['data'] = particles
-        out['provenance'] = provenance_metadata.get_provenance_dict()
-        out['computed_provenance'] = provenance_metadata.calculated_metatdata.get_dict()
+        if include_provenance:
+            out['provenance'] = provenance_metadata.get_provenance_dict()
+            out['computed_provenance'] = provenance_metadata.calculated_metatdata.get_dict()
+        if include_annotations:
+            out['annotations'] = annotation_store.get_json_representation()
     else:
         out = particles
 
@@ -151,7 +159,8 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
 
 
 @log_timing
-def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None, custom_type=None, include_provenance=False, strict_range=False):
+def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None, custom_type=None,
+               include_provenance=False, include_annotations=False, strict_range=False):
     """
     Returns a netcdf from the given streams, limits and times
     """
@@ -164,11 +173,13 @@ def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None
 
     # Create the provenance metadata store to keep track of all files that are used
     provenance_metadata = ProvenanceMetadataStore()
-    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit,
-                                   times=custom_times, include_provenance=include_provenance, strict_range=strict_range)
+    annotation_store = AnnotationStore()
+    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit, times=custom_times,
+                                   include_provenance=include_provenance,include_annotations=include_annotations,
+                                   strict_range=strict_range)
 
-    pd_data = fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata)
-    return NetCDF_Generator(pd_data, provenance_metadata).chunks(stream_request)
+    pd_data = fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
+    return NetCDF_Generator(pd_data, provenance_metadata, annotation_store).chunks(stream_request)
 
 
 @log_timing
@@ -181,7 +192,8 @@ def get_needs(streams):
     for s in streams:
         for p in s.get('parameters', []):
             parameters.append(CachedParameter.from_id(p))
-    stream_request = StreamRequest(stream_keys, parameters, {}, None, needs_only=True, include_provenance=False)
+    stream_request = StreamRequest(stream_keys, parameters, {}, None, needs_only=True, include_provenance=False,
+                                   include_annotations=False)
 
     stream_list = []
     for sk in stream_request.stream_keys:
@@ -192,7 +204,7 @@ def get_needs(streams):
     return stream_list
 
 
-def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata):
+def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store):
     """
     Fetches all parameters from the specified streams, calculates the dervived products,
     and returns the parameters in a map
@@ -216,6 +228,12 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
     pd_data = {}
     first_time = None
     for key_index, key in enumerate(stream_request.stream_keys):
+        annotations = []
+        if stream_request.include_annotations:
+            annotations = query_annotations(stream_request, key, time_range)
+            log.warn(annotations)
+            annotation_store.add_annotations(annotations)
+
         if key.stream.is_virtual:
             log.info("Skipping virtual stream: {}".format(key.stream.name))
             continue
@@ -729,8 +747,8 @@ class StreamRequest(object):
     Stores the information from a request, and calculates the required
     parameters and their streams
     """
-    def __init__(self, stream_keys, parameters, coefficients, time_range, qc_parameters={},
-                 needs_only=False, limit=None, times=None, include_provenance=False, strict_range=False):
+    def __init__(self, stream_keys, parameters, coefficients, time_range, qc_parameters={}, needs_only=False,
+                 limit=None, times=None, include_provenance=False, include_annotations=False, strict_range=False):
         self.stream_keys = stream_keys
         self.time_range = time_range
         self.qc_parameters = qc_parameters if qc_parameters is not None else {}
@@ -741,6 +759,7 @@ class StreamRequest(object):
         self.limit = limit
         self.times = times
         self.include_provenance = include_provenance
+        self.include_annotations = include_annotations
         self.strict_range = strict_range
         self._initialize(needs_only)
 
@@ -931,11 +950,59 @@ def dict_equal(d1, d2):
     else:
         return d1 == d2
 
+class AnnotationStore(object):
+    """
+    Handles the storage of annotations during the lifecycle of a request.
+    """
+
+    def __init__(self):
+        self._store = set()
+
+    def add_annotations(self, anotations):
+        for i in anotations:
+            self._add_annotation(i)
+
+    def _add_annotation(self, annotation):
+        self._store.add(annotation)
+
+    def get_annotations(self):
+        return list(self._store)
+
+    def get_json_representation(self):
+        ret = [x.as_dict() for x in self._store]
+        return ret
+
+
+def query_annotations(stream_request, key, time_range):
+    '''
+    Query edex for annotations on a stream request.
+    :param stream_request: Stream request
+    :param key: "Key from fetch pd data"
+    :param time_range: Time range to use  (float, float)
+    :return:
+    '''
+    base_url = app.config['ANNOTATION_URL']
+    startDT = ntp_to_ISO_date(time_range.start)
+    endDT = ntp_to_ISO_date(time_range.stop)
+    request_format_string = '{:s}-{:s}-{:s}?startDT={:s}&endDT={:s}&method={:s}'.format(
+        key.subsite, key.node, key.sensor, startDT, endDT, key.method)
+    annote_req = requests.get(url=base_url + request_format_string)
+    if annote_req.status_code == 200:
+        all_annotations = annote_req.json()
+        to_return = set()
+        for i in all_annotations:
+            to_return.add(Annotation.from_dict(i))
+        return list(to_return)
+    else:
+        log.warn("Error requesting annotations from EDEX")
+        return []
+
 class NetCDF_Generator(object):
 
-    def __init__(self, pd_data, provenance_metadata):
+    def __init__(self, pd_data, provenance_metadata, annotation_store):
         self.pd_data = pd_data
         self.provenance_metadata = provenance_metadata
+        self.annotation_store = annotation_store
 
     def chunks(self, r):
         try:
@@ -1008,7 +1075,7 @@ class NetCDF_Generator(object):
             'stream': r.stream_keys[0].stream.name
         }
 
-        provenance = {}
+        init_data = {}
         if r.include_provenance:
             prov = self.provenance_metadata.get_provenance_dict()
             keys = []
@@ -1016,11 +1083,14 @@ class NetCDF_Generator(object):
             for k,v in prov.iteritems():
                 keys.append(k)
                 values.append(v['file_name'] + " " + v['parser_name'] + " " + v['parser_version'])
-            provenance['l0_provenance_keys'] = xray.DataArray(numpy.array(keys), dims=['l0_provenance'])
-            provenance['l0_provenance_data'] = xray.DataArray(numpy.array(values), dims=['l0_provenance'])
+            init_data['l0_provenance_keys'] = xray.DataArray(numpy.array(keys), dims=['l0_provenance'])
+            init_data['l0_provenance_data'] = xray.DataArray(numpy.array(values), dims=['l0_provenance'])
+        if r.include_annotations:
+            annote = self.annotation_store.get_json_representation()
+            annote_data = [json.dumps(x) for x in annote]
+            init_data['annotations'] = xray.DataArray(numpy.array(annote_data), dims=['dataset_annotations'])
         #TODO Added computed provenence to NETCDF
-
-        return xray.Dataset(provenance, attrs=attrs)
+        return xray.Dataset(init_data, attrs=attrs)
 
     def group_by_source(self, r, source_key, chunk_valid, time_data, primary_key, time_parameter):
         this_group = self.open_new_ds(r)

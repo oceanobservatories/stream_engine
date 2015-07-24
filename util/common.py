@@ -127,6 +127,16 @@ def ntp_to_datestring(ntp_time):
     except:
         return str(ntp_time)
 
+def ntp_to_ISO_date(ntp_time):
+    try:
+        ntp_time = float(ntp_time)
+        dt = datetime.datetime.utcfromtimestamp(ntplib.ntp_to_system_time(ntp_time))
+        base = dt.strftime('%Y-%m-%dT%H:%M:%S.%f')
+        ending = round(float(base[-8:]), 3)
+        return "{:s}{:.3f}Z".format(base[:-8], ending)
+    except Exception as e:
+        return str(ntp_time)
+
 class TimeRange(object):
     def __init__(self, start, stop):
         self.start = start
@@ -138,6 +148,43 @@ class TimeRange(object):
     def __str__(self):
         return "{} - {}".format(self.start, self.stop)
 
+class Annotation(object):
+    def __init__(self, refdes, start, end, parameters, provenance, annotation, method, deployment, ident):
+        self.referenceDesignator = refdes
+        self.beginDT = start
+        self.endDT = end
+        self.parameters = parameters
+        self.provenance = provenance
+        self.annotation = annotation
+        self.method = method
+        self.deployment = deployment
+        self.ident = ident
+
+    def as_dict(self):
+        return {
+        'referenceDesignator' : self.referenceDesignator,
+        'beginDT' : self.beginDT,
+        'endDT' : self.endDT,
+        'parameters' : self.parameters,
+        'provenance' : self.provenance,
+        'annotation' : self.annotation,
+        'method' : self.method,
+        'deployment' : self.deployment,
+        'id' : self.ident,
+        }
+
+    def __eq__(self, other):
+        if not isinstance(other, Annotation):
+            return False
+        return self.ident == other.ident
+
+    def __hash__(self):
+        return hash(self.ident)
+
+    @staticmethod
+    def from_dict(d):
+        return Annotation(d["referenceDesignator"], d["beginDT"], d["endDT"], d["parameters"], d["provenance"],
+                            d["annotation"], d["method"], d["deployment"], d["id"])
 
 class StreamKey(object):
     def __init__(self, subsite, node, sensor, method, stream):
