@@ -423,7 +423,7 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
             if sub_id is not None:
                 subs.append(sub_id)
                 try:
-                    functions[ref_to_name[pdref]] = sub_id
+                    functions[ref_to_name[pdref]] = [sub_id]
                 except KeyError as e:
                     log.warn("Could not find subfunction name: " + str(pdref)  + " " +  str(sub_id))
 
@@ -439,7 +439,14 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
     for i in other:
         local_param = CachedParameter.from_id(i.pdid)
         if local_param.parameter_type == FUNCTION:
-                pass
+            # the function has already been calculated so we need to get the subcalculation from metadata..
+            try:
+                sub_calcs = provenance_metadata.calculated_metatdata.get_keys_for_calculated(i)
+                functions[ref_to_name[i]] = sub_calcs
+                for j in sub_calcs:
+                    subs.append(j)
+            except:
+                log.warn("Could not find calculation information for already computed function " + str(i))
         else:
             parameters[i] = i
 
@@ -472,7 +479,7 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
 
         pd_data[param.id][primary_key.as_refdes()] = {'data': data, 'source': 'derived'}
 
-        calc_id = provenance_metadata.calculated_metatdata.insert_metadata(param, calc_meta)
+        calc_id = provenance_metadata.calculated_metatdata.insert_metadata(param, this_ref, calc_meta)
         log.info(spaces + "returning data")
     log.info("{}}}".format((level - 1) * 4 * ' '))
 
@@ -858,6 +865,7 @@ class ProvenanceMetadataStore(object):
     def __init__(self):
         self._prov_set = set()
         self.calculated_metatdata = CalculatedProvenanceMetadataStore()
+        self.errors = []
 
     def add_metadata(self, value):
         self._prov_set.add(value)
@@ -888,25 +896,30 @@ class CalculatedProvenanceMetadataStore(object):
     def __init__(self):
         self.params = defaultdict(list)
         self.calls = {}
+        self.ref_map = defaultdict(list)
 
-    def insert_metadata(self, parameter, to_insert):
+    def insert_metadata(self, parameter, ref,  to_insert):
         # check to see if we have a matching metadata call
         # if we do return that id otherwise store it.
-        for call in self.params[parameter.name]:
+        for call in self.params[parameter]:
             if dict_equal(to_insert, self.calls[call]):
                 return call
         # create and id and append it to the list
         call_id = str(uuid.uuid4())
         self.calls[call_id] = to_insert
-        self.params[parameter.name].append(call_id)
+        self.params[parameter].append(call_id)
+        self.ref_map[ref].append(call_id)
         return call_id
 
     def get_dict(self):
         """return dictonary representation"""
         res = {}
-        res['parameters'] = self.params
+        res['parameters'] = {parameter.name : v  for parameter, v in self.params.iteritems()}
         res['calculations'] = self.calls
         return res
+
+    def get_keys_for_calculated(self, parameter):
+        return self.ref_map[parameter]
 
 
 def dict_equal(d1, d2):
