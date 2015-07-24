@@ -680,7 +680,6 @@ def in_range(frame, times):
 
       returns a bool numpy array the same shape as times
     """
-    frame = numpy.array(frame)
     times = numpy.array(times)
     if frame[0] is None and frame[1] is None:
         mask = numpy.ones(times.shape, dtype=bool)
