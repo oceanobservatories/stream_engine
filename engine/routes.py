@@ -66,10 +66,16 @@ def particles():
         limit = None
 
     prov = input_data.get('include_provenance', False)
-    resp = Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
-                    input_data.get('qcParameters', {}), limit=limit, custom_times=input_data.get('custom_times'),
-                    custom_type=input_data.get('custom_type'), include_provenance=prov, strict_range=input_data.get('strict_range', False)),
-                mimetype='application/json')
+    try:
+        resp = Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
+                        input_data.get('qcParameters', {}), limit=limit, custom_times=input_data.get('custom_times'),
+                        custom_type=input_data.get('custom_type'), include_provenance=prov, strict_range=input_data.get('strict_range', False)),
+                    mimetype='application/json')
+    except StreamEngineException:
+        raise
+    except Exception as e:
+        log.exception("Unexpected exception during get_particles")
+        raise StreamEngineException("Unexpected exception during get_particles")
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return resp
@@ -117,10 +123,17 @@ def netcdf():
         limit = None
 
     prov = input_data.get('include_provenance', False)
-    resp = Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
+
+    try:
+        resp = Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
                                          limit=limit, custom_times=input_data.get('custom_times'),
                                          custom_type=input_data.get('custom_type'), include_provenance=prov),
                     mimetype='application/netcdf')
+    except StreamEngineException:
+        raise
+    except Exception as e:
+        log.exception("Unexpected exception during get_netcdf")
+        raise StreamEngineException("Unexpected exception during get_netcdf")
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return resp
@@ -180,7 +193,13 @@ def needs():
     log.info("Handling request to {} - {}".format(request.url, input_data.get('streams', "")))
 
     output_data = {'streams': util.calc.get_needs(input_data.get('streams'))}
-    resp = Response(json.dumps(output_data), mimetype='application/json')
+    try:
+        resp = Response(json.dumps(output_data), mimetype='application/json')
+    except StreamEngineException:
+        raise
+    except Exception as e:
+        log.exception("Unexpected exception during get_needs")
+        raise StreamEngineException("Unexpected exception during get_needs")
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return resp
