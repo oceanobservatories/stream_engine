@@ -66,9 +66,10 @@ def particles():
         limit = None
 
     prov = input_data.get('include_provenance', False)
+    annotate = input_data.get('include_annotations', False)
     resp = Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
                     input_data.get('qcParameters', {}), limit=limit, custom_times=input_data.get('custom_times'),
-                    custom_type=input_data.get('custom_type'), include_provenance=prov, strict_range=input_data.get('strict_range', False)),
+                    custom_type=input_data.get('custom_type'), include_provenance=prov, include_annotations=annotate ,strict_range=input_data.get('strict_range', False)),
                 mimetype='application/json')
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
@@ -156,9 +157,11 @@ def netcdf():
         limit = None
 
     prov = input_data.get('include_provenance', False)
+    annotate = input_data.get('include_annotations', False)
     resp = Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
                                          limit=limit, custom_times=input_data.get('custom_times'),
-                                         custom_type=input_data.get('custom_type'), include_provenance=prov),
+                                         custom_type=input_data.get('custom_type'), include_provenance=prov,
+                                         include_annotations=annotate),
                     mimetype='application/netcdf')
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
