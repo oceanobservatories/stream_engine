@@ -23,6 +23,12 @@ def handle_stream_not_found(error):
     log.info("Returning exception: {}".format(error.to_dict()))
     return response
 
+@app.errorhandler(Exception)
+def handle_stream_not_found(error):
+    msg = "Unexpected internal error during request"
+    log.exception(msg)
+    return '{{\n  "message": "{}"\n}}'.format(msg)
+
 
 @app.route('/particles', methods=['POST'])
 def particles():
@@ -157,9 +163,7 @@ def netcdf():
 
     prov = input_data.get('include_provenance', False)
     resp = Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
-                                         limit=limit, custom_times=input_data.get('custom_times'),
-                                         custom_type=input_data.get('custom_type'), include_provenance=prov),
-                    mimetype='application/netcdf')
+                mimetype='application/netcdf'))
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return resp
