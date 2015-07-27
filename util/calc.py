@@ -793,59 +793,20 @@ class NetCDF_Generator(object):
             return tzf.read()
 
     def write_to_zipfile(self, r, zf):
-        datasets = {}
-
-        # sometimes we will get duplicate timestamps
-        # INITIAL solution is to remove any duplicate timestamps
-        # and the corresponding data.
-
-        # create a mask to match only valid INCREASING times
-        # we will insert the last valid timestamp from the previous
-        # chunk at the beginning of the array
-        primary_key = r.stream_keys[0]
-
-        # Find appropriate times for stream
-        tp = primary_key.stream.time_parameter
-        chunk_times = None
-        if primary_key.stream.is_virtual:
-            source_stream = primary_key.stream.source_streams[0]
-            tp = source_stream.time_parameter  # get tp from source stream
-            source_stream_key = get_stream_key_with_param(self.pd_data, source_stream, source_stream.time_parameter)
-
-            chunk_times = self.pd_data[tp][source_stream_key.as_refdes()]['data']
-        elif tp in self.pd_data and primary_key.as_refdes() in self.pd_data[tp]:
-            chunk_times = self.pd_data[tp][primary_key.as_refdes()]['data']
-
-        if chunk_times is None:
-            raise MissingTimeException("Could not find time parameter for netcdf")
-
-        chunk_valid = numpy.diff(numpy.insert(chunk_times, 0, 0.0)) != 0
-
-        # Select deployment number from the correct stream
-        if not primary_key.stream.is_virtual:
-            chunk_deployment = str(self.pd_data['deployment'][primary_key.as_refdes()]['data'][0])
-        else:
-            chunk_deployment = str(self.pd_data['deployment'][source_stream_key.as_refdes()]['data'][0])
-
-        sources = set(self.pd_data[k][primary_key.as_refdes()]['source'] for k in self.pd_data if primary_key.as_refdes() in self.pd_data[k])
-
-        for source in sources:
-            datasets[source] = self.group_by_source(r, source, chunk_valid, chunk_times[chunk_valid], primary_key, tp)
-
-        # dump remaining datasets
-        for group, ds in datasets.iteritems():
+        for stream_key in r.stream_keys:
+            ds = self.group_by_stream_key(r, stream_key)
             with tempfile.NamedTemporaryFile() as tf:
                 ds.to_netcdf(tf.name)
-                zf.write(tf.name, '%s_%s.nc' % (group, chunk_deployment))
+                zf.write(tf.name, '%s.nc' % (stream_key.as_refdes(),))
 
-    def open_new_ds(self, r):
+    def open_new_ds(self, r, stream_key):
         # set up file level attributes
         attrs = {
-            'subsite': r.stream_keys[0].subsite,
-            'node': r.stream_keys[0].node,
-            'sensor': r.stream_keys[0].sensor,
-            'collection_method': r.stream_keys[0].method,
-            'stream': r.stream_keys[0].stream.name
+            'subsite': stream_key.subsite,
+            'node': stream_key.node,
+            'sensor': stream_key.sensor,
+            'collection_method': stream_key.method,
+            'stream': stream_key.stream.name
         }
 
         provenance = {}
@@ -861,14 +822,31 @@ class NetCDF_Generator(object):
 
         return xray.Dataset(provenance, attrs=attrs)
 
-    def group_by_source(self, r, source_key, chunk_valid, time_data, primary_key, time_parameter):
-        this_group = self.open_new_ds(r)
+    def get_time_data(self, stream_key):
+        if stream_key.stream.is_virtual:
+            source_stream = stream_key.stream.source_streams[0]
+            stream_key = get_stream_key_with_param(self.pd_data, source_stream, source_stream.time_parameter)
 
+        tp = stream_key.stream.time_parameter
+        try:
+            return self.pd_data[tp][stream_key.as_refdes()]['data'], tp
+        except KeyError:
+            raise MissingTimeException("Could not find time parameter %s for %s" % (tp, stream_key))
+
+    def group_by_stream_key(self, r, stream_key):
+        time_data, time_parameter = self.get_time_data(stream_key)
+        # sometimes we will get duplicate timestamps
+        # INITIAL solution is to remove any duplicate timestamps
+        # and the corresponding data by creating a mask to match
+        # only valid INCREASING times
+        mask = numpy.diff(numpy.insert(time_data, 0, 0.0)) != 0
+        time_data = time_data[mask]
+
+        this_group = self.open_new_ds(r, stream_key)
         for param_id in self.pd_data:
             if (
                 param_id == time_parameter or
-                primary_key.as_refdes() not in self.pd_data[param_id] or
-                self.pd_data[param_id][primary_key.as_refdes()]['source'] != source_key
+                stream_key.as_refdes() not in self.pd_data[param_id]
                ):
                 continue
 
@@ -877,7 +855,7 @@ class NetCDF_Generator(object):
             # like deployment for deployment number
             param_name = param_id if param is None else param.name
 
-            data = self.pd_data[param_id][primary_key.as_refdes()]['data'][chunk_valid]
+            data = self.pd_data[param_id][stream_key.as_refdes()]['data'][mask]
             if param is not None:
                 try:
                     data = data.astype(param.value_encoding)
