@@ -86,7 +86,7 @@ def test_NetCDF_Generator():
     }
 
     try:
-        file_output = NetCDF_Generator(data, None).chunks(request)
+        file_output = NetCDF_Generator(data, None, None).chunks(request)
     except Exception as e:
         raise AssertionError(e)
 
@@ -97,11 +97,11 @@ def test_NetCDF_Generator():
     zf = zipfile.ZipFile('tmp.zip', 'r')
     namelist = zf.namelist()
     assert len(namelist) == 2
-    assert 'RS00ENGC|XX00X|00-CTDBPA002|streamed|ctdbp_no_sample.nc' in namelist
-    assert 'XX00XXXX|XX00X|00-CTDPFW100|recovered|ctdpf_ckl_wfp_instrument_recovered.nc' in namelist
+    assert 'RS00ENGC-XX00X-00-CTDBPA002-streamed-ctdbp_no_sample.nc' in namelist
+    assert 'XX00XXXX-XX00X-00-CTDPFW100-recovered-ctdpf_ckl_wfp_instrument_recovered.nc' in namelist
 
     zf.extractall()
-    group_1 = netCDF4.Dataset('RS00ENGC|XX00X|00-CTDBPA002|streamed|ctdbp_no_sample.nc', 'r')
+    group_1 = netCDF4.Dataset('RS00ENGC-XX00X-00-CTDBPA002-streamed-ctdbp_no_sample.nc', 'r')
 
     assert group_1.__dict__['subsite'] == 'RS00ENGC'
     assert group_1.__dict__['node'] == 'XX00X'
@@ -119,9 +119,9 @@ def test_NetCDF_Generator():
     assert type(underlying_array) is ma.MaskedArray
     assert np.all(underlying_array.mask)
 
-    os.remove('RS00ENGC|XX00X|00-CTDBPA002|streamed|ctdbp_no_sample.nc')
+    os.remove('RS00ENGC-XX00X-00-CTDBPA002-streamed-ctdbp_no_sample.nc')
 
-    group_2 = netCDF4.Dataset('XX00XXXX|XX00X|00-CTDPFW100|recovered|ctdpf_ckl_wfp_instrument_recovered.nc', 'r')
+    group_2 = netCDF4.Dataset('XX00XXXX-XX00X-00-CTDPFW100-recovered-ctdpf_ckl_wfp_instrument_recovered.nc', 'r')
 
     assert group_2.__dict__['subsite'] == 'XX00XXXX'
     assert group_2.__dict__['node'] == 'XX00X'
@@ -135,5 +135,5 @@ def test_NetCDF_Generator():
     assert np.array_equal(group_2.variables['pressure_temp'], [2,3])
     assert np.array_equal(group_2.variables['ctdpf_ckl_seawater_density'], [2,3])
 
-    os.remove('XX00XXXX|XX00X|00-CTDPFW100|recovered|ctdpf_ckl_wfp_instrument_recovered.nc')
+    os.remove('XX00XXXX-XX00X-00-CTDPFW100-recovered-ctdpf_ckl_wfp_instrument_recovered.nc')
     os.remove('tmp.zip')

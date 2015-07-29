@@ -797,7 +797,7 @@ class NetCDF_Generator(object):
             ds = self.group_by_stream_key(r, stream_key)
             with tempfile.NamedTemporaryFile() as tf:
                 ds.to_netcdf(tf.name)
-                zf.write(tf.name, '%s.nc' % (stream_key.as_refdes(),))
+                zf.write(tf.name, '%s.nc' % (stream_key.as_dashed_refdes(),))
 
     def open_new_ds(self, r, stream_key):
         # set up file level attributes
