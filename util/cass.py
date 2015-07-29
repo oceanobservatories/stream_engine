@@ -10,8 +10,9 @@ from multiprocessing import BoundedSemaphore
 from threading import Lock, Thread
 
 from cassandra.cluster import Cluster, QueryExhausted, ResponseFuture, PagedResult, _NOT_SET
-from cassandra.query import _clean_column_name, tuple_factory
+from cassandra.query import _clean_column_name, tuple_factory, SimpleStatement
 from cassandra.concurrent import execute_concurrent_with_args
+from cassandra import ConsistencyLevel
 
 from util.common import log_timing, TimeRange
 
@@ -52,6 +53,37 @@ def get_session():
     This is necessary to avoid connecting to cassandra prior to forking!
     :return: session and dictionary of prepared statements
     """
+    if global_cassandra_state.get('query_consistency') is None:
+        with multiprocess_lock:
+            consistency =  engine.app.config['CASSANDRA_QUERY_CONSISTENCY']
+            log.info("Setting query consistency level to " + str(consistency))
+            if consistency == 'ANY':
+                const_level = ConsistencyLevel.ANY
+            elif consistency == 'ONE':
+                const_level = ConsistencyLevel.ONE
+            elif consistency == 'TWO':
+                const_level = ConsistencyLevel.TWO
+            elif consistency == 'THREE':
+                const_level = ConsistencyLevel.THREE
+            elif consistency == 'QUORUM':
+                const_level = ConsistencyLevel.QUORUM
+            elif consistency == 'ALL':
+                const_level = ConsistencyLevel.ALL
+            elif consistency == 'LOCAL_QUORUM':
+                const_level = ConsistencyLevel.LOCAL_QUORUM
+            elif consistency == 'EACH_QUORUM':
+                const_level = ConsistencyLevel.EACH_QUORUM
+            elif consistency == 'SERIAL':
+                const_level = ConsistencyLevel.SERIAL
+            elif consistency == 'LOCAL_SERIAL':
+                const_level = ConsistencyLevel.LOCAL_SERIAL
+            elif consistency == 'LOCAL_ONE':
+                const_level = ConsistencyLevel.LOCAL_ONE
+            else:
+                log.warn("Unknown Consistency Level " + str(consistency)  + " setting to QUORUM")
+                const_level = ConsistencyLevel.QUORUM
+            global_cassandra_state['query_consistency'] = const_level
+
     if global_cassandra_state.get('cluster') is None:
         with multiprocess_lock:
             log.debug('Creating cassandra session')
@@ -66,12 +98,16 @@ def get_session():
             session.row_factory = tuple_factory
             session.default_timeout = engine.app.config['CASSANDRA_DEFAULT_TIMEOUT']
             global_cassandra_state['session'] = session
+            query_consistency = global_cassandra_state.get('query_consistency')
             prep = global_cassandra_state['prepared_statements'] = {}
             prep[STREAM_EXISTS_PS] = session.prepare(STREAM_EXISTS_RAW)
+            prep[STREAM_EXISTS_PS].consistency_level = query_consistency
             prep[METADATA_FOR_REFDES_PS] = session.prepare(METADATA_FOR_REFDES_RAW)
+            prep[METADATA_FOR_REFDES_PS].consistency_level = query_consistency
             prep[DISTINCT_PS] = session.prepare(DISTINCT_RAW)
+            prep[DISTINCT_PS].consistency_level = query_consistency
 
-    return global_cassandra_state['session'], global_cassandra_state['prepared_statements']
+    return global_cassandra_state['session'], global_cassandra_state['prepared_statements'], global_cassandra_state['query_consistency']
 
 
 def cassandra_session(func):
@@ -82,9 +118,10 @@ def cassandra_session(func):
     """
     @wraps(func)
     def inner(*args, **kwargs):
-        session, preps = get_session()
+        session, preps, query_consistency = get_session()
         kwargs['session'] = session
         kwargs['prepared'] = preps
+        kwargs['query_consistency'] = query_consistency
         return func(*args, **kwargs)
 
     return inner
@@ -190,21 +227,21 @@ class ConcurrentBatchFuture(ResponseFuture):
 
 @log_timing
 @cassandra_session
-def get_distinct_sensors(session=None, prepared=None):
+def get_distinct_sensors(session=None, prepared=None, query_consistency=None):
     rows = session.execute(prepared.get(DISTINCT_PS))
     return rows
 
 
 @log_timing
 @cassandra_session
-def get_streams(subsite, node, sensor, method, session=None, prepared=None):
+def get_streams(subsite, node, sensor, method, session=None, prepared=None, query_consistency=None):
     rows = session.execute(prepared[METADATA_FOR_REFDES_PS], (subsite, node, sensor, method))
     return [row[0] for row in rows]  # return streams with count>0
 
 
 @log_timing
 @cassandra_session
-def get_query_columns(stream_key, session=None, prepared=None):
+def get_query_columns(stream_key, session=None, prepared=None, query_consistency=None):
     # grab the column names from our metadata
     cols = global_cassandra_state['cluster'].metadata.keyspaces[engine.app.config['CASSANDRA_KEYSPACE']]. \
         tables[stream_key.stream.name].columns.keys()
@@ -216,7 +253,7 @@ def get_query_columns(stream_key, session=None, prepared=None):
 
 @log_timing
 @cassandra_session
-def fetch_data_sync(stream_key, time_range, strict_range=False, session=None, prepared=None):
+def fetch_data_sync(stream_key, time_range, strict_range=False, session=None, prepared=None, query_consistency=None):
     cols = get_query_columns(stream_key)
 
     # attempt to find one data point beyond the requested start/stop times
@@ -227,8 +264,15 @@ def fetch_data_sync(stream_key, time_range, strict_range=False, session=None, pr
 
     # attempt to find one data point beyond the requested start/stop times
     if not strict_range:
-        first = session.execute(base % ('time', time_to_bin(start)) + ' and time<%s order by method desc limit 1', (start,))
-        last = session.execute(base % ('time', time_to_bin(stop)) + ' and time>%s limit 1', (stop,))
+        first_statment = SimpleStatement(
+            base % ('time', time_to_bin(start)) + ' and time<%s order by method desc limit 1', (start,),
+            consistency_level=query_consistency)
+        first = session.execute(first_statment)
+        second_statement = SimpleStatement(
+            base % ('time', time_to_bin(stop)) + ' and time>%s limit 1', (stop,),
+            consistency_level=query_consistency
+        )
+        last = session.execute(second_statement)
         if first:
             start = first[0][0]
         if last:
@@ -243,13 +287,14 @@ def fetch_data_sync(stream_key, time_range, strict_range=False, session=None, pr
 
 @log_timing
 @cassandra_session
-def fetch_concurrent(stream_key, cols, times, concurrency=50, session=None, prepared=None):
+def fetch_concurrent(stream_key, cols, times, concurrency=50, session=None, prepared=None, query_consistency=None):
     query_name = 'fetch_data_%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite,
                                                 stream_key.node, stream_key.sensor, stream_key.method)
     if query_name not in prepared:
         base = "select %%s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s'" % \
                (stream_key.stream.name, stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method)
         query = session.prepare(base % ','.join(cols) + ' and time>=? and time<=?')
+        query.consistency_level = query_consistency
         query.fetch_size = engine.app.config['CASSANDRA_FETCH_SIZE']
         prepared[query_name] = query
     query = prepared[query_name]
@@ -258,7 +303,8 @@ def fetch_concurrent(stream_key, cols, times, concurrency=50, session=None, prep
     return results
 
 @cassandra_session
-def fetch_l0_provenance(subsite, node, sensor, method, deployment, prov_uuid,  session=None, prepared=None):
+def fetch_l0_provenance(subsite, node, sensor, method, deployment, prov_uuid,  session=None, prepared=None,
+                        query_consistency=None):
     """
     Fetch the l0_provenance entry for the passed information.
     All of the neccessary infromation should be stored as a tuple in the
@@ -266,13 +312,15 @@ def fetch_l0_provenance(subsite, node, sensor, method, deployment, prov_uuid,  s
     """
     base = "select * from dataset_l0_provenance where subsite='%s' and node='%s' and sensor='%s' and method='%s' and deployment=%s and id=%s" % \
            (subsite, node, sensor, method, deployment, prov_uuid)
-    rows = session.execute(base)
+    statement = SimpleStatement(base, consistency_level=query_consistency)
+    rows = session.execute(statement)
     return rows
 
 
 @log_timing
 @cassandra_session
-def fetch_nth_data(stream_key, time_range, strict_range=False, num_points=1000, chunk_size=100, session=None, prepared=None):
+def fetch_nth_data(stream_key, time_range, strict_range=False, num_points=1000, chunk_size=100, session=None,
+                   prepared=None, query_consistency=None):
     """
     Given a time range, generate evenly spaced times over the specified interval. Fetch a single
     result from either side of each point in time.
@@ -310,13 +358,15 @@ def fetch_nth_data(stream_key, time_range, strict_range=False, num_points=1000, 
 
 @cassandra_session
 @log_timing
-def execute_query(stream_key, cols, times, time_range, strict_range=False, session=None, prepared=None):
+def execute_query(stream_key, cols, times, time_range, strict_range=False, session=None, prepared=None,
+                  query_consistency=None):
     if strict_range:
         query = session.prepare("select %s from %s where subsite='%s' and node='%s'"
                                 " and sensor='%s' and bin=? and method='%s' and time>=%s and time<=?"
                                 " order by method desc limit 1" % (','.join(cols),
                                                                    stream_key.stream.name, stream_key.subsite, stream_key.node,
                                                                    stream_key.sensor, stream_key.method, time_range.start))
+        query.consistency_level = query_consistency
     else:
         query_name = '%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite,
                                          stream_key.node, stream_key.sensor, stream_key.method)
@@ -325,6 +375,7 @@ def execute_query(stream_key, cols, times, time_range, strict_range=False, sessi
                    (','.join(cols), stream_key.stream.name, stream_key.subsite,
                     stream_key.node, stream_key.sensor, stream_key.method)
             query = session.prepare(base + ' and time<=? order by method desc limit 1')
+            query.consistency_level = query_consistency
             prepared[query_name] = query
         query = prepared[query_name]
     result = list(execute_concurrent_with_args(session, query, times, concurrency=50))
@@ -332,7 +383,7 @@ def execute_query(stream_key, cols, times, time_range, strict_range=False, sessi
 
 
 @cassandra_session
-def stream_exists(subsite, node, sensor, method, stream, session=None, prepared=None):
+def stream_exists(subsite, node, sensor, method, stream, session=None, prepared=None, query_consistency=None):
     ps = prepared.get(STREAM_EXISTS_PS)
     rows = session.execute(ps, (subsite, node, sensor, method, stream))
     return len(rows) == 1
@@ -364,7 +415,7 @@ def time_to_bin(t):
 
 
 @cassandra_session
-def get_available_time_range(stream_key, session=None, prepared=None):
+def get_available_time_range(stream_key, session=None, prepared=None, query_consistency=None):
     rows = session.execute(prepared[STREAM_EXISTS_PS], (stream_key.subsite, stream_key.node,
                                                         stream_key.sensor, stream_key.method,
                                                         stream_key.stream.name))
