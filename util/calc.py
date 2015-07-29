@@ -1407,7 +1407,7 @@ class NetCDF_Generator(object):
             ds = self.group_by_stream_key(r, stream_key)
             with tempfile.NamedTemporaryFile() as tf:
                 ds.to_netcdf(tf.name)
-                zf.write(tf.name, '%s.nc' % (stream_key.as_refdes(),))
+                zf.write(tf.name, '%s.nc' % (stream_key.as_dashed_refdes(),))
 
     def open_new_ds(self, r, stream_key):
         # set up file level attributes
@@ -1444,7 +1444,7 @@ class NetCDF_Generator(object):
 
         tp = stream_key.stream.time_parameter
         try:
-            return self.pd_data[tp][stream_key.as_refdes()]['data'], tp
+            return self.pd_data[tp][stream_key.as_dashed_refdes()]['data'], tp
         except KeyError:
             raise MissingTimeException("Could not find time parameter %s for %s" % (tp, stream_key))
 
@@ -1461,7 +1461,7 @@ class NetCDF_Generator(object):
         for param_id in self.pd_data:
             if (
                 param_id == time_parameter or
-                stream_key.as_refdes() not in self.pd_data[param_id]
+                stream_key.as_dashed_refdes() not in self.pd_data[param_id]
                ):
                 continue
 
@@ -1470,7 +1470,7 @@ class NetCDF_Generator(object):
             # like deployment for deployment number
             param_name = param_id if param is None else param.name
 
-            data = self.pd_data[param_id][stream_key.as_refdes()]['data'][mask]
+            data = self.pd_data[param_id][stream_key.as_dashed_refdes()]['data'][mask]
             if param is not None:
                 try:
                     data = data.astype(param.value_encoding)
