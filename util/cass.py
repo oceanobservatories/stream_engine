@@ -320,20 +320,40 @@ def fetch_nth_data(stream_key, time_range, strict_range=False, num_points=1000, 
     futures = []
     for i in xrange(0, num_points, chunk_size):
         futures.append(execution_pool.apply_async(execute_query, (stream_key, cols, times[i:i + chunk_size], time_range, strict_range)))
-
     rows = []
     for future in futures:
         rows.extend(future.get())
 
-    uniq = {}
-    for row in rows:
-        key = "{}{}".format(row[0], row[-1])  # this should include more than the time and the last value
-        uniq[key] = row
+    # start time only in effect on strict_range query
+    start_time = None
+    if strict_range:
+        start_time = time_range.start
 
-    rows = sorted(uniq.values())
-
-    rows = [r[1][0] for r in rows if r[0] and len(r[1]) > 0]
-    return cols, rows
+    row_set = set()
+    query_data = []
+    for row, time_query in zip(rows, times):
+        success, data = row
+        duplicate = False
+        data_time = None
+        if success and len(data) > 0:
+            data_time = data[-1][0]
+            if data[-1] not in row_set:
+                row_set.add(data[-1])
+            else:
+                duplicate = True
+        query_data.append(
+            {
+                "duplicated_data" : duplicate,
+                "end_time" : time_query[1],
+                "start_time" : start_time,
+                "bins" : [time_query[0]],
+                "data_size" : len(data),
+                "actual_time" : data_time,
+                "desired_size" : 1,
+            }
+        )
+    rows = sorted(row_set)
+    return cols, rows, query_data
 
 #---------------------------------------------------------------------------------------
 # Fetch all records in the time_range by qurying for every time bin in the time_range
