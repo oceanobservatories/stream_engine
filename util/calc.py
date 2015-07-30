@@ -154,6 +154,7 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
         if include_provenance:
             out['provenance'] = provenance_metadata.get_provenance_dict()
             out['computed_provenance'] = provenance_metadata.calculated_metatdata.get_dict()
+            out['query_provenance'] = provenance_metadata.get_query_provenance()
         if include_annotations:
             out['annotations'] = annotation_store.get_json_representation()
     else:
@@ -586,9 +587,10 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
             continue
 
         if limit:
-            fields, cass_data = fetch_nth_data(key, time_range, strict_range=stream_request.strict_range, num_points=limit)
+            fields, cass_data, query_info = fetch_nth_data(key, time_range, strict_range=stream_request.strict_range, num_points=limit)
         else:
-            fields, cass_data = fetch_nth_data(key, time_range, strict_range=stream_request.strict_range)
+            fields, cass_data, query_info = fetch_nth_data(key, time_range, strict_range=stream_request.strict_range)
+        provenance_metadata.add_query_metadata(key, query_info)
 
         if len(cass_data) == 0:
             log.info("Cassandra query for {} returned no data searching SAN".format(key.as_refdes()))
@@ -1253,6 +1255,11 @@ class ProvenanceMetadataStore(object):
     def __init__(self):
         self._prov_set = set()
         self.calculated_metatdata = CalculatedProvenanceMetadataStore()
+        self._query_metadata = {}
+
+    def add_query_metadata(self, stream_key, query_info):
+        key = stream_key.as_dashed_refdes()
+        self._query_metadata[key] = query_info
 
     def add_metadata(self, value):
         self._prov_set.add(value)
@@ -1275,6 +1282,9 @@ class ProvenanceMetadataStore(object):
             else:
                 log.info("Received empty provenance row")
         return prov
+
+    def get_query_provenance(self):
+        return self._query_metadata
 
 
 class CalculatedProvenanceMetadataStore(object):
