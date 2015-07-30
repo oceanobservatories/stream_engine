@@ -185,6 +185,7 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
         if include_provenance:
             out['provenance'] = provenance_metadata.get_provenance_dict()
             out['computed_provenance'] = provenance_metadata.calculated_metatdata.get_dict()
+            out['internal_query_provenance'] = provenance_metadata.get_query_provenance()
         if include_annotations:
             out['annotations'] = annotation_store.get_json_representation()
     else:
@@ -449,8 +450,16 @@ def fetch_nsan_data(stream_key, time_range, strict_range=False, num_points=1000)
     # now get data in the present we are going to start by grabbing first file in the directory with name that matches
     # grab a random amount of particles from that file if they are within the time range.
     missed = 0
+    query_data = []
     data = dict()
     for time_bin, num_data_points in to_sample:
+        query_point = {
+            "bins" : [time_bin],
+            "desired_size" :  num_data_points,
+            "duplicated_data" : False,
+            "start_time" : time_range.start,
+            "end_time" : time_range.stop,
+        }
         direct = dir_string.format(time_bin)
         if os.path.exists(direct):
             files = os.listdir(direct)
@@ -472,6 +481,8 @@ def fetch_nsan_data(stream_key, time_range, strict_range=False, num_points=1000)
                                 selection = numpy.floor(numpy.linspace(0, len(indexes)-1, num_data_points)).astype(int)
                                 selection = indexes[selection]
                                 selection = sorted(selection)
+                            query_point['data_size'] = len(selection)
+                            query_point['actual_time'] = dataset.variables['time'][selection[-1]]
                             variables =dataset.variables.keys()
                             for var in dataset.variables:
                                 if var.endswith('_shape') and var[:-5] in variables:
@@ -502,12 +513,17 @@ def fetch_nsan_data(stream_key, time_range, strict_range=False, num_points=1000)
                             break
             if not okay:
                 missed += num_data_points
+                query_point['data_size'] = 0
+                query_point['actual_time'] = None
         else:
             missed += num_data_points
+            query_point['data_size'] = 0
+            query_point['actual_time'] = None
+        query_data.append(query_point)
 
     log.warn("Failed to produce {:d} points due to nature of sampling".format(missed))
     df = pd.DataFrame(data=data)
-    return df
+    return df, query_data
 
 
 def fetch_full_san_data(stream_key, time_range, strict_range=False, num_points=1000):
@@ -617,16 +633,18 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
             continue
 
         if limit:
-            fields, cass_data = fetch_nth_data(key, time_range, strict_range=stream_request.strict_range, num_points=limit)
+            fields, cass_data, query_info = fetch_nth_data(key, time_range, strict_range=stream_request.strict_range, num_points=limit)
         else:
             fields, cass_data = fetch_all_data(key, time_range)
+            # Query info is not needed/applicable when getting all of the data.  Creating blank dictonary
+            query_info = {}
 
         if len(cass_data) == 0:
             log.info("Cassandra query for {} returned no data searching SAN".format(key.as_refdes()))
             if limit:
-                df = fetch_nsan_data(key, time_range, strict_range=False, num_points=limit)
+                df, query_info = fetch_nsan_data(key, time_range, strict_range=False, num_points=limit)
             else:
-                df = fetch_nsan_data(key, time_range, strict_range=False)
+                df, query_info = fetch_nsan_data(key, time_range, strict_range=False)
             if len(df) == 0:
                 log.info("SAN data search for {} returned no data.".format(key.as_refdes()))
                 if key == primary_key:
@@ -638,6 +656,7 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
         else:
             df = pd.DataFrame(cass_data, columns=fields)
 
+        provenance_metadata.add_query_metadata(key, query_info)
         # transform data from cass and put it into pd_data
         parameters = [p for p in key.stream.parameters if p.parameter_type != FUNCTION]
 
@@ -1311,6 +1330,11 @@ class ProvenanceMetadataStore(object):
     def __init__(self):
         self._prov_set = set()
         self.calculated_metatdata = CalculatedProvenanceMetadataStore()
+        self._query_metadata = {}
+
+    def add_query_metadata(self, stream_key, query_info):
+        key = stream_key.as_dashed_refdes()
+        self._query_metadata[key] = query_info
 
     def add_metadata(self, value):
         self._prov_set.add(value)
@@ -1333,6 +1357,9 @@ class ProvenanceMetadataStore(object):
             else:
                 log.info("Received empty provenance row")
         return prov
+
+    def get_query_provenance(self):
+        return self._query_metadata
 
 
 class CalculatedProvenanceMetadataStore(object):
@@ -1496,8 +1523,11 @@ class NetCDF_Generator(object):
                                                              attrs={'long_name' : 'l0 Provenance Keys'} )
             init_data['l0_provenance_data'] = xray.DataArray(numpy.array(values), dims=['l0_provenance'],
                                                              attrs={'long_name' : 'l0 Provenance Entries'})
-            init_data['computed_provenance'] = xray.DataArray([json.dumps(self.provenance_metadata.calculated_metatdata.get_dict())], dims=['computed_provenance_dim'],
-                                                             attrs={'long_name' : 'Computed Provenance Information'})
+            init_data['computed_provenance'] = xray.DataArray( [json.dumps(self.provenance_metadata.calculated_metatdata.get_dict())],
+                dims=['computed_provenance_dim'], attrs={'long_name': 'Computed Provenance Information'})
+            init_data['internal_query_provenance'] = xray.DataArray(
+                [json.dumps(self.provenance_metadata.get_query_provenance())], dims=['internal_query_provenance_dim'],
+                attrs={'long_name': 'Internal Query Provenance Information'})
         if r.include_annotations:
             annote = self.annotation_store.get_json_representation()
             annote_data = [json.dumps(x) for x in annote]
