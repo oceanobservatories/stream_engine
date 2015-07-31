@@ -583,7 +583,7 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
             annotation_store.add_annotations(annotations)
 
         if key.stream.is_virtual:
-            log.info("Skipping virtual stream: {}".format(key.stream.name))
+            log.info("Skipping cassandra fetch of virtual stream: {}".format(key.stream.name))
             continue
 
         if limit:
@@ -629,7 +629,7 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
                     pd_data[param.id] = {}
                 pd_data[param.id][key.as_refdes()] = {
                     'data': data_slice,
-                    'source': key.as_dashed_refdes()
+                    'source': key.as_refdes()
                 }
 
             if stream_request.include_provenance:
@@ -642,14 +642,14 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
                 pd_data['provenance'] = {}
             pd_data['provenance'][key.as_refdes()] = {
                 'data': data_frame.provenance.values.astype('str'),
-                'source': key.as_dashed_refdes()
+                'source': key.as_refdes()
             }
 
             if 'deployment' not in pd_data:
                 pd_data['deployment'] = {}
             pd_data['deployment'][key.as_refdes()] = {
                 'data': data_frame.deployment.values,
-                'source': key.as_dashed_refdes()
+                'source': key.as_refdes()
             }
 
     # exec dpa for stream
@@ -724,9 +724,23 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
 
     Does *return* a unique calculation id for this calculation.
     """
-    log.info("")
     spaces = level * 4 * ' '
-    log.info("{}Running dpa for {} (PD{}){{".format(spaces[:-4], param.name, param.id))
+
+    # Determine the parameter's parent stream key
+    parameter_key = None
+    for key in stream_request.stream_keys:
+        if param in key.stream.parameters:
+            parameter_key = key
+            break
+
+    param_refdes = parameter_key.as_refdes() if parameter_key is not None else None
+    log.info("{}Running dpa for {} (PD{}) ({}){{".format(spaces[:-4], param.name, param.id, param_refdes))
+
+
+    if parameter_key is None:
+        log.error("{}Couldn't find stream key that provides parameter: {} (PD{})".format(spaces, param.name, param.id))
+        log.info("{}}}\n".format(spaces[:-4]))
+        return -1
 
     func_map = param.parameter_function_map
     rev_func_map = {v : k for k,v in func_map.iteritems()}
@@ -777,15 +791,6 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
         else:
             parameters[i] = i
 
-    # Determine the parameter's parent stream
-    parameter_key = None
-    for key in stream_request.stream_keys:
-        if param in key.stream.parameters:
-            parameter_key = key
-            break
-
-    if parameter_key is None:
-        parameter_key = primary_key
 
     calc_id = None
     try:
@@ -841,7 +846,7 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
         calc_id = provenance_metadata.calculated_metatdata.insert_metadata(param, this_ref, calc_meta)
 
         log.info("{}returning data (t: {}, l: {})".format(spaces, type(data[0]).__name__, len(data)))
-    log.info("{}}}".format(spaces[:-4]))
+    log.info("{}}}\n".format(spaces[:-4]))
 
     return calc_id
 
@@ -1158,16 +1163,30 @@ class StreamRequest(object):
         # populate self.parameters if empty or None
         if self.parameters is None or len(self.parameters) == 0:
             self.parameters = set()
-            for each in self.stream_keys:
-                self.parameters = self.parameters.union(each.stream.parameters)
+            for key in self.stream_keys:
+                self.parameters = self.parameters.union(key.stream.parameters)
 
         # sort parameters by name for particle output
         self.parameters = sorted(self.parameters, key=lambda x: x.name)
 
+        # Add required parameters to needs
         needs = set()
+        visited = set()
+        def add_needed(param):
+            if param in visited:
+                log.fatal("Found cycle in preload parameters")
+                raise StreamEngineException("Found cycle in preload parameters", status_code=500)
+
+            if param.parameter_type == FUNCTION:
+                for need in param.needs:
+                    if need not in needs:
+                        needs.add(need)
+                        add_needed(CachedParameter.from_id(need.pdid))
+                        visited.add(param)
+
         for parameter in self.parameters:
-            if parameter.parameter_type == FUNCTION:
-                needs = needs.union([pdref for pdref in parameter.needs])
+            add_needed(parameter)
+            visited = set()
 
         needs_fqn = set([pdref for pdref in needs if pdref.is_fqn()])
         needs = set([pdref.pdid for pdref in needs if not pdref.is_fqn()])
@@ -1188,12 +1207,36 @@ class StreamRequest(object):
             if need in found:
                 continue
 
-            streams = [CachedStream.from_id(sid) for sid in need.streams]
-            found_stream_key = find_stream(self.stream_keys[0], streams, distinct_sensors)
+            streams_that_provide_need = [CachedStream.from_id(sid) for sid in need.streams]
+            found_stream_key = find_stream_key(self.stream_keys[0], streams_that_provide_need, distinct_sensors)
 
             if found_stream_key is not None:
                 self.stream_keys.append(found_stream_key)
                 found = found.union(found_stream_key.stream.parameters)
+            else:
+                # if virtual stream, add source streams to stream_keys, else error
+                is_any_virtual = False
+                for s in streams_that_provide_need:
+                    if s.is_virtual:
+                        is_any_virtual = True
+                        found_stream_key = find_stream_key(self.stream_keys[0], s.source_streams, distinct_sensors)
+
+                        if found_stream_key is not None:
+                            # add all product streams to stream_keys
+                            for product_stream in found_stream_key.stream.product_streams:
+                                found = found.union(product_stream.parameters)
+                                sk = StreamKey(found_stream_key.subsite,
+                                                                found_stream_key.node,
+                                                                found_stream_key.sensor,
+                                                                found_stream_key.method,
+                                                                product_stream.name)
+                                if sk not in self.stream_keys:
+                                    self.stream_keys.append(sk)
+                        else:
+                            log.error("Couldn't find source stream key for the need: {} ({})".format(need.name, need.id))
+
+                if not is_any_virtual:
+                    log.error("Couldn't find stream key that provides needed param: {} ({})".format(need.name, need.id))
 
         found = [p.id for p in found]
         self.found = found
@@ -1211,17 +1254,19 @@ class StreamRequest(object):
             streams = [CachedStream.from_id(sid) for sid in parameter.streams]
             streams = [s for s in streams if s.name == pdref.stream_name]
 
-            found_stream_key = find_stream(self.stream_keys[0], streams, distinct_sensors)
+            found_stream_key = find_stream_key(self.stream_keys[0], streams, distinct_sensors)
 
             if found_stream_key is not None:
                 self.stream_keys.append(found_stream_key)
-                found = found.union(found_stream_key.stream.name)
 
         needs_cc = set()
         for sk in self.stream_keys:
             needs_cc = needs_cc.union(sk.needs_cc)
 
         self.needs_cc = needs_cc.difference(self.coefficients.keys())
+
+        # deduplicated stream_keys
+        self.stream_keys = list(OrderedDict.fromkeys(self.stream_keys))
 
         if len(self.needs_params) > 0:
             log.error('Unable to find needed parameters: %s', self.needs_params)
@@ -1234,19 +1279,19 @@ class StreamRequest(object):
         try:
             available_time_range = get_available_time_range(self.stream_keys[0])
         except IndexError:
-            log.info('No stream metadata in cassandra for %s', self.stream_keys[0])
-            raise MissingStreamMetadataException('No stream metadata in cassandra for %s' % self.stream_keys[0])
+            log.info('No stream metadata in cassandra for %s', self.stream_keys[0].as_refdes())
+            raise MissingStreamMetadataException('No stream metadata in cassandra for %s' % self.stream_keys[0].as_refdes())
         else:
             if self.time_range.start >= available_time_range.stop or self.time_range.stop <= available_time_range.start:
                 log.info('No data in requested time range (%s, %s) for %s ', ntp_to_datestring(self.time_range.start),
-                         ntp_to_datestring(self.time_range.stop), self.stream_keys[0])
+                         ntp_to_datestring(self.time_range.stop), self.stream_keys[0].as_refdes())
                 raise MissingDataException("No data in requested time range")
 
             start = max(self.time_range.start, available_time_range.start)
             stop = min(self.time_range.stop, available_time_range.stop)
             log.debug('fit (%s, %s) to (%s, %s) for %s', ntp_to_datestring(self.time_range.start),
                       ntp_to_datestring(self.time_range.stop), ntp_to_datestring(start), ntp_to_datestring(stop),
-                      self.stream_keys[0])
+                      self.stream_keys[0].as_refdes())
             self.time_range = TimeRange(start, stop)
 
 
@@ -1408,7 +1453,7 @@ class NetCDF_Generator(object):
             ds = self.group_by_stream_key(r, stream_key)
             with tempfile.NamedTemporaryFile() as tf:
                 ds.to_netcdf(tf.name)
-                zf.write(tf.name, '%s.nc' % (stream_key.as_dashed_refdes(),))
+                zf.write(tf.name, '%s.nc' % (stream_key.as_refdes(),))
 
     def open_new_ds(self, r, stream_key):
         # set up file level attributes
@@ -1418,9 +1463,9 @@ class NetCDF_Generator(object):
             'sensor': stream_key.sensor,
             'collection_method': stream_key.method,
             'stream': stream_key.stream.name,
-            'title' : '{:s} for {:s}'.format(app.config['NETCDF_TITLE'], stream_key.as_dashed_refdes()),
+            'title' : '{:s} for {:s}'.format(app.config['NETCDF_TITLE'], stream_key.as_refdes()),
             'institution' : '{:s}'.format(app.config['NETCDF_INSTITUTION']),
-            'source' : '{:s}'.format(stream_key.as_dashed_refdes()),
+            'source' : '{:s}'.format(stream_key.as_refdes()),
             'history' : '{:s} {:s}'.format(datetime.datetime.utcnow().isoformat(), app.config['NETCDF_HISTORY_COMMENT']),
             'references' : '{:s}'.format(app.config['NETCDF_REFERENCE']),
             'comment' : '{:s}'.format(app.config['NETCDF_COMMENT']),
@@ -1512,7 +1557,7 @@ class NetCDF_Generator(object):
         return this_group
 
 
-def find_stream(stream_key, streams, distinct_sensors):
+def find_stream_key(stream_key, streams, distinct_sensors):
     """
     Attempt to find a "related" sensor which provides one of these streams
     :param stream_key
