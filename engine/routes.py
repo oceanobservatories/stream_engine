@@ -63,7 +63,7 @@ def particles():
     validate(input_data)
 
     request_start_time = time.time()
-    log.info("Handling request to {} - {}".format(request.url, input_data.get('streams', "")))
+    log.info("Handling request to %s - %s", request.url, input_data.get('streams', ""))
 
     start = input_data.get('start', app.config["UNBOUND_QUERY_START"])
     stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
@@ -78,7 +78,7 @@ def particles():
                     custom_type=input_data.get('custom_type'), include_provenance=prov, include_annotations=annotate ,strict_range=input_data.get('strict_range', False)),
                 mimetype='application/json')
 
-    log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
+    log.info("Request took %.2fs to complete\n", time.time() - request_start_time)
     return resp
 
 @app.route('/full_netcdf', methods=['POST'])
@@ -113,11 +113,11 @@ def full_netcdf():
     input_data = request.get_json()
     validate(input_data)
     request_start_time = time.time()
-    log.info("Handling request to offload {} - {}".format(request.url, input_data.get('streams', "")))
+    log.info("Handling request to offload %s - %s", request.url, input_data.get('streams', ""))
     start = input_data.get('start', app.config["UNBOUND_QUERY_START"])
-    stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time())) 
+    stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
     resp = Response(util.calc.get_netcdf_raw(input_data.get('streams'), start, stop,), mimetype='application/netcdf')
-    log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
+    log.info("Request took %.2fs to complete\n", time.time() - request_start_time)
     return resp
 
 
@@ -154,7 +154,7 @@ def netcdf():
     validate(input_data)
 
     request_start_time = time.time()
-    log.info("Handling request to {} - {}".format(request.url, input_data.get('streams', "")))
+    log.info("Handling request to %s - %s", request.url, input_data.get('streams', ""))
 
     start = input_data.get('start', 1)
     stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
@@ -170,7 +170,7 @@ def netcdf():
                                          include_annotations=annotate),
                     mimetype='application/netcdf')
 
-    log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
+    log.info("Request took %.2fs to complete\n", time.time() - request_start_time)
     return resp
 
 
@@ -225,12 +225,12 @@ def needs():
     validate(input_data)
 
     request_start_time = time.time()
-    log.info("Handling request to {} - {}".format(request.url, input_data.get('streams', "")))
+    log.info("Handling request to %s - %s", request.url, input_data.get('streams', ""))
 
     output_data = {'streams': util.calc.get_needs(input_data.get('streams'))}
     resp = Response(json.dumps(output_data), mimetype='application/json')
 
-    log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
+    log.info("Request took %.2fs to complete\n", time.time() - request_start_time)
     return resp
 
 @app.route('/')
