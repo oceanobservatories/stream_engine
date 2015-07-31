@@ -1501,10 +1501,16 @@ class NetCDF_Generator(object):
                     array_attrs['units'] = param.unit
                 if param.fill_value is not None:
                     array_attrs['_FillValue'] = param.fill_value
-                if param.description is not None:
-                    array_attrs['long_name'] = param.description
+                # Long name needs to be display name to comply with cf 1.6.
+                # http://cfconventions.org/Data/cf-conventions/cf-conventions-1.6/build/cf-conventions.html#long-name
                 if param.display_name is not None:
-                    array_attrs['display_name'] = param.display_name
+                    array_attrs['long_name'] = param.display_name
+                elif param.name is not None:
+                    array_attrs['long_name'] = param.name
+                else:
+                    log.warn('Could not produce long_name attribute for {:s}'.format(str(param)))
+                if param.description is not None:
+                    array_attrs['description'] = param.description
                 if param.data_product_identifier is not None:
                     array_attrs['data_product_identifier'] = param.data_product_identifier
 
