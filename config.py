@@ -14,3 +14,9 @@ POOL_SIZE = 4
 
 LOGGING_CONFIG='logging.conf'
 
+NETCDF_TITLE = "Data produced by Stream Engine version 0.6"
+NETCDF_INSTITUTION = "Ocean Observatories Initiative"
+NETCDF_HISTORY_COMMENT = "generated from Stream Engine"
+NETCDF_REFERENCE = "More information can be found at http://oceanobservatories.org/"
+NETCDF_COMMENT = ""
+

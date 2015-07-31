@@ -13,6 +13,7 @@ import xray
 import uuid
 
 import os
+import datetime
 from scipy.io.netcdf import netcdf_file
 
 from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, \
@@ -1436,7 +1437,13 @@ class NetCDF_Generator(object):
             'node': stream_key.node,
             'sensor': stream_key.sensor,
             'collection_method': stream_key.method,
-            'stream': stream_key.stream.name
+            'stream': stream_key.stream.name,
+            'title' : '{:s} for {:s}'.format(app.config['NETCDF_TITLE'], stream_key.as_dashed_refdes()),
+            'institution' : '{:s}'.format(app.config['NETCDF_INSTITUTION']),
+            'source' : '{:s}'.format(stream_key.as_dashed_refdes()),
+            'history' : '{:s} {:s}'.format(datetime.datetime.utcnow().isoformat(), app.config['NETCDF_HISTORY_COMMENT']),
+            'references' : '{:s}'.format(app.config['NETCDF_REFERENCE']),
+            'comment' : '{:s}'.format(app.config['NETCDF_COMMENT']),
         }
 
         init_data = {}
