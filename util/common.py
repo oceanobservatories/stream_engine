@@ -205,7 +205,9 @@ class StreamKey(object):
 
     @staticmethod
     def from_refdes(refdes):
-        return StreamKey(*refdes.split('|'))
+        subsite, node, rest = refdes.split('-', 2)
+        sensor, method, stream = rest.rsplit('-', 2)
+        return StreamKey(subsite, node, sensor, method, stream)
 
     @staticmethod
     def from_stream_key(stream_key, sensor, stream):
@@ -228,16 +230,13 @@ class StreamKey(object):
         }
 
     def as_refdes(self):
-        return '%(subsite)s|%(node)s|%(sensor)s|%(method)s|%(stream)s' % self.as_dict()
-
-    def as_dashed_refdes(self):
-        return self.as_refdes().replace('|', '-')
+        return '%(subsite)s-%(node)s-%(sensor)s-%(method)s-%(stream)s' % self.as_dict()
 
     def __repr__(self):
         return repr(self.as_dict())
 
     def __str__(self):
-        return str(self.as_dict())
+        return self.as_refdes()
 
 
 class CachedStream(object):
@@ -340,6 +339,12 @@ class CachedParameter(object):
 
     def __str__(self):
         return str(self.as_dict())
+
+    def __eq__(self, other):
+        return self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id)
 
 
 class CachedFunction(object):
