@@ -16,7 +16,7 @@ import os
 from scipy.io.netcdf import netcdf_file
 
 from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, \
-    get_available_time_range, fetch_l0_provenance, fetch_data_sync, time_to_bin
+    get_available_time_range, fetch_l0_provenance, fetch_data_sync, time_to_bin, store_qc_results
 from util.common import log_timing, ntp_to_datestring,ntp_to_ISO_date, StreamKey, TimeRange, CachedParameter, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, Annotation, \
@@ -101,6 +101,8 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
 
     for index in range(len(pd_data[time_param][primary_key.as_refdes()]['data'])):
         particle = OrderedDict()
+        particle_id = pd_data['id'][primary_key.as_refdes()]['data'][index]
+        particle_bin = pd_data['bin'][primary_key.as_refdes()]['data'][index]
 
         if not primary_key.stream.is_virtual:
             particle['pk'] = primary_key.as_dict()
@@ -145,6 +147,9 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
                         qc_results_value = qc_results_mask ^ qc_results_value
 
                     particle[qc_results_key] = qc_results_value
+                    store_qc_results(qc_results_key, particle, particle_id, particle_bin)
+
+
 
         particles.append(particle)
 
@@ -651,6 +656,20 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
                 'source': key.as_dashed_refdes()
             }
 
+            if 'id' not in pd_data:
+                pd_data['id'] = {}
+            pd_data['id'][key.as_refdes()] = {
+                'data': data_frame.id.values.astype('str'),
+                'source': key.as_dashed_refdes()
+            }
+
+            if 'bin' not in pd_data:
+                pd_data['bin'] = {}
+            pd_data['bin'][key.as_refdes()] = {
+                'data': data_frame.bin.values,
+                'source': key.as_dashed_refdes()
+            }
+
     # exec dpa for stream
 
     # calculate time param first if it's a derived product
@@ -669,7 +688,8 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
             else:
                 log.warning("Required parameter not present: {}".format(param.name))
 
-            if stream_request.qc_parameters.get(param.name) is not None:
+            if stream_request.qc_parameters.get(param.name) is not None \
+                    and pd_data[param.id][primary_key.as_refdes()].get('data') is not None:
                 _qc_check(stream_request, param, pd_data, primary_key)
 
     return pd_data
