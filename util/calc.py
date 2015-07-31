@@ -582,7 +582,7 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
             annotation_store.add_annotations(annotations)
 
         if key.stream.is_virtual:
-            log.info("Skipping virtual stream: {}".format(key.stream.name))
+            log.info("Skipping cassandra fetch of virtual stream: {}".format(key.stream.name))
             continue
 
         if limit:
@@ -723,9 +723,23 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
 
     Does *return* a unique calculation id for this calculation.
     """
-    log.info("")
     spaces = level * 4 * ' '
-    log.info("{}Running dpa for {} (PD{}){{".format(spaces[:-4], param.name, param.id))
+
+    # Determine the parameter's parent stream key
+    parameter_key = None
+    for key in stream_request.stream_keys:
+        if param in key.stream.parameters:
+            parameter_key = key
+            break
+
+    param_refdes = parameter_key.as_refdes() if parameter_key is not None else None
+    log.info("{}Running dpa for {} (PD{}) ({}){{".format(spaces[:-4], param.name, param.id, param_refdes))
+
+
+    if parameter_key is None:
+        log.error("{}Couldn't find stream key that provides parameter: {} (PD{})".format(spaces, param.name, param.id))
+        log.info("{}}}\n".format(spaces[:-4]))
+        return -1
 
     func_map = param.parameter_function_map
     rev_func_map = {v : k for k,v in func_map.iteritems()}
@@ -776,15 +790,6 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
         else:
             parameters[i] = i
 
-    # Determine the parameter's parent stream
-    parameter_key = None
-    for key in stream_request.stream_keys:
-        if param in key.stream.parameters:
-            parameter_key = key
-            break
-
-    if parameter_key is None:
-        parameter_key = primary_key
 
     calc_id = None
     try:
@@ -840,7 +845,7 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
         calc_id = provenance_metadata.calculated_metatdata.insert_metadata(param, this_ref, calc_meta)
 
         log.info("{}returning data (t: {}, l: {})".format(spaces, type(data[0]).__name__, len(data)))
-    log.info("{}}}".format(spaces[:-4]))
+    log.info("{}}}\n".format(spaces[:-4]))
 
     return calc_id
 
@@ -1157,16 +1162,29 @@ class StreamRequest(object):
         # populate self.parameters if empty or None
         if self.parameters is None or len(self.parameters) == 0:
             self.parameters = set()
-            for each in self.stream_keys:
-                self.parameters = self.parameters.union(each.stream.parameters)
+            for key in self.stream_keys:
+                self.parameters = self.parameters.union(key.stream.parameters)
 
         # sort parameters by name for particle output
         self.parameters = sorted(self.parameters, key=lambda x: x.name)
 
+        # Add required parameters to needs
+        def add_needed(param, depth=0):
+            depth += 1
+            if depth >= 10000:
+                log.critical("Found cycle in parameter needs")
+                raise StreamEngineException('Found cycle in parameter needs', status_code=500)
+
+            if param.parameter_type == FUNCTION:
+                for need in param.needs:
+                    if need not in needs:
+                        needs.add(need)
+                        add_needed(CachedParameter.from_id(need.pdid), depth)
+
         needs = set()
         for parameter in self.parameters:
-            if parameter.parameter_type == FUNCTION:
-                needs = needs.union([pdref for pdref in parameter.needs])
+            add_needed(parameter)
+
 
         needs_fqn = set([pdref for pdref in needs if pdref.is_fqn()])
         needs = set([pdref.pdid for pdref in needs if not pdref.is_fqn()])
@@ -1187,12 +1205,36 @@ class StreamRequest(object):
             if need in found:
                 continue
 
-            streams = [CachedStream.from_id(sid) for sid in need.streams]
-            found_stream_key = find_stream(self.stream_keys[0], streams, distinct_sensors)
+            streams_that_provide_need = [CachedStream.from_id(sid) for sid in need.streams]
+            found_stream_key = find_stream_key(self.stream_keys[0], streams_that_provide_need, distinct_sensors)
 
             if found_stream_key is not None:
                 self.stream_keys.append(found_stream_key)
                 found = found.union(found_stream_key.stream.parameters)
+            else:
+                # if virtual stream, add source streams to stream_keys, else error
+                is_any_virtual = False
+                for s in streams_that_provide_need:
+                    if s.is_virtual:
+                        is_any_virtual = True
+                        found_stream_key = find_stream_key(self.stream_keys[0], s.source_streams, distinct_sensors)
+
+                        if found_stream_key is not None:
+                            # add all product streams to stream_keys
+                            for product_stream in found_stream_key.stream.product_streams:
+                                found = found.union(product_stream.parameters)
+                                sk = StreamKey(found_stream_key.subsite,
+                                                                found_stream_key.node,
+                                                                found_stream_key.sensor,
+                                                                found_stream_key.method,
+                                                                product_stream.name)
+                                if sk not in self.stream_keys:
+                                    self.stream_keys.append(sk)
+                        else:
+                            log.error("Couldn't find source stream key for the need: {} ({})".format(need.name, need.id))
+
+                if not is_any_virtual:
+                    log.error("Couldn't find stream key that provides needed param: {} ({})".format(need.name, need.id))
 
         found = [p.id for p in found]
         self.found = found
@@ -1210,17 +1252,19 @@ class StreamRequest(object):
             streams = [CachedStream.from_id(sid) for sid in parameter.streams]
             streams = [s for s in streams if s.name == pdref.stream_name]
 
-            found_stream_key = find_stream(self.stream_keys[0], streams, distinct_sensors)
+            found_stream_key = find_stream_key(self.stream_keys[0], streams, distinct_sensors)
 
             if found_stream_key is not None:
                 self.stream_keys.append(found_stream_key)
-                found = found.union(found_stream_key.stream.name)
 
         needs_cc = set()
         for sk in self.stream_keys:
             needs_cc = needs_cc.union(sk.needs_cc)
 
         self.needs_cc = needs_cc.difference(self.coefficients.keys())
+
+        # deduplicated stream_keys
+        self.stream_keys = list(OrderedDict.fromkeys(self.stream_keys))
 
         if len(self.needs_params) > 0:
             log.error('Unable to find needed parameters: %s', self.needs_params)
@@ -1233,19 +1277,19 @@ class StreamRequest(object):
         try:
             available_time_range = get_available_time_range(self.stream_keys[0])
         except IndexError:
-            log.info('No stream metadata in cassandra for %s', self.stream_keys[0])
-            raise MissingStreamMetadataException('No stream metadata in cassandra for %s' % self.stream_keys[0])
+            log.info('No stream metadata in cassandra for %s', self.stream_keys[0].as_dashed_refdes())
+            raise MissingStreamMetadataException('No stream metadata in cassandra for %s' % self.stream_keys[0].as_dashed_refdes())
         else:
             if self.time_range.start >= available_time_range.stop or self.time_range.stop <= available_time_range.start:
                 log.info('No data in requested time range (%s, %s) for %s ', ntp_to_datestring(self.time_range.start),
-                         ntp_to_datestring(self.time_range.stop), self.stream_keys[0])
+                         ntp_to_datestring(self.time_range.stop), self.stream_keys[0].as_dashed_refdes())
                 raise MissingDataException("No data in requested time range")
 
             start = max(self.time_range.start, available_time_range.start)
             stop = min(self.time_range.stop, available_time_range.stop)
             log.debug('fit (%s, %s) to (%s, %s) for %s', ntp_to_datestring(self.time_range.start),
                       ntp_to_datestring(self.time_range.stop), ntp_to_datestring(start), ntp_to_datestring(stop),
-                      self.stream_keys[0])
+                      self.stream_keys[0].as_dashed_refdes())
             self.time_range = TimeRange(start, stop)
 
 
@@ -1505,47 +1549,47 @@ class NetCDF_Generator(object):
         return this_group
 
 
-def find_stream(stream_key, streams, distinct_sensors):
+def find_stream_key(primary_stream_key, streams, distinct_sensors):
     """
     Attempt to find a "related" sensor which provides one of these streams
-    :param stream_key
+    :param primary_stream_key
     :return:
     """
     stream_map = {s.name: s for s in streams}
     # check our specific reference designator first
-    for stream in get_streams(stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method):
+    for stream in get_streams(primary_stream_key.subsite, primary_stream_key.node, primary_stream_key.sensor, primary_stream_key.method):
         if stream in stream_map:
             return StreamKey.from_dict({
-                "subsite": stream_key.subsite,
-                "node": stream_key.node,
-                "sensor": stream_key.sensor,
-                "method": stream_key.method,
+                "subsite": primary_stream_key.subsite,
+                "node": primary_stream_key.node,
+                "sensor": primary_stream_key.sensor,
+                "method": primary_stream_key.method,
                 "stream": stream
             })
 
     # check other reference designators in the same subsite-node
     for subsite1, node1, sensor in distinct_sensors:
-        if subsite1 == stream_key.subsite and node1 == stream_key.node:
-            for stream in get_streams(stream_key.subsite, stream_key.node, sensor, stream_key.method):
+        if subsite1 == primary_stream_key.subsite and node1 == primary_stream_key.node:
+            for stream in get_streams(primary_stream_key.subsite, primary_stream_key.node, sensor, primary_stream_key.method):
                 if stream in stream_map:
                     return StreamKey.from_dict({
-                        "subsite": stream_key.subsite,
-                        "node": stream_key.node,
+                        "subsite": primary_stream_key.subsite,
+                        "node": primary_stream_key.node,
                         "sensor": sensor,
-                        "method": stream_key.method,
+                        "method": primary_stream_key.method,
                         "stream": stream
                     })
 
     # check other reference designators in the same subsite
     for subsite1, node, sensor in distinct_sensors:
-        if subsite1 == stream_key.subsite:
-            for stream in get_streams(stream_key.subsite, node, sensor, stream_key.method):
+        if subsite1 == primary_stream_key.subsite:
+            for stream in get_streams(primary_stream_key.subsite, node, sensor, primary_stream_key.method):
                 if stream in stream_map:
                     return StreamKey.from_dict({
-                        "subsite": stream_key.subsite,
+                        "subsite": primary_stream_key.subsite,
                         "node": node,
                         "sensor": sensor,
-                        "method": stream_key.method,
+                        "method": primary_stream_key.method,
                         "stream": stream
                     })
     return None

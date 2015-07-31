@@ -78,7 +78,7 @@ def particles():
                     custom_type=input_data.get('custom_type'), include_provenance=prov, include_annotations=annotate ,strict_range=input_data.get('strict_range', False)),
                 mimetype='application/json')
 
-    log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
+    log.info("Request took {:.2f}s to complete\n".format(time.time() - request_start_time))
     return resp
 
 @app.route('/full_netcdf', methods=['POST'])
@@ -117,7 +117,7 @@ def full_netcdf():
     start = input_data.get('start', 1)
     stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
     resp = Response(util.calc.get_netcdf_raw(input_data.get('streams'), start, stop,), mimetype='application/netcdf')
-    log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
+    log.info("Request took {:.2f}s to complete\n".format(time.time() - request_start_time))
     return resp
 
 
@@ -170,7 +170,7 @@ def netcdf():
                                          include_annotations=annotate),
                     mimetype='application/netcdf')
 
-    log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
+    log.info("Request took {:.2f}s to complete\n".format(time.time() - request_start_time))
     return resp
 
 
@@ -230,7 +230,7 @@ def needs():
     output_data = {'streams': util.calc.get_needs(input_data.get('streams'))}
     resp = Response(json.dumps(output_data), mimetype='application/json')
 
-    log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
+    log.info("Request took {:.2f}s to complete\n".format(time.time() - request_start_time))
     return resp
 
 @app.route('/')

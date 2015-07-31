@@ -341,6 +341,9 @@ class CachedParameter(object):
     def __str__(self):
         return str(self.as_dict())
 
+    def __eq__(self, other):
+        return self.id == other.id
+
 
 class CachedFunction(object):
     @staticmethod
