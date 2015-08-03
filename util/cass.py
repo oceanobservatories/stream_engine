@@ -1,5 +1,6 @@
 import numpy
 import engine
+import hashlib
 
 from collections import deque
 import logging
@@ -334,6 +335,56 @@ def fetch_nth_data(stream_key, time_range, strict_range=False, num_points=1000, 
     rows = [r[1][0] for r in rows if r[0] and len(r[1]) > 0]
     return cols, rows
 
+#---------------------------------------------------------------------------------------
+# Fetch all records in the time_range by qurying for every time bin in the time_range
+@log_timing
+@cassandra_session
+def fetch_all_data(stream_key, time_range, session=None, prepared=None, query_consistency=None):
+
+    """
+    Given a time range, Fetch all records from the starting hour to ending hour
+    :param stream_key:
+    :param time_range:
+    :param session:
+    :param prepared:
+    :return:
+    """
+    cols = get_query_columns(stream_key)
+
+    start = time_range.start
+    stop = time_range.stop
+
+    # list all the hour bins from start to stop
+    bins = [(x,) for x in xrange(time_to_bin(start), time_to_bin(stop)+1, 1)]
+
+    futures = []
+    futures.append(execution_pool.apply_async(execute_unlimited_query, (stream_key, cols, bins, time_range)))
+
+    rows = []
+    for future in futures:
+        rows.extend(future.get())
+
+    uniq = {}
+    # Remove dups:
+    for row in rows:
+        # The second element of 'rows' is a tuple of record fields
+        tup = row[1]
+        no_cols = len(tup)
+        if no_cols > 0:
+            # The first tuple element consists of a colon separated list of
+            # all column values for each record (i.e, telemetered, retrieved
+            # values), and is used to uniquely identify a record from among 
+            # any duplicates that may have been ingested. 
+            key = str(tup[0])
+            m = hashlib.md5()
+            m.update(str(key))
+            uniq[m.hexdigest()] = row
+
+    rows = sorted(uniq.values())
+
+    rows = [r[1][0] for r in rows if r[0] and len(r[1]) > 0]
+    return cols, rows
+
 
 @cassandra_session
 @log_timing
@@ -357,9 +408,22 @@ def execute_query(stream_key, cols, times, time_range, strict_range=False, sessi
             query.consistency_level = query_consistency
             prepared[query_name] = query
         query = prepared[query_name]
+
     result = list(execute_concurrent_with_args(session, query, times, concurrency=50))
     return result
 
+@cassandra_session
+@log_timing
+def execute_unlimited_query(stream_key, cols, time_bins, time_range, session=None, prepared=None,
+                  query_consistency=None):
+
+    base = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s' and time>=%s and time<=%s " % \
+           (','.join(cols), stream_key.stream.name, stream_key.subsite,
+            stream_key.node, stream_key.sensor, stream_key.method, time_range.start, time_range.stop)
+    query = session.prepare(base + ' order by method')
+
+    result = list(execute_concurrent_with_args(session, query, time_bins, concurrency=50))
+    return result
 
 @cassandra_session
 def stream_exists(subsite, node, sensor, method, stream, session=None, prepared=None, query_consistency=None):
