@@ -16,7 +16,7 @@ import os
 import datetime
 from scipy.io.netcdf import netcdf_file
 
-from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, \
+from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, fetch_all_data,\
     get_available_time_range, fetch_l0_provenance, fetch_data_sync, time_to_bin
 from util.common import log_timing, ntp_to_datestring,ntp_to_ISO_date, StreamKey, TimeRange, CachedParameter, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
@@ -589,7 +589,7 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
         if limit:
             fields, cass_data = fetch_nth_data(key, time_range, strict_range=stream_request.strict_range, num_points=limit)
         else:
-            fields, cass_data = fetch_nth_data(key, time_range, strict_range=stream_request.strict_range)
+            fields, cass_data = fetch_all_data(key, time_range, strict_range=stream_request.strict_range)
 
         if len(cass_data) == 0:
             log.info("Cassandra query for {} returned no data searching SAN".format(key.as_refdes()))

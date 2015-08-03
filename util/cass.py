@@ -334,6 +334,72 @@ def fetch_nth_data(stream_key, time_range, strict_range=False, num_points=1000, 
     rows = [r[1][0] for r in rows if r[0] and len(r[1]) > 0]
     return cols, rows
 
+#---------------------------------------------------------------------------------------
+# Fetch all records in the time_range by qurying for every time bin in the time_range
+@log_timing
+@cassandra_session
+def fetch_all_data(stream_key, time_range, strict_range=False, chunk_size=100, session=None,
+                   prepared=None, query_consistency=None):
+
+    """
+    Given a time range, generate evenly spaced times over the specified interval. Fetch a single
+    result from either side of each point in time.
+    :param stream_key:
+    :param time_range:
+    :param num_points:
+    :param chunk_size:
+    :param session:
+    :param prepared:
+    :return:
+    """
+    cols = get_query_columns(stream_key)
+
+    start = time_range.start
+    stop = time_range.stop
+
+    # if limit is unlimited, set the number of bins
+    # to the number of days in the start-stop range
+    # if the time range is less than a full day, 
+    # set the num_points to 24 hourly bins to cover
+    # the time range.
+    SECS_PER_DAY = 24*60*60
+    TIME_RANGE_SECS = stop - start
+
+    if TIME_RANGE_SECS >= SECS_PER_DAY:
+        # this will be the number of bin in this time range
+        num_points = int (TIME_RANGE_SECS/SECS_PER_DAY)
+    else:
+        # time range is less than a full day -- set to
+        # at least 24 bins: might not find anything,
+        # but this might be enough bins for a very small time
+        # range -- start time approx. equal to stop time
+        num_points = 24
+
+    time_range = str(int(stop - start))
+    nobins = str(num_points)
+    num_days = str(int(TIME_RANGE_SECS/SECS_PER_DAY))
+    iMessage = "Selecting " + nobins + " time bins covering " + time_range + " seconds (" + num_days + " days)"
+    log.info(iMessage)
+
+    times = [(time_to_bin(t), t) for t in numpy.linspace(start, stop, num_points)]
+    futures = []
+    for i in xrange(0, num_points, chunk_size):
+        futures.append(execution_pool.apply_async(execute_query, (stream_key, cols, times[i:i + chunk_size], time_range, strict_range)))
+
+    rows = []
+    for future in futures:
+        rows.extend(future.get())
+
+    uniq = {}
+    for row in rows:
+        key = "{}{}".format(row[0], row[-1])  # this should include more than the time and the last value
+        uniq[key] = row
+
+    rows = sorted(uniq.values())
+
+    rows = [r[1][0] for r in rows if r[0] and len(r[1]) > 0]
+    return cols, rows
+
 
 @cassandra_session
 @log_timing
