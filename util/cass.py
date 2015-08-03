@@ -1,5 +1,6 @@
 import numpy
 import engine
+import hashlib
 
 from collections import deque
 import logging
@@ -334,6 +335,84 @@ def fetch_nth_data(stream_key, time_range, strict_range=False, num_points=1000, 
     rows = [r[1][0] for r in rows if r[0] and len(r[1]) > 0]
     return cols, rows
 
+#---------------------------------------------------------------------------------------
+# Fetch all records in the time_range by qurying for every time bin in the time_range
+@log_timing
+@cassandra_session
+def fetch_all_data(stream_key, time_range, strict_range=False, chunk_size=100, session=None,
+                   prepared=None, query_consistency=None):
+
+    """
+    Given a time range, generate evenly spaced times over the specified interval. Fetch a single
+    result from either side of each point in time.
+    :param stream_key:
+    :param time_range:
+    :param num_points:
+    :param chunk_size:
+    :param session:
+    :param prepared:
+    :return:
+    """
+    cols = get_query_columns(stream_key)
+
+    start = time_range.start
+    stop = time_range.stop
+
+    # if limit is unlimited, set the number of bins
+    # to the number of days in the start-stop range
+    # if the time range is less than a full day, 
+    # set the num_points to 24 hourly bins to cover
+    # the time range.
+    SECS_PER_DAY = 24*60*60
+    TIME_RANGE_SECS = stop - start
+
+    if TIME_RANGE_SECS >= SECS_PER_DAY:
+        # this will be the number of bin in this time range
+        num_points = int (TIME_RANGE_SECS/SECS_PER_DAY)
+    else:
+        # time range is less than a full day -- set to
+        # at least 24 bins: might not find anything,
+        # but this might be enough bins for a very small time
+        # range -- start time approx. equal to stop time
+        num_points = 24
+
+    time_range = str(int(stop - start))
+    nobins = str(num_points)
+    num_days = str(float(TIME_RANGE_SECS/SECS_PER_DAY))
+    iMessage = "Selecting " + nobins + " time bins covering " + time_range + " seconds (" + num_days + " days)"
+    log.info(iMessage)
+
+    times = [(time_to_bin(t), t) for t in numpy.linspace(start, stop, num_points)]
+    futures = []
+
+    # Executing num_points queries for stream_key
+    for i in xrange(0, num_points, chunk_size):
+        futures.append(execution_pool.apply_async(execute_unlimitted_query, (stream_key, cols, times[i:i + chunk_size], time_range, strict_range)))
+
+    rows = []
+    for future in futures:
+        rows.extend(future.get())
+
+    uniq = {}
+    # Remove dups:
+    for row in rows:
+        # The second element of 'rows' is a tuple of record fields
+        tup = row[1]
+        no_cols = len(tup)
+        if no_cols > 0:
+            # The first tuple element includes all fields necessary 
+            # to uniquely identfy a record. Duplicates are squashed
+            # where these fields form the same hash
+            key = str(tup[0])
+            m = hashlib.md5()
+            m.update(str(key))
+            uniq[m.hexdigest()] = row
+
+    rows = sorted(uniq.values())
+
+    rows = [r[1][0] for r in rows if r[0] and len(r[1]) > 0]
+    return cols, rows
+
 
 @cassandra_session
 @log_timing
@@ -357,9 +436,35 @@ def execute_query(stream_key, cols, times, time_range, strict_range=False, sessi
             query.consistency_level = query_consistency
             prepared[query_name] = query
         query = prepared[query_name]
+
     result = list(execute_concurrent_with_args(session, query, times, concurrency=50))
     return result
 
+@cassandra_session
+@log_timing
+def execute_unlimitted_query(stream_key, cols, times, time_range, strict_range=False, session=None, prepared=None,
+                  query_consistency=None):
+    if strict_range:
+        query = session.prepare("select %s from %s where subsite='%s' and node='%s'"
+                                " and sensor='%s' and bin=? and method='%s' and time>=%s and time<=?"
+                                " order by method" % (','.join(cols),
+                                                                   stream_key.stream.name, stream_key.subsite, stream_key.node,
+                                                                   stream_key.sensor, stream_key.method, time_range.start))
+        query.consistency_level = query_consistency
+    else:
+        query_name = '%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite,
+                                         stream_key.node, stream_key.sensor, stream_key.method)
+        if query_name not in prepared:
+            base = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s'" % \
+                   (','.join(cols), stream_key.stream.name, stream_key.subsite,
+                    stream_key.node, stream_key.sensor, stream_key.method)
+            query = session.prepare(base + ' and time<=? order by method')
+            query.consistency_level = query_consistency
+            prepared[query_name] = query
+        query = prepared[query_name]
+
+    result = list(execute_concurrent_with_args(session, query, times, concurrency=50))
+    return result
 
 @cassandra_session
 def stream_exists(subsite, node, sensor, method, stream, session=None, prepared=None, query_consistency=None):
