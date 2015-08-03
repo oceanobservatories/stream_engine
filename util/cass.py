@@ -226,7 +226,8 @@ def get_query_columns(stream_key, session=None, prepared=None, query_consistency
         tables[stream_key.stream.name].columns.keys()
     cols = map(_clean_column_name, cols)
     # we don't need any parts of the key(0-7) except the time column(5) and deployment column(6)
-    cols = cols[5:7] + cols[8:]
+    # also grabbing the bin(3) and id(7) for qc results storage
+    cols = cols[3:4] + cols[5:]
     return cols
 
 
@@ -359,6 +360,17 @@ def execute_query(stream_key, cols, times, time_range, strict_range=False, sessi
         query = prepared[query_name]
     result = list(execute_concurrent_with_args(session, query, times, concurrency=50))
     return result
+
+@cassandra_session
+@log_timing
+def store_qc_results(qc_results, particle_pk, particle_id, particle_bin, parameter, session=None, strict_range=False, prepared=None, query_consistency=None):
+    query_string = "insert into ooi.qc_results " \
+                   "(subsite, node, sensor, bin, deployment, stream, id, parameter, results) " \
+                   "values ('{}', '{}', '{}', {}, {}, '{}', {}, '{}', '{}')".format(
+        particle_pk.get('subsite'), particle_pk.get('node'), particle_pk.get('sensor'),
+        particle_bin, particle_pk.get('deployment'), particle_pk.get('stream'),
+        particle_id, parameter, qc_results)
+    query = session.execute(query_string)
 
 
 @cassandra_session
