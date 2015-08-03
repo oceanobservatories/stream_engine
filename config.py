@@ -10,6 +10,9 @@ CASSANDRA_QUERY_CONSISTENCY = 'QUORUM'
 SAN_BASE_DIRECTORY = '/opt/ooi/SAN/'
 ANNOTATION_URL = 'http://localhost:12580/annotations/find/'
 
+UNBOUND_QUERY_START  = 3471292800 # Where to start unbound queries 2010-01-01T00:00:00.000Z
+UNBOUND_QUERY_FUTURE_OFFSET= 60*60*24*3 # How far to look into the future 3 days
+
 POOL_SIZE = 4
 
 LOGGING_CONFIG='logging.conf'

@@ -65,8 +65,8 @@ def particles():
     request_start_time = time.time()
     log.info("Handling request to {} - {}".format(request.url, input_data.get('streams', "")))
 
-    start = input_data.get('start', 1)
-    stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
+    start = input_data.get('start', app.config["UNBOUND_QUERY_START"])
+    stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()) + app.config["UNBOUND_QUERY_FUTURE_OFFSET"])
     limit = input_data.get('limit', 0)
     if limit <= 0:
         limit = None
@@ -114,8 +114,8 @@ def full_netcdf():
     validate(input_data)
     request_start_time = time.time()
     log.info("Handling request to offload {} - {}".format(request.url, input_data.get('streams', "")))
-    start = input_data.get('start', 1)
-    stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
+    start = input_data.get('start', app.config["UNBOUND_QUERY_START"])
+    stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()) + app.config["UNBOUND_QUERY_FUTURE_OFFSET"])
     resp = Response(util.calc.get_netcdf_raw(input_data.get('streams'), start, stop,), mimetype='application/netcdf')
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return resp
