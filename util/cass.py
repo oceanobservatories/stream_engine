@@ -363,13 +363,13 @@ def execute_query(stream_key, cols, times, time_range, strict_range=False, sessi
 
 @cassandra_session
 @log_timing
-def store_qc_results(qc_results_key, particle, particle_id, particle_bin, session=None, strict_range=False, prepared=None):
+def store_qc_results(qc_results, particle_pk, particle_id, particle_bin, parameter, session=None, strict_range=False, prepared=None, query_consistency=None):
     query_string = "insert into ooi.qc_results " \
-                   "(subsite, node, sensor, bin, deployment, stream, id, results) " \
-                   "values ('{}', '{}', '{}', {}, {}, '{}', {}, '{}')".format(
-        particle.get('pk').get('subsite'), particle.get('pk').get('node'), particle.get('pk').get('sensor'),
-        particle_bin, particle.get('pk').get('deployment'), particle.get('pk').get('stream'),
-        particle_id, particle.get(qc_results_key))
+                   "(subsite, node, sensor, bin, deployment, stream, id, parameter, results) " \
+                   "values ('{}', '{}', '{}', {}, {}, '{}', {}, '{}', '{}')".format(
+        particle_pk.get('subsite'), particle_pk.get('node'), particle_pk.get('sensor'),
+        particle_bin, particle_pk.get('deployment'), particle_pk.get('stream'),
+        particle_id, parameter, qc_results)
     query = session.execute(query_string)
 
 

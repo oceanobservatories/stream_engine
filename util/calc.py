@@ -100,10 +100,11 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
     if time_param not in pd_data:
         raise MissingTimeException("Time param: {} is missing from the primary stream".format(time_param))
 
+    virtual_id_sub = None
     for index in range(len(pd_data[time_param][primary_key.as_refdes()]['data'])):
         particle = OrderedDict()
-        particle_id = pd_data['id'][primary_key.as_refdes()]['data'][index]
-        particle_bin = pd_data['bin'][primary_key.as_refdes()]['data'][index]
+        particle_id = None
+        particle_bin = None
 
         if not primary_key.stream.is_virtual:
             particle['pk'] = primary_key.as_dict()
@@ -112,6 +113,24 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
             particle['pk']['deployment'] = pd_data['deployment'][primary_key.as_refdes()]['data'][index]
             particle['pk']['time'] = pd_data[primary_key.stream.time_parameter][primary_key.as_refdes()]['data'][index]
             particle['provenance'] = str(pd_data['provenance'][primary_key.as_refdes()]['data'][index])
+            particle_id = pd_data['id'][primary_key.as_refdes()]['data'][index]
+            particle_bin = pd_data['bin'][primary_key.as_refdes()]['data'][index]
+        else:
+            if 'id' in pd_data:
+                if virtual_id_sub is None:
+                    for key in pd_data['id']:
+                        if len(pd_data['id'][key]['data']) == len(pd_data[time_param][primary_key.as_refdes()]['data']):
+                            virtual_id_sub = key
+                            break
+                particle_id = pd_data['id'][virtual_id_sub]['data'][index]
+
+            if 'bin' in pd_data:
+                if virtual_id_sub is None:
+                    for key in pd_data['bin']:
+                        if len(pd_data['bin'][key]['data']) == len(pd_data[time_param][primary_key.as_refdes()]['data']):
+                            virtual_id_sub = key
+                            break
+                particle_bin = pd_data['bin'][virtual_id_sub]['data'][index]
 
         for param in stream_request.parameters:
             if param.id in pd_data:
@@ -148,9 +167,15 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
                         qc_results_value = qc_results_mask ^ qc_results_value
 
                     particle[qc_results_key] = qc_results_value
-                    store_qc_results(qc_results_key, particle, particle_id, particle_bin)
 
-
+                    if particle_id is not None and particle_bin is not None:
+                        if not primary_key.stream.is_virtual:
+                            store_qc_results(qc_results_value, particle.get('pk'), particle_id, particle_bin, param.name)
+                        else:
+                            if virtual_id_sub is not None:
+                                sub_pk = primary_key.as_dict()
+                                sub_pk['deployment'] = pd_data['deployment'][virtual_id_sub]['data'][index]
+                                store_qc_results(qc_results_value, sub_pk, particle_id, particle_bin, param.name)
 
         particles.append(particle)
 
@@ -688,7 +713,6 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
                 calculate_derived_product(param, stream_request.coefficients, pd_data, primary_key, provenance_metadata, stream_request)
             else:
                 log.warning("Required parameter not present: {}".format(param.name))
-
             if stream_request.qc_parameters.get(param.name) is not None \
                     and pd_data[param.id][primary_key.as_refdes()].get('data') is not None:
                 _qc_check(stream_request, param, pd_data, primary_key)
