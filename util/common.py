@@ -297,6 +297,7 @@ class CachedParameter(object):
             cp.unit = parameter.unit.value if parameter.unit is not None else None
             cp.fill_value = parameter.fill_value.value if parameter.fill_value is not None else None
             cp.display_name = parameter.display_name
+            cp.standard_name = parameter.standard_name
             cp.precision = parameter.precision
             cp.parameter_function_map = parameter.parameter_function_map
             cp.data_product_identifier = parameter.data_product_identifier
@@ -328,6 +329,7 @@ class CachedParameter(object):
             'unit': self.unit,
             'fill_value': self.fill_value,
             'display_name': self.display_name,
+            'standard_name' : self.standard_name,
             'precision': self.precision,
             'parameter_function_map': self.parameter_function_map,
             'data_product_identifier': self.data_product_identifier,
