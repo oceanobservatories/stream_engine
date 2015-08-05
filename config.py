@@ -21,4 +21,5 @@ NETCDF_INSTITUTION = "Ocean Observatories Initiative"
 NETCDF_HISTORY_COMMENT = "generated from Stream Engine"
 NETCDF_REFERENCE = "More information can be found at http://oceanobservatories.org/"
 NETCDF_COMMENT = ""
+NETCDF_CONVENTIONS = "CF-1.6"
 

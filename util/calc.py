@@ -1407,7 +1407,7 @@ class NetCDF_Generator(object):
         for stream_key in r.stream_keys:
             ds = self.group_by_stream_key(r, stream_key)
             with tempfile.NamedTemporaryFile() as tf:
-                ds.to_netcdf(tf.name)
+                ds.to_netcdf(tf.name, format='NETCDF4_CLASSIC')
                 zf.write(tf.name, '%s.nc' % (stream_key.as_dashed_refdes(),))
 
     def open_new_ds(self, r, stream_key):
@@ -1424,6 +1424,7 @@ class NetCDF_Generator(object):
             'history' : '{:s} {:s}'.format(datetime.datetime.utcnow().isoformat(), app.config['NETCDF_HISTORY_COMMENT']),
             'references' : '{:s}'.format(app.config['NETCDF_REFERENCE']),
             'comment' : '{:s}'.format(app.config['NETCDF_COMMENT']),
+            'Conventions' : '{:s}'.format(app.config['NETCDF_CONVENTIONS'])
         }
 
         init_data = {}
@@ -1434,13 +1435,17 @@ class NetCDF_Generator(object):
             for k,v in prov.iteritems():
                 keys.append(k)
                 values.append(v['file_name'] + " " + v['parser_name'] + " " + v['parser_version'])
-            init_data['l0_provenance_keys'] = xray.DataArray(numpy.array(keys), dims=['l0_provenance'])
-            init_data['l0_provenance_data'] = xray.DataArray(numpy.array(values), dims=['l0_provenance'])
-            init_data['computed_provenance'] = xray.DataArray([json.dumps(self.provenance_metadata.calculated_metatdata.get_dict())], dims=['computed_provenance_dim'])
+            init_data['l0_provenance_keys'] = xray.DataArray(numpy.array(keys), dims=['l0_provenance'],
+                                                             attrs={'long_name' : 'l0 Provenance Keys'} )
+            init_data['l0_provenance_data'] = xray.DataArray(numpy.array(values), dims=['l0_provenance'],
+                                                             attrs={'long_name' : 'l0 Provenance Entries'})
+            init_data['computed_provenance'] = xray.DataArray([json.dumps(self.provenance_metadata.calculated_metatdata.get_dict())], dims=['computed_provenance_dim'],
+                                                             attrs={'long_name' : 'Computed Provenance Information'})
         if r.include_annotations:
             annote = self.annotation_store.get_json_representation()
             annote_data = [json.dumps(x) for x in annote]
-            init_data['annotations'] = xray.DataArray(numpy.array(annote_data), dims=['dataset_annotations'])
+            init_data['annotations'] = xray.DataArray(numpy.array(annote_data), dims=['dataset_annotations'],
+                                                            attrs={'long_name' : 'Data Annotations'})
 
         return xray.Dataset(init_data, attrs=attrs)
 
@@ -1463,6 +1468,10 @@ class NetCDF_Generator(object):
         # only valid INCREASING times
         mask = numpy.diff(numpy.insert(time_data, 0, 0.0)) != 0
         time_data = time_data[mask]
+        time_data = xray.Variable('time',time_data,  attrs={'units' : 'seconds since 1900-01-01 0:0:0',
+                                                            'standard_name' : 'time',
+                                                            'long_name'  : 'time',
+                                                            'calendar' : 'standard'})
 
         this_group = self.open_new_ds(r, stream_key)
         for param_id in self.pd_data:
@@ -1480,11 +1489,15 @@ class NetCDF_Generator(object):
             data = self.pd_data[param_id][stream_key.as_refdes()]['data'][mask]
             if param is not None:
                 try:
-                    data = data.astype(param.value_encoding)
+                    # In order to comply with CF1.6 we must use "classic" netcdf4.  This donesn't allow unsigned values
+                    if param.value_encoding not in ['uint64', 'uint16', 'uint8', 'uint23']:
+                        data = data.astype(param.value_encoding)
+                    else:
+                        log.warn("Netcdf4 Classic does not allow unsigned integers")
                 except ValueError:
                     log.warning(
-                        'Unable to transform data %s of type %s to preload value_encoding %s, using fill_value instead\n%s' % (
-                        param_id, data.dtype, param.value_encoding,
+                        'Unable to transform data %s named %s of type %s to preload value_encoding %s, using fill_value instead\n%s' % (
+                        param_id, param_name, data.dtype, param.value_encoding,
                         traceback.format_exc()))
                     data = numpy.full(data.shape, param.fill_value, param.value_encoding)
 
@@ -1508,11 +1521,17 @@ class NetCDF_Generator(object):
                 elif param.name is not None:
                     array_attrs['long_name'] = param.name
                 else:
-                    log.warn('Could not produce long_name attribute for {:s}'.format(str(param)))
+                    log.warn('Could not produce long_name attribute for {:s} defaulting to parameter name'.format(str(param_name)))
+                    array_attrs['long_name'] = param_name
+                if param.standard_name is not None:
+                    array_attrs['standard_name'] = param.standard_name
                 if param.description is not None:
                     array_attrs['description'] = param.description
                 if param.data_product_identifier is not None:
                     array_attrs['data_product_identifier'] = param.data_product_identifier
+            else:
+                # To comply with cf 1.6 giving long name the same as parameter name
+                array_attrs['long_name'] = param_name
 
             this_group.update({param_name: xray.DataArray(data, dims=dims, coords=coords, attrs=array_attrs)})
         return this_group
