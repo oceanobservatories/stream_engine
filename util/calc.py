@@ -980,6 +980,10 @@ def build_func_map(parameter, coefficients, pd_data, base_key):
                 param_meta['name'] = param.name
                 param_meta['data_product_identifier'] = param.data_product_identifier
                 param_meta['iterpolated'] = False
+                param_meta['time_start'] = main_times[0]
+                param_meta['time_startDT'] = ntp_to_datestring(main_times[0])
+                param_meta['time_end'] =  main_times[-1]
+                param_meta['time_endDT'] =ntp_to_datestring(main_times[-1])
                 try:
                     param_meta['deployments'] = list(set(pd_data['deployment'][main_stream_refdes]['data']))
                 except:
@@ -1005,6 +1009,10 @@ def build_func_map(parameter, coefficients, pd_data, base_key):
                 param_meta['name'] = param.name
                 param_meta['data_product_identifier'] = param.data_product_identifier
                 param_meta['iterpolated'] = True
+                param_meta['time_start'] = data_time[0]
+                param_meta['time_startDT'] = ntp_to_datestring(data_time[0])
+                param_meta['time_end'] =  data_time[-1]
+                param_meta['time_endDT'] =ntp_to_datestring(data_time[-1])
                 try:
                     param_meta['deployments'] = list(set(pd_data['deployment'][data_stream_refdes]['data']))
                 except:
