@@ -156,7 +156,7 @@ def netcdf():
     request_start_time = time.time()
     log.info("Handling request to {} - {}".format(request.url, input_data.get('streams', "")))
 
-    start = input_data.get('start', 1)
+    start = input_data.get('start', app.config["UNBOUND_QUERY_START"])
     stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
     limit = input_data.get('limit', 0)
     if limit <= 0:

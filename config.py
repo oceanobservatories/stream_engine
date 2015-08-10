@@ -1,4 +1,5 @@
 DEBUG = False
+STREAM_ENGINE_VERSION = "0.6"
 
 CASSANDRA_CONTACT_POINTS = ['127.0.0.1']
 CASSANDRA_KEYSPACE = 'ooi'
@@ -16,9 +17,10 @@ POOL_SIZE = 4
 
 LOGGING_CONFIG='logging.conf'
 
-NETCDF_TITLE = "Data produced by Stream Engine version 0.6"
+NETCDF_TITLE = "Data produced by Stream Engine version {:s}".format(STREAM_ENGINE_VERSION)
 NETCDF_INSTITUTION = "Ocean Observatories Initiative"
 NETCDF_HISTORY_COMMENT = "generated from Stream Engine"
 NETCDF_REFERENCE = "More information can be found at http://oceanobservatories.org/"
 NETCDF_COMMENT = ""
+NETCDF_CONVENTIONS = "CF-1.6"
 
