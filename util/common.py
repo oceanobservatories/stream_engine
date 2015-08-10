@@ -151,7 +151,7 @@ class TimeRange(object):
 class Annotation(object):
     def __init__(self, refdes, start, end, parameters, provenance, annotation, method, deployment, ident):
         self.referenceDesignator = refdes
-        self.beginDT = start
+        self.startDT = start
         self.endDT = end
         self.parameters = parameters
         self.provenance = provenance
@@ -163,7 +163,7 @@ class Annotation(object):
     def as_dict(self):
         return {
         'referenceDesignator' : self.referenceDesignator,
-        'beginDT' : self.beginDT,
+        'startDT' : self.startDT,
         'endDT' : self.endDT,
         'parameters' : self.parameters,
         'provenance' : self.provenance,
@@ -183,7 +183,7 @@ class Annotation(object):
 
     @staticmethod
     def from_dict(d):
-        return Annotation(d["referenceDesignator"], d["beginDT"], d["endDT"], d["parameters"], d["provenance"],
+        return Annotation(d["referenceDesignator"], d["startDT"], d["endDT"], d["parameters"], d["provenance"],
                             d["annotation"], d["method"], d["deployment"], d["id"])
 
 class StreamKey(object):
