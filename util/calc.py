@@ -996,9 +996,9 @@ def build_func_map(parameter, coefficients, pd_data, base_key):
     else:
         to_attach = {'type' : 'TimeMissingError', 'parameter' : parameter}
         raise MissingTimeException("Could not find time parameter for dpa", payload=to_attach)
-    time_meta['start'] = main_times[0]
+    time_meta['begin'] = main_times[0]
     time_meta['end'] = main_times[-1]
-    time_meta['startDT'] = ntp_to_datestring(main_times[0])
+    time_meta['beginDT'] = ntp_to_datestring(main_times[0])
     time_meta['endDT'] = ntp_to_datestring(main_times[-1])
     arg_metadata['time_source'] = time_meta
 
@@ -1029,8 +1029,8 @@ def build_func_map(parameter, coefficients, pd_data, base_key):
                 param_meta['name'] = param.name
                 param_meta['data_product_identifier'] = param.data_product_identifier
                 param_meta['iterpolated'] = False
-                param_meta['time_start'] = main_times[0]
-                param_meta['time_startDT'] = ntp_to_datestring(main_times[0])
+                param_meta['time_begin'] = main_times[0]
+                param_meta['time_beginDT'] = ntp_to_datestring(main_times[0])
                 param_meta['time_end'] =  main_times[-1]
                 param_meta['time_endDT'] =ntp_to_datestring(main_times[-1])
                 try:
@@ -1058,8 +1058,8 @@ def build_func_map(parameter, coefficients, pd_data, base_key):
                 param_meta['name'] = param.name
                 param_meta['data_product_identifier'] = param.data_product_identifier
                 param_meta['iterpolated'] = True
-                param_meta['time_start'] = data_time[0]
-                param_meta['time_startDT'] = ntp_to_datestring(data_time[0])
+                param_meta['time_begin'] = data_time[0]
+                param_meta['time_beginDT'] = ntp_to_datestring(data_time[0])
                 param_meta['time_end'] =  data_time[-1]
                 param_meta['time_endDT'] =ntp_to_datestring(data_time[-1])
                 try:
@@ -1077,15 +1077,15 @@ def build_func_map(parameter, coefficients, pd_data, base_key):
                     CC_argument, CC_meta = build_CC_argument(framed_CCs, main_times)
                 except StreamEngineException as e:
                     to_attach = {
-                        'type' : 'CCTimeError', 'parameter' : parameter, 'start' : main_times[0], 'end' : main_times[-1],
-                        'startDT' : ntp_to_datestring(main_times[0]), 'endDT' : ntp_to_datestring(main_times[-1]),
+                        'type' : 'CCTimeError', 'parameter' : parameter, 'begin' : main_times[0], 'end' : main_times[-1],
+                        'beginDT' : ntp_to_datestring(main_times[0]), 'endDT' : ntp_to_datestring(main_times[-1]),
                         'CC_present' : coefficients.keys(), 'missing_argument_name' : key
                     }
                     raise CoefficientUnavailableException(e.message, payload=to_attach)
                 if numpy.isnan(numpy.min(CC_argument)):
                     to_attach = {
-                        'type' : 'CCTimeError', 'parameter' : parameter, 'start' : main_times[0], 'end' : main_times[-1],
-                        'startDT' : ntp_to_datestring(main_times[0]), 'endDT' : ntp_to_datestring(main_times[-1]),
+                        'type' : 'CCTimeError', 'parameter' : parameter, 'begin' : main_times[0], 'end' : main_times[-1],
+                        'beginDT' : ntp_to_datestring(main_times[0]), 'endDT' : ntp_to_datestring(main_times[-1]),
                         'CC_present' : coefficients.keys(), 'missing_argument_name' : key
                                  }
                     raise CoefficientUnavailableException('Coefficient %s missing times in range (%s, %s)' % (name, ntp_to_datestring(main_times[0]), ntp_to_datestring(main_times[-1])), payload=to_attach)
@@ -1094,8 +1094,8 @@ def build_func_map(parameter, coefficients, pd_data, base_key):
                     arg_metadata[key] = CC_meta
             else:
                 to_attach = {
-                    'type' : 'CCMissingError', 'parameter' : parameter, 'start' : main_times[0], 'end' : main_times[-1],
-                    'startDT' : ntp_to_datestring(main_times[0]), 'endDT' : ntp_to_datestring(main_times[-1]),
+                    'type' : 'CCMissingError', 'parameter' : parameter, 'begin' : main_times[0], 'end' : main_times[-1],
+                    'beginDT' : ntp_to_datestring(main_times[0]), 'endDT' : ntp_to_datestring(main_times[-1]),
                     'CC_present' : coefficients.keys(), 'missing_argument_name' : key
                 }
                 raise CoefficientUnavailableException('Coefficient %s not provided' % name, payload=to_attach)
@@ -1158,8 +1158,8 @@ def build_CC_argument(frames, times):
 
     values = []
     for frame in frames[::-1]:
-        values.append({'CC_start' : frame[0], 'CC_stop' : frame[1], 'value' : frame[2], 'deployment' : frame[3],
-                       'CC_startDT' : ntp_to_datestring(frame[0]), 'CC_stopDT' : ntp_to_datestring(frame[1])})
+        values.append({'CC_begin' : frame[0], 'CC_stop' : frame[1], 'value' : frame[2], 'deployment' : frame[3],
+                       'CC_beginDT' : ntp_to_datestring(frame[0]), 'CC_stopDT' : ntp_to_datestring(frame[1])})
         mask = in_range(frame, times)
         try:
             cc[mask] = frame[2]
@@ -1167,9 +1167,9 @@ def build_CC_argument(frames, times):
             raise StreamEngineException('Unable to build cc arguments for algorithm: {}'.format(e))
     cc_meta = {
         'sources' : values,
-        'data_start' :  st,
+        'data_begin' :  st,
         'data_end' : et,
-        'startDT' : startDt,
+        'beginDT' : startDt,
         'endDT' : endDt,
         'type' : 'CC',
         }
@@ -1423,10 +1423,10 @@ def query_annotations(stream_request, key, time_range):
     :return:
     '''
     base_url = app.config['ANNOTATION_URL']
-    startDT = ntp_to_ISO_date(time_range.start)
+    beginDT = ntp_to_ISO_date(time_range.start)
     endDT = ntp_to_ISO_date(time_range.stop)
-    request_format_string = '{:s}-{:s}-{:s}?startDT={:s}&endDT={:s}&method={:s}'.format(
-        key.subsite, key.node, key.sensor, startDT, endDT, key.method)
+    request_format_string = '{:s}-{:s}-{:s}?beginDT={:s}&endDT={:s}&method={:s}'.format(
+        key.subsite, key.node, key.sensor, beginDT, endDT, key.method)
     annote_req = requests.get(url=base_url + request_format_string)
     if annote_req.status_code == 200:
         all_annotations = annote_req.json()
