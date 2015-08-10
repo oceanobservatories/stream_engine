@@ -7,6 +7,7 @@ from preload_database.model.preload import Stream, Parameter, ParameterFunction
 import numpy
 from scipy.interpolate import griddata
 import parameter_util
+import dateutil.parser
 
 FUNCTION = 'function'
 
@@ -127,13 +128,23 @@ def ntp_to_datestring(ntp_time):
     except:
         return str(ntp_time)
 
+
+def ISO_to_ntp(ds):
+    """"
+    Given a datestring give back the iso time.
+    Assumes that it is UTC time also
+    Assuming it is in the form YYYY-MM-DDTHH-MM-SS.sssZ NO VALIDATION
+    """
+    dt_time = dateutil.parser.parse(ds)
+    diff = (dt_time - datetime.datetime(1900, 1,1)).total_seconds()
+    return diff
+
+
 def ntp_to_ISO_date(ntp_time):
     try:
         ntp_time = float(ntp_time)
         dt = datetime.datetime.utcfromtimestamp(ntplib.ntp_to_system_time(ntp_time))
-        base = dt.strftime('%Y-%m-%dT%H:%M:%S.%f')
-        ending = round(float(base[-8:]), 3)
-        return "{:s}{:.3f}Z".format(base[:-8], ending)
+        return dt.isoformat()
     except Exception as e:
         return str(ntp_time)
 
