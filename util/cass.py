@@ -234,6 +234,24 @@ def get_query_columns(stream_key, session=None, prepared=None, query_consistency
 
 @log_timing
 @cassandra_session
+def fetch_cassandra_bin(stream_key, data_bin, session=None, prepared=None, query_consistency=None):
+    cols = get_query_columns(stream_key)
+    query_name = 'fetch_bin_%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite, stream_key.node,
+                                                  stream_key.sensor, stream_key.method)
+    if query_name not in prepared:
+    # attempt to find one data point beyond the requested start/stop times
+        base = "select %s  from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s'" % \
+           (', '.join(cols), stream_key.stream.name, stream_key.subsite, stream_key.node,
+            stream_key.sensor, stream_key.method)
+        query = session.prepare(base)
+        query.consistency_level = query_consistency
+        prepared[query_name] = query
+    query = prepared[query_name]
+    data = session.execute(query, parameters=[data_bin])
+    return cols, data
+
+@log_timing
+@cassandra_session
 def fetch_data_sync(stream_key, time_range, strict_range=False, session=None, prepared=None, query_consistency=None):
     cols = get_query_columns(stream_key)
 
@@ -468,6 +486,8 @@ def create_execution_pool():
 def time_to_bin(t):
     return int(t / (24 * 60 * 60))
 
+def bin_to_time(b):
+    return b * 24 * 60 * 60
 
 @cassandra_session
 def get_available_time_range(stream_key, session=None, prepared=None, query_consistency=None):

@@ -127,6 +127,30 @@ def ntp_to_datestring(ntp_time):
     except:
         return str(ntp_time)
 
+
+def ISO_to_ntp(ds):
+    """"
+    Given a datestring give back the iso time.
+    Assumes that it is UTC time also
+    Assuming it is in the form YYYY-MM-DDTHH-MM-SS.sssZ NO VALIDATION
+    """
+    year, month, rest = ds.split('-')
+    day, rest= rest.split('T')
+    hour, minutes, secs = rest.split(':')
+    sec, frac = secs.split('.')
+    frac = frac[:-1]
+    year = int(year)
+    month = int(month)
+    day = int(day)
+    hour = int(hour)
+    minutes = int(minutes)
+    sec = int(sec)
+    frac = int(frac) * 1000
+    dt_time = datetime.datetime(year, month, day, hour, minutes, sec, frac)
+    diff = (dt_time - datetime.datetime(1970, 1,1)).total_seconds()
+    return ntplib.system_to_ntp_time(diff)
+
+
 def ntp_to_ISO_date(ntp_time):
     try:
         ntp_time = float(ntp_time)
