@@ -714,7 +714,7 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
             else:
                 log.warning("Required parameter not present: {}".format(param.name))
             if stream_request.qc_parameters.get(param.name) is not None \
-                    and pd_data[param.id][primary_key.as_refdes()].get('data') is not None:
+                    and pd_data.get(param.id, dict()).get(primary_key.as_refdes(), dict()).get('data') is not None:
                 _qc_check(stream_request, param, pd_data, primary_key)
 
     return pd_data
