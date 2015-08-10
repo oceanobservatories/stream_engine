@@ -458,6 +458,8 @@ def create_execution_pool():
 def time_to_bin(t):
     return int(t / (24 * 60 * 60))
 
+def bin_to_time(b):
+    return b * 24 * 60 * 60
 
 @cassandra_session
 def get_available_time_range(stream_key, session=None, prepared=None, query_consistency=None):

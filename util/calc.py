@@ -12,13 +12,14 @@ import numexpr
 import numpy
 import xray
 import uuid
+import base64
 
 import os
 import datetime
 from scipy.io.netcdf import netcdf_file
 
-from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, fetch_all_data,\
-    get_available_time_range, fetch_l0_provenance, fetch_data_sync, time_to_bin, store_qc_results
+from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, fetch_all_data, \
+    get_available_time_range, fetch_l0_provenance, fetch_data_sync, time_to_bin, store_qc_results, bin_to_time
 from util.common import log_timing, ntp_to_datestring,ntp_to_ISO_date, StreamKey, TimeRange, CachedParameter, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, Annotation, \
@@ -205,79 +206,60 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
 
     return json.dumps(out, indent=2)
 
-def get_netcdf_raw(streams, start, stop):
+def SAN_netcdf(streams, bins):
     """
-    Return a netcdf popluated with the data from cassandra.  RAW
-    output will not calculate any other things.  This is a way
-    to dump all of the data in the cassandra repository out to netCDF files.
+    Dump netcdfs for the stream and bins to the SAN.
+    Will return success or list of bins that failed.
+    Streams should be a length 1 list of streams
     """
     # Get data from cassandra
     stream = StreamKey.from_dict(streams[0])
-    time_range = TimeRange(start, stop)
-    cols, data = fetch_data_sync(stream, time_range)
-    df = pd.DataFrame(data=data.result(), columns=cols)
+    san_dir_string = get_SAN_directories(stream)
+    results = []
+    message = ''
+    for data_bin in bins:
+        try:
+            res, msg = offload_bin(stream, data_bin, san_dir_string)
+            results.append(res)
+            message += msg
+        except Exception as e:
+            log.warn(e)
+            results.append(False)
+            message = message + '{:d} : {:s}\n'.format(data_bin, e.message)
+    return results, message
 
-    #drop duplicate time indicies and set time to be the index of the data frame
-    bl = len(df)
-    df = df.drop_duplicates(subset='time', take_last=False)
-    df = df.set_index('time')
-    parameters = [p for p in stream.stream.parameters if p.parameter_type != FUNCTION]
-    al = len(df)
-    if bl != al:
-        log.info("Dropped {:d} duplicate indicies".format(bl - al))
-
-    # create netCDF file
-    with tempfile.NamedTemporaryFile() as tf:
-        with netCDF4.Dataset(tf.name, 'w', format='NETCDF4') as ncfile:
-            # set up file level attributes
-            ncfile.subsite = stream.subsite
-            ncfile.node = stream.node
-            ncfile.sensor = stream.sensor
-            ncfile.collection_method = stream.method
-            ncfile.stream = stream.stream.name
-            time_dim = 'time'
-            ncfile.createDimension(time_dim, None)
-            visited = set()
-
-            # be sure to insert all of the parameters
-            for param in parameters:
-                if param.name != 'time':
-                    visited.add(param.name)
-                    data_slice = df[param.name].values
-                    if param.is_array:
-                        #unpack
-                        data_slice = numpy.array([msgpack.unpackb(x) for x in data_slice])
-                    data_slice = replace_values(data_slice, param)
-                    data = data_slice
-                else:
-                    data = df.index.values
-                dims = [time_dim]
-                if len(data.shape) > 1:
-                    for index, dimension in enumerate(data.shape[1:]):
-                        name = '%s_dim_%d' % (param.name, index)
-                        ncfile.createDimension(name, dimension)
-                        dims.append(name)
-                var = ncfile.createVariable(param.name,data.dtype, dims, zlib=True)
-                if param.unit is not None:
-                    var.units = param.unit
-                if param.fill_value is not None:
-                    var.fill_value = param.fill_value
-                if param.description is not None:
-                    var.long_name = param.description
-                if param.display_name is not None:
-                    var.display_name = param.display_name
-                if param.data_product_identifier is not None:
-                    var.data_product_identifier = param.data_product_identifier
-                var[:] = data
-            #add dimensions for this that we do not have in the normal string parameters but that are store in cassandra
-            for missing in list(set(df.columns) - visited):
-                data = df[missing].values
-                # cast as strings if it is an object
-                if data.dtype == 'object':
-                    data = data.astype('str')
-                var = ncfile.createVariable(missing, data.dtype, [time_dim], zlib=True)
-                var[:] = data
-        return tf.read()
+def offload_bin(stream, data_bin, san_dir_string):
+    #get the data and drop dupplicates
+    arrays = set([p.name for p in stream.stream.parameters if p.parameter_type != FUNCTION and p.is_array])
+    cols, data = fetch_all_data(stream, TimeRange(bin_to_time(data_bin), bin_to_time(data_bin+1)))
+    df = pd.DataFrame(data=data, columns=cols)
+    # No Data continue
+    if len(df) == 0:
+        results.append(False)
+        return False, '{:f} No Data\n'.format(data_bin)
+    for i in df.columns:
+        # objects should be strings for output to netcdf --> this includes casting msgpack arrays
+        if df[i].dtype == 'object':
+            if i in arrays:
+                df[i] = df[i].apply(lambda x: base64.b64encode(x))
+            df[i] = df[i].astype(str)
+    nc_directory = san_dir_string.format(data_bin)
+    if not os.path.exists(nc_directory):
+        os.makedirs(nc_directory)
+    for deployment, deployment_df in df.groupby('deployment'):
+        # get a file name and create deployment directory if needed
+        nc_file_name = get_nc_filename(stream, nc_directory, deployment)
+        log.info('Offloading %s deployment %d to %s - There are  %d particles', str(stream),
+                 deployment, nc_file_name, len(deployment_df))
+        # create netCDF file
+        dataset = xray.Dataset.from_dataframe(deployment_df)
+        dataset.attrs['subsite'] = stream.subsite
+        dataset.attrs['node'] = stream.node
+        dataset.attrs['sensor'] = stream.sensor
+        dataset.attrs['collection_method'] = stream.method
+        dataset.attrs['stream'] = stream.stream.name
+        dataset.to_netcdf(path=nc_file_name)
+    return True, ''
 
 
 
@@ -378,32 +360,54 @@ def replace_values(data_slice, param):
             log.error('Unable to convert {} (PD{}) to string (may be caused by jagged arrays): {}'.format(param.name, param.id, e))
     return data_slice
 
+def get_SAN_directories(stream_key, split=False):
+    """
+    Get the directory that the stream should be on in the SAN with format postion for data bin
+    If split is passed the directory for the reference designator will be returned along with the full path
+    with format position for data bin
+    :param stream_key: Stream key of the data
+    :param split: Return the reference designator directory along with the format string for the netcdf file
+    :return: format string (or reference_designator directory and format string)
+    """
+    ref_des_dir = os.path.join(app.config['SAN_BASE_DIRECTORY'] , stream_key.stream_name ,  stream_key.subsite + '-' + stream_key.node+ '-' + stream_key.sensor)
+    if ref_des_dir[-1] != os.sep:
+        ref_des_dir = ref_des_dir  + os.sep
+    dir_string = os.path.join(ref_des_dir + '{:d}',  stream_key.method)
+    if split:
+        return ref_des_dir, dir_string
+    else:
+        return dir_string
 
-def fetch_nsan_data(stream_key, time_range, strict_range=False, num_points=1000):
+def get_nc_filename(stream, nc_directory, deployment):
     """
-    Given a time range and stream key.  Genereate evenly spaced times over the inverval using data
-    from the SAN.
-    :param stream_key:
-    :param time_range:
-    :param strict_range:
-    :param num_points:
-    :return:
+    Simple method to get the netcdf file name to use and create for a stream from a given directory and deployment
+    :param stream: Stream Key
+    :param nc_directory: Directory
+    :param deployment: Deployment
+    :return: Full path to directory and file name to user
     """
+    directory = os.path.join(nc_directory, 'deployment_{:04d}'.format(deployment))
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    base =  os.path.join(directory, stream.stream_name + "_{:04d}.nc")
+    if not os.path.exists(base.format(0)):
+        return base.format(0)
+    else:
+        index = 1
+        while os.path.exists(base.format(index)):
+            index += 1
+        return base.format(index)
+
+
+def get_SAN_samples(time_range, num_points, ref_des_dir):
     bs = time_to_bin(time_range.start)
     be = time_to_bin(time_range.stop)
     # get which bins we can gather data from
     bin_list = [x for x in range(bs, be+1)]
     # get which bins we have on the data san
     ratio = float(len(bin_list)) / num_points
-    ref_des_dir = app.config['SAN_BASE_DIRECTORY'] + stream_key.stream_name + '/' +  stream_key.subsite + '-' + stream_key.node+ '-' + stream_key.sensor + '/'
-    dir_string = ref_des_dir + '{:d}/' + stream_key.method + '/'
-    if not os.path.exists(ref_des_dir):
-        log.warning("Reference Designator does not exist in offloaded SAN")
-        return pd.DataFrame()
-
     # get the set of locations which store data.
     available_bins = set([int(x) for x in  os.listdir(ref_des_dir)])
-
     # select which bins we are going to read from disk to get data out of
     #much more bins than particles
     if ratio > 2.0:
@@ -459,87 +463,65 @@ def fetch_nsan_data(stream_key, time_range, strict_range=False, num_points=1000)
             to_sample.extend(list(no_data)[:remaining])
         to_sample = sorted(to_sample)
         to_sample = zip(to_sample, (1 for _ in to_sample))
+    return to_sample
 
+def fetch_nsan_data(stream_key, time_range, strict_range=False, num_points=1000):
+    """
+    Given a time range and stream key.  Genereate evenly spaced times over the inverval using data
+    from the SAN.
+    :param stream_key:
+    :param time_range:
+    :param strict_range:
+    :param num_points:
+    :return:
+    """
+    arrays = set([p.name for p in stream_key.stream.parameters if p.parameter_type != FUNCTION and p.is_array])
+    ref_des_dir, dir_string = get_SAN_directories(stream_key, split=True)
+    if not os.path.exists(ref_des_dir):
+        log.warning("Reference Designator does not exist in offloaded SAN")
+        return pd.DataFrame()
+    to_sample = get_SAN_samples(time_range, num_points, ref_des_dir)
     # now get data in the present we are going to start by grabbing first file in the directory with name that matches
     # grab a random amount of particles from that file if they are within the time range.
     missed = 0
-    data = dict()
+    data = []
     for time_bin, num_data_points in to_sample:
         direct = dir_string.format(time_bin)
         if os.path.exists(direct):
-            files = os.listdir(direct)
-            # Loop until we get the data we want
-            okay = False
-            for f in files:
-                # only netcdf files
-                if stream_key.stream_name in f and os.path.splitext(f)[-1] == '.nc':
-                    f = direct + f
-                    with netCDF4.Dataset(f) as dataset:
-                        t = dataset['time'][:]
-                        # get the indexes to pull out of the data
-                        indexes = numpy.where(numpy.logical_and(time_range.start < t, t < time_range.stop))[0]
-                        if len(indexes) != 0:
-                            if num_data_points > len(indexes):
-                                missed += (num_data_points - len(indexes))
-                                selection = indexes
-                            else:
-                                selection = numpy.floor(numpy.linspace(0, len(indexes)-1, num_data_points)).astype(int)
-                                selection = indexes[selection]
-                                selection = sorted(selection)
-                            variables =dataset.variables.keys()
-                            for var in dataset.variables:
-                                if var.endswith('_shape') and var[:-5] in variables:
-                                    # do not need to store shape arrays
-                                    continue
-                                try:
-                                    temp = dataset[var][selection]
-                                    if len(temp.shape) > 1:
-                                        # this is dirty but pack the array to message pack and unpack later.  This makes it easier to store
-                                        # than trying to get the correct shape into the dataframe at first
-                                        temp = [msgpack.packb(x.tolist()) for x in temp]
-                                    if var in data:
-                                        data[var] = numpy.append(data[var], temp)
-                                    else:
-                                        data[var] = temp
-                                # netcdf likes to throw Index errors when trying to access strings using an array if all the indexes are odd or even.
-                                # As a workaround need to select all to get an numpy array and than take selection from that.
-                                except IndexError as e:
-                                    temp = dataset[var][:]
-                                    temp = temp[selection]
-                                    if len(temp.shape) > 1:
-                                        temp = [msgpack.packb(x.tolist()) for x in temp]
-                                    if var in data:
-                                        data[var] = numpy.append(data[var], temp)
-                                    else:
-                                        data[var] = temp
-                            okay = True
-                            break
-            if not okay:
-                missed += num_data_points
+            # get data from all of the  deployments
+            deployments = os.listdir(direct)
+            for deployment in deployments:
+                full_path = os.path.join(direct, deployment)
+                if os.path.isdir(full_path):
+                    new_data = get_deployment_data(full_path, stream_key.stream_name, num_data_points, time_range)
+                    count = len(new_data)
+                    log.warn('Returned data length: %d', len(new_data))
+                    missed += (num_data_points - count)
+                    data.append(new_data)
         else:
             missed += num_data_points
-
     log.warn("Failed to produce {:d} points due to nature of sampling".format(missed))
-    df = pd.DataFrame(data=data)
+    df = pd.concat(data)
+    for i in arrays:
+        df[i] = df[i].apply(lambda x: base64.b64decode(x))
     return df
 
 
-def fetch_full_san_data(stream_key, time_range, strict_range=False, num_points=1000):
+def fetch_full_san_data(stream_key, time_range, strict_range=False):
     """
     Given a time range and stream key.  Genereate all data in the inverval using data
     from the SAN.
     :param stream_key:
     :param time_range:
-    :param num_points:
     :return:
     """
+    arrays = set([p.name for p in stream_key.stream.parameters if p.parameter_type != FUNCTION and p.is_array])
     bs = time_to_bin(time_range.start)
     be = time_to_bin(time_range.stop)
     # get which bins we can gather data from
     bin_list = [x for x in range(bs, be+1)]
     # get which bins we have on the data san
-    ref_des_dir = app.config['SAN_BASE_DIRECTORY'] + stream_key.stream_name + '/' +  stream_key.subsite + '-' + stream_key.node+ '-' + stream_key.sensor + '/'
-    dir_string = ref_des_dir + '{:d}/' + stream_key.method + '/'
+    ref_des_dir, dir_string = get_SAN_directories(stream_key, split=True)
     if not os.path.exists(ref_des_dir):
         log.warning("Reference Designator does not exist in offloaded DataSAN")
         return pd.DataFrame()
@@ -550,36 +532,59 @@ def fetch_full_san_data(stream_key, time_range, strict_range=False, num_points=1
     to_sample = sorted(to_sample)
     # inital way to get uniform sampling of data points from the stream given the bins we have on the disk
     #more bins than particles
-    data = dict()
+    data = []
     for time_bin in to_sample:
         direct = dir_string.format(time_bin)
         if os.path.exists(direct):
-            files = os.listdir(direct)
-            # Loop until we get the data we want
-            for f in files:
-                # only netcdf files
-                if stream_key.stream_name in f and os.path.splitext(f)[-1] == '.nc':
-                    f = direct + f
-                    with netCDF4.Dataset(f) as dataset:
-                        t = dataset['time'][:]
-                        indexes = numpy.where(numpy.logical_and(time_range.start < t, t < time_range.stop))[0]
-                        if len(indexes) != 0:
-                            variables =dataset.variables.keys()
-                            for var in dataset.variables:
-                                if var.endswith('_shape') and var[:-5] in variables:
-                                    # do not need to store shape arrays
-                                    continue
-                                temp = data[var][:]
-                                if len(temp.shape) > 1:
-                                    # Pack arrays because that is what stream engine expects
-                                    temp = [msgpack.packb(x.tolist()) for x in temp]
-                                if var in data:
-                                    data[var] = numpy.append(data[var], temp)
-                                else:
-                                    data[var] = temp
-                            break
-    df = pd.DataFrame(data=data)
+            # get data from all of the  deployments
+            deployments = os.listdir(direct)
+            for deployment in deployments:
+                full_path = os.path.join(direct, deployment)
+                if os.path.isdir(full_path):
+                    new_data = get_deployment_data(full_path, stream_key.stream_name, -1, time_range)
+                    data.append(new_data)
+    df = pd.concat(data)
+    for i in arrays:
+        df[i] = df[i].apply(lambda x: base64.b64decode(x))
     return df
+
+
+def get_deployment_data(direct, stream_name, num_data_points, time_range):
+    '''
+    Given a directory of NETCDF files for a deployment
+    try to return num_data_points that are valid in the given time range.
+    Return them from the first netcdf file in the directory that has the stream name and was offloaded by the SAN
+    :param direct: Directory to search for files in
+    :param stream_name: Name of the stream
+    :param num_data_points: Number of data points to get out of the netcdf file -1 means return all valid in time range
+    :param time_range: Time range of the query
+    :return: dictonary of data stored in numpy arrays.
+    '''
+    files = os.listdir(direct)
+    # Loop until we get the data we want
+    okay = False
+    for f in files:
+        # only netcdf files
+        if stream_name in f and os.path.splitext(f)[-1] == '.nc':
+            f = os.path.join(direct, f)
+            with xray.open_dataset(f) as dataset:
+                t = dataset['time'].values
+                # get the indexes to pull out of the data
+                indexes = numpy.where(numpy.logical_and(time_range.start < t, t < time_range.stop))[0]
+                if len(indexes) != 0:
+                    # less indexes than data or request for all data ->  get everything
+                    if num_data_points < 0:
+                        selection = indexes
+                    elif num_data_points > len(indexes):
+                        selection = indexes
+                    else:
+                        # do a linear sampling of the data points
+                        selection = numpy.floor(numpy.linspace(0, len(indexes)-1, num_data_points)).astype(int)
+                        selection = indexes[selection]
+                        selection = sorted(selection)
+                    selected_data = dataset.isel(index=selection)
+                    return selected_data.to_dataframe()
+    return pd.DataFrame()
 
 
 def groups(l, n):
@@ -640,7 +645,7 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
             if limit:
                 df = fetch_nsan_data(key, time_range, strict_range=False, num_points=limit)
             else:
-                df = fetch_nsan_data(key, time_range, strict_range=False)
+                df = fetch_full_san_data(key, time_range, strict_range=False)
             if len(df) == 0:
                 log.info("SAN data search for {} returned no data.".format(key.as_refdes()))
                 if key == primary_key:
