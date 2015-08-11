@@ -45,7 +45,7 @@ log = logging.getLogger(__name__)
 
 @log_timing
 def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None, custom_times=None, custom_type=None,
-                  include_provenance=False, include_annotations=False, strict_range=False):
+                  include_provenance=False, include_annotations=False, strict_range=False, request_uuid=''):
     """
     Returns a list of particles from the given streams, limits and times
     """
@@ -90,6 +90,8 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
                                    include_provenance=include_provenance,include_annotations=include_annotations,
                                    strict_range=strict_range)
 
+    # Create the medata store
+    provenance_metadata.add_query_metadata(stream_request, request_uuid, 'JSON')
     pd_data = fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
 
     # convert data into a list of particles
@@ -185,6 +187,7 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
         if include_provenance:
             out['provenance'] = provenance_metadata.get_provenance_dict()
             out['computed_provenance'] = provenance_metadata.calculated_metatdata.get_dict()
+            out['query_parameter_provenance'] = provenance_metadata.get_query_dict()
         if include_annotations:
             out['annotations'] = annotation_store.get_json_representation()
     else:
@@ -270,7 +273,7 @@ def get_netcdf_raw(streams, start, stop):
 
 @log_timing
 def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None, custom_type=None,
-               include_provenance=False, include_annotations=False, strict_range=False):
+               include_provenance=False, include_annotations=False, strict_range=False, request_uuid=''):
     """
     Returns a netcdf from the given streams, limits and times
     """
@@ -287,6 +290,7 @@ def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit, times=custom_times,
                                    include_provenance=include_provenance,include_annotations=include_annotations,
                                    strict_range=strict_range)
+    provenance_metadata.add_query_metadata(stream_request, request_uuid, "netCDF")
 
     pd_data = fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
     return NetCDF_Generator(pd_data, provenance_metadata, annotation_store).chunks(stream_request)
@@ -1335,6 +1339,25 @@ class ProvenanceMetadataStore(object):
         return prov
 
 
+    def add_query_metadata(self, stream_request, query_uuid, query_type):
+        self._query_metadata = OrderedDict()
+        self._query_metadata["query_type"] = query_type
+        self._query_metadata['query_uuid'] = query_uuid
+        self._query_metadata['begin'] = stream_request.time_range.start
+        self._query_metadata['beginDT'] = ntp_to_ISO_date(stream_request.time_range.start)
+        self._query_metadata['end'] = stream_request.time_range.stop
+        self._query_metadata['endDT'] = ntp_to_ISO_date(stream_request.time_range.stop)
+        self._query_metadata['limit'] = stream_request.limit
+        self._query_metadata["requested_streams"] = [x.as_dashed_refdes() for x in stream_request.stream_keys]
+        self._query_metadata["include_provenance"] = stream_request.include_provenance
+        self._query_metadata["include_annotations"] = stream_request.include_annotations
+        self._query_metadata["strict_range"] = stream_request.strict_range
+
+
+    def get_query_dict(self):
+        return self._query_metadata
+
+
 class CalculatedProvenanceMetadataStore(object):
     """Metadata store for provenance values"""
 
@@ -1498,6 +1521,8 @@ class NetCDF_Generator(object):
                                                              attrs={'long_name' : 'l0 Provenance Entries'})
             init_data['computed_provenance'] = xray.DataArray([json.dumps(self.provenance_metadata.calculated_metatdata.get_dict())], dims=['computed_provenance_dim'],
                                                              attrs={'long_name' : 'Computed Provenance Information'})
+            init_data['query_parameter_provenance'] = xray.DataArray([json.dumps(self.provenance_metadata.get_query_dict())], dims=['query_parameter_provenance_dim'],
+                                                             attrs={'long_name' : 'Query Parameter Provenance Information'})
         if r.include_annotations:
             annote = self.annotation_store.get_json_representation()
             annote_data = [json.dumps(x) for x in annote]
