@@ -4,6 +4,7 @@ import tempfile
 from threading import Event, Lock
 import traceback
 import zipfile
+import sys
 
 import msgpack
 import netCDF4
@@ -152,7 +153,8 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
             for qc_function_name in qc_stream_parameters.get(param.name, []):
                 qc_function_results = '%s_%s' % (param.name, qc_function_name)
 
-                if qc_function_results in pd_data:
+                if qc_function_results in pd_data\
+                        and pd_data.get(qc_function_results, {}).get(primary_key.as_refdes(), {}).get('data') is not None:
                     value = pd_data[qc_function_results][primary_key.as_refdes()]['data'][index]
 
                     qc_results_key = '%s_%s' % (param.name, 'qc_results')
@@ -719,7 +721,10 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
                 log.warning("Required parameter not present: {}".format(param.name))
             if stream_request.qc_parameters.get(param.name) is not None \
                     and pd_data.get(param.id, {}).get(primary_key.as_refdes(), {}).get('data') is not None:
-                _qc_check(stream_request, param, pd_data, primary_key)
+                try:
+                    _qc_check(stream_request, param, pd_data, primary_key)
+                except Exception as e:
+                    log.error("Unexpected error while running qc functions: {}".format(e.message))
 
     return pd_data
 
