@@ -226,9 +226,8 @@ def get_query_columns(stream_key, session=None, prepared=None, query_consistency
     cols = global_cassandra_state['cluster'].metadata.keyspaces[engine.app.config['CASSANDRA_KEYSPACE']]. \
         tables[stream_key.stream.name].columns.keys()
     cols = map(_clean_column_name, cols)
-    # we don't need any parts of the key(0-7) except the time column(5) and deployment column(6)
-    # also grabbing the bin(3) and id(7) for qc results storage
-    cols = cols[3:4] + cols[5:]
+    unneeded = ['subsite', 'node', 'sensor', 'method']
+    cols = [c for c in cols if c not in unneeded]
     return cols
 
 
@@ -326,15 +325,21 @@ def fetch_nth_data(stream_key, time_range, strict_range=False, num_points=1000, 
     for future in futures:
         rows.extend(future.get())
 
-    uniq = {}
-    for row in rows:
-        key = "{}{}".format(row[0], row[-1])  # this should include more than the time and the last value
-        uniq[key] = row
-
-    rows = sorted(uniq.values())
-
+    # flatten the rows down to a single list
     rows = [r[1][0] for r in rows if r[0] and len(r[1]) > 0]
-    return cols, rows
+
+    # filter out duplicates
+    result = []
+    uuids = set()
+    uuid_index = cols.index('id')
+    for row in rows:
+        my_uuid = row[uuid_index]
+        if my_uuid in uuids:
+            continue
+        uuids.add(my_uuid)
+        result.append(row)
+
+    return cols, result
 
 #---------------------------------------------------------------------------------------
 # Fetch all records in the time_range by qurying for every time bin in the time_range
@@ -358,32 +363,9 @@ def fetch_all_data(stream_key, time_range, session=None, prepared=None, query_co
     # list all the hour bins from start to stop
     bins = [(x,) for x in xrange(time_to_bin(start), time_to_bin(stop)+1, 1)]
 
-    futures = []
-    futures.append(execution_pool.apply_async(execute_unlimited_query, (stream_key, cols, bins, time_range)))
+    future = execution_pool.apply_async(execute_unlimited_query, (stream_key, cols, bins, time_range))
+    rows = future.get()
 
-    rows = []
-    for future in futures:
-        rows.extend(future.get())
-
-    uniq = {}
-    # Remove dups:
-    for row in rows:
-        # The second element of 'rows' is a tuple of record fields
-        tup = row[1]
-        no_cols = len(tup)
-        if no_cols > 0:
-            # The first tuple element consists of a colon separated list of
-            # all column values for each record (i.e, telemetered, retrieved
-            # values), and is used to uniquely identify a record from among 
-            # any duplicates that may have been ingested. 
-            key = str(tup[0])
-            m = hashlib.md5()
-            m.update(str(key))
-            uniq[m.hexdigest()] = row
-
-    rows = sorted(uniq.values())
-
-    rows = [r[1][0] for r in rows if r[0] and len(r[1]) > 0]
     return cols, rows
 
 
@@ -422,8 +404,12 @@ def execute_unlimited_query(stream_key, cols, time_bins, time_range, session=Non
            (','.join(cols), stream_key.stream.name, stream_key.subsite,
             stream_key.node, stream_key.sensor, stream_key.method, time_range.start, time_range.stop)
     query = session.prepare(base + ' order by method')
+    query.consistency_level = query_consistency
 
-    result = list(execute_concurrent_with_args(session, query, time_bins, concurrency=50))
+    result = []
+    for success, rows in execute_concurrent_with_args(session, query, time_bins, concurrency=50):
+        if success:
+            result.extend(list(rows))
     return result
 
 @cassandra_session
