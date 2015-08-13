@@ -318,6 +318,7 @@ def fetch_nth_data(stream_key, time_range, strict_range=False, num_points=1000, 
     start = time_range.start
     stop = time_range.stop
     times = [(time_to_bin(t), t) for t in numpy.linspace(start, stop, num_points)]
+
     futures = []
     for i in xrange(0, num_points, chunk_size):
         futures.append(execution_pool.apply_async(execute_query, (stream_key, cols, times[i:i + chunk_size], time_range, strict_range)))
@@ -334,6 +335,7 @@ def fetch_nth_data(stream_key, time_range, strict_range=False, num_points=1000, 
     rows = sorted(uniq.values())
 
     rows = [r[1][0] for r in rows if r[0] and len(r[1]) > 0]
+    print "nth-----> " +  str(len(rows))
     return cols, rows
 
 #---------------------------------------------------------------------------------------
@@ -356,35 +358,26 @@ def fetch_all_data(stream_key, time_range, session=None, prepared=None, query_co
     stop = time_range.stop
 
     # list all the hour bins from start to stop
-    bins = [(x,) for x in xrange(time_to_bin(start), time_to_bin(stop)+1, 1)]
+    query_bins = [(x,) for x in xrange(time_to_bin(start), time_to_bin(stop)+1, 1)]
 
     futures = []
-    futures.append(execution_pool.apply_async(execute_unlimited_query, (stream_key, cols, bins, time_range)))
+    futures.append(execution_pool.apply_async(execute_unlimited_query, (stream_key, cols, query_bins, time_range)))
 
-    rows = []
+    # tuple of return-status and data.the data is tuples (multiple bins) 
+    # of tuples of time bin records (records within a time bin)
+    bins = []
     for future in futures:
-        rows.extend(future.get())
+        bins.extend(future.get())
 
-    uniq = {}
-    # Remove dups:
-    for row in rows:
-        # The second element of 'rows' is a tuple of record fields
-        tup = row[1]
-        no_cols = len(tup)
-        if no_cols > 0:
-            # The first tuple element consists of a colon separated list of
-            # all column values for each record (i.e, telemetered, retrieved
-            # values), and is used to uniquely identify a record from among 
-            # any duplicates that may have been ingested. 
-            key = str(tup[0])
-            m = hashlib.md5()
-            m.update(str(key))
-            uniq[m.hexdigest()] = row
+    # Remove the status field and copy the tuples from the bin
+    tups = []
+    for bin in bins:
+        if bin[0] and len(bin[1]) > 0:
+            for rec in bin[1]:
+                tups.append(rec)   
 
-    rows = sorted(uniq.values())
-
-    rows = [r[1][0] for r in rows if r[0] and len(r[1]) > 0]
-    return cols, rows
+    # return column names and tuples of records from retrieved time bins
+    return cols, tups
 
 
 @cassandra_session
@@ -417,13 +410,14 @@ def execute_query(stream_key, cols, times, time_range, strict_range=False, sessi
 @log_timing
 def execute_unlimited_query(stream_key, cols, time_bins, time_range, session=None, prepared=None,
                   query_consistency=None):
-
     base = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s' and time>=%s and time<=%s " % \
            (','.join(cols), stream_key.stream.name, stream_key.subsite,
             stream_key.node, stream_key.sensor, stream_key.method, time_range.start, time_range.stop)
+
     query = session.prepare(base + ' order by method')
 
     result = list(execute_concurrent_with_args(session, query, time_bins, concurrency=50))
+
     return result
 
 @cassandra_session
