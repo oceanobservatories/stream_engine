@@ -233,6 +233,139 @@ def get_query_columns(stream_key, session=None, prepared=None, query_consistency
 
 @log_timing
 @cassandra_session
+def query_partition_metadata(stream_key, time_range, session=None, prepared=None, query_consistency=None):
+    '''
+    Get the metadata entries for partitions that contain data within the time range.
+    :param stream_key:
+    :param time_range:
+    :return: Return a list of lists which contain the following information about metadata bins
+    [
+        [
+            bin #,
+            store : cass or san for location,
+            count : Number of data points
+            first : first ntp time of data in bin
+            last : last ntp time of data in the bin
+        ],
+    ]
+    '''
+    query_name = "bin_meta_{:s}_{:s}_{:s}_{:s}_{:s}".format(stream_key.subsite, stream_key.node, stream_key.sensor,
+                                                            stream_key.method, stream_key.stream.name)
+    start_bin=  time_to_bin(time_range.start)
+    end_bin = time_to_bin(time_range.stop)
+    if query_name not in prepared:
+        base = (
+            "SELECT bin, store, count, first, last FROM partition_metadata WHERE stream = '{:s}' AND  refdes = '{:s}' AND method = '{:s}' AND bin >= ? and bin <= ?").format(
+            stream_key.stream.name, '{:s}-{:s}-{:s}'.format(stream_key.subsite, stream_key.node, stream_key.sensor),
+            stream_key.method)
+        query = session.prepare(base)
+        query.consistency_level = query_consistency
+        prepared[query_name] = query
+    query = prepared[query_name]
+    return session.execute(query, [start_bin, end_bin])
+
+def get_cass_bin_information(stream_key, time_range, session=None, prepared=None, query_consistency=None):
+    """
+    Get the bins, counts, times, and total data contained in cassandra for a streamkey in the given time range
+    :param stream_key: stream-key
+    :param time_range: time range to search
+    :return: Returns a 3-tuple.
+            First entry is the sorted list of bins that contain data in cassandra.
+            Second entry is a dictonary of each bin pointing to the count, start, and stop times  in a tuple.
+            Third entry is the total data contained in cassandra for the time range.
+    """
+    results = query_partition_metadata(stream_key, time_range)
+    bins = {}
+    total = 0
+    for data_bin, location, count, first, last in results:
+        if location == 'cass':
+            total = total + count
+            bins[data_bin] =  (count, first, last)
+    return sorted(bins.keys()), bins, total
+
+
+@log_timing
+@cassandra_session
+def query_bin_first(stream_key, bins, cols=None,  session=None, prepared=None, query_consistency=None):
+    query_name = 'bin_first_%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite, stream_key.node,
+                                               stream_key.sensor, stream_key.method)
+    # attempt to find one data point beyond the requested start/stop times
+    if query_name not in prepared:
+        base = "select %s  from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s'" % \
+                   (', '.join(cols), stream_key.stream.name, stream_key.subsite, stream_key.node,
+                    stream_key.sensor, stream_key.method)
+        query = session.prepare(base + 'ORDER BY method, time LIMIT 1')
+        query.consistency_level = query_consistency
+        prepared[query_name] = query
+    query = prepared[query_name]
+    result = []
+    # prepare the arugments for cassandra. Each need to be in their own list
+    bins = [[x] for x in bins]
+    for success, rows in execute_concurrent_with_args(session, query, bins,concurrency=50):
+        if success:
+            result.extend(list(rows))
+    return result
+
+@log_timing
+@cassandra_session
+def query_first_after(stream_key, times_and_bins, cols, session=None, prepared=None, query_consistency=None):
+    query_name = 'first_after_%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite, stream_key.node,
+                                               stream_key.sensor, stream_key.method)
+    if query_name not in prepared:
+        base = "select %s  from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s' and time >= ?" % \
+               (', '.join(cols), stream_key.stream.name, stream_key.subsite, stream_key.node,
+                stream_key.sensor, stream_key.method)
+        query = session.prepare(base + 'ORDER BY method ASC, time ASC LIMIT 1')
+        query.consistency_level = query_consistency
+        prepared[query_name] = query
+    result = []
+    query = prepared[query_name]
+    for success, rows in execute_concurrent_with_args(session, query, times_and_bins, concurrency=50):
+        if success:
+            result.extend(list(rows))
+    return result
+
+@log_timing
+@cassandra_session
+def query_first_before(stream_key, times_and_bins, cols, session=None, prepared=None, query_consistency=None):
+    query_name = 'first_before_%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite, stream_key.node,
+                                               stream_key.sensor, stream_key.method)
+    if query_name not in prepared:
+        base = "select %s  from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s' and time <= ?" % \
+               (', '.join(cols), stream_key.stream.name, stream_key.subsite, stream_key.node,
+                stream_key.sensor, stream_key.method)
+        query = session.prepare(base + 'ORDER BY method DESC, time DESC LIMIT 1')
+        query.consistency_level = query_consistency
+        prepared[query_name] = query
+    result = []
+    query = prepared[query_name]
+    for success, rows in execute_concurrent_with_args(session, query, times_and_bins, concurrency=50):
+        if success:
+            result.extend(list(rows))
+    return result
+
+@log_timing
+@cassandra_session
+def query_full_bin(stream_key, bins_and_limit, cols, session=None, prepared=None, query_consistency=None):
+    query_name = 'full_bin_%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite, stream_key.node,
+                                                  stream_key.sensor, stream_key.method)
+    if query_name not in prepared:
+        base = "select %s  from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s' and time > ? and time < ?" % \
+               (', '.join(cols), stream_key.stream.name, stream_key.subsite, stream_key.node,
+                stream_key.sensor, stream_key.method)
+        query = session.prepare(base)
+        query.consistency_level = query_consistency
+        prepared[query_name] = query
+    result = []
+    query = prepared[query_name]
+    for success, rows in execute_concurrent_with_args(session, query, bins_and_limit, concurrency=50):
+        if success:
+            result.extend(list(rows))
+    return result
+
+
+@log_timing
+@cassandra_session
 def fetch_data_sync(stream_key, time_range, strict_range=False, session=None, prepared=None, query_consistency=None):
     cols = get_query_columns(stream_key)
 
@@ -314,32 +447,137 @@ def fetch_nth_data(stream_key, time_range, strict_range=False, num_points=1000, 
     """
     cols = get_query_columns(stream_key)
 
-    start = time_range.start
-    stop = time_range.stop
-    times = [(time_to_bin(t), t) for t in numpy.linspace(start, stop, num_points)]
-    futures = []
-    for i in xrange(0, num_points, chunk_size):
-        futures.append(execution_pool.apply_async(execute_query, (stream_key, cols, times[i:i + chunk_size], time_range, strict_range)))
+    metadata_bins, bin_information, total_data = get_cass_bin_information(stream_key, time_range)
 
-    rows = []
-    for future in futures:
-        rows.extend(future.get())
+    # Fetch it all if it's gonna be close to the same size
+    if total_data < num_points * 2:
+        log.info("Total points (%d) returned is less than twice the requested (%d).  Returning all points.", total_data, num_points)
+        _, results = fetch_all_data(stream_key, time_range)
+    # We have a small amount of bins with data so we can read them all
+    elif len(metadata_bins) < engine.app.config['UI_FULL_BIN_LIMIT']:
+        log.info("Reading all (%d) bins and then sampling.", len(metadata_bins))
+        _, results = sample_full_bins(stream_key, time_range, num_points, metadata_bins, cols)
+    # We have a lot of bins so just grab the first from each of the bins
+    elif len(metadata_bins) > num_points:
+        log.info("More bins (%d) than requested points (%d). Selecting first particle from %d bins.", len(metadata_bins), num_points, num_points)
+        _, results = sample_n_bins(stream_key, time_range, num_points, metadata_bins, cols)
+    else:
+        log.info("Sampling %d points across %d bins.", num_points, len(metadata_bins))
+        _, results = sample_n_points(stream_key, time_range, num_points, metadata_bins, bin_information, cols)
 
-    # flatten the rows down to a single list
-    rows = [r[1][0] for r in rows if r[0] and len(r[1]) > 0]
-
-    # filter out duplicates
-    result = []
+    # dedup data before return values
+    size = len(results)
+    to_return = []
     uuids = set()
     uuid_index = cols.index('id')
-    for row in rows:
+    for row in results:
         my_uuid = row[uuid_index]
         if my_uuid in uuids:
             continue
         uuids.add(my_uuid)
-        result.append(row)
+        to_return.append(row)
+    log.info("Removed %d duplicates from data", size - len(to_return))
+    return cols, to_return
 
-    return cols, result
+def sample_full_bins(stream_key, time_range, num_points, metadata_bins, cols=None):
+    # Read all the data and do sampling from there.
+    # There may need to be de-duplicating done on this method
+    _, all_data = fetch_full_bins(stream_key, [(x,time_range.start, time_range.stop) for x in metadata_bins], cols)
+    if len(all_data) < num_points * 4:
+        results = all_data
+    else:
+        indexes = numpy.floor(numpy.linspace(0, len(all_data)-1, num_points)).astype(int)
+        selected_data = numpy.array(all_data)[indexes].tolist()
+        results = selected_data
+    return cols, results
+
+
+def sample_n_bins(stream_key, time_range, num_points, metadata_bins, cols=None):
+    results = []
+    sb = metadata_bins[0]
+    lb = metadata_bins[-1]
+    # Get the first data point for all of the bins in the middle
+    metadata_bins = metadata_bins[1:-1]
+    indexes = numpy.floor(numpy.linspace(0, len(metadata_bins)-1, num_points-2)).astype(int)
+    bins_to_use = numpy.array(metadata_bins)[indexes].tolist()
+    cols, rows = fetch_first_after_times(stream_key, [(sb, time_range.start)], cols=cols )
+    results.extend(rows)
+
+    # Get the first data point
+    _, rows = fetch_bin_firsts(stream_key, bins_to_use, cols)
+    results.extend(rows)
+
+    # Get the last data point
+    _, rows = fetch_first_before_times(stream_key, [(lb, time_range.stop)], cols=cols )
+    results.extend(rows)
+    return cols, results
+
+
+def sample_n_points(stream_key, time_range, num_points, metadata_bins, bin_information, cols=None):
+    results = []
+    # get the first point
+    cols, rows = fetch_first_after_times(stream_key, [(metadata_bins[0], time_range.start)], cols=cols )
+    results.extend(rows)
+
+    # create a set to keep track of queries and avoid duplicates
+    queries = set()
+    # We want to know start and stop time of each bin that has data
+    metadata_bins = [(x, bin_information[x][1], bin_information[x][2]) for x in metadata_bins]
+    metadata_bins.sort()
+    bin_queue = deque(metadata_bins)
+    # Create our time array of sampling times
+    times = numpy.linspace(time_range.start, time_range.stop, num_points)
+    # Get the first bin that has data within the range
+    current = bin_queue.popleft()
+    for t in times:
+        # Are we currently within the range of data in the bin if so add a sampling point
+        if current[1] <= t < current[2]:
+            queries.add((current[0], t))
+        else:
+            # can we roll over to the next one?
+            if len(bin_queue) > 0 and bin_queue[0][1] <= t:
+                current = bin_queue.popleft()
+                queries.add((current[0], t))
+            # otherwise get the last sample from the last bin we had
+            else:
+                queries.add((current[0], current[2]))
+    times = list(queries)
+    _, lin_sampled= fetch_first_before_times(stream_key, times, cols)
+    results.extend(lin_sampled)
+    # get the last point
+    _, rows = fetch_first_before_times(stream_key, [(metadata_bins[-1][0], time_range.stop)], cols=cols )
+    results.extend(rows)
+    # Sort the data
+    results = sorted(results, key=lambda dat: dat[1])
+    return cols, results
+
+def fetch_bin_firsts(stream_key, bins, cols=None):
+    if cols is None:
+        cols = get_query_columns(stream_key)
+    future = execution_pool.apply_async(query_bin_first, (stream_key, bins, cols))
+    rows = future.get()
+    return cols, rows
+
+def fetch_first_after_times(stream_key, times_and_bins, cols=None):
+    if cols is None:
+        cols = get_query_columns(stream_key)
+    future = execution_pool.apply_async(query_first_after, (stream_key, times_and_bins, cols))
+    rows = future.get()
+    return cols, rows
+
+def fetch_first_before_times(stream_key, times_and_bins, cols=None):
+    if cols is None:
+        cols = get_query_columns(stream_key)
+    future = execution_pool.apply_async(query_first_before, (stream_key, times_and_bins, cols))
+    rows = future.get()
+    return cols, rows
+
+def fetch_full_bins(stream_key, bins_and_limit, cols=None):
+    if cols is None:
+        cols = get_query_columns(stream_key)
+    future = execution_pool.apply_async(query_full_bin, (stream_key, bins_and_limit, cols))
+    rows = future.get()
+    return cols, rows
 
 # Fetch all records in the time_range by querying for every time bin in the time_range
 @log_timing
@@ -372,31 +610,6 @@ def fetch_all_data(stream_key, time_range, session=None, prepared=None, query_co
     return cols, rows
 
 
-@cassandra_session
-@log_timing
-def execute_query(stream_key, cols, times, time_range, strict_range=False, session=None, prepared=None,
-                  query_consistency=None):
-    if strict_range:
-        query = session.prepare("select %s from %s where subsite='%s' and node='%s'"
-                                " and sensor='%s' and bin=? and method='%s' and time>=%s and time<=?"
-                                " order by method desc limit 1" % (','.join(cols),
-                                                                   stream_key.stream.name, stream_key.subsite, stream_key.node,
-                                                                   stream_key.sensor, stream_key.method, time_range.start))
-        query.consistency_level = query_consistency
-    else:
-        query_name = '%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite,
-                                         stream_key.node, stream_key.sensor, stream_key.method)
-        if query_name not in prepared:
-            base = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s'" % \
-                   (','.join(cols), stream_key.stream.name, stream_key.subsite,
-                    stream_key.node, stream_key.sensor, stream_key.method)
-            query = session.prepare(base + ' and time<=? order by method desc limit 1')
-            query.consistency_level = query_consistency
-            prepared[query_name] = query
-        query = prepared[query_name]
-
-    result = list(execute_concurrent_with_args(session, query, times, concurrency=50))
-    return result
 
 @cassandra_session
 @log_timing
