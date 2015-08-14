@@ -30,6 +30,11 @@ def handle_stream_not_found(error):
     return '{{\n  "message": "{}"\n}}'.format(msg)
 
 
+@app.before_request
+def log_request():
+    log.info('Incoming request url=%s data=%s', request.url, request.data)
+
+
 @app.route('/particles', methods=['POST'])
 def particles():
     """
@@ -116,7 +121,7 @@ def full_netcdf():
     request_start_time = time.time()
     log.info("Handling request to offload {} - {}".format(request.url, input_data.get('streams', "")))
     start = input_data.get('start', app.config["UNBOUND_QUERY_START"])
-    stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time())) 
+    stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
     resp = Response(util.calc.get_netcdf_raw(input_data.get('streams'), start, stop,), mimetype='application/netcdf')
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return resp
