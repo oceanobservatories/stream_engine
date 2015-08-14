@@ -24,3 +24,7 @@ NETCDF_REFERENCE = "More information can be found at http://oceanobservatories.o
 NETCDF_COMMENT = ""
 NETCDF_CONVENTIONS = "CF-1.6"
 
+COLLAPSE_TIMES = True
+
+UI_FULL_BIN_LIMIT = 30 # Limit on the amount of full Cassandra bins to read before resorting to less accurate sampling
+

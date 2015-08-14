@@ -607,6 +607,17 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
     """
     primary_key = stream_request.stream_keys[0]
     time_range = TimeRange(start, stop)
+    # fit time ranges to metadata if we can.
+    if app.config['COLLAPSE_TIMES']:
+        log.warn('Collapsing time range to data: ' + ntp_to_datestring(time_range.start) +
+                 " -- " + ntp_to_datestring(time_range.stop))
+        for sk in stream_request.stream_keys:
+            if not sk.stream.is_virtual:
+                data_range = get_available_time_range(sk)
+                time_range.start = max(time_range.start, data_range.start)
+                time_range.stop = min(time_range.stop, data_range.stop)
+        log.warn('Collapsed to : ' + ntp_to_datestring(time_range.start) +
+                 "  -- " + ntp_to_datestring(time_range.stop) + '\n')
 
     log.info("Fetching data from {} stream(s): {}".format(len(stream_request.stream_keys), [x.as_refdes() for x in stream_request.stream_keys]))
 
