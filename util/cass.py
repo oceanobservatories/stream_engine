@@ -341,8 +341,7 @@ def fetch_nth_data(stream_key, time_range, strict_range=False, num_points=1000, 
 
     return cols, result
 
-#---------------------------------------------------------------------------------------
-# Fetch all records in the time_range by qurying for every time bin in the time_range
+# Fetch all records in the time_range by querying for every time bin in the time_range
 @log_timing
 @cassandra_session
 def fetch_all_data(stream_key, time_range, session=None, prepared=None, query_consistency=None):
@@ -361,10 +360,14 @@ def fetch_all_data(stream_key, time_range, session=None, prepared=None, query_co
     stop = time_range.stop
 
     # list all the hour bins from start to stop
-    bins = [(x,) for x in xrange(time_to_bin(start), time_to_bin(stop)+1, 1)]
+    bins = xrange(time_to_bin(start), time_to_bin(stop)+1, 1)
+    futures = []
+    for bin_num in bins:
+        futures.append(execution_pool.apply_async(execute_unlimited_query, (stream_key, cols, bin_num, time_range)))
 
-    future = execution_pool.apply_async(execute_unlimited_query, (stream_key, cols, bins, time_range))
-    rows = future.get()
+    rows = []
+    for future in futures:
+        rows.extend(future.get())
 
     return cols, rows
 
@@ -397,20 +400,21 @@ def execute_query(stream_key, cols, times, time_range, strict_range=False, sessi
 
 @cassandra_session
 @log_timing
-def execute_unlimited_query(stream_key, cols, time_bins, time_range, session=None, prepared=None,
-                  query_consistency=None):
+def execute_unlimited_query(stream_key, cols, time_bin, time_range, session=None, prepared=None,
+                            query_consistency=None):
 
-    base = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s' and time>=%s and time<=%s " % \
-           (','.join(cols), stream_key.stream.name, stream_key.subsite,
-            stream_key.node, stream_key.sensor, stream_key.method, time_range.start, time_range.stop)
-    query = session.prepare(base + ' order by method')
+    base = ("select %s from %s where subsite=%%s and node=%%s and sensor=%%s and bin=%%s " + \
+            "and method=%%s and time>=%%s and time<=%%s") % (','.join(cols), stream_key.stream.name)
+    query = SimpleStatement(base)
     query.consistency_level = query_consistency
+    return list(session.execute(query, (stream_key.subsite,
+                                        stream_key.node,
+                                        stream_key.sensor,
+                                        time_bin,
+                                        stream_key.method,
+                                        time_range.start,
+                                        time_range.stop)))
 
-    result = []
-    for success, rows in execute_concurrent_with_args(session, query, time_bins, concurrency=50):
-        if success:
-            result.extend(list(rows))
-    return result
 
 @cassandra_session
 @log_timing
