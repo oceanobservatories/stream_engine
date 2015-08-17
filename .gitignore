@@ -2,4 +2,6 @@
 .cache
 *.pyc
 
-stream_engine*log
+stream_engine*log*
+stream_engine*lock
+stream_engine.pid
