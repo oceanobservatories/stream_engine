@@ -158,12 +158,15 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
                     value = pd_data[qc_function_results][primary_key.as_refdes()]['data'][index]
 
                     qc_results_key = '%s_%s' % (param.name, 'qc_results')
+                    qc_ran_key = '%s_%s' % (param.name, 'qc_executed')
                     if qc_results_key not in particle:
                         particle[qc_results_key] = 0b0000000000000000
 
                     qc_results_value = particle[qc_results_key]
                     qc_cached_function = CachedFunction.from_qc_function(qc_function_name)
                     qc_results_mask = int(qc_cached_function.qc_flag, 2)
+
+                    particle[qc_ran_key] = qc_results_mask | particle.get(qc_ran_key, qc_results_mask)
 
                     if value == 0:
                         qc_results_value = ~qc_results_mask & qc_results_value
