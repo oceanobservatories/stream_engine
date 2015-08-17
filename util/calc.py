@@ -722,12 +722,12 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
                 calculate_derived_product(param, stream_request.coefficients, pd_data, primary_key, provenance_metadata, stream_request)
             else:
                 log.warning("Required parameter not present: {}".format(param.name))
-            if stream_request.qc_parameters.get(param.name) is not None \
-                    and pd_data.get(param.id, {}).get(primary_key.as_refdes(), {}).get('data') is not None:
-                try:
-                    _qc_check(stream_request, param, pd_data, primary_key)
-                except Exception as e:
-                    log.error("Unexpected error while running qc functions: {}".format(e.message))
+        if stream_request.qc_parameters.get(param.name) is not None \
+                and pd_data.get(param.id, {}).get(primary_key.as_refdes(), {}).get('data') is not None:
+            try:
+                _qc_check(stream_request, param, pd_data, primary_key)
+            except Exception as e:
+                log.error("Unexpected error while running qc functions: {}".format(e.message))
 
     return pd_data
 
