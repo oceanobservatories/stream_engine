@@ -13,7 +13,7 @@ from threading import Lock, Thread
 
 from cassandra.cluster import Cluster, QueryExhausted, ResponseFuture, PagedResult, _NOT_SET
 from cassandra.query import _clean_column_name, tuple_factory, SimpleStatement
-from cassandra.concurrent import execute_concurrent_with_args
+from cassandra.concurrent import execute_concurrent_with_args, execute_concurrent
 from cassandra import ConsistencyLevel
 
 import msgpack
@@ -818,6 +818,66 @@ def insert_dataset(stream_key, dataset, session=None, prepared=None, query_consi
         ret_val = 'After updating Cassandra bin {:d} for {:s} there are {:d} particles.'.format(data_bin, stream_key.as_refdes(), new_count)
         log.info(ret_val)
         return ret_val
+
+@cassandra_session
+@log_timing
+def fetch_annotations(stream_key, time_range, session=None, prepared=None, query_consistency=None, with_mooring=True):
+    #------- Query 1 -------
+    # query where annotation effectivity is whithin the query time range
+    # or stadles the end points
+    select_columns = "subsite, node, sensor, time, time2, parameters, provenance, annotation, method, deployment, id "
+    select_clause = "select " + select_columns + "from annotations "
+    where_clause = "where subsite=? and node=? and sensor=?"
+    time_constraint = " and time>=%s and time<=%s"
+    query_base = select_clause + where_clause  + time_constraint
+    query_string = query_base % (time_range.start, time_range.stop)
+
+    query1 = session.prepare(query_string)
+    query1.consistency_level = query_consistency
+
+    #------- Query 2 --------
+    # Where annoation effectivity straddles the entire query time range
+    # -- This is necessary because of the way the Cassandra uses the 
+    #    start-time in the primary key
+    time_constraint_wide = " and time<=%s"
+    query_base_wide = select_clause + where_clause + time_constraint_wide
+    query_string_wide = query_base_wide % (time_range.start)
+
+    query2 = session.prepare(query_string_wide)
+    query2.consistency_level = query_consistency
+
+    #----------------------------------------------------------------------
+    # Prepare arguments for both query1 and query2
+    #----------------------------------------------------------------------
+    # [(subsite,node,sensor),(subsite,node,''),(subsite,'','')
+    tup1 = (stream_key.subsite,stream_key.node,stream_key.sensor)
+    tup2 = (stream_key.subsite,stream_key.node, '')
+    tup3 = (stream_key.subsite,'','')
+    args = []
+    args.append(tup1)
+    args.append(tup2)
+    if with_mooring:
+        args.append(tup3)
+
+    result = []
+    # query where annotation effectivity is whithin the query time range
+    # or stadles the end points
+    for success, rows in execute_concurrent_with_args(session, query1, args, concurrency=3):
+        if success:
+            result.extend(list(rows))
+
+    temp = []
+    for success, rows in execute_concurrent_with_args(session, query2, args, concurrency=3):
+        if success:
+            temp.extend(list(rows))
+
+    for row in temp:
+        time2 = row[4]
+        if time_range.stop < time2:
+            result.append(row) 
+
+    return result
+
 
 @cassandra_session
 @log_timing
