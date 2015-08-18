@@ -435,9 +435,6 @@ def fetch_annotations(stream_key, time_range, session=None, prepared=None, query
                 result1.extend(list(rows))
 
     # Query for sensor annotations
-    print "--------------------------------------------------------------------"
-    print stream_key.subsite + ", " + stream_key.node + ", " + stream_key.sensor
-    print "--------------------------------------------------------------------"
     result2 = []
     query_string = "select subsite, node, sensor, time, time2, parameters, provenance, annotation, method, deployment, id from annotations where subsite='%s' and node='%s' and sensor='%s'" % \
                    (stream_key.subsite, stream_key.node, stream_key.sensor)
@@ -449,10 +446,6 @@ def fetch_annotations(stream_key, time_range, session=None, prepared=None, query
     for success, rows in execute_concurrent(session, statements_and_params, concurrency=2):
         if success:
             result2.extend(list(rows))
-
-    print result1
-    print "*****************************"
-    print result2
 
     return result1 + result2
 

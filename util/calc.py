@@ -1470,11 +1470,11 @@ def query_annotations(key, time_range):
     # Seconds from NTP epoch to UNIX epoch
     NTP_OFFSET_SECS = 2208988800
     for r in result:
-        # annotations columns in order defined in cass.py
+        # Annotations columns in order defined in cass.py
         rd = r[0] + "-" + r[1] + "-" + r[2]
         startt = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(r[3] - NTP_OFFSET_SECS)) 
         endt = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(r[4] - NTP_OFFSET_SECS)) 
-        # add to JSON document
+        # Add to JSON document
         anno = Annotation(rd, startt, endt, r[5], r[6], r[7], r[8], r[9], str(r[10]))
         resultSet.add(anno)
 
