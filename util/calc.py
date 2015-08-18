@@ -43,6 +43,11 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
+# MONKEY PATCH XRAY - REMOVE WHEN FIXED UPSTREAM
+from xray.backends import netcdf3
+netcdf3._nc3_dtype_coercions = {'int64': 'int32', 'bool': 'int8'}
+# END MONKEY PATCH - REMOVE WHEN FIXED UPSTREAM
+
 
 @log_timing
 def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None, custom_times=None, custom_type=None,
