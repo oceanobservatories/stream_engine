@@ -12,7 +12,7 @@ from threading import Lock, Thread
 
 from cassandra.cluster import Cluster, QueryExhausted, ResponseFuture, PagedResult, _NOT_SET
 from cassandra.query import _clean_column_name, tuple_factory, SimpleStatement
-from cassandra.concurrent import execute_concurrent_with_args
+from cassandra.concurrent import execute_concurrent_with_args, execute_concurrent
 from cassandra import ConsistencyLevel
 
 from util.common import log_timing, TimeRange
@@ -414,6 +414,47 @@ def execute_unlimited_query(stream_key, cols, time_bin, time_range, session=None
                                         stream_key.method,
                                         time_range.start,
                                         time_range.stop)))
+
+
+@cassandra_session
+@log_timing
+def fetch_annotations(stream_key, time_range, session=None, prepared=None, query_consistency=None, with_mooring=True):
+
+    result1 = []
+    if with_mooring is True:
+        # Query for mooring annotations
+        query_string = "select subsite, node, sensor, time, time2, parameters, provenance, annotation, method, deployment, id from annotations where subsite='%s' and node='' and sensor=''" % \
+                   (stream_key.subsite)
+        query = session.prepare(query_string)
+        query.consistency_level = query_consistency
+        statements_and_params = []
+        statements_and_params.append((query_string, None))
+
+        for success, rows in execute_concurrent(session, statements_and_params, concurrency=2):
+            if success:
+                result1.extend(list(rows))
+
+    # Query for sensor annotations
+    print "--------------------------------------------------------------------"
+    print stream_key.subsite + ", " + stream_key.node + ", " + stream_key.sensor
+    print "--------------------------------------------------------------------"
+    result2 = []
+    query_string = "select subsite, node, sensor, time, time2, parameters, provenance, annotation, method, deployment, id from annotations where subsite='%s' and node='%s' and sensor='%s'" % \
+                   (stream_key.subsite, stream_key.node, stream_key.sensor)
+    query = session.prepare(query_string)
+    query.consistency_level = query_consistency
+    statements_and_params = []
+    statements_and_params.append((query_string, None))
+
+    for success, rows in execute_concurrent(session, statements_and_params, concurrency=2):
+        if success:
+            result2.extend(list(rows))
+
+    print result1
+    print "*****************************"
+    print result2
+
+    return result1 + result2
 
 
 @cassandra_session

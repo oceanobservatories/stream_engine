@@ -17,7 +17,7 @@ import os
 import datetime
 from scipy.io.netcdf import netcdf_file
 
-from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, fetch_all_data,\
+from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, fetch_all_data, fetch_annotations, \
     get_available_time_range, fetch_l0_provenance, fetch_data_sync, time_to_bin, store_qc_results
 from util.common import log_timing, ntp_to_datestring,ntp_to_ISO_date, StreamKey, TimeRange, CachedParameter, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
@@ -35,6 +35,8 @@ from engine import app
 import requests
 
 from engine.routes import  app
+from datetime import datetime
+import time
 
 try:
     import simplejson as json
@@ -623,7 +625,7 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
     for key_index, key in enumerate(stream_request.stream_keys):
         annotations = []
         if stream_request.include_annotations:
-            annotations = query_annotations(stream_request, key, time_range)
+            annotations = query_annotations(key, time_range)
             annotation_store.add_annotations(annotations)
 
         if key.stream.is_virtual:
@@ -1450,7 +1452,7 @@ class AnnotationStore(object):
         return ret
 
 
-def query_annotations(stream_request, key, time_range):
+def query_annotations(key, time_range):
     '''
     Query edex for annotations on a stream request.
     :param stream_request: Stream request
@@ -1458,20 +1460,27 @@ def query_annotations(stream_request, key, time_range):
     :param time_range: Time range to use  (float, float)
     :return:
     '''
-    base_url = app.config['ANNOTATION_URL']
     beginDT = ntp_to_ISO_date(time_range.start)
     endDT = ntp_to_ISO_date(time_range.stop)
-    request_format_string = '{:s}-{:s}-{:s}?beginDT={:s}&endDT={:s}&method={:s}'.format(
-        key.subsite, key.node, key.sensor, beginDT, endDT, key.method)
-    annote_req = requests.get(url=base_url + request_format_string)
-    if annote_req.status_code == 200:
-        all_annotations = annote_req.json()
-        to_return = set()
-        for i in all_annotations:
-            to_return.add(Annotation.from_dict(i))
-        return list(to_return)
+
+    # Query Cassandra annotations table
+    result = fetch_annotations(key, time_range)
+
+    resultSet = set()
+    # Seconds from NTP epoch to UNIX epoch
+    NTP_OFFSET_SECS = 2208988800
+    for r in result:
+        # annotations columns in order defined in cass.py
+        rd = r[0] + "-" + r[1] + "-" + r[2]
+        startt = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(r[3] - NTP_OFFSET_SECS)) 
+        endt = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(r[4] - NTP_OFFSET_SECS)) 
+        # add to JSON document
+        anno = Annotation(rd, startt, endt, r[5], r[6], r[7], r[8], r[9], str(r[10]))
+        resultSet.add(anno)
+
+    if len(resultSet) > 0:
+        return list(resultSet)
     else:
-        log.warn("Error requesting annotations from EDEX")
         return []
 
 class NetCDF_Generator(object):
