@@ -12,7 +12,7 @@ from threading import Lock, Thread
 
 from cassandra.cluster import Cluster, QueryExhausted, ResponseFuture, PagedResult, _NOT_SET
 from cassandra.query import _clean_column_name, tuple_factory, SimpleStatement
-from cassandra.concurrent import execute_concurrent_with_args
+from cassandra.concurrent import execute_concurrent_with_args, execute_concurrent
 from cassandra import ConsistencyLevel
 
 from util.common import log_timing, TimeRange
@@ -627,6 +627,66 @@ def execute_unlimited_query(stream_key, cols, time_bin, time_range, session=None
                                         stream_key.method,
                                         time_range.start,
                                         time_range.stop)))
+
+
+@cassandra_session
+@log_timing
+def fetch_annotations(stream_key, time_range, session=None, prepared=None, query_consistency=None, with_mooring=True):
+
+    select_columns = "subsite, node, sensor, time, time2, parameters, provenance, annotation, method, deployment, id "
+    select_clause = "select " + select_columns + "from annotations "
+    where_clause = "where subsite=%s and node=%s and sensor=%s"
+    where_clause = "where subsite=%s and node=%s and sensor=%s"
+    time_constraint = " and time>=%s and time<=%s"
+    time_constraint_wide_anno = " and time<=%s"
+
+    query_string = select_clause + where_clause  + time_constraint
+    query_string_wide_anno = select_clause + where_clause + time_constraint_wide_anno
+
+    query = SimpleStatement(query_string)
+    query.consistency_level = query_consistency
+
+    query_wide = SimpleStatement(query_string_wide_anno)
+    query_wide.consistency_level = query_consistency
+
+    result = []
+    temp = []
+    if with_mooring:
+        node = ''
+        sensor = ''
+        result.extend(session.execute(query, (stream_key.subsite,
+                                                    node,
+                                                    sensor,
+                                                    time_range.start,
+                                                    time_range.stop)))
+
+        # annotations with with (start < time_range.start) 
+        # -AND- (end > time_range.stop); the annotations times 
+        # are wider than the query range. The Cassandra key 
+        # dosn't allow a direct range query, so check time2
+        # outside of query
+        temp.extend(session.execute(query_wide, (stream_key.subsite,
+                                                    node,
+                                                    sensor,
+                                                    time_range.start)))
+
+    # Query for sensor annotations
+    result.extend(session.execute(query, (stream_key.subsite,
+                                                stream_key.node,
+                                                stream_key.sensor,
+                                                time_range.start,
+                                                time_range.stop)))
+ 
+    temp.extend(session.execute(query_wide, (stream_key.subsite,
+                                                stream_key.node,
+                                                stream_key.sensor,
+                                                time_range.start)))
+    for row in temp:
+        if time_range.stop < row[4]:
+            print str(time_range.stop) + " < " + str(row[4]) 
+            result.append(row) 
+
+    return result
 
 
 @cassandra_session
