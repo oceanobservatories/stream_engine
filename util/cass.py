@@ -12,7 +12,7 @@ from threading import Lock, Thread
 
 from cassandra.cluster import Cluster, QueryExhausted, ResponseFuture, PagedResult, _NOT_SET
 from cassandra.query import _clean_column_name, tuple_factory, SimpleStatement
-from cassandra.concurrent import execute_concurrent_with_args
+from cassandra.concurrent import execute_concurrent_with_args, execute_concurrent
 from cassandra import ConsistencyLevel
 
 from util.common import log_timing, TimeRange
@@ -627,6 +627,37 @@ def execute_unlimited_query(stream_key, cols, time_bin, time_range, session=None
                                         stream_key.method,
                                         time_range.start,
                                         time_range.stop)))
+
+
+@cassandra_session
+@log_timing
+def fetch_annotations(stream_key, time_range, session=None, prepared=None, query_consistency=None, with_mooring=True):
+
+    select_columns = "subsite, node, sensor, time, time2, parameters, provenance, annotation, method, deployment, id "
+    select_clause = "select " + select_columns + "from annotations "
+    where_clause = "where subsite=%s and node=%s and sensor=%s"
+    time_constraint = " and time>=%s and time<=%s"
+
+    query_string = select_clause + where_clause + time_constraint
+    query = SimpleStatement(query_string)
+    query.consistency_level = query_consistency
+
+    result = []
+    if with_mooring:
+        node = ''
+        sensor = ''
+        result.extend(list(session.execute(query, (stream_key.subsite,
+                                                    node,
+                                                    sensor,
+                                                    time_range.start,
+                                                    time_range.stop))))
+    # Query for sensor annotations
+    result.extend(list(session.execute(query, (stream_key.subsite,
+                                                stream_key.node,
+                                                stream_key.sensor,
+                                                time_range.start,
+                                                time_range.stop))))
+    return result
 
 
 @cassandra_session
