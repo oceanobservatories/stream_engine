@@ -285,7 +285,7 @@ def get_netcdf_raw(streams, start, stop):
 
 @log_timing
 def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None, custom_type=None,
-               include_provenance=False, include_annotations=False, strict_range=False, request_uuid=''):
+               include_provenance=False, include_annotations=False, strict_range=False, request_uuid='', disk_path=None):
     """
     Returns a netcdf from the given streams, limits and times
     """
@@ -305,7 +305,7 @@ def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None
     provenance_metadata.add_query_metadata(stream_request, request_uuid, "netCDF")
 
     pd_data = fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
-    return NetCDF_Generator(pd_data, provenance_metadata, annotation_store).chunks(stream_request)
+    return NetCDF_Generator(pd_data, provenance_metadata, annotation_store).chunks(stream_request, disk_path)
 
 
 @log_timing
@@ -1499,14 +1499,33 @@ class NetCDF_Generator(object):
         self.provenance_metadata = provenance_metadata
         self.annotation_store = annotation_store
 
-    def chunks(self, r):
+    def chunks(self, r, disk_path=None):
         try:
-            return self.create_zip(r)
+            if disk_path is not None:
+                return self.create_raw_files(r, disk_path)
+            else:
+                return self.create_zip(r)
         except GeneratorExit:
             raise
         except:
             log.exception('An unexpected error occurred.')
             raise
+
+    def create_raw_files(self, r, path):
+        strings = list()
+        base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],path)
+        # ensure the directory structure is there
+        if not os.path.isdir(base_path):
+            os.makedirs(base_path)
+        for stream_key in r.stream_keys:
+            ds = self.group_by_stream_key(r, stream_key)
+            #write file to path
+            fn = '%s/%s.nc' % (base_path, stream_key.as_dashed_refdes())
+            ds.to_netcdf(fn, format='NETCDF4_CLASSIC')
+            strings.append(fn)
+        # build json return
+        return json.dumps(strings)
+
 
     def create_zip(self, r):
         with tempfile.NamedTemporaryFile() as tzf:
