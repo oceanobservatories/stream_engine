@@ -26,5 +26,5 @@ NETCDF_CONVENTIONS = "CF-1.6"
 
 COLLAPSE_TIMES = True
 
-UI_FULL_BIN_LIMIT = 30 # Limit on the amount of full Cassandra bins to read before resorting to less accurate sampling
+UI_FULL_BIN_LIMIT = 3 # Limit on the amount of full Cassandra bins to read before resorting to less accurate sampling
 
