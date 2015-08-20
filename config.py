@@ -31,3 +31,4 @@ UI_FULL_BIN_LIMIT = 30 # Limit on the amount of full Cassandra bins to read befo
 
 ASYNC_DOWNLOAD_BASE_DIR='/opt/ooi/async'
 
+PREFERRED_DATA_LOCATION = 'san'

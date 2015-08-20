@@ -1,7 +1,10 @@
 from functools import wraps
 import time
 import datetime
+import msgpack
 import ntplib
+import xray
+import pandas as pd
 from engine import app
 from preload_database.model.preload import Stream, Parameter, ParameterFunction
 import numpy
@@ -490,3 +493,76 @@ def get_stream_key_with_param(pd_data, stream, parameter):
             return key
 
     return None
+
+
+def to_xray_dataset(cols, data, stream_key, san=False):
+    """
+    Make an xray dataset from the raw cassandra data
+    """
+    if len(data) == 0:
+        return None
+    arrays = set([p.name for p in stream_key.stream.parameters if p.parameter_type != FUNCTION and p.is_array])
+    params = {p.name : p for p in stream_key.stream.parameters if p.parameter_type != FUNCTION }
+    attrs = {
+        'subsite': stream_key.subsite,
+        'node': stream_key.node,
+        'sensor': stream_key.sensor,
+        'collection_method': stream_key.method,
+        'stream': stream_key.stream.name,
+        'institution' : '{:s}'.format(app.config['NETCDF_INSTITUTION']),
+        'source' : '{:s}'.format(stream_key.as_dashed_refdes()),
+        'references' : '{:s}'.format(app.config['NETCDF_REFERENCE']),
+        'comment' : '{:s}'.format(app.config['NETCDF_COMMENT']),
+    }
+    if san:
+        attrs['title'] = '{:s} for {:s}'.format("SAN offloaded netCDF", stream_key.as_dashed_refdes())
+        attrs['history'] = '{:s} {:s}'.format(datetime.datetime.utcnow().isoformat(), 'generated netcdf for SAN')
+    else:
+        attrs['title'] = '{:s} for {:s}'.format(app.config['NETCDF_TITLE'], stream_key.as_dashed_refdes())
+        attrs['history'] = '{:s} {:s}'.format(datetime.datetime.utcnow().isoformat(), app.config['NETCDF_HISTORY_COMMENT'])
+    dataset = xray.Dataset(attrs=attrs)
+    dataframe = pd.DataFrame(data=data, columns=cols)
+    for column in dataframe.columns:
+        # unback any arrays
+        if column in arrays:
+            data = numpy.array([msgpack.unpackb(x) for x in dataframe[column].values])
+        else:
+            data = dataframe[column].values
+        # No objects. They should be strings
+        if data.dtype  == 'object':
+            data = data.astype(str)
+
+        # Fix up the dimensions for possible multi-d objects
+        dims = ['index']
+        coords = {'index' : dataframe.index}
+        if len(data.shape) > 1:
+            for index, dim in enumerate(data.shape[1:]):
+                name = "{:s}_dim_{:d}".format(column, index)
+                dims.append(name)
+
+        # update attributes for each variable
+        array_attrs = {}
+        if column in params:
+            param = params[column]
+            if param.unit is not None:
+                array_attrs['units'] = param.unit
+            if param.fill_value is not None:
+                array_attrs['_FillValue'] = param.fill_value
+            if param.display_name is not None:
+                array_attrs['long_name'] = param.display_name
+            elif param.name is not None:
+                array_attrs['long_name'] = param.name
+            else:
+                array_attrs['long_name'] = column
+            if param.standard_name is not None:
+                array_attrs['standard_name'] = param.standard_name
+            if param.description is not None:
+                array_attrs['comment'] = param.description
+            if param.data_product_identifier is not None:
+                array_attrs['data_product_identifier'] = param.data_product_identifier
+        else:
+            array_attrs['long_name'] = column
+
+        dataset.update({column : xray.DataArray(data, dims=dims, attrs=array_attrs)})
+
+    return dataset

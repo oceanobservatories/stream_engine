@@ -1,40 +1,29 @@
 import importlib
 import logging
 import tempfile
-from threading import Event, Lock
 import traceback
 import zipfile
-import sys
+import uuid
+import os
+import datetime
+from collections import OrderedDict, defaultdict
 
-import msgpack
-import netCDF4
 import numexpr
 import numpy
 import xray
-import uuid
-import base64
-
-import os
-import datetime
-from scipy.io.netcdf import netcdf_file
+import pandas as pd
+import scipy as sp
+import requests
 
 from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, fetch_all_data, \
-    get_available_time_range, fetch_l0_provenance, fetch_data_sync, time_to_bin, store_qc_results, bin_to_time
+    get_available_time_range, fetch_l0_provenance, time_to_bin, store_qc_results, bin_to_time, get_location_metadata, \
+    get_san_location_metadata, get_full_cass_dataset
 from util.common import log_timing, ntp_to_datestring,ntp_to_ISO_date, StreamKey, TimeRange, CachedParameter, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, Annotation, \
-    MissingTimeException, MissingDataException, arb, MissingStreamMetadataException, get_stream_key_with_param, \
-    isfillvalue, InvalidInterpolationException
+    MissingTimeException, MissingDataException, MissingStreamMetadataException, get_stream_key_with_param, \
+    isfillvalue, InvalidInterpolationException, to_xray_dataset
 from parameter_util import PDRef
-
-from collections import OrderedDict, defaultdict
-from werkzeug.exceptions import abort
-
-import pandas as pd
-import scipy as sp
-from engine import app
-import requests
-
 from engine.routes import  app
 
 try:
@@ -201,6 +190,7 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
             out['provenance'] = provenance_metadata.get_provenance_dict()
             out['computed_provenance'] = provenance_metadata.calculated_metatdata.get_dict()
             out['query_parameter_provenance'] = provenance_metadata.get_query_dict()
+            out['provenance_messages'] = provenance_metadata.messages
         if include_annotations:
             out['annotations'] = annotation_store.get_json_representation()
     else:
@@ -230,76 +220,6 @@ def SAN_netcdf(streams, bins):
             message = message + '{:d} : {:s}\n'.format(data_bin, e.message)
     return results, message
 
-
-def to_xray_dataset(cols, data, stream_key, san=False):
-    """
-    Make an xray dataset from the raw cassandra data
-    """
-    arrays = set([p.name for p in stream_key.stream.parameters if p.parameter_type != FUNCTION and p.is_array])
-    params = {p.name : p for p in stream_key.stream.parameters if p.parameter_type != FUNCTION }
-    attrs = {
-        'subsite': stream_key.subsite,
-        'node': stream_key.node,
-        'sensor': stream_key.sensor,
-        'collection_method': stream_key.method,
-        'stream': stream_key.stream.name,
-        'institution' : '{:s}'.format(app.config['NETCDF_INSTITUTION']),
-        'source' : '{:s}'.format(stream_key.as_dashed_refdes()),
-        'references' : '{:s}'.format(app.config['NETCDF_REFERENCE']),
-        'comment' : '{:s}'.format(app.config['NETCDF_COMMENT']),
-    }
-    if san:
-        attrs['title'] = '{:s} for {:s}'.format("SAN offloaded netCDF", stream_key.as_dashed_refdes())
-        attrs['history'] = '{:s} {:s}'.format(datetime.datetime.utcnow().isoformat(), 'generated netcdf for SAN')
-    else:
-        attrs['title'] = '{:s} for {:s}'.format(app.config['NETCDF_TITLE'], stream_key.as_dashed_refdes())
-        attrs['history'] = '{:s} {:s}'.format(datetime.datetime.utcnow().isoformat(), app.config['NETCDF_HISTORY_COMMENT'])
-    dataset = xray.Dataset(attrs=attrs)
-    dataframe = pd.DataFrame(data=data, columns=cols)
-    for column in dataframe.columns:
-        # unback any arrays
-        if column in arrays:
-            data = numpy.array([msgpack.unpackb(x) for x in dataframe[column].values])
-        else:
-            data = dataframe[column].values
-        # No objects. They should be strings
-        if data.dtype  == 'object':
-            data = data.astype(str)
-
-        # Fix up the dimensions for possible multi-d objects
-        dims = ['index']
-        coords = {'index' : dataframe.index}
-        if len(data.shape) > 1:
-            for index, dim in enumerate(data.shape[1:]):
-                name = "{:s}_dim_{:d}".format(column, index)
-                dims.append(name)
-
-        # update attributes for each variable
-        array_attrs = {}
-        if column in params:
-            param = params[column]
-            if param.unit is not None:
-                array_attrs['units'] = param.unit
-            if param.fill_value is not None:
-                array_attrs['_FillValue'] = param.fill_value
-            if param.display_name is not None:
-                array_attrs['long_name'] = param.display_name
-            elif param.name is not None:
-                array_attrs['long_name'] = param.name
-            else:
-                array_attrs['long_name'] = column
-            if param.standard_name is not None:
-                array_attrs['standard_name'] = param.standard_name
-            if param.description is not None:
-                array_attrs['comment'] = param.description
-            if param.data_product_identifier is not None:
-                array_attrs['data_product_identifier'] = param.data_product_identifier
-        else:
-            array_attrs['long_name'] = column
-
-        dataset.update({column : xray.DataArray(data, dims=dims, attrs=array_attrs)})
-
-    return dataset
 
 def offload_bin(stream, data_bin, san_dir_string):
     #get the data and drop dupplicates
@@ -453,73 +373,27 @@ def get_nc_filename(stream, nc_directory, deployment):
     return base.format(index)
 
 
-def get_SAN_samples(time_range, num_points, ref_des_dir):
-    bs = time_to_bin(time_range.start)
-    be = time_to_bin(time_range.stop)
-    # get which bins we can gather data from
-    bin_list = [x for x in range(bs, be+1)]
-    # get which bins we have on the data san
-    ratio = float(len(bin_list)) / num_points
-    # get the set of locations which store data.
-    available_bins = set([int(x) for x in  os.listdir(ref_des_dir)])
-    # select which bins we are going to read from disk to get data out of
-    #much more bins than particles
-    if ratio > 2.0:
-        to_sample = list(groups(bin_list, num_points))
-        selected_bins = []
-        # try to select only bins with data. But select from the whole range even if no data is present
-        # take the first bin with data
-        for subbins in to_sample:
-            intersection  = available_bins.intersection(set(subbins))
-            if len(intersection) > 0:
-                # take the first one
-                selected_bins.append(sorted(list(intersection))[0])
-            else:
-                # we aren't gonna get any data from this group so just take the first one
-                selected_bins.append(subbins[0])
-        to_sample = [(x,1) for x in selected_bins]
-    # more particles than bins
-    elif ratio < 1.0:
-        # there are more bins than particles
-        # first try and select from only bins that have data
-        bins_to_use = set(bin_list).intersection(available_bins)
-        if len(bins_to_use) <= 0:
-            # no data so we cannot do anything
-            bins_to_use = bin_list
-        else:
-            bins_to_use = sorted(bins_to_use)
-
-        #calculate how many particles to select from each bin
-        points_per_bin = int(float(num_points) / len(bins_to_use))
-        base_point_number = points_per_bin * len(bins_to_use)
-        leftover = num_points - base_point_number
-        selection = numpy.floor(numpy.linspace(0, len(bins_to_use)-1, leftover)).astype(int)
-        # select which bins to get more data from
+def get_SAN_samples(time_range, num_points, ref_des_dir, location_metadata):
+    if location_metadata.total < num_points * 2:
+        log.info("SAN: Number of points (%d) less than twice requested (%d). Returning all",
+                 location_metadata.total, num_points)
         to_sample = []
-        for idx, time_bin in enumerate(bins_to_use):
-            if idx in selection:
-                to_sample.append((time_bin, points_per_bin + 1))
-            else:
-                to_sample.append((time_bin, points_per_bin))
+        for data_bin in location_metadata.bin_list:
+            to_sample.append((data_bin, location_metadata.bin_information[data_bin][0]))
+    elif len(location_metadata.bin_list) > num_points:
+        log.info("SAN: Number of bins (%d) greater than number of points (%d). Sampling 1 value from %d bins.", )
+        selection = numpy.floor(numpy.linspace(0, len(location_metadata.bin_list)-1, num_points)).astype(int)
+        bins_to_use = numpy.array(location_metadata.bin_list)[selection]
+        to_sample = [(x,1) for x in bins_to_use]
     else:
-        # randomly sample the number of points from the number of bins we have and assign one sample to each
-        bin_set = set(bin_list)
-        have_data = available_bins.intersection(bin_set)
-        no_data = bin_set.difference(available_bins)
-        if len(have_data) >= num_points:
-            indexes = numpy.floor(numpy.linspace(0, len(have_data) -1,num_points)).astype(int)
-            to_sample = numpy.array(sorted(list(have_data)))
-            to_sample = to_sample[indexes]
-        else:
-            # take all that do have data
-            to_sample = list(have_data)
-            remaining = num_points - len(have_data)
-            to_sample.extend(list(no_data)[:remaining])
-        to_sample = sorted(to_sample)
-        to_sample = zip(to_sample, (1 for _ in to_sample))
+        log.info("SAN: Sampling %d points from %d bins", num_points, len(location_metadata.bin_list)  )
+        bin_counts = get_sample_numbers(len(location_metadata.bin_list), num_points)
+        to_sample = []
+        for idx, count in enumerate(bin_counts):
+            to_sample.append((location_metadata.bin_list[idx], count))
     return to_sample
 
-def fetch_nsan_data(stream_key, time_range, strict_range=False, num_points=1000):
+def fetch_nsan_data(stream_key, time_range, num_points=1000, location_metadata=None):
     """
     Given a time range and stream key.  Genereate evenly spaced times over the inverval using data
     from the SAN.
@@ -529,16 +403,18 @@ def fetch_nsan_data(stream_key, time_range, strict_range=False, num_points=1000)
     :param num_points:
     :return:
     """
-    arrays = set([p.name for p in stream_key.stream.parameters if p.parameter_type != FUNCTION and p.is_array])
+    if location_metadata is None:
+        location_metadata = get_san_location_metadata(stream_key, time_range)
     ref_des_dir, dir_string = get_SAN_directories(stream_key, split=True)
     if not os.path.exists(ref_des_dir):
         log.warning("Reference Designator does not exist in offloaded SAN")
-        return pd.DataFrame()
-    to_sample = get_SAN_samples(time_range, num_points, ref_des_dir)
+        return None
+    to_sample = get_SAN_samples(time_range, num_points, ref_des_dir, location_metadata)
     # now get data in the present we are going to start by grabbing first file in the directory with name that matches
     # grab a random amount of particles from that file if they are within the time range.
     missed = 0
     data = []
+    next_index = 0
     for time_bin, num_data_points in to_sample:
         direct = dir_string.format(time_bin)
         if os.path.exists(direct):
@@ -547,17 +423,24 @@ def fetch_nsan_data(stream_key, time_range, strict_range=False, num_points=1000)
             for deployment in deployments:
                 full_path = os.path.join(direct, deployment)
                 if os.path.isdir(full_path):
-                    new_data = get_deployment_data(full_path, stream_key.stream_name, num_data_points, time_range)
-                    count = len(new_data)
+                    new_data = get_deployment_data(full_path, stream_key.stream_name, num_data_points, time_range, index_start=next_index)
+                    if new_data is None:
+                        missed += num_data_points
+                        continue
+                    count = len(new_data['index'])
                     missed += (num_data_points - count)
                     data.append(new_data)
+                    # keep track of the indexes so that the final dataset has uniqe indicies
+                    next_index = next_index + len(new_data['index'])
         else:
             missed += num_data_points
-    log.warn("Failed to produce {:d} points due to nature of sampling".format(missed))
-    return xray.concat(data, dim='index')
+    log.warn("SAN: Failed to produce {:d} points due to nature of sampling".format(missed))
+    if len(data) == 0:
+        return None
+    return  xray.concat(data, dim='index')
 
 
-def fetch_full_san_data(stream_key, time_range, strict_range=False):
+def fetch_full_san_data(stream_key, time_range, location_metadata=None):
     """
     Given a time range and stream key.  Genereate all data in the inverval using data
     from the SAN.
@@ -565,25 +448,16 @@ def fetch_full_san_data(stream_key, time_range, strict_range=False):
     :param time_range:
     :return:
     """
-    arrays = set([p.name for p in stream_key.stream.parameters if p.parameter_type != FUNCTION and p.is_array])
-    bs = time_to_bin(time_range.start)
-    be = time_to_bin(time_range.stop)
+    if location_metadata is None:
+        location_metadata = get_san_location_metadata(stream_key, time_range)
     # get which bins we can gather data from
-    bin_list = [x for x in range(bs, be+1)]
-    # get which bins we have on the data san
     ref_des_dir, dir_string = get_SAN_directories(stream_key, split=True)
     if not os.path.exists(ref_des_dir):
         log.warning("Reference Designator does not exist in offloaded DataSAN")
-        return pd.DataFrame()
-
-    # get the set of locations which store data.
-    available_bins = set([int(x) for x in  os.listdir(ref_des_dir)])
-    to_sample = available_bins.intersection(set(bin_list))
-    to_sample = sorted(to_sample)
-    # inital way to get uniform sampling of data points from the stream given the bins we have on the disk
-    #more bins than particles
+        return None
     data = []
-    for time_bin in to_sample:
+    next_index = 0
+    for time_bin in location_metadata.bin_list:
         direct = dir_string.format(time_bin)
         if os.path.exists(direct):
             # get data from all of the  deployments
@@ -591,12 +465,17 @@ def fetch_full_san_data(stream_key, time_range, strict_range=False):
             for deployment in deployments:
                 full_path = os.path.join(direct, deployment)
                 if os.path.isdir(full_path):
-                    new_data = get_deployment_data(full_path, stream_key.stream_name, -1, time_range)
-                    data.append(new_data)
+                    new_data = get_deployment_data(full_path, stream_key.stream_name, -1, time_range, index_start=next_index)
+                    if new_data is not None:
+                        data.append(new_data)
+                        # Keep track of indexes so they are unique in the final dataset
+                        next_index = next_index + len(new_data['index'])
+    if len(data) == 0:
+        return None
     return xray.concat(data, dim='index')
 
 
-def get_deployment_data(direct, stream_name, num_data_points, time_range):
+def get_deployment_data(direct, stream_name, num_data_points, time_range, index_start=0):
     '''
     Given a directory of NETCDF files for a deployment
     try to return num_data_points that are valid in the given time range.
@@ -618,7 +497,7 @@ def get_deployment_data(direct, stream_name, num_data_points, time_range):
                 out_ds = xray.Dataset(attrs=dataset.attrs)
                 t = dataset['time'].values
                 # get the indexes to pull out of the data
-                indexes = numpy.where(numpy.logical_and(time_range.start < t, t < time_range.stop))[0]
+                indexes = numpy.where(numpy.logical_and(time_range.start <= t, t <= time_range.stop))[0]
                 if len(indexes) != 0:
                     # less indexes than data or request for all data ->  get everything
                     if num_data_points < 0:
@@ -630,9 +509,9 @@ def get_deployment_data(direct, stream_name, num_data_points, time_range):
                         selection = numpy.floor(numpy.linspace(0, len(indexes)-1, num_data_points)).astype(int)
                         selection = indexes[selection]
                         selection = sorted(selection)
+                    idx = [x for x in range(index_start, index_start + len(selection))]
                     for var_name in dataset.variables.keys():
                         # Don't sample on coordinate variables
-                        idx = [x for x in range(len(selection))]
                         if var_name in dataset.coords and var_name != 'index':
                             continue
                         var = dataset[var_name]
@@ -641,24 +520,93 @@ def get_deployment_data(direct, stream_name, num_data_points, time_range):
                         coords['index'] = idx
                         da = xray.DataArray(var_data, coords=coords, dims=var.dims, name=var.name, attrs=var.attrs)
                         out_ds[var_name] = da
+                    # set the index here
+                    out_ds['index'] = idx
                     return out_ds
-    return pd.DataFrame()
+    return None
 
 
-def groups(l, n):
-    """Generate near uniform groups of data"""
-    step = len(l) /n
-    remainder =  len(l) - (step * n)
-    start_more = n - remainder
-    idx = 0
-    num = 0
-    while idx <len(l):
-        num += 1
-        yield l[idx:idx+step]
-        idx += step
-        if num == start_more:
-            step += 1
+def get_sample_numbers(bins, points):
+    num = points /bins
+    total = bins * num
+    remainder = points - total
+    vals = [num for x in range(bins)]
+    increment = numpy.floor(numpy.linspace(0, bins-1, remainder)).astype(int)
+    for i in increment:
+        vals[i] += 1
+    return vals
 
+
+def get_dataset(key, time_range, limit, provenance_metadata):
+    cass_locations, san_locations, messages = get_location_metadata(key, time_range)
+    provenance_metadata.add_messages(messages)
+    # check for no data
+    if cass_locations.total + san_locations.total  == 0:
+        return None
+    san_percent = san_locations.total / float(san_locations.total + cass_locations.total)
+    cass_percent = cass_locations.total / float(san_locations.total + cass_locations.total)
+    datasets = []
+    if san_locations.total > 0:
+        # put the range down if we are within the time range
+        t1 = time_range.start
+        t2 = time_range.stop
+        if t1 < san_locations.bin_information[san_locations.bin_list[0]][1]:
+            t1 = san_locations.bin_information[san_locations.bin_list[0]][1]
+        if t2 > san_locations.bin_information[san_locations.bin_list[-1]][2]:
+            t2 = san_locations.bin_information[san_locations.bin_list[-1]][2]
+        san_times = TimeRange(t1, t2)
+        if limit:
+            datasets.append(fetch_nsan_data(key, san_times, num_points=int(limit * san_percent),
+                                            location_metadata=san_locations))
+        else:
+            datasets.append(fetch_full_san_data(key, san_times, location_metadata=san_locations))
+    if cass_locations.total > 0:
+        t1 = time_range.start
+        t2 = time_range.stop
+        if t1 < cass_locations.bin_information[cass_locations.bin_list[0]][1]:
+            t1 = cass_locations.bin_information[cass_locations.bin_list[0]][1]
+        if t2 > cass_locations.bin_information[cass_locations.bin_list[-1]][2]:
+            t2 = cass_locations.bin_information[cass_locations.bin_list[-1]][2]
+        # issues arise when sending cassandra a query with the exact time range.  Data points at the start and end will
+        # be left out of the results.  This is an issue for full data queries.  To compensate for this we add .1 seconds
+        # to the given start and end time
+        t1 -= .1
+        t2 += .1
+        cass_times = TimeRange(t1, t2)
+        if limit:
+            datasets.append(fetch_nth_data(key, cass_times, num_points=int(limit * cass_percent),
+                                       location_metadata=cass_locations))
+        else:
+            datasets.append(get_full_cass_dataset(key, cass_times, location_metadata=cass_locations))
+
+    # Now we need to combined the two dataset.
+    # First check too see if time ranges overlap. If they do we need to sort.  If not figure which comes first and append them.
+    datasets = filter(None, datasets)
+    if cass_locations.total > 0 and san_locations.total > 0 and len(datasets) == 2:
+        # update the indexes
+        # they do overlap we need to sort
+        # fix the indicies
+        si = len(datasets[0]['index'])
+        new_index = [x for x in range(si, si + len(datasets[1]['index']))]
+        datasets[1]['index'] = new_index
+        if cass_locations.bin_list[0] < san_locations.bin_list[-1] and cass_locations.bin_list[-1] > san_locations.bin_list[0]:
+            # sort the dataset it is out of order
+            ds = xray.concat(datasets, dim='index')
+            sorted_idx = ds.time.argsort()
+            ds = ds.reindex({'index' : sorted_idx})
+        else:
+            #determine which one goes first and append them together
+            if san_locations.bin_list[0] < cass_locations.bin_list[0]:
+                ds = xray.concat([datasets[0], datasets[1]], dim='index')
+            else:
+                ds = xray.concat([datasets[1], datasets[0]], dim='index')
+    elif len(datasets) == 1:
+        # only one value
+        ds = datasets[0]
+    else:
+        # No data return none so we throw an error
+        ds = None
+    return ds
 
 def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store):
     """
@@ -704,27 +652,14 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
             log.info("Skipping virtual stream: {}".format(key.stream.name))
             continue
 
-        if limit:
-            fields, cass_data = fetch_nth_data(key, time_range, strict_range=stream_request.strict_range, num_points=limit)
-        else:
-            fields, cass_data = fetch_all_data(key, time_range)
-
-        if len(cass_data) == 0:
-            log.info("Cassandra query for {} returned no data searching SAN".format(key.as_refdes()))
-            if limit:
-                ds = fetch_nsan_data(key, time_range, strict_range=False, num_points=limit)
+        ds = get_dataset(key, time_range, limit, provenance_metadata)
+        if ds is None:
+            if key == primary_key:
+                raise MissingDataException("Query returned no results for primary stream")
+            elif primary_key.stream.is_virtual and key.stream in primary_key.stream.source_streams:
+                raise MissingDataException("Query returned no results for source stream")
             else:
-                ds = fetch_full_san_data(key, time_range, strict_range=False)
-            if len(ds) == 0:
-                log.info("SAN data search for {} returned no data.".format(key.as_refdes()))
-                if key == primary_key:
-                    raise MissingDataException("Query returned no results for primary stream")
-                elif primary_key.stream.is_virtual and key.stream in primary_key.stream.source_streams:
-                    raise MissingDataException("Query returned no results for source stream")
-                else:
-                    continue
-        else:
-            ds = to_xray_dataset(fields, cass_data, key)
+                continue
 
         # transform data from cass and put it into pd_data
         parameters = [p for p in key.stream.parameters if p.parameter_type != FUNCTION]
@@ -1405,6 +1340,10 @@ class ProvenanceMetadataStore(object):
     def __init__(self):
         self._prov_set = set()
         self.calculated_metatdata = CalculatedProvenanceMetadataStore()
+        self.messages = []
+
+    def add_messages(self, messages):
+        self.messages.extend(messages)
 
     def add_metadata(self, value):
         self._prov_set.add(value)
@@ -1632,6 +1571,9 @@ class NetCDF_Generator(object):
                                                              attrs={'long_name' : 'Computed Provenance Information'})
             init_data['query_parameter_provenance'] = xray.DataArray([json.dumps(self.provenance_metadata.get_query_dict())], dims=['query_parameter_provenance_dim'],
                                                              attrs={'long_name' : 'Query Parameter Provenance Information'})
+            init_data['provenance_messages'] = xray.DataArray(self.provenance_metadata.messages, dims=['provenance_messages'],
+                                                            attrs={'long_name' : 'Provenance Messages'})
+
         if r.include_annotations:
             annote = self.annotation_store.get_json_representation()
             annote_data = [json.dumps(x) for x in annote]
