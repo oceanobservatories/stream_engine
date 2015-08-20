@@ -24,8 +24,9 @@ from util.common import log_timing, ntp_to_datestring,ntp_to_ISO_date, StreamKey
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, Annotation, \
     MissingTimeException, MissingDataException, arb, MissingStreamMetadataException, get_stream_key_with_param, \
-    isfillvalue, InvalidInterpolationException
+    isfillvalue, InvalidInterpolationException, get_time_data
 from parameter_util import PDRef
+import xray_interpolation as xinterp
 
 from collections import OrderedDict, defaultdict
 from werkzeug.exceptions import abort
@@ -342,6 +343,10 @@ def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None
     provenance_metadata.add_query_metadata(stream_request, request_uuid, "netCDF")
 
     pd_data = fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
+
+    if len(streams) > 1 and custom_times is None:
+        custom_times = get_time_data(pd_data, stream_keys[0])[0]
+        stream_request.times = custom_times
     return NetCDF_Generator(pd_data, provenance_metadata, annotation_store).chunks(stream_request, disk_path)
 
 
@@ -1596,6 +1601,8 @@ class NetCDF_Generator(object):
         for stream_key in r.stream_keys:
             ds = self.group_by_stream_key(r, stream_key)
             with tempfile.NamedTemporaryFile() as tf:
+                if r.times is not None:
+                    ds = xinterp.interp1d_Dataset(ds, time=r.times)
                 ds.to_netcdf(tf.name, format='NETCDF4_CLASSIC')
                 zf.write(tf.name, '%s.nc' % (stream_key.as_dashed_refdes(),))
 
@@ -1640,19 +1647,8 @@ class NetCDF_Generator(object):
 
         return xray.Dataset(init_data, attrs=attrs)
 
-    def get_time_data(self, stream_key):
-        if stream_key.stream.is_virtual:
-            source_stream = stream_key.stream.source_streams[0]
-            stream_key = get_stream_key_with_param(self.pd_data, source_stream, source_stream.time_parameter)
-
-        tp = stream_key.stream.time_parameter
-        try:
-            return self.pd_data[tp][stream_key.as_refdes()]['data'], tp
-        except KeyError:
-            raise MissingTimeException("Could not find time parameter %s for %s" % (tp, stream_key))
-
     def group_by_stream_key(self, r, stream_key):
-        time_data, time_parameter = self.get_time_data(stream_key)
+        time_data, time_parameter = get_time_data(self.pd_data, stream_key)
         # sometimes we will get duplicate timestamps
         # INITIAL solution is to remove any duplicate timestamps
         # and the corresponding data by creating a mask to match

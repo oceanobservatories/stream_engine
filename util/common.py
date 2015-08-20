@@ -490,3 +490,22 @@ def get_stream_key_with_param(pd_data, stream, parameter):
             return key
 
     return None
+
+
+def get_time_data(pd_data, stream_key):
+    """
+    Get the time data for the stream.  Can handle virtual streams.
+
+    :param pd_data: data structure
+    :param stream_key: stream key
+    :return: tuple of time data as array and the time parameter parameter key
+    """
+    if stream_key.stream.is_virtual:
+        source_stream = stream_key.stream.source_streams[0]
+        stream_key = get_stream_key_with_param(pd_data, source_stream, source_stream.time_parameter)
+
+    tp = stream_key.stream.time_parameter
+    try:
+        return pd_data[tp][stream_key.as_refdes()]['data'], tp
+    except KeyError:
+        raise MissingTimeException("Could not find time parameter %s for %s" % (tp, stream_key))
