@@ -85,6 +85,8 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
                 parameter_dict[current_parameter_name] = int(qc_parameter_value)
             elif qc_parameter['valueType'].encode('ascii', 'ignore') == 'FLOAT':
                 parameter_dict[current_parameter_name] = float(qc_parameter_value)
+            elif qc_parameter['valueType'].encode('ascii', 'ignore') == 'LIST':
+                parameter_dict[current_parameter_name] = [float(x) for x in qc_parameter_value[1:-1].split()]
             else:
                 parameter_dict[current_parameter_name] = qc_parameter_value
 
@@ -751,14 +753,19 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
 def _qc_check(stream_request, parameter, pd_data, primary_key):
     qcs = stream_request.qc_parameters.get(parameter.name)
     for function_name in qcs:
-        if 'strict_validation' not in qcs[function_name]:
-            qcs[function_name]['strict_validation'] = 'False'
-
-        for qcp in qcs[function_name].keys():
-            if qcs[function_name][qcp] == 'time':
+        for qcp in qcs[function_name].keys(): #vector qc parameters are the only ones with string values and need populating
+            if qcs[function_name][qcp] == 'time': #populate time vectors with particle times
                 qcs[function_name][qcp] =  pd_data[primary_key.stream.time_parameter][primary_key.as_refdes()]['data'][:]
-            if qcs[function_name][qcp] == 'data':
+            if qcs[function_name][qcp] == 'data': #populate data vectors with particle data
                 qcs[function_name][qcp] = pd_data[parameter.id][primary_key.as_refdes()]['data']
+            if isinstance(qcs[function_name][qcp], basestring):
+                for p in stream_request.parameters: #populate stream parameter vectors with data from that stream
+                    if p.name.encode('ascii', 'ignore') == qcs[function_name][qcp] and pd_data.get(p.id, {}).get(primary_key.as_refdes(), {}).get('data') is not None:
+                        qcs[function_name][qcp] = pd_data[p.id][primary_key.as_refdes()]['data']
+                        break
+
+        if 'strict_validation' not in qcs[function_name]:
+            qcs[function_name]['strict_validation'] = False
 
         module = importlib.import_module(CachedFunction.from_qc_function(function_name).owner)
 
