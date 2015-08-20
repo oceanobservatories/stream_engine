@@ -179,6 +179,63 @@ def netcdf():
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return resp
 
+@app.route('/netcdf-fs', methods=['POST'])
+def netcdf_save_to_filesystem():
+    """
+    POST should contain a dictionary of the following format:
+    {
+        'streams': [
+            {
+                'subsite': subsite,
+                'node': node,
+                'sensor': sensor,
+                'method': method,
+                'stream': stream,
+                'parameters': [...],
+            },
+            ...
+        ],
+        'coefficients': {
+            'CC_a0': [
+                { 'start': ntptime, 'stop': ntptime, 'value': 1.0 },
+                ...
+            ],
+            ...
+        },
+        'start': ntptime,
+        'stop': ntptime,
+        'directory': directory
+    }
+
+    :return: JSON object:
+    """
+    input_data = request.get_json()
+    validate(input_data)
+
+    request_start_time = time.time()
+    log.info("Handling request to {} - {}".format(request.url, input_data.get('streams', "")))
+
+    start = input_data.get('start', app.config["UNBOUND_QUERY_START"])
+    stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
+    limit = input_data.get('limit', 0)
+    if limit <= 0:
+        limit = None
+
+    prov = input_data.get('include_provenance', False)
+    annotate = input_data.get('include_annotations', False)
+    try:
+        json = util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
+                                         limit=limit, custom_times=input_data.get('custom_times'),
+                                         custom_type=input_data.get('custom_type'), include_provenance=prov,
+                                         include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
+                                         disk_path=input_data.get('directory','unknown'))
+    except Exception as e:
+        error = '{ "status": "Request for netcdf failed for the following reason: %s" }\n' % (e.message)
+        log.error(error)
+        return Response(error, status=500, mimetype="application/json")
+
+    log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
+    return Response(json, mimetype='application/json')
 
 @app.route('/needs', methods=['POST'])
 def needs():
