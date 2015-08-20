@@ -65,7 +65,7 @@ def _open_new_ds(stream_key, provenance_metadata=None, annotation_store=None):
     return xray.Dataset(init_data, attrs=attrs)
 
 
-def _get_time_data(pd_data, stream_key):
+def get_time_data(pd_data, stream_key):
     """
     Get the time data for the stream.  Can handle virtual streams.
     :param pd_data: data structure
