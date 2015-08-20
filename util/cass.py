@@ -15,7 +15,7 @@ from cassandra.query import _clean_column_name, tuple_factory, SimpleStatement
 from cassandra.concurrent import execute_concurrent_with_args
 from cassandra import ConsistencyLevel
 
-from util.common import log_timing, TimeRange
+from util.common import log_timing, TimeRange, to_xray_dataset
 
 log = logging.getLogger(__name__)
 
@@ -28,6 +28,9 @@ execution_pool = None
 STREAM_EXISTS_PS = 'stream_exists'
 METADATA_FOR_REFDES_PS = 'metadata_for_refdes'
 DISTINCT_PS = 'distinct'
+
+SAN_LOCATION_NAME = 'san'
+CASS_LOCATION_NAME = 'cass'
 
 STREAM_EXISTS_RAW = \
     '''
@@ -264,7 +267,7 @@ def query_partition_metadata(stream_key, time_range, session=None, prepared=None
     query = prepared[query_name]
     return session.execute(query, [start_bin, end_bin])
 
-def get_cass_bin_information(stream_key, time_range, session=None, prepared=None, query_consistency=None):
+def get_cass_location_metadata(stream_key, time_range):
     """
     Get the bins, counts, times, and total data contained in cassandra for a streamkey in the given time range
     :param stream_key: stream-key
@@ -281,7 +284,98 @@ def get_cass_bin_information(stream_key, time_range, session=None, prepared=None
         if location == 'cass':
             total = total + count
             bins[data_bin] =  (count, first, last)
-    return sorted(bins.keys()), bins, total
+    return LocationMetadata(sorted(bins.keys()), bins, total)
+
+def get_san_location_metadata(stream_key, time_range):
+    """
+    Get the bins, counts, times, and total data contained in cassandra for a streamkey in the given time range
+    :param stream_key: stream-key
+    :param time_range: time range to search
+    :return: Returns a 3-tuple.
+            First entry is the sorted list of bins that contain data in cassandra.
+            Second entry is a dictonary of each bin pointing to the count, start, and stop times  in a tuple.
+            Third entry is the total data contained in cassandra for the time range.
+    """
+    results = query_partition_metadata(stream_key, time_range)
+    bins = {}
+    total = 0
+    for data_bin, location, count, first, last in results:
+        if location == SAN_LOCATION_NAME:
+            total = total + count
+            bins[data_bin] =  (count, first, last)
+    return LocationMetadata(sorted(bins.keys()), bins, total)
+
+def get_location_metadata(stream_key, time_range):
+    results = query_partition_metadata(stream_key, time_range)
+    cass_bins = {}
+    san_bins = {}
+    cass_total = 0
+    san_total = 0
+    messages = []
+    for data_bin, location, count, first, last in results:
+        # Check to see if the data in the bin is within the time range.
+        if time_range.start < last and time_range.stop > first:
+            if location == CASS_LOCATION_NAME:
+                cass_total = cass_total + count
+                cass_bins[data_bin] =  (count, first, last)
+            if location == SAN_LOCATION_NAME:
+                san_total = san_total + count
+                san_bins[data_bin] =  (count, first, last)
+    if engine.app.config['PREFERRED_DATA_LOCATION'] == SAN_LOCATION_NAME:
+        for key in san_bins.keys():
+            if key in cass_bins:
+                cass_count, _, _ = cass_bins[key]
+                san_count, _, _ = san_bins[key]
+                if cass_count != san_count:
+                    log.warn("Metadata count does not match for bin %d - SAN: %d  CASS: %d", key, san_count, cass_count)
+                    messages.append(
+                        "Metadata count does not match for bin {:d} - SAN: {:d}  CASS: {:d} Took location with highest data count.".format(
+                            key, san_count, cass_count))
+                    if cass_count > san_count:
+                        san_bins.pop(key)
+                        san_total -= san_count
+                    else:
+                        cass_bins.pop(key)
+                        cass_total -= cass_count
+                else:
+                    cass_bins.pop(key)
+                    cass_total -= cass_count
+    else:
+        for key in cass_bins.keys():
+            if key in san_bins:
+                cass_count, _, _ = cass_bins[key]
+                san_count, _, _ = san_bins[key]
+                if cass_count != san_count:
+                    log.warn("Metadata count does not match for bin %d - SAN: %d  CASS: %d", key, san_count, cass_count)
+                    messages.append(
+                        "Metadata count does not match for bin {:d} - SAN: {:d}  CASS: {:d} Took location with highest data count.".format(
+                            key, san_count, cass_count))
+                    if cass_count > san_count:
+                        san_bins.pop(key)
+                        san_total -= san_count
+                    else:
+                        cass_bins.pop(key)
+                        cass_total -= cass_count
+                else:
+                    san_bins.pop(key)
+                    san_total -= san_count
+    cass_metadata = LocationMetadata(sorted(cass_bins.keys()), cass_bins, cass_total)
+    san_metadata = LocationMetadata(sorted(san_bins.keys()), san_bins, san_total)
+    return cass_metadata, san_metadata, messages
+
+class LocationMetadata(object):
+
+    def __init__(self, bin_list, bin_info, total):
+        self.bin_list = bin_list
+        self.bin_information = bin_info
+        self.total = total
+
+    def __repr__(self):
+        val = 'total: {:d} Bins -> '.format(self.total) + str(self.bin_list)
+        return val
+
+    def __str__(self):
+        return self.__repr__()
 
 
 @log_timing
@@ -350,7 +444,7 @@ def query_full_bin(stream_key, bins_and_limit, cols, session=None, prepared=None
     query_name = 'full_bin_%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite, stream_key.node,
                                                   stream_key.sensor, stream_key.method)
     if query_name not in prepared:
-        base = "select %s  from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s' and time > ? and time < ?" % \
+        base = "select %s  from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s' and time >= ? and time <= ?" % \
                (', '.join(cols), stream_key.stream.name, stream_key.subsite, stream_key.node,
                 stream_key.sensor, stream_key.method)
         query = session.prepare(base)
@@ -431,39 +525,35 @@ def fetch_l0_provenance(subsite, node, sensor, method, deployment, prov_uuid,  s
 
 
 @log_timing
-@cassandra_session
-def fetch_nth_data(stream_key, time_range, strict_range=False, num_points=1000, chunk_size=100, session=None,
-                   prepared=None, query_consistency=None):
+def fetch_nth_data(stream_key, time_range, num_points=1000, location_metadata=None):
     """
     Given a time range, generate evenly spaced times over the specified interval. Fetch a single
     result from either side of each point in time.
     :param stream_key:
     :param time_range:
     :param num_points:
-    :param chunk_size:
-    :param session:
-    :param prepared:
     :return:
     """
     cols = get_query_columns(stream_key)
 
-    metadata_bins, bin_information, total_data = get_cass_bin_information(stream_key, time_range)
+    if location_metadata is None:
+        location_metadata = get_cass_location_metadata(stream_key, time_range)
 
     # Fetch it all if it's gonna be close to the same size
-    if total_data < num_points * 2:
-        log.info("Total points (%d) returned is less than twice the requested (%d).  Returning all points.", total_data, num_points)
-        _, results = fetch_all_data(stream_key, time_range)
+    if location_metadata.total < num_points * 2:
+        log.info("CASS: Total points (%d) returned is less than twice the requested (%d).  Returning all points.", location_metadata.total, num_points)
+        _, results = fetch_all_data(stream_key, time_range, location_metadata)
     # We have a small amount of bins with data so we can read them all
-    elif len(metadata_bins) < engine.app.config['UI_FULL_BIN_LIMIT']:
-        log.info("Reading all (%d) bins and then sampling.", len(metadata_bins))
-        _, results = sample_full_bins(stream_key, time_range, num_points, metadata_bins, cols)
+    elif len(location_metadata.bin_list) < engine.app.config['UI_FULL_BIN_LIMIT']:
+        log.info("CASS: Reading all (%d) bins and then sampling.", len(location_metadata.bin_list))
+        _, results = sample_full_bins(stream_key, time_range, num_points, location_metadata.bin_list, cols)
     # We have a lot of bins so just grab the first from each of the bins
-    elif len(metadata_bins) > num_points:
-        log.info("More bins (%d) than requested points (%d). Selecting first particle from %d bins.", len(metadata_bins), num_points, num_points)
-        _, results = sample_n_bins(stream_key, time_range, num_points, metadata_bins, cols)
+    elif len(location_metadata.bin_list) > num_points:
+        log.info("CASS: More bins (%d) than requested points (%d). Selecting first particle from %d bins.", len(location_metadata.bin_list), num_points, num_points)
+        _, results = sample_n_bins(stream_key, time_range, num_points, location_metadata.bin_list, cols)
     else:
-        log.info("Sampling %d points across %d bins.", num_points, len(metadata_bins))
-        _, results = sample_n_points(stream_key, time_range, num_points, metadata_bins, bin_information, cols)
+        log.info("CASS: Sampling %d points across %d bins.", num_points, len(location_metadata.bin_list))
+        _, results = sample_n_points(stream_key, time_range, num_points, location_metadata.bin_list, location_metadata.bin_information, cols)
 
     # dedup data before return values
     size = len(results)
@@ -477,7 +567,7 @@ def fetch_nth_data(stream_key, time_range, strict_range=False, num_points=1000, 
         uuids.add(my_uuid)
         to_return.append(row)
     log.info("Removed %d duplicates from data", size - len(to_return))
-    return cols, to_return
+    return to_xray_dataset(cols, to_return, stream_key)
 
 def sample_full_bins(stream_key, time_range, num_points, metadata_bins, cols=None):
     # Read all the data and do sampling from there.
@@ -581,8 +671,7 @@ def fetch_full_bins(stream_key, bins_and_limit, cols=None):
 
 # Fetch all records in the time_range by querying for every time bin in the time_range
 @log_timing
-@cassandra_session
-def fetch_all_data(stream_key, time_range, session=None, prepared=None, query_consistency=None):
+def fetch_all_data(stream_key, time_range, location_metadata=None):
 
     """
     Given a time range, Fetch all records from the starting hour to ending hour
@@ -592,15 +681,12 @@ def fetch_all_data(stream_key, time_range, session=None, prepared=None, query_co
     :param prepared:
     :return:
     """
+    if location_metadata is None:
+        location_metadata = get_cass_location_metadata(stream_key, time_range)
     cols = get_query_columns(stream_key)
 
-    start = time_range.start
-    stop = time_range.stop
-
-    # list all the hour bins from start to stop
-    bins = xrange(time_to_bin(start), time_to_bin(stop)+1, 1)
     futures = []
-    for bin_num in bins:
+    for bin_num in location_metadata.bin_list:
         futures.append(execution_pool.apply_async(execute_unlimited_query, (stream_key, cols, bin_num, time_range)))
 
     rows = []
@@ -609,6 +695,9 @@ def fetch_all_data(stream_key, time_range, session=None, prepared=None, query_co
 
     return cols, rows
 
+def get_full_cass_dataset(stream_key, time_range, location_metadata=None):
+    cols, rows = fetch_all_data(stream_key, time_range, location_metadata)
+    return to_xray_dataset(cols, rows, stream_key)
 
 
 @cassandra_session
