@@ -8,9 +8,9 @@ from flask import request, Response, jsonify
 from engine import app
 from preload_database.model.preload import Stream
 import util.calc
-from util.cass import stream_exists
+from util.cass import stream_exists, time_to_bin, bin_to_time
 from util.common import CachedParameter, StreamEngineException, MalformedRequestException, \
-    InvalidStreamException, StreamUnavailableException, InvalidParameterException
+    InvalidStreamException, StreamUnavailableException, InvalidParameterException, ISO_to_ntp, ntp_to_ISO_date
 
 log = logging.getLogger(__name__)
 
@@ -87,7 +87,7 @@ def particles():
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return resp
 
-@app.route('/full_netcdf', methods=['POST'])
+@app.route('/san_offload', methods=['POST'])
 def full_netcdf():
     """
     POST should contain a dictionary of the following format:
@@ -103,28 +103,28 @@ def full_netcdf():
             },
             ...
         ],
-        'coefficients': {
-            'CC_a0': [
-                { 'start': ntptime, 'stop': ntptime, 'value': 1.0 },
-                ...
-            ],
-            ...
-        },
-        'start': ntptime,
-        'stop': ntptime
+        'bins' : [
+            11212,
+            11213,
+            11315,
+        ],
+
     }
 
-    :return: NETCDF object:
+    :return: Object which contains results for the data SAN:
+             {
+                message: "A message"
+                results : An array of booleans with the status of each offload
+             }
     """
     input_data = request.get_json()
     validate(input_data)
-    request_start_time = time.time()
-    log.info("Handling request to offload {} - {}".format(request.url, input_data.get('streams', "")))
-    start = input_data.get('start', app.config["UNBOUND_QUERY_START"])
-    stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
-    resp = Response(util.calc.get_netcdf_raw(input_data.get('streams'), start, stop,), mimetype='application/netcdf')
-    log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
-    return resp
+    bins = input_data.get('bins', [])
+    log.info("Handling request to offload stream: %s bins: %s", input_data.get('streams', ""), bins)
+    results, message = util.calc.SAN_netcdf(input_data.get('streams'), bins)
+    resp = {'results': results, 'message': message}
+    response = Response(json.dumps(resp),  mimetype='application/json')
+    return response
 
 
 @app.route('/netcdf', methods=['POST'])
@@ -295,6 +295,45 @@ def needs():
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return resp
+
+
+@app.route("/get_bins", methods=['GET'])
+def getBins():
+    """Given ntp time return bins"""
+    st = request.args.get('start')
+    et = request.args.get('stop')
+    if st is None or et is None:
+        return "Need start and end time to compute bin range"
+    try:
+        stf = float(st)
+        etf = float(et)
+        start_bin = time_to_bin(stf)
+        end_bin = time_to_bin(etf)
+    except:
+        # assuming it is in the form YY-MM-DDTHH-MM-SS.sssZ
+        st = ISO_to_ntp(st)
+        et = ISO_to_ntp(et)
+        start_bin = time_to_bin(st)
+        end_bin = time_to_bin(et)
+    return Response(json.dumps({'start_bin' : start_bin, 'end_bin' : end_bin}), mimetype='application/json')
+
+@app.route("/get_times", methods=['GET'])
+def getTimes():
+    """Given bins return start time of first and start time of first + 1 bins"""
+    sb = request.args.get('start')
+    eb = request.args.get('end')
+    if sb is None or eb is None:
+        return "Need bin and end to compute bin range"
+    sb = int(sb)
+    eb = int(eb)
+    ret = {
+        'startDT' : ntp_to_ISO_date(bin_to_time(sb)),
+        'start' : bin_to_time(sb),
+        'endDT' : ntp_to_ISO_date(bin_to_time(eb + 1)),
+        'end' : bin_to_time(eb + 1)
+    }
+    return Response(json.dumps(ret), mimetype='application/json')
+
 
 @app.route('/')
 def index():
