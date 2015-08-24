@@ -298,7 +298,7 @@ def needs():
 
 
 @app.route("/get_bins", methods=['GET'])
-def getBins():
+def get_bins():
     """Given ntp time return bins"""
     st = request.args.get('start')
     et = request.args.get('stop')
@@ -315,13 +315,13 @@ def getBins():
         et = ISO_to_ntp(et)
         start_bin = time_to_bin(st)
         end_bin = time_to_bin(et)
-    return Response(json.dumps({'start_bin' : start_bin, 'end_bin' : end_bin}), mimetype='application/json')
+    return Response(json.dumps({'start_bin' : start_bin, 'stop_bin' : end_bin}), mimetype='application/json')
 
 @app.route("/get_times", methods=['GET'])
-def getTimes():
+def get_times():
     """Given bins return start time of first and start time of first + 1 bins"""
     sb = request.args.get('start')
-    eb = request.args.get('end')
+    eb = request.args.get('stop')
     if sb is None or eb is None:
         return "Need bin and end to compute bin range"
     sb = int(sb)
@@ -329,8 +329,8 @@ def getTimes():
     ret = {
         'startDT' : ntp_to_ISO_date(bin_to_time(sb)),
         'start' : bin_to_time(sb),
-        'endDT' : ntp_to_ISO_date(bin_to_time(eb + 1)),
-        'end' : bin_to_time(eb + 1)
+        'stopDT' : ntp_to_ISO_date(bin_to_time(eb + 1)),
+        'stop' : bin_to_time(eb + 1)
     }
     return Response(json.dumps(ret), mimetype='application/json')
 
