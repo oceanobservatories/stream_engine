@@ -1,3 +1,4 @@
+import uuid
 import numpy
 import engine
 import hashlib
@@ -15,7 +16,9 @@ from cassandra.query import _clean_column_name, tuple_factory, SimpleStatement
 from cassandra.concurrent import execute_concurrent_with_args
 from cassandra import ConsistencyLevel
 
-from util.common import log_timing, TimeRange
+import msgpack
+
+from util.common import log_timing, TimeRange, FUNCTION
 
 log = logging.getLogger(__name__)
 
@@ -28,6 +31,9 @@ execution_pool = None
 STREAM_EXISTS_PS = 'stream_exists'
 METADATA_FOR_REFDES_PS = 'metadata_for_refdes'
 DISTINCT_PS = 'distinct'
+
+SAN_LOCATION_NAME = 'san'
+CASS_LOCATION_NAME = 'cass'
 
 STREAM_EXISTS_RAW = \
     '''
@@ -628,6 +634,98 @@ def execute_unlimited_query(stream_key, cols, time_bin, time_range, session=None
                                         time_range.start,
                                         time_range.stop)))
 
+@cassandra_session
+@log_timing
+def insert_dataset(stream_key, dataset, session=None, prepared=None, query_consistency=None ):
+    """
+    Insert an xray dataset back into CASSANDRA.
+    First we check to see if there is data in the bin, if there is we either overwrite and update
+    the values or fail and let the user known why
+    :param stream_key: Stream that we are updating
+    :param dataset: xray dataset we are updating
+    :return:
+    """
+    # It's easier to use pandas. So covert to dataframe
+    dataframe = dataset.to_dataframe()
+    # All of the bins on SAN data will be the same in the netcdf file take the first
+    data_bin = dataframe['bin'].values[0]
+    #get the metadata partion
+    meta = query_partition_metadata(stream_key, TimeRange(bin_to_time(data_bin),
+                                                          bin_to_time(data_bin + 1)))
+    bin_meta = None
+    for i in meta:
+        if i[0] == data_bin and i[1] == CASS_LOCATION_NAME:
+            bin_meta = i
+            break
+
+    # get the data in the correct format
+    cols = get_query_columns(stream_key)
+    cols = ['subsite', 'node', 'sensor', 'bin', 'method'] + cols[1:]
+    arrays = set([p.name for p in stream_key.stream.parameters if p.parameter_type != FUNCTION and p.is_array])
+    dataframe['subsite'] = stream_key.subsite
+    dataframe['node'] =stream_key.node
+    dataframe['sensor'] = stream_key.sensor
+    dataframe['method'] = stream_key.method
+    # id and provenance are expected to be UUIDs so convert them to uuids
+    dataframe['id'] = dataframe['id'].apply(lambda x: uuid.UUID(x))
+    dataframe['provenance'] = dataframe['provenance'].apply(lambda x: uuid.UUID(x))
+    for i in arrays:
+        dataframe[i] =  dataframe[i].apply(lambda x: msgpack.packb(x))
+    dataframe = dataframe[cols]
+
+    # if we don't have metadata for the bin or we want to overwrite the values from cassandra continue
+    count = 0
+    if bin_meta is None or engine.app.config['SAN_CASS_OVERWRITE']:
+        if bin_meta is not None:
+            log.warn("Data present in Cassandra bin %s for %s.  Overwriting old and adding new data.", data_bin, stream_key.as_refdes())
+
+        # get the query to insert information
+        query_name = 'load_{:s}_{:s}_{:s}_{:s}_{:s}'.format(stream_key.stream_name, stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method)
+        if query_name not in prepared:
+            query = 'INSERT INTO {:s} ({:s}) values ({:s})'.format(stream_key.stream.name,', '.join(cols), ', '.join(['?' for _ in cols]) )
+            query = session.prepare(query)
+            query.consistency_level = query_consistency
+            prepared[query_name] = query
+        query = prepared[query_name]
+
+        # insert data
+        for good, x in execute_concurrent_with_args(session, query, dataframe.values.tolist(), concurrency=50):
+            if not good:
+                log.warn("Failed to insert a particle into Cassandra bin %d for %s!", data_bin, stream_key.as_refdes())
+            else:
+                count += 1
+    else:
+        # If there is already data and we do not want overwriting return an error
+        error_message = "Data present in Cassandra bin {:d} for {:s}. Aborting operation!".format(data_bin, stream_key.as_refdes())
+        log.error(error_message)
+        return error_message
+
+    # Update the metadata
+    if bin_meta is None:
+        # Create metadata entry for the new bin
+        ref_des = '{:s}-{:s}-{:s}'.format(stream_key.subsite, stream_key.node, stream_key.sensor)
+        st = dataframe['time'].min()
+        et = dataframe['time'].max()
+        meta_query = "INSERT INTO partition_metadata (stream, refdes, method, bin, store, count, first, last) values ('{:s}', '{:s}', '{:s}', {:d}, '{:s}', {:d}, {:f}, {:f})"\
+            .format(stream_key.stream.name, ref_des, stream_key.method, data_bin, CASS_LOCATION_NAME, count, st, et)
+        session.execute(meta_query)
+        ret_val = 'Inserted {:d} particles into Cassandra bin {:d} for {:s}.'.format(count, dataframe['bin'].values[0], stream_key.as_refdes())
+        log.info(ret_val)
+        return ret_val
+    else:
+        # get the new count, check times, and update metadata
+        q = "SELECT COUNT(*) from {:s} WHERE subsite = '{:s}' and node = '{:s}' and sensor = '{:s}' and bin = {:d} and method = '{:s}'".format(
+            stream_key.stream.name, stream_key.subsite, stream_key.node, stream_key.sensor, data_bin, stream_key.method)
+        new_count = session.execute(q)[0][0]
+        ref_des = '{:s}-{:s}-{:s}'.format(stream_key.subsite, stream_key.node, stream_key.sensor)
+        st = min(dataframe['time'].min(), bin_meta[3])
+        et = max(dataframe['time'].max(), bin_meta[4])
+        meta_query = "INSERT INTO partition_metadata (stream, refdes, method, bin, store, count, first, last) values ('{:s}', '{:s}', '{:s}', {:d}, '{:s}', {:d}, {:f}, {:f})" \
+            .format(stream_key.stream.name, ref_des, stream_key.method, data_bin, CASS_LOCATION_NAME, new_count, st, et)
+        session.execute(meta_query)
+        ret_val = 'After updating Cassandra bin {:d} for {:s} there are {:d} particles.'.format(data_bin, stream_key.as_refdes(), new_count)
+        log.info(ret_val)
+        return ret_val
 
 @cassandra_session
 @log_timing
