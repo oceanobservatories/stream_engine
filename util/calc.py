@@ -17,7 +17,7 @@ import requests
 
 from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, fetch_all_data, \
     get_available_time_range, fetch_l0_provenance, time_to_bin, store_qc_results, bin_to_time, get_location_metadata, \
-    get_san_location_metadata, get_full_cass_dataset
+    get_san_location_metadata, get_full_cass_dataset, insert_dataset
 from util.common import log_timing, ntp_to_datestring,ntp_to_ISO_date, StreamKey, TimeRange, CachedParameter, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, Annotation, \
@@ -197,6 +197,59 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
         out = particles
 
     return json.dumps(out, indent=2)
+
+
+def onload_netCDF(file_name):
+    """
+    Put data from the given netCDF back into Cassandra
+    :param file_name:
+    :return: String message detailing what happend or what went wrong
+    """
+    # Validate that we have a file that exists
+    if not os.path.exists(file_name):
+        log.warn("File {:s} does not exist".format(file_name))
+        return "File {:s} does not exist".format(file_name)
+    # Validate that it has the information that we need and read in the data
+    try:
+        with xray.open_dataset(file_name, decode_times=False) as dataset:
+            stream_key, errors = validate_dataset(dataset)
+            if stream_key is None:
+                return errors
+            else:
+                result = insert_dataset(stream_key, dataset)
+                return result
+    except RuntimeError as e:
+        log.warn(e)
+        return "Error opening netCDF file " + e.message
+    return ''
+
+def validate_dataset(dataset):
+    # Validate netcdf file Check to make sure we have the subsite, node, sensor, stream, and collection_method
+    errors = ''
+    if 'subsite' not in dataset.attrs:
+        errors += 'No subsite in netCDF files attributes'
+    else:
+        subsite = dataset.attrs['subsite']
+    if 'node' not in dataset.attrs:
+        errors += 'No node in netCDF files attributes'
+    else:
+        node = dataset.attrs['node']
+    if 'sensor' not in dataset.attrs:
+        errors += 'No sensor in netCDF files attributes'
+    else:
+        sensor = dataset.attrs['sensor']
+    if 'stream' not in dataset.attrs:
+        errors += 'No stream in netCDF files attributes'
+    else:
+        stream = dataset.attrs['stream']
+    if 'collection_method' not in dataset.attrs:
+        errors += 'No collection_method in netCDF files attributes'
+    else:
+        method = dataset.attrs['collection_method']
+    if len(errors) > 0:
+        return None, errors
+    stream_key = StreamKey(subsite, node, sensor, method, stream)
+    return stream_key, errors
 
 def SAN_netcdf(streams, bins):
     """
