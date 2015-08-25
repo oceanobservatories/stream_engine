@@ -127,6 +127,22 @@ def full_netcdf():
     return response
 
 
+@app.route('/san_onload', methods=['POST'])
+def onload_netcdf():
+    """
+    Post should contain the fileName : string file name to onload
+    :return:
+    """
+    input_data = request.get_json()
+    file_name = input_data.get('fileName')
+    if file_name is None:
+        return Response('"Error no file provided"', mimetype='text/plain')
+    else:
+        log.info("Onloading netCDF file: %s from SAN to Cassandra", file_name)
+        resp = util.calc.onload_netCDF(file_name)
+        return Response('"{:s}"'.format(resp), mimetype='text/plain')
+
+
 @app.route('/netcdf', methods=['POST'])
 def netcdf():
     """
