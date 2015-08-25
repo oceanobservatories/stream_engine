@@ -1,5 +1,5 @@
 DEBUG = False
-STREAM_ENGINE_VERSION = "0.6"
+STREAM_ENGINE_VERSION = "0.7.0"
 
 CASSANDRA_CONTACT_POINTS = ['127.0.0.1']
 CASSANDRA_KEYSPACE = 'ooi'
@@ -9,6 +9,7 @@ CASSANDRA_DEFAULT_TIMEOUT = 60
 CASSANDRA_QUERY_CONSISTENCY = 'QUORUM'
 
 SAN_BASE_DIRECTORY = '/opt/ooi/SAN/'
+SAN_CASS_OVERWRITE = True # When loading data back into cassandra should we allow writing to an already present databin.
 ANNOTATION_URL = 'http://localhost:12580/annotations/find/'
 
 UNBOUND_QUERY_START  = 3471292800 # Where to start unbound queries 2010-01-01T00:00:00.000Z
