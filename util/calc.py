@@ -815,8 +815,7 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
     this_ref = PDRef(None, param.id)
     needs = [pdref for pdref in param.needs if pdref.pdid not in pd_data.keys()]
 
-    calc_meta = {}
-    calc_meta['arguments'] = {}
+    calc_meta = OrderedDict()
     subs = []
     parameters = {}
     functions = {}
@@ -869,14 +868,16 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
     try:
         args, arg_meta = build_func_map(param, coeffs, pd_data, parameter_key)
         args = munge_args(args, primary_key)
-        data = execute_dpa(param, args)
+        data, version = execute_dpa(param, args)
 
-        calc_meta['function_id'] = param.parameter_function.id
         calc_meta['function_name'] = param.parameter_function.function
         calc_meta['function_type'] = param.parameter_function.function_type
+        calc_meta['function_version'] = version
+        calc_meta['function_id'] = param.parameter_function.id
         calc_meta['function_owner'] = param.parameter_function.owner
         calc_meta['argument_list'] = [arg for arg in param.parameter_function_map]
         calc_meta['sub_calculations'] = subs
+        calc_meta['arguments'] = {}
         for k, v in arg_meta.iteritems():
             if k in functions:
                 v['type'] = 'sub_calculation'
@@ -956,12 +957,16 @@ def execute_dpa(parameter, kwargs):
     func = parameter.parameter_function
     func_map = parameter.parameter_function_map
 
+    version = 'unversioned'
     if len(kwargs) == len(func_map):
         if func.function_type == 'PythonFunction':
             module = importlib.import_module(func.owner)
 
             result = None
             try:
+                dpa_function = getattr(module, func.function)
+                if hasattr(dpa_function, 'version'):
+                    version = dpa_function.version
                 result = getattr(module, func.function)(**kwargs)
             except Exception as e:
                 to_attach= {'type' : 'FunctionError', "parameter" : parameter, 'function' : str(func.id) + " " + str(func.description)}
@@ -975,9 +980,9 @@ def execute_dpa(parameter, kwargs):
         else:
             to_attach= {'type' : 'UnkownFunctionError', "parameter" : parameter, 'function' : str(func.function_type)}
             raise UnknownFunctionTypeException(func.function_type, payload=to_attach)
-        return result
+        return result, version
 
-    return None
+    return None, version
 
 
 def build_func_map(parameter, coefficients, pd_data, base_key):
