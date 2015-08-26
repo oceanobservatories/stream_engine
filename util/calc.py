@@ -1,11 +1,9 @@
 import importlib
 import logging
 import tempfile
-import traceback
 import zipfile
 import uuid
 import os
-import datetime
 from collections import OrderedDict, defaultdict
 
 import numexpr
@@ -25,6 +23,7 @@ from util.common import log_timing, ntp_to_datestring,ntp_to_ISO_date, StreamKey
     isfillvalue, InvalidInterpolationException, to_xray_dataset
 from parameter_util import PDRef
 from engine.routes import  app
+import data_utils
 
 try:
     import simplejson as json
@@ -1569,7 +1568,9 @@ class NetCDF_Generator(object):
         if not os.path.isdir(base_path):
             os.makedirs(base_path)
         for stream_key in r.stream_keys:
-            ds = self.group_by_stream_key(r, stream_key)
+            p = self.provenance_metadata if r.include_provenance else None
+            a = self.annotation_store if r.include_annotations else None
+            ds = data_utils.as_xray(stream_key, self.pd_data, p, a)
             #write file to path
             fn = '%s/%s.nc' % (base_path, stream_key.as_dashed_refdes())
             ds.to_netcdf(fn, format='NETCDF4_CLASSIC')
@@ -1586,141 +1587,12 @@ class NetCDF_Generator(object):
 
     def write_to_zipfile(self, r, zf):
         for stream_key in r.stream_keys:
-            ds = self.group_by_stream_key(r, stream_key)
+            p = self.provenance_metadata if r.include_provenance else None
+            a = self.annotation_store if r.include_annotations else None
+            ds = data_utils.as_xray(stream_key, self.pd_data, p, a)
             with tempfile.NamedTemporaryFile() as tf:
                 ds.to_netcdf(tf.name, format='NETCDF4_CLASSIC')
                 zf.write(tf.name, '%s.nc' % (stream_key.as_dashed_refdes(),))
-
-    def open_new_ds(self, r, stream_key):
-        # set up file level attributes
-        attrs = {
-            'subsite': stream_key.subsite,
-            'node': stream_key.node,
-            'sensor': stream_key.sensor,
-            'collection_method': stream_key.method,
-            'stream': stream_key.stream.name,
-            'title' : '{:s} for {:s}'.format(app.config['NETCDF_TITLE'], stream_key.as_dashed_refdes()),
-            'institution' : '{:s}'.format(app.config['NETCDF_INSTITUTION']),
-            'source' : '{:s}'.format(stream_key.as_dashed_refdes()),
-            'history' : '{:s} {:s}'.format(datetime.datetime.utcnow().isoformat(), app.config['NETCDF_HISTORY_COMMENT']),
-            'references' : '{:s}'.format(app.config['NETCDF_REFERENCE']),
-            'comment' : '{:s}'.format(app.config['NETCDF_COMMENT']),
-            'Conventions' : '{:s}'.format(app.config['NETCDF_CONVENTIONS'])
-        }
-
-        init_data = {}
-        if r.include_provenance:
-            prov = self.provenance_metadata.get_provenance_dict()
-            keys = []
-            values = []
-            for k,v in prov.iteritems():
-                keys.append(k)
-                values.append(v['file_name'] + " " + v['parser_name'] + " " + v['parser_version'])
-            init_data['l0_provenance_keys'] = xray.DataArray(numpy.array(keys), dims=['l0_provenance'],
-                                                             attrs={'long_name' : 'l0 Provenance Keys'} )
-            init_data['l0_provenance_data'] = xray.DataArray(numpy.array(values), dims=['l0_provenance'],
-                                                             attrs={'long_name' : 'l0 Provenance Entries'})
-            init_data['computed_provenance'] = xray.DataArray([json.dumps(self.provenance_metadata.calculated_metatdata.get_dict())], dims=['computed_provenance_dim'],
-                                                             attrs={'long_name' : 'Computed Provenance Information'})
-            init_data['query_parameter_provenance'] = xray.DataArray([json.dumps(self.provenance_metadata.get_query_dict())], dims=['query_parameter_provenance_dim'],
-                                                             attrs={'long_name' : 'Query Parameter Provenance Information'})
-            init_data['provenance_messages'] = xray.DataArray(self.provenance_metadata.messages, dims=['provenance_messages'],
-                                                            attrs={'long_name' : 'Provenance Messages'})
-
-        if r.include_annotations:
-            annote = self.annotation_store.get_json_representation()
-            annote_data = [json.dumps(x) for x in annote]
-            init_data['annotations'] = xray.DataArray(numpy.array(annote_data), dims=['dataset_annotations'],
-                                                            attrs={'long_name' : 'Data Annotations'})
-
-        return xray.Dataset(init_data, attrs=attrs)
-
-    def get_time_data(self, stream_key):
-        if stream_key.stream.is_virtual:
-            source_stream = stream_key.stream.source_streams[0]
-            stream_key = get_stream_key_with_param(self.pd_data, source_stream, source_stream.time_parameter)
-
-        tp = stream_key.stream.time_parameter
-        try:
-            return self.pd_data[tp][stream_key.as_refdes()]['data'], tp
-        except KeyError:
-            raise MissingTimeException("Could not find time parameter %s for %s" % (tp, stream_key))
-
-    def group_by_stream_key(self, r, stream_key):
-        time_data, time_parameter = self.get_time_data(stream_key)
-        # sometimes we will get duplicate timestamps
-        # INITIAL solution is to remove any duplicate timestamps
-        # and the corresponding data by creating a mask to match
-        # only valid INCREASING times
-        mask = numpy.diff(numpy.insert(time_data, 0, 0.0)) != 0
-        time_data = time_data[mask]
-        time_data = xray.Variable('time',time_data,  attrs={'units' : 'seconds since 1900-01-01 0:0:0',
-                                                            'standard_name' : 'time',
-                                                            'long_name'  : 'time',
-                                                            'calendar' : 'standard'})
-
-        this_group = self.open_new_ds(r, stream_key)
-        for param_id in self.pd_data:
-            if (
-                param_id == time_parameter or
-                stream_key.as_refdes() not in self.pd_data[param_id]
-               ):
-                continue
-
-            param = CachedParameter.from_id(param_id)
-            # param can be None if this is not a real parameter,
-            # like deployment for deployment number
-            param_name = param_id if param is None else param.name
-
-            data = self.pd_data[param_id][stream_key.as_refdes()]['data'][mask]
-            if param is not None:
-                try:
-                    # In order to comply with CF1.6 we must use "classic" netcdf4.  This donesn't allow unsigned values
-                    if param.value_encoding not in ['uint8', 'uint16', 'uint32', 'uint64']:
-                        data = data.astype(param.value_encoding)
-                    else:
-                        log.warn("Netcdf4 Classic does not allow unsigned integers")
-                except ValueError:
-                    log.warning(
-                        'Unable to transform data %s named %s of type %s to preload value_encoding %s, using fill_value instead\n%s' % (
-                        param_id, param_name, data.dtype, param.value_encoding,
-                        traceback.format_exc()))
-                    data = numpy.full(data.shape, param.fill_value, param.value_encoding)
-
-            dims = ['time']
-            coords = {'time': time_data}
-            if len(data.shape) > 1:
-                for index, dimension in enumerate(data.shape[1:]):
-                    name = '%s_dim_%d' % (param_name, index)
-                    dims.append(name)
-
-            array_attrs = {}
-            if param:
-                if param.unit is not None:
-                    array_attrs['units'] = param.unit
-                if param.fill_value is not None:
-                    array_attrs['_FillValue'] = param.fill_value
-                # Long name needs to be display name to comply with cf 1.6.
-                # http://cfconventions.org/Data/cf-conventions/cf-conventions-1.6/build/cf-conventions.html#long-name
-                if param.display_name is not None:
-                    array_attrs['long_name'] = param.display_name
-                elif param.name is not None:
-                    array_attrs['long_name'] = param.name
-                else:
-                    log.warn('Could not produce long_name attribute for {:s} defaulting to parameter name'.format(str(param_name)))
-                    array_attrs['long_name'] = param_name
-                if param.standard_name is not None:
-                    array_attrs['standard_name'] = param.standard_name
-                if param.description is not None:
-                    array_attrs['comment'] = param.description
-                if param.data_product_identifier is not None:
-                    array_attrs['data_product_identifier'] = param.data_product_identifier
-            else:
-                # To comply with cf 1.6 giving long name the same as parameter name
-                array_attrs['long_name'] = param_name
-
-            this_group.update({param_name: xray.DataArray(data, dims=dims, coords=coords, attrs=array_attrs)})
-        return this_group
 
 
 def find_stream(stream_key, streams, distinct_sensors):
