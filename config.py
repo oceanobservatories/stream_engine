@@ -1,5 +1,5 @@
 DEBUG = False
-STREAM_ENGINE_VERSION = "0.7.5"
+STREAM_ENGINE_VERSION = "0.7.6"
 
 CASSANDRA_CONTACT_POINTS = ['127.0.0.1']
 CASSANDRA_KEYSPACE = 'ooi'
@@ -34,3 +34,4 @@ ASYNC_DOWNLOAD_BASE_DIR='/opt/ooi/async'
 
 PREFERRED_DATA_LOCATION = 'san' # 'san' or 'cass': If data is present in a time bin on both the SAN and Cassandra this option chooses
                                 # which value to take if the number of entries match.  Otherwise the location with the most data is chosen.
+LOOKBACK_QUERY_LIMIT = 100 # Number of cassandra rows used to the correct deployment for padding of streams which provide cal coefficients and other needed data
