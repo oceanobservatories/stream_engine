@@ -9,20 +9,21 @@ from collections import OrderedDict, defaultdict
 import numexpr
 import numpy
 import xray
-import pandas as pd
 import scipy as sp
 import requests
 
 from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, fetch_all_data, fetch_annotations, \
-    get_available_time_range, fetch_l0_provenance, time_to_bin, bin_to_time, get_location_metadata, \
-    get_san_location_metadata, get_full_cass_dataset, insert_dataset
+    get_available_time_range, fetch_l0_provenance, time_to_bin, store_qc_results, bin_to_time, get_location_metadata,\
+     get_first_before_metadata, get_cass_lookback_dataset, get_full_cass_dataset, CASS_LOCATION_NAME, SAN_LOCATION_NAME
 from util.common import log_timing, ntp_to_datestring,ntp_to_ISO_date, StreamKey, TimeRange, CachedParameter, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, Annotation, \
     MissingTimeException, MissingDataException, MissingStreamMetadataException, get_stream_key_with_param, \
-    isfillvalue, InvalidInterpolationException, to_xray_dataset
+    isfillvalue, InvalidInterpolationException, compile_datasets
 from parameter_util import PDRef
 from engine.routes import  app
+from util.san import fetch_nsan_data, fetch_full_san_data, get_san_lookback_dataset
+
 
 import datamodel
 from jsonresponse import JsonResponse
@@ -102,100 +103,6 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
                                  annotation_store if include_annotations else None)
     stream_0_parameters = [p for p in stream_request.parameters if stream_keys[0].stream.id in p.streams]
     return json_response.json(stream_keys[0], stream_0_parameters)
-
-
-def onload_netCDF(file_name):
-    """
-    Put data from the given netCDF back into Cassandra
-    :param file_name:
-    :return: String message detailing what happend or what went wrong
-    """
-    # Validate that we have a file that exists
-    if not os.path.exists(file_name):
-        log.warn("File {:s} does not exist".format(file_name))
-        return "File {:s} does not exist".format(file_name)
-    # Validate that it has the information that we need and read in the data
-    try:
-        with xray.open_dataset(file_name, decode_times=False) as dataset:
-            stream_key, errors = validate_dataset(dataset)
-            if stream_key is None:
-                return errors
-            else:
-                result = insert_dataset(stream_key, dataset)
-                return result
-    except RuntimeError as e:
-        log.warn(e)
-        return "Error opening netCDF file " + e.message
-    return ''
-
-def validate_dataset(dataset):
-    # Validate netcdf file Check to make sure we have the subsite, node, sensor, stream, and collection_method
-    errors = ''
-    if 'subsite' not in dataset.attrs:
-        errors += 'No subsite in netCDF files attributes'
-    else:
-        subsite = dataset.attrs['subsite']
-    if 'node' not in dataset.attrs:
-        errors += 'No node in netCDF files attributes'
-    else:
-        node = dataset.attrs['node']
-    if 'sensor' not in dataset.attrs:
-        errors += 'No sensor in netCDF files attributes'
-    else:
-        sensor = dataset.attrs['sensor']
-    if 'stream' not in dataset.attrs:
-        errors += 'No stream in netCDF files attributes'
-    else:
-        stream = dataset.attrs['stream']
-    if 'collection_method' not in dataset.attrs:
-        errors += 'No collection_method in netCDF files attributes'
-    else:
-        method = dataset.attrs['collection_method']
-    if len(errors) > 0:
-        return None, errors
-    stream_key = StreamKey(subsite, node, sensor, method, stream)
-    return stream_key, errors
-
-def SAN_netcdf(streams, bins):
-    """
-    Dump netcdfs for the stream and bins to the SAN.
-    Will return success or list of bins that failed.
-    Streams should be a length 1 list of streams
-    """
-    # Get data from cassandra
-    stream = StreamKey.from_dict(streams[0])
-    san_dir_string = get_SAN_directories(stream)
-    results = []
-    message = ''
-    for data_bin in bins:
-        try:
-            res, msg = offload_bin(stream, data_bin, san_dir_string)
-            results.append(res)
-            message += msg
-        except Exception as e:
-            log.warn(e)
-            results.append(False)
-            message = message + '{:d} : {:s}\n'.format(data_bin, e.message)
-    return results, message
-
-
-def offload_bin(stream, data_bin, san_dir_string):
-    #get the data and drop dupplicates
-    arrays = set([p.name for p in stream.stream.parameters if p.parameter_type != FUNCTION and p.is_array])
-    cols, data = fetch_all_data(stream, TimeRange(bin_to_time(data_bin), bin_to_time(data_bin+1)))
-    dataset = to_xray_dataset(cols, data, stream, san=True)
-    nc_directory = san_dir_string.format(data_bin)
-    if not os.path.exists(nc_directory):
-        os.makedirs(nc_directory)
-    for deployment, deployment_ds in dataset.groupby('deployment'):
-        # get a file name and create deployment directory if needed
-        nc_file_name = get_nc_filename(stream, nc_directory, deployment)
-        log.info('Offloading %s deployment %d to %s - There are  %d particles', str(stream),
-                 deployment, nc_file_name, len(deployment_ds['index']))
-        # create netCDF file
-        deployment_ds.to_netcdf(path=nc_file_name)
-    return True, ''
-
 
 
 @log_timing
@@ -299,215 +206,35 @@ def replace_values(data_slice, param):
             log.error('Unable to convert {} (PD{}) to string (may be caused by jagged arrays): {}'.format(param.name, param.id, e))
     return data_slice
 
-def get_SAN_directories(stream_key, split=False):
-    """
-    Get the directory that the stream should be on in the SAN with format postion for data bin
-    If split is passed the directory for the reference designator will be returned along with the full path
-    with format position for data bin
-    :param stream_key: Stream key of the data
-    :param split: Return the reference designator directory along with the format string for the netcdf file
-    :return: format string (or reference_designator directory and format string)
-    """
-    ref_des_dir = os.path.join(app.config['SAN_BASE_DIRECTORY'] , stream_key.stream_name ,  stream_key.subsite + '-' + stream_key.node+ '-' + stream_key.sensor)
-    if ref_des_dir[-1] != os.sep:
-        ref_des_dir = ref_des_dir  + os.sep
-    dir_string = os.path.join(ref_des_dir + '{:d}',  stream_key.method)
-    if split:
-        return ref_des_dir, dir_string
+
+def get_lookback_dataset(key, time_range, provenance_metadata, deployments):
+    first_metadata = get_first_before_metadata(key, time_range.start)
+    if CASS_LOCATION_NAME in first_metadata:
+        locations = first_metadata[CASS_LOCATION_NAME]
+        return get_cass_lookback_dataset(key, time_range.start, locations.bin_list[0], deployments)
+    elif SAN_LOCATION_NAME in first_metadata:
+        locations = first_metadata[SAN_LOCATION_NAME]
+        return get_san_lookback_dataset(key, TimeRange(locations.bin_information[locations.bin_list[0]][1],time_range.start), locations.bin_list[0], deployments)
     else:
-        return dir_string
-
-def get_nc_filename(stream, nc_directory, deployment):
-    """
-    Simple method to get the netcdf file name to use and create for a stream from a given directory and deployment
-    :param stream: Stream Key
-    :param nc_directory: Directory
-    :param deployment: Deployment
-    :return: Full path to directory and file name to user
-    """
-    directory = os.path.join(nc_directory, 'deployment_{:04d}'.format(deployment))
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    base =  os.path.join(directory, stream.stream_name + "_{:04d}.nc")
-    index = 0
-    while os.path.exists(base.format(index)):
-            index += 1
-    return base.format(index)
-
-
-def get_SAN_samples(time_range, num_points, ref_des_dir, location_metadata):
-    if location_metadata.total < num_points * 2:
-        log.info("SAN: Number of points (%d) less than twice requested (%d). Returning all",
-                 location_metadata.total, num_points)
-        to_sample = []
-        for data_bin in location_metadata.bin_list:
-            to_sample.append((data_bin, location_metadata.bin_information[data_bin][0]))
-    elif len(location_metadata.bin_list) > num_points:
-        log.info("SAN: Number of bins (%d) greater than number of points (%d). Sampling 1 value from %d bins.", )
-        selection = numpy.floor(numpy.linspace(0, len(location_metadata.bin_list)-1, num_points)).astype(int)
-        bins_to_use = numpy.array(location_metadata.bin_list)[selection]
-        to_sample = [(x,1) for x in bins_to_use]
-    else:
-        log.info("SAN: Sampling %d points from %d bins", num_points, len(location_metadata.bin_list)  )
-        bin_counts = get_sample_numbers(len(location_metadata.bin_list), num_points)
-        to_sample = []
-        for idx, count in enumerate(bin_counts):
-            to_sample.append((location_metadata.bin_list[idx], count))
-    return to_sample
-
-def fetch_nsan_data(stream_key, time_range, num_points=1000, location_metadata=None):
-    """
-    Given a time range and stream key.  Genereate evenly spaced times over the inverval using data
-    from the SAN.
-    :param stream_key:
-    :param time_range:
-    :param strict_range:
-    :param num_points:
-    :return:
-    """
-    if location_metadata is None:
-        location_metadata = get_san_location_metadata(stream_key, time_range)
-    ref_des_dir, dir_string = get_SAN_directories(stream_key, split=True)
-    if not os.path.exists(ref_des_dir):
-        log.warning("Reference Designator does not exist in offloaded SAN")
         return None
-    to_sample = get_SAN_samples(time_range, num_points, ref_des_dir, location_metadata)
-    # now get data in the present we are going to start by grabbing first file in the directory with name that matches
-    # grab a random amount of particles from that file if they are within the time range.
-    missed = 0
-    data = []
-    next_index = 0
-    for time_bin, num_data_points in to_sample:
-        direct = dir_string.format(time_bin)
-        if os.path.exists(direct):
-            # get data from all of the  deployments
-            deployments = os.listdir(direct)
-            for deployment in deployments:
-                full_path = os.path.join(direct, deployment)
-                if os.path.isdir(full_path):
-                    new_data = get_deployment_data(full_path, stream_key.stream_name, num_data_points, time_range, index_start=next_index)
-                    if new_data is None:
-                        missed += num_data_points
-                        continue
-                    count = len(new_data['index'])
-                    missed += (num_data_points - count)
-                    data.append(new_data)
-                    # keep track of the indexes so that the final dataset has uniqe indicies
-                    next_index = next_index + len(new_data['index'])
-        else:
-            missed += num_data_points
-    log.warn("SAN: Failed to produce {:d} points due to nature of sampling".format(missed))
-    if len(data) == 0:
-        return None
-    return  xray.concat(data, dim='index')
 
 
-def fetch_full_san_data(stream_key, time_range, location_metadata=None):
-    """
-    Given a time range and stream key.  Genereate all data in the inverval using data
-    from the SAN.
-    :param stream_key:
-    :param time_range:
-    :return:
-    """
-    if location_metadata is None:
-        location_metadata = get_san_location_metadata(stream_key, time_range)
-    # get which bins we can gather data from
-    ref_des_dir, dir_string = get_SAN_directories(stream_key, split=True)
-    if not os.path.exists(ref_des_dir):
-        log.warning("Reference Designator does not exist in offloaded DataSAN")
-        return None
-    data = []
-    next_index = 0
-    for time_bin in location_metadata.bin_list:
-        direct = dir_string.format(time_bin)
-        if os.path.exists(direct):
-            # get data from all of the  deployments
-            deployments = os.listdir(direct)
-            for deployment in deployments:
-                full_path = os.path.join(direct, deployment)
-                if os.path.isdir(full_path):
-                    new_data = get_deployment_data(full_path, stream_key.stream_name, -1, time_range, index_start=next_index)
-                    if new_data is not None:
-                        data.append(new_data)
-                        # Keep track of indexes so they are unique in the final dataset
-                        next_index = next_index + len(new_data['index'])
-    if len(data) == 0:
-        return None
-    return xray.concat(data, dim='index')
-
-
-def get_deployment_data(direct, stream_name, num_data_points, time_range, index_start=0):
-    '''
-    Given a directory of NETCDF files for a deployment
-    try to return num_data_points that are valid in the given time range.
-    Return them from the first netcdf file in the directory that has the stream name and was offloaded by the SAN
-    :param direct: Directory to search for files in
-    :param stream_name: Name of the stream
-    :param num_data_points: Number of data points to get out of the netcdf file -1 means return all valid in time range
-    :param time_range: Time range of the query
-    :return: dictonary of data stored in numpy arrays.
-    '''
-    files = os.listdir(direct)
-    # Loop until we get the data we want
-    okay = False
-    for f in files:
-        # only netcdf files
-        if stream_name in f and os.path.splitext(f)[-1] == '.nc':
-            f = os.path.join(direct, f)
-            with xray.open_dataset(f, decode_times=False) as dataset:
-                out_ds = xray.Dataset(attrs=dataset.attrs)
-                t = dataset['time'].values
-                # get the indexes to pull out of the data
-                indexes = numpy.where(numpy.logical_and(time_range.start <= t, t <= time_range.stop))[0]
-                if len(indexes) != 0:
-                    # less indexes than data or request for all data ->  get everything
-                    if num_data_points < 0:
-                        selection = indexes
-                    elif num_data_points > len(indexes):
-                        selection = indexes
-                    else:
-                        # do a linear sampling of the data points
-                        selection = numpy.floor(numpy.linspace(0, len(indexes)-1, num_data_points)).astype(int)
-                        selection = indexes[selection]
-                        selection = sorted(selection)
-                    idx = [x for x in range(index_start, index_start + len(selection))]
-                    for var_name in dataset.variables.keys():
-                        # Don't sample on coordinate variables
-                        if var_name in dataset.coords and var_name != 'index':
-                            continue
-                        var = dataset[var_name]
-                        var_data = var.values[selection]
-                        coords = {k:v for k, v in var.coords.iteritems()}
-                        coords['index'] = idx
-                        da = xray.DataArray(var_data, coords=coords, dims=var.dims, name=var.name, attrs=var.attrs)
-                        out_ds[var_name] = da
-                    # set the index here
-                    out_ds['index'] = idx
-                    return out_ds
-    return None
-
-
-def get_sample_numbers(bins, points):
-    num = points /bins
-    total = bins * num
-    remainder = points - total
-    vals = [num for x in range(bins)]
-    increment = numpy.floor(numpy.linspace(0, bins-1, remainder)).astype(int)
-    for i in increment:
-        vals[i] += 1
-    return vals
-
-
-def get_dataset(key, time_range, limit, provenance_metadata):
+def get_dataset(key, time_range, limit, provenance_metadata, pad_forward, deployments):
     cass_locations, san_locations, messages = get_location_metadata(key, time_range)
     provenance_metadata.add_messages(messages)
     # check for no data
-    if cass_locations.total + san_locations.total  == 0:
-        return None
-    san_percent = san_locations.total / float(san_locations.total + cass_locations.total)
-    cass_percent = cass_locations.total / float(san_locations.total + cass_locations.total)
     datasets = []
+    if cass_locations.total + san_locations.total  != 0:
+        san_percent = san_locations.total / float(san_locations.total + cass_locations.total)
+        cass_percent = cass_locations.total / float(san_locations.total + cass_locations.total)
+    else:
+        san_percent = 0
+        cass_percent = 0
+
+    if pad_forward:
+        # pad forward on some datasets
+        datasets.append(get_lookback_dataset(key, time_range, provenance_metadata, deployments))
+
     if san_locations.total > 0:
         # put the range down if we are within the time range
         t1 = time_range.start
@@ -540,35 +267,8 @@ def get_dataset(key, time_range, limit, provenance_metadata):
                                        location_metadata=cass_locations))
         else:
             datasets.append(get_full_cass_dataset(key, cass_times, location_metadata=cass_locations))
+    return compile_datasets(datasets)
 
-    # Now we need to combined the two dataset.
-    # First check too see if time ranges overlap. If they do we need to sort.  If not figure which comes first and append them.
-    datasets = filter(None, datasets)
-    if cass_locations.total > 0 and san_locations.total > 0 and len(datasets) == 2:
-        # update the indexes
-        # they do overlap we need to sort
-        # fix the indicies
-        si = len(datasets[0]['index'])
-        new_index = [x for x in range(si, si + len(datasets[1]['index']))]
-        datasets[1]['index'] = new_index
-        if cass_locations.bin_list[0] < san_locations.bin_list[-1] and cass_locations.bin_list[-1] > san_locations.bin_list[0]:
-            # sort the dataset it is out of order
-            ds = xray.concat(datasets, dim='index')
-            sorted_idx = ds.time.argsort()
-            ds = ds.reindex({'index' : sorted_idx})
-        else:
-            #determine which one goes first and append them together
-            if san_locations.bin_list[0] < cass_locations.bin_list[0]:
-                ds = xray.concat([datasets[0], datasets[1]], dim='index')
-            else:
-                ds = xray.concat([datasets[1], datasets[0]], dim='index')
-    elif len(datasets) == 1:
-        # only one value
-        ds = datasets[0]
-    else:
-        # No data return none so we throw an error
-        ds = None
-    return ds
 
 def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store):
     """
@@ -588,15 +288,24 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
     """
     primary_key = stream_request.stream_keys[0]
     time_range = TimeRange(start, stop)
+    primary_deployments = []
+    virtual_request = primary_key.stream.is_virtual
     # fit time ranges to metadata if we can.
     if app.config['COLLAPSE_TIMES']:
-        log.warn('Collapsing time range to data: ' + ntp_to_datestring(time_range.start) +
+        log.warn('Collapsing time range primary stream time: ' + ntp_to_datestring(time_range.start) +
                  " -- " + ntp_to_datestring(time_range.stop))
-        for sk in stream_request.stream_keys:
-            if not sk.stream.is_virtual:
-                data_range = get_available_time_range(sk)
-                time_range.start = max(time_range.start, data_range.start)
-                time_range.stop = min(time_range.stop, data_range.stop)
+        if not virtual_request:
+            # collapse only to main streams time range.
+            data_range = get_available_time_range(primary_key)
+            time_range.start = max(time_range.start, data_range.start)
+            time_range.stop = min(time_range.stop, data_range.stop)
+        else:
+            # for virtual streams collapse all of the times
+            for sk in stream_request.stream_keys:
+                if not sk.stream.is_virtual:
+                    data_range = get_available_time_range(sk)
+                    time_range.start = max(time_range.start, data_range.start)
+                    time_range.stop = min(time_range.stop, data_range.stop)
         log.warn('Collapsed to : ' + ntp_to_datestring(time_range.start) +
                  "  -- " + ntp_to_datestring(time_range.stop) + '\n')
 
@@ -605,6 +314,7 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
     pd_data = {}
     first_time = None
     for key_index, key in enumerate(stream_request.stream_keys):
+        is_main_query = key == primary_key
         annotations = []
         if stream_request.include_annotations:
             annotations = query_annotations(key, time_range)
@@ -614,7 +324,9 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
             log.info("Skipping virtual stream: {}".format(key.stream.name))
             continue
 
-        ds = get_dataset(key, time_range, limit, provenance_metadata)
+        # Only pad forward when we are not on the main queried stream and it is not a virtual request.
+        should_pad = not is_main_query and not virtual_request
+        ds = get_dataset(key, time_range, limit, provenance_metadata, should_pad, primary_deployments)
         if ds is None:
             if key == primary_key:
                 raise MissingDataException("Query returned no results for primary stream")
@@ -622,7 +334,6 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
                 raise MissingDataException("Query returned no results for source stream")
             else:
                 continue
-
         # transform data from cass and put it into pd_data
         parameters = [p for p in key.stream.parameters if p.parameter_type != FUNCTION]
 
@@ -632,6 +343,8 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
 
         deployments = ds.groupby('deployment')
         for dep_num, data_set in deployments:
+            if is_main_query:
+                primary_deployments.append(dep_num)
             for param in parameters:
                 data_slice = data_set[param.name].values
 
@@ -678,7 +391,6 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
                 'data': data_set.bin.values,
                 'source': key.as_dashed_refdes()
             }
-
     # exec dpa for stream
 
     # calculate time param first if it's a derived product

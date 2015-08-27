@@ -11,6 +11,7 @@ import util.calc
 from util.cass import stream_exists, time_to_bin, bin_to_time
 from util.common import CachedParameter, StreamEngineException, MalformedRequestException, \
     InvalidStreamException, StreamUnavailableException, InvalidParameterException, ISO_to_ntp, ntp_to_ISO_date
+from util.san import onload_netCDF, SAN_netcdf
 
 log = logging.getLogger(__name__)
 
@@ -121,7 +122,7 @@ def full_netcdf():
     validate(input_data)
     bins = input_data.get('bins', [])
     log.info("Handling request to offload stream: %s bins: %s", input_data.get('streams', ""), bins)
-    results, message = util.calc.SAN_netcdf(input_data.get('streams'), bins)
+    results, message = SAN_netcdf(input_data.get('streams'), bins)
     resp = {'results': results, 'message': message}
     response = Response(json.dumps(resp),  mimetype='application/json')
     return response
@@ -139,7 +140,7 @@ def onload_netcdf():
         return Response('"Error no file provided"', mimetype='text/plain')
     else:
         log.info("Onloading netCDF file: %s from SAN to Cassandra", file_name)
-        resp = util.calc.onload_netCDF(file_name)
+        resp = onload_netCDF(file_name)
         return Response('"{:s}"'.format(resp), mimetype='text/plain')
 
 
