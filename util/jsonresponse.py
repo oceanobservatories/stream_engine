@@ -40,6 +40,7 @@ class JsonResponse(object):
     def _particles(self, ds, stream_key, parameters):
         # convert data into a list of particles
         particles = []
+        warned = set()
         for index in xrange(len(ds['time'])):
             particle = OrderedDict()
             if not stream_key.stream.is_virtual:
@@ -51,7 +52,10 @@ class JsonResponse(object):
 
             for param in parameters:
                 if param.name not in ds:
-                    log.info("Failed to get data for %d: Not in Dataset", (param.id,))
+                    if param.name not in warned:
+                        log.info("Failed to get data for %d: Not in Dataset", param.id)
+                        # Only one once for missing parameter
+                        warned.add(param.name)
                     continue
                 particle[param.name] = ds[param.name].values[index]
 
