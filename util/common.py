@@ -566,3 +566,36 @@ def to_xray_dataset(cols, data, stream_key, san=False):
         dataset.update({column : xray.DataArray(data, dims=dims, attrs=array_attrs)})
 
     return dataset
+
+def compile_datasets(datasets):
+    """
+    Given a list of datasets. Possibly containing None. Return a single
+    dataset with unique indexes and sorted by the 'time' parameter
+    :param datasets: :return:
+    """
+    # filter out the Nones
+    datasets = filter(None, datasets)
+    if len(datasets) == 0:
+        return None
+    datasets = sorted(datasets, key=lambda val: val['time'].values[0])
+    # now determine if they are in order or not..
+    start = 0
+    end = 0
+    idx = 0
+    in_order = True
+    for ds in datasets:
+        ns = ds['time'].min()
+        ne = ds['time'].max()
+        # Determine if the max and the min are all in order
+        within_range =  ns < end and ne > start
+        in_order = in_order and not within_range
+        start = ns
+        end = ne
+        new_index = [i for i in range(idx, idx + len(ds['index']))]
+        ds['index'] = new_index
+        idx = new_index[-1] + 1
+    dataset = xray.concat(datasets, dim='index')
+    if not in_order:
+        sorted_idx = dataset.time.argsort()
+        dataset = dataset.reindex({'index' : sorted_idx})
+    return dataset

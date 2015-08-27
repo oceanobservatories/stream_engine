@@ -239,6 +239,41 @@ def get_query_columns(stream_key, session=None, prepared=None, query_consistency
 
 @log_timing
 @cassandra_session
+def query_partition_metadata_before(stream_key, time_start, session=None, prepared=None, query_consistency=None):
+    '''
+    Return the last 4 bins before the the given time range.  Need to return 4 to account for some possibilites:
+        Data is present in both SAN and CASS. Need 2 bins to choose location
+        Data in current bin is all after the start of the time range:
+            Need to check to make sure start time is before current time so need bins for fallback.
+    :param stream_key:
+    :param time_range:
+    :return: Return a list of lists which contain the following information about metadata bins
+    [
+        [
+            bin #,
+            store : cass or san for location,
+            count : Number of data points
+            first : first ntp time of data in bin
+            last : last ntp time of data in the bin
+        ],
+    ]
+    '''
+    query_name = "bin_meta_first_{:s}_{:s}_{:s}_{:s}_{:s}".format(stream_key.subsite, stream_key.node, stream_key.sensor,
+                                                            stream_key.method, stream_key.stream.name)
+    start_bin=  time_to_bin(time_start)
+    if query_name not in prepared:
+        base = (
+            "SELECT bin, store, count, first, last FROM partition_metadata WHERE stream = '{:s}' AND  refdes = '{:s}' AND method = '{:s}' AND bin <= ? ORDER BY method DESC, bin DESC LIMIT 4").format(
+            stream_key.stream.name, '{:s}-{:s}-{:s}'.format(stream_key.subsite, stream_key.node, stream_key.sensor),
+            stream_key.method)
+        query = session.prepare(base)
+        query.consistency_level = query_consistency
+        prepared[query_name] = query
+    query = prepared[query_name]
+    return session.execute(query, [start_bin])
+
+@log_timing
+@cassandra_session
 def query_partition_metadata(stream_key, time_range, session=None, prepared=None, query_consistency=None):
     '''
     Get the metadata entries for partitions that contain data within the time range.
@@ -308,6 +343,52 @@ def get_san_location_metadata(stream_key, time_range):
             bins[data_bin] =  (count, first, last)
     return LocationMetadata(sorted(bins.keys()), bins, total)
 
+
+def get_cass_lookback_dataset(stream_key, start_time, data_bin, deployments):
+    # try to fetch the first n times to ensure we get a deployment value in there.
+    cols, rows = fetch_n_before_times(stream_key, [(data_bin, start_time,engine.app.config['LOOKBACK_QUERY_LIMIT'] )])
+    needed = set(deployments)
+    dep_idx = cols.index('deployment')
+    ret_rows = []
+    for r in rows:
+        if r[dep_idx ] in needed:
+            ret_rows.append(r)
+            needed.remove(r[dep_idx])
+    return to_xray_dataset(cols, ret_rows, stream_key)
+
+
+def get_first_before_metadata(stream_key, start_time):
+    """
+    Return metadata information for the first bin before the time range
+     Cass metadata, San metadata, messages
+
+    :param stream_key:
+    :param time_range:
+    :return:
+    """
+    res = query_partition_metadata_before(stream_key, start_time)
+    #filter to ensure start time < time_range_start
+    res = filter(lambda x: x[3] <= start_time, res)
+    if len(res) == 0:
+        return {}
+    first_bin = res[0][0]
+    res = filter(lambda x: x[0] == first_bin, res)
+    if len(res) == 1:
+        to_use = res[0]
+    else:
+        # Check same size
+        if res[0][2] == res[1][2]:
+            # take the choosen one
+            res = filter(lambda x: x[1] == engine.app.config['PREFERRED_DATA_LOCATION'], res)
+            to_use = res[0]
+        #other otherwise take the larger of the two
+        else:
+            if res[0][2] < res[1][2]:
+                to_use = res[1]
+            else:
+                to_use =res[0]
+    return {to_use[1] : LocationMetadata([to_use[0]], {to_use[0] :(to_use[2], to_use[3], to_use[4])}, to_use[2])}
+
 def get_location_metadata(stream_key, time_range):
     results = query_partition_metadata(stream_key, time_range)
     cass_bins = {}
@@ -317,7 +398,7 @@ def get_location_metadata(stream_key, time_range):
     messages = []
     for data_bin, location, count, first, last in results:
         # Check to see if the data in the bin is within the time range.
-        if time_range.start < last and time_range.stop > first:
+        if time_range.start <= last and time_range.stop >= first:
             if location == CASS_LOCATION_NAME:
                 cass_total = cass_total + count
                 cass_bins[data_bin] =  (count, first, last)
@@ -424,19 +505,19 @@ def query_first_after(stream_key, times_and_bins, cols, session=None, prepared=N
 
 @log_timing
 @cassandra_session
-def query_first_before(stream_key, times_and_bins, cols, session=None, prepared=None, query_consistency=None):
+def query_n_before(stream_key, query_arguemnts, cols, session=None, prepared=None, query_consistency=None):
     query_name = 'first_before_%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite, stream_key.node,
                                                stream_key.sensor, stream_key.method)
     if query_name not in prepared:
         base = "select %s  from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s' and time <= ?" % \
                (', '.join(cols), stream_key.stream.name, stream_key.subsite, stream_key.node,
                 stream_key.sensor, stream_key.method)
-        query = session.prepare(base + 'ORDER BY method DESC, time DESC LIMIT 1')
+        query = session.prepare(base + 'ORDER BY method DESC, time DESC LIMIT ?')
         query.consistency_level = query_consistency
         prepared[query_name] = query
     result = []
     query = prepared[query_name]
-    for success, rows in execute_concurrent_with_args(session, query, times_and_bins, concurrency=50):
+    for success, rows in execute_concurrent_with_args(session, query, query_arguemnts, concurrency=50):
         if success:
             result.extend(list(rows))
     return result
@@ -601,7 +682,7 @@ def sample_n_bins(stream_key, time_range, num_points, metadata_bins, cols=None):
     results.extend(rows)
 
     # Get the last data point
-    _, rows = fetch_first_before_times(stream_key, [(lb, time_range.stop)], cols=cols )
+    _, rows = fetch_n_before_times(stream_key, [(lb, time_range.stop, 1)], cols=cols )
     results.extend(rows)
     return cols, results
 
@@ -625,20 +706,20 @@ def sample_n_points(stream_key, time_range, num_points, metadata_bins, bin_infor
     for t in times:
         # Are we currently within the range of data in the bin if so add a sampling point
         if current[1] <= t < current[2]:
-            queries.add((current[0], t))
+            queries.add((current[0], t, 1))
         else:
             # can we roll over to the next one?
             if len(bin_queue) > 0 and bin_queue[0][1] <= t:
                 current = bin_queue.popleft()
-                queries.add((current[0], t))
+                queries.add((current[0], t, 1))
             # otherwise get the last sample from the last bin we had
             else:
-                queries.add((current[0], current[2]))
+                queries.add((current[0], current[2], 1))
     times = list(queries)
-    _, lin_sampled= fetch_first_before_times(stream_key, times, cols)
+    _, lin_sampled= fetch_n_before_times(stream_key, times, cols)
     results.extend(lin_sampled)
     # get the last point
-    _, rows = fetch_first_before_times(stream_key, [(metadata_bins[-1][0], time_range.stop)], cols=cols )
+    _, rows = fetch_n_before_times(stream_key, [(metadata_bins[-1][0], time_range.stop, 1)], cols=cols )
     results.extend(rows)
     # Sort the data
     results = sorted(results, key=lambda dat: dat[1])
@@ -658,10 +739,10 @@ def fetch_first_after_times(stream_key, times_and_bins, cols=None):
     rows = future.get()
     return cols, rows
 
-def fetch_first_before_times(stream_key, times_and_bins, cols=None):
+def fetch_n_before_times(stream_key, query_arguments, cols=None):
     if cols is None:
         cols = get_query_columns(stream_key)
-    future = execution_pool.apply_async(query_first_before, (stream_key, times_and_bins, cols))
+    future = execution_pool.apply_async(query_n_before, (stream_key, query_arguments, cols))
     rows = future.get()
     return cols, rows
 
