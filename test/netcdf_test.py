@@ -1,5 +1,5 @@
 from util.calc import NetCDF_Generator, StreamRequest
-from util.common import StreamKey
+from util.common import CachedParameter, StreamKey
 import numpy as np
 import numpy.ma as ma
 import os
@@ -26,7 +26,13 @@ def test_NetCDF_Generator():
         'stream': 'ctdpf_ckl_wfp_instrument_recovered'
     }) ]
 
-    request = StreamRequest(stream_keys, None, {}, None, needs_only=True)
+    parameters = [CachedParameter.from_id(7),
+                  CachedParameter.from_id(193),
+                  CachedParameter.from_id(195),
+                  CachedParameter.from_id(196),
+                  CachedParameter.from_id(1963)]
+
+    request = StreamRequest(stream_keys, parameters, {}, None, needs_only=True)
 
     data = {
         7: {

@@ -383,63 +383,6 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         r = self.app.post('/particles', data=json.dumps(bad_parameters2), headers=headers)
         self.assertEqual(r.status_code, 400)
 
-    def test_particles_request(self):
-        headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
-        request = {
-            'streams': [
-                {
-                    "node": "XX00X",
-                    "stream": "ctdpf_ckl_wfp_instrument_recovered",
-                    "subsite": "XX00XXXX",
-                    "sensor": "00-CTDPFW100",
-                    "method": "recovered",
-                    "parameters": [1959]
-                }
-            ],
-            'coefficients': {
-                'CC_latitude': [{'value': 1.0}],
-                'CC_longitude': [{'value': 1.0}],
-            }
-        }
-
-        r = self.app.post('/particles', data=json.dumps(request), headers=headers)
-        data = json.loads(r.data)
-        self.assertIsInstance(data, list)
-        self.assertEqual(len(data), 3)
-        self.assertTrue('ctdpf_ckl_seawater_pressure' in data[0])
-
-    def test_needs(self):
-        headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
-        request = {
-            'streams': [
-                {
-                    "node": "XX00X",
-                    "stream": "ctdpf_ckl_wfp_instrument_recovered",
-                    "subsite": "XX00XXXX",
-                    "sensor": "00-CTDPFW100",
-                    "method": "recovered",
-                    "parameters": [1959]
-                }
-            ],
-        }
-
-        expected_response = {
-            'streams': [
-                {
-                    "node": "XX00X",
-                    "stream": "ctdpf_ckl_wfp_instrument_recovered",
-                    "subsite": "XX00XXXX",
-                    "sensor": "00-CTDPFW100",
-                    "method": "recovered",
-                    'coefficients': ['CC_longitude', 'CC_latitude']
-                }
-            ],
-        }
-
-        r = self.app.post('/needs', data=json.dumps(request), headers=headers)
-        response = json.loads(r.data)
-        self.assertDictEqual(response, expected_response)
-
     def test_incomplete_stream(self):
         # we have the ctdpf_sbe43_sample stream but not the corresponding coefficients stream
         headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
