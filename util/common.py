@@ -360,6 +360,12 @@ class CachedParameter(object):
     def __str__(self):
         return str(self.as_dict())
 
+    def __eq__(self, other):
+        return self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id)
+
 
 class CachedFunction(object):
     @staticmethod
@@ -435,6 +441,12 @@ class MalformedRequestException(StreamEngineException):
 class CoefficientUnavailableException(StreamEngineException):
     """
     Missing a required calibration coefficient
+    """
+    status_code = 400
+
+class ParamUnavailableException(StreamEngineException):
+    """
+    Missing a required parameter
     """
     status_code = 400
 
@@ -609,3 +621,6 @@ def compile_datasets(datasets):
         sorted_idx = dataset.time.argsort()
         dataset = dataset.reindex({'index' : sorted_idx})
     return dataset
+
+def get_params_with_dpi(dpi):
+    return Parameter.query.filter(Parameter.data_product_identifier == dpi)

@@ -10,7 +10,6 @@ import numexpr
 import numpy
 import xray
 import scipy as sp
-import requests
 
 from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, fetch_all_data, fetch_annotations, \
     get_available_time_range, fetch_l0_provenance, time_to_bin, bin_to_time, store_qc_results, get_location_metadata, \
@@ -21,9 +20,11 @@ from util.common import log_timing, ntp_to_datestring,ntp_to_ISO_date, StreamKey
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, Annotation, \
     MissingTimeException, MissingDataException, MissingStreamMetadataException, get_stream_key_with_param, \
-    isfillvalue, InvalidInterpolationException, compile_datasets
-from parameter_util import PDRef
-from engine.routes import  app
+    isfillvalue, InvalidInterpolationException, to_xray_dataset, get_params_with_dpi, ParamUnavailableException, compile_datasets
+
+from parameter_util import PDArgument, FQNArgument, DPIArgument, CCArgument, NumericArgument, FunctionArgument
+
+from engine.routes import app
 from util.san import fetch_nsan_data, fetch_full_san_data, get_san_lookback_dataset
 
 
@@ -117,6 +118,7 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
     # If multi-stream request, default to interpolating all times to first stream
     if len(streams) > 1:
         stream_data.deployment_times = stream_data.get_time_data(stream_keys[0])
+
 
     # create StreamKey to CachedParameter mapping for the requested streams
     stream_to_params = {StreamKey.from_dict(s): [] for s in streams}
@@ -415,7 +417,7 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
             annotation_store.add_annotations(annotations)
 
         if key.stream.is_virtual:
-            log.info("Skipping virtual stream: {}".format(key.stream.name))
+            log.info("Skipping fetch of virtual stream: {}".format(key.stream.name))
             continue
 
         # Only pad forward when we are not on the main queried stream and it is not a virtual request.
@@ -499,13 +501,18 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
     for dep_num in primary_deployments:
         log.info("Computing DPA for deployment %d", dep_num)
         pd_data = stream_data[dep_num]
-        # calculate time param first if it's a derived product
-        time_param = CachedParameter.from_id(primary_key.stream.time_parameter)
-        if time_param.parameter_type == FUNCTION:
-            calculate_derived_product(time_param, stream_request.coefficients, pd_data, primary_key, provenance_metadata, stream_request, dep_num)
 
-            if time_param.id not in pd_data or primary_key.as_refdes() not in pd_data[time_param.id]:
-                raise MissingTimeException("Time param is missing from main stream")
+        # calculate all time params first if they are derived products
+        found_time_params = {}
+        for pd_arg in stream_request.found_args:
+            time_param = CachedParameter.from_id(pd_arg.stream_key.stream.time_parameter)
+            if time_param.parameter_type == FUNCTION and time_param.id not in found_time_params:
+                calculate_derived_product(time_param, stream_request.coefficients, pd_data, primary_key, provenance_metadata, stream_request, dep_num)
+
+                if time_param.id not in pd_data or pd_arg.stream_key.as_refdes() not in pd_data[time_param.id]:
+                    raise MissingTimeException("Time param (PD%s) is missing for PD%s" % (time_param.id, pd_arg.pdid))
+                else:
+                    found_time_params[time_param.id] = True
 
         for param in primary_key.stream.parameters:
             if param.id not in pd_data:
@@ -592,10 +599,13 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
     rev_func_map = {v : k for k,v in func_map.iteritems()}
     ref_to_name = {}
     for i in rev_func_map:
-        if PDRef.is_pdref(i):
-            ref_to_name[PDRef.from_str(i)] = rev_func_map[i]
-    this_ref = PDRef(None, param.id)
-    needs = [pdref for pdref in param.needs if pdref.pdid not in pd_data.keys()]
+        if PDArgument.is_pd(i):
+            ref_to_name[PDArgument.from_preload(i)] = rev_func_map[i]
+        elif FQNArgument.is_fqn(i):
+            ref_to_name[FQNArgument.from_preload(i)] = rev_func_map[i]
+
+    this_ref = PDArgument(param.id)
+    needs = [arg for arg in param.needs if arg.pdid not in pd_data.keys()]
 
     calc_meta = OrderedDict()
     subs = []
@@ -603,24 +613,27 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
     functions = {}
 
     # prevent loops since they are only warned against
-    other = set([pdref for pdref in param.needs if pdref != this_ref]) - set(needs)
+    other = set([arg for arg in param.needs if arg != this_ref]) - set(needs)
     if this_ref in needs:
         needs.remove(this_ref)
 
-    for pdref in needs:
-        needed_parameter = CachedParameter.from_id(pdref.pdid)
+    for arg in needs:
+        found_arg = stream_request.found_args.get(arg)
+        if found_arg is None:
+            continue
+        needed_parameter = CachedParameter.from_id(found_arg.pdid)
         if needed_parameter.parameter_type == FUNCTION:
             sub_id = calculate_derived_product(needed_parameter, coeffs, pd_data, primary_key, provenance_metadata, stream_request, deployment, level + 1)
             # Keep track of all sub function we used.
             if sub_id is not None:
                 # only include sub_functions if it is in the function map. Otherwise it is calculated in the sub function
-                if pdref in ref_to_name:
-                    functions[ref_to_name[pdref]] = [sub_id]
+                if arg in ref_to_name:
+                    functions[ref_to_name[arg]] = [sub_id]
                     subs.append(sub_id)
 
         else:
             # add a placeholder
-            parameters[pdref] = pdref
+            parameters[arg] = arg
 
     # Gather information about all other things that we already have.
     for i in other:
@@ -648,9 +661,8 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
 
     calc_id = None
     try:
-        args, arg_meta, messages = build_func_map(param, coeffs, pd_data, parameter_key, deployment)
+        args, arg_meta, messages = build_func_map(param, coeffs, pd_data, parameter_key, deployment, stream_request, spaces)
         provenance_metadata.add_messages(messages)
-        args = munge_args(args, primary_key)
         data, version = execute_dpa(param, args)
 
         calc_meta['function_name'] = param.parameter_function.function
@@ -761,12 +773,15 @@ def execute_dpa(parameter, kwargs):
         else:
             to_attach= {'type' : 'UnkownFunctionError', "parameter" : parameter, 'function' : str(func.function_type)}
             raise UnknownFunctionTypeException(func.function_type, payload=to_attach)
+
         return result, version
+    else:
+        raise StreamEngineException("Wrong number of arguments passed to function")
 
     return None, version
 
 
-def build_func_map(parameter, coefficients, pd_data, base_key, deployment):
+def build_func_map(parameter, coefficients, pd_data, base_key, deployment, stream_request, spaces=""):
     """
     Builds a map of arguments to be passed to an algorithm
     """
@@ -774,17 +789,6 @@ def build_func_map(parameter, coefficients, pd_data, base_key, deployment):
     args = {}
     arg_metadata = {}
     messages = []
-
-    # find stream that provide each parameter
-    ps = defaultdict(dict)
-    for key, val in func_map.iteritems():
-        if PDRef.is_pdref(val):
-            pdRef = PDRef.from_str(val)
-            if pdRef.pdid in pd_data:
-                for stream in pd_data[pdRef.pdid]:
-                    ps[pdRef.pdid][stream] = True
-
-
 
     # find correct time parameter for the main stream
     time_meta = {}
@@ -818,74 +822,48 @@ def build_func_map(parameter, coefficients, pd_data, base_key, deployment):
     time_meta['endDT'] = ntp_to_datestring(main_times[-1])
     arg_metadata['time_source'] = time_meta
 
-    for key in func_map:
-        if PDRef.is_pdref(func_map[key]):
-            pdRef = PDRef.from_str(func_map[key])
-            param_meta = {}
-            if pdRef.pdid not in pd_data:
-                to_attach = {'type' : 'ParameterMissingError', 'parameter' : parameter, 'pdRef' : pdRef, 'missing_argument_name' : key}
-                raise StreamEngineException('Required parameter %s not found in pd_data when calculating %s (PD%s) ' % (func_map[key], parameter.name, parameter.id), payload=to_attach)
-
-            # if pdref has a required stream, try to find it in pd_data
-            pdref_refdes = None
-            if pdRef.is_fqn():
-                required_stream_name = pdRef.stream_name
-                for refdes in pd_data[pdRef.pdid]:
-                    skey = StreamKey.from_refdes(refdes)
-                    if skey.stream_name == required_stream_name:
-                        pdref_refdes = refdes
-                        break
-
-            if pdref_refdes is None and main_stream_refdes in pd_data[pdRef.pdid]:
-                args[key] = pd_data[pdRef.pdid][main_stream_refdes]['data']
-                param = CachedParameter.from_id(pdRef.pdid)
-                param_meta['type'] = "parameter"
-                param_meta['source'] = pd_data[pdRef.pdid][main_stream_refdes]['source']
-                param_meta['parameter_id'] = param.id
-                param_meta['name'] = param.name
-                param_meta['data_product_identifier'] = param.data_product_identifier
-                param_meta['iterpolated'] = False
-                param_meta['time_begin'] = main_times[0]
-                param_meta['time_beginDT'] = ntp_to_datestring(main_times[0])
-                param_meta['time_end'] =  main_times[-1]
-                param_meta['time_endDT'] =ntp_to_datestring(main_times[-1])
-                try:
-                    param_meta['deployments'] = list(set(pd_data['deployment'][main_stream_refdes]['data']))
-                except:
-                    pass
+    for key, val in func_map.iteritems():
+        if PDArgument.is_pd(val) or FQNArgument.is_fqn(val) or DPIArgument.is_dpi(val):
+            desired_arg = FunctionArgument.get_arg_from_val(val)
+            if desired_arg in stream_request.found_args:
+                pd_arg = stream_request.found_args[desired_arg]
             else:
-                # Need to get data from non-main stream, so it must be interpolated to match main stream
-                if pdref_refdes is None:
-                    data_stream_refdes = next(ps[pdRef.pdid].iterkeys())  # get arbitrary stream that provides pdid
-                else:
-                    data_stream_refdes = pdref_refdes
-                data_stream_key = StreamKey.from_refdes(data_stream_refdes)
+                raise ParamUnavailableException("Can't find source for {}".format(desired_arg))
 
-                # perform interpolation
-                data = pd_data[pdRef.pdid][data_stream_refdes]['data']
-                data_time = pd_data[data_stream_key.stream.time_parameter][data_stream_refdes]['data']
+            if pd_arg.pdid not in pd_data or pd_arg.stream_key.as_refdes() not in pd_data[pd_arg.pdid]:
+                raise ParamUnavailableException("{} is not available".format(desired_arg))
+
+            data_time = pd_data[pd_arg.stream_key.stream.time_parameter][pd_arg.stream_key.as_refdes()]['data']
+            if pd_arg.stream_key == base_key:
+                args[key] = pd_data[pd_arg.pdid][pd_arg.stream_key.as_refdes()]['data']
+            else:
+                data = pd_data[pd_arg.pdid][pd_arg.stream_key.as_refdes()]['data']
 
                 interpolated_data = interpolate_list(main_times, data_time, data)
                 args[key] = interpolated_data
-                param = CachedParameter.from_id(pdRef.pdid)
-                param_meta['type'] = "parameter"
-                param_meta['source'] = pd_data[pdRef.pdid][data_stream_refdes]['source']
-                param_meta['parameter_id'] = param.id
-                param_meta['name'] = param.name
-                param_meta['data_product_identifier'] = param.data_product_identifier
-                param_meta['iterpolated'] = True
-                param_meta['time_begin'] = data_time[0]
-                param_meta['time_beginDT'] = ntp_to_datestring(data_time[0])
-                param_meta['time_end'] =  data_time[-1]
-                param_meta['time_endDT'] =ntp_to_datestring(data_time[-1])
-                try:
-                    param_meta['deployments'] = list(set(pd_data['deployment'][data_stream_refdes]['data']))
-                except:
-                    pass
-            arg_metadata[key] = param_meta
 
-        elif str(func_map[key]).startswith('CC'):
-            name = func_map[key]
+            # Provenance
+            #############
+            param_meta = {}
+            param = CachedParameter.from_id(pd_arg.pdid)
+            param_meta['type'] = "parameter"
+            param_meta['source'] = pd_data[pd_arg.pdid][pd_arg.stream_key.as_refdes()]['source']
+            param_meta['parameter_id'] = param.id
+            param_meta['name'] = param.name
+            param_meta['data_product_identifier'] = param.data_product_identifier
+            param_meta['iterpolated'] = True
+            param_meta['time_start'] = data_time[0]
+            param_meta['time_startDT'] = ntp_to_datestring(data_time[0])
+            param_meta['time_end'] =  data_time[-1]
+            param_meta['time_endDT'] = ntp_to_datestring(data_time[-1])
+            try:
+                param_meta['deployments'] = list(set(pd_data['deployment'][data_stream_refdes]['data']))
+            except:
+                pass
+            #############
+            arg_metadata[key] = param_meta
+        elif CCArgument.is_cc(val):
+            name = val
             if name in coefficients:
                 framed_CCs = coefficients[name]
                 # Need to catch exceptions from the call to build the CC argument.
@@ -910,7 +888,7 @@ def build_func_map(parameter, coefficients, pd_data, base_key, deployment):
                     msg = "There was not Coefficeient data for {:s} all times in deployment {:d} in range ({:s} {:s})".format(
                         name, deployment,
                         ntp_to_datestring(main_times[0]), ntp_to_datestring(main_times[-1]))
-                    log.warn(msg)
+                    log.warn(spaces[:-3]+msg)
                     messages.append(msg)
                 args[key] = CC_argument
                 arg_metadata[key] = CC_meta
@@ -921,9 +899,9 @@ def build_func_map(parameter, coefficients, pd_data, base_key, deployment):
                     'CC_present' : coefficients.keys(), 'missing_argument_name' : key
                 }
                 raise CoefficientUnavailableException('Coefficient %s not provided' % name, payload=to_attach)
-        elif isinstance(func_map[key], (int, float, long, complex)):
-            args[key] = func_map[key]
-            arg_metadata[key] = {'type' : 'constant', 'value' : func_map[key]}
+        elif NumericArgument.is_num(val):
+            args[key] = [func_map[key]] * len(main_times)
+            arg_metadata[key] = {'type' : 'constant', 'value' : val}
         else:
             to_attach = {'type' : 'UnknownParameter', 'parameter' : parameter, 'value' : str(func_map[key]),
                          'missing_argument_name' : key}
@@ -971,6 +949,9 @@ def build_CC_argument(frames, times, deployment):
     else:
         # filter based on times and deployment
         frames = [f for f in frames if any(in_range(f, times)) and f[3] == deployment]
+
+    if len(frames) == 0:
+        raise StreamEngineException('Unable to build cc arguments for algorithm: no cc exists that matches times and deployment')
 
     try:
         sample_value = frames[0][2]
@@ -1054,53 +1035,91 @@ class StreamRequest(object):
             if parameter.parameter_type == FUNCTION:
                 needs = needs.union([pdref for pdref in parameter.needs])
 
-        needs_fqn = set([pdref for pdref in needs if pdref.is_fqn()])
-        needs = set([pdref.pdid for pdref in needs if not pdref.is_fqn()])
-
-        # available in the specified streams?
-        provided = []
+        # get provided params
+        provided_dpi = set()
+        provided_pd = set()
+        provided_fqn = set()
         for stream_key in self.stream_keys:
-            provided.extend([p.id for p in stream_key.stream.parameters])
-
-        needs = needs.difference(provided)
+            [provided_dpi.add(p.data_product_identifier) for p in stream_key.stream.parameters]
+            [provided_pd.add(p.id) for p in stream_key.stream.parameters]
+            [provided_fqn.add((p.id, stream_key.stream_name)) for p in stream_key.stream.parameters]
 
         distinct_sensors = get_distinct_sensors()
 
-        # find the available streams which provide any needed parameters
-        found = set()
-        for need in needs:
-            need = CachedParameter.from_id(need)
-            if need in found:
-                continue
+        # remove already provided params
+        provided_by_main = set()
+        for arg in needs:
+            if isinstance(arg, PDArgument):
+                if arg.pdid in provided_pd:
+                    provided_by_main.add(arg)
+            elif isinstance(arg, FQNArgument):
+                if (arg.pdid, arg.stream_name) in provided_fqn:
+                    provided_by_main.add(arg)
+            elif isinstance(arg, DPIArgument):
+                if arg.dpi in provided_dpi:
+                    provided_by_main.add(arg)
+            else:
+                raise StreamEngineException("Found invalid argument type: {}".format(type(arg)), status_code=500)
 
-            streams = [CachedStream.from_id(sid) for sid in need.streams]
-            found_stream_key = find_stream(self.stream_keys[0], streams, distinct_sensors)
+        needs = needs.difference(provided_by_main)
 
-            if found_stream_key is not None:
+        ## find the available streams which provide any needed parameters
+        found_args = set()
+
+        # Add params from main stream to found_args
+        fsk = self.stream_keys[0]
+        found_args = found_args.union(PDArgument(p.id, fsk) for p in fsk.stream.parameters)
+        found_args = found_args.union(DPIArgument(p.data_product_identifier, p.id, fsk) for p in fsk.stream.parameters)
+        found_args = found_args.union(FQNArgument(p.id, fsk.stream.name, fsk) for p in fsk.stream.parameters)
+
+        for arg in needs:
+            if isinstance(arg, PDArgument):
+                possible_streams = CachedParameter.from_id(arg.pdid).streams
+            elif isinstance(arg, FQNArgument):
+                streams_that_provide_need = CachedParameter.from_id(arg.pdid).streams
+                possible_streams = [s for s in streams_that_provide_need if s.name == arg.stream_name]
+            elif isinstance(arg, DPIArgument):
+                possible_params = get_params_with_dpi(arg.dpi)
+                possible_streams = []
+                for param in possible_params:
+                    for stream in param.streams:
+                        possible_streams.append(stream.id)
+            else:
+                raise StreamEngineException("Found invalid argument type: {}".format(type(arg)), status_code=500)
+
+            possible_streams = [CachedStream.from_id(s) for s in possible_streams]
+            found_stream_key = find_stream(self.stream_keys[0], possible_streams, distinct_sensors)
+
+            if found_stream_key is not None and found_stream_key not in self.stream_keys:
                 self.stream_keys.append(found_stream_key)
-                found = found.union(found_stream_key.stream.parameters)
+                fsk = found_stream_key
+                found_args = found_args.union(PDArgument(p.id, fsk) for p in fsk.stream.parameters)
+                found_args = found_args.union(DPIArgument(p.data_product_identifier, p.id, fsk) for p in fsk.stream.parameters)
+                found_args = found_args.union(FQNArgument(p.id, found_stream_key.stream.name, fsk) for p in fsk.stream.parameters)
+            else:
+                # if we couldn't find a providing stream key, the arg might be provided by a virtual stream
+                for s in possible_streams:
+                    if s.is_virtual:
+                        found_stream_key = find_stream(self.stream_keys[0], s.source_streams, distinct_sensors)
 
-        found = [p.id for p in found]
-        self.found = found
+                        if found_stream_key is not None:
+                            for product_stream in found_stream_key.stream.product_streams:
+                                new_sk = StreamKey(found_stream_key.subsite,
+                                        found_stream_key.node,
+                                        found_stream_key.sensor,
+                                        found_stream_key.method,
+                                        product_stream.name)
 
-        self.needs_params = needs.difference(found)
+                                found_args = found_args.union(PDArgument(p.id, new_sk) for p in product_stream.parameters)
+                                found_args = found_args.union(DPIArgument(p.data_product_identifier, p.id, new_sk) for p in product_stream.parameters)
+                                found_args = found_args.union(FQNArgument(p.id, found_stream_key.stream.name, new_sk) for p in product_stream.parameters)
 
-        log.debug('Found FQN needs %s' % (', '.join(map(str, needs_fqn))))
 
-        # find the available streams which provide any needed fqn parameters
-        found = set([stream_key.stream_name for stream_key in self.stream_keys])
-        for pdref in needs_fqn:
-            if pdref.stream_name in found:
-                continue
-            parameter = CachedParameter.from_id(pdref.pdid)
-            streams = [CachedStream.from_id(sid) for sid in parameter.streams]
-            streams = [s for s in streams if s.name == pdref.stream_name]
+                                if new_sk not in self.stream_keys:
+                                    self.stream_keys.append(new_sk)
 
-            found_stream_key = find_stream(self.stream_keys[0], streams, distinct_sensors)
-
-            if found_stream_key is not None:
-                self.stream_keys.append(found_stream_key)
-                found = found.union(found_stream_key.stream.name)
+        self.found_args = {arg:arg for arg in found_args}
+        self.needs_params = needs.difference(x for x in needs if x in found_args)
 
         needs_cc = set()
         for sk in self.stream_keys:
@@ -1108,8 +1127,11 @@ class StreamRequest(object):
 
         self.needs_cc = needs_cc.difference(self.coefficients.keys())
 
+        # deduplicated stream_keys
+        self.stream_keys = list(OrderedDict.fromkeys(self.stream_keys))
+
         if len(self.needs_params) > 0:
-            log.error('Unable to find needed parameters: %s', self.needs_params)
+            log.error('Unable to find needed arguments: %s', map(str, self.needs_params))
 
         if len(self.needs_cc) > 0:
             log.error('Missing calibration coefficients: %s', self.needs_cc)

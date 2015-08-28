@@ -91,7 +91,8 @@ def get_session():
             global_cassandra_state['cluster'] = Cluster(
                 engine.app.config['CASSANDRA_CONTACT_POINTS'],
                 control_connection_timeout=engine.app.config['CASSANDRA_CONNECT_TIMEOUT'],
-                compression=True)
+                compression=True,
+                protocol_version=3)
 
     if global_cassandra_state.get('session') is None:
         with multiprocess_lock:
@@ -368,7 +369,7 @@ def get_san_location_metadata(stream_key, time_range):
 
 def get_cass_lookback_dataset(stream_key, start_time, data_bin, deployments):
     # try to fetch the first n times to ensure we get a deployment value in there.
-    cols, rows = fetch_with_pool(query_n_before, stream_key, [(data_bin, start_time,engine.app.config['LOOKBACK_QUERY_LIMIT'] )])
+    cols, rows = fetch_with_func(query_n_before, stream_key, [(data_bin, start_time,engine.app.config['LOOKBACK_QUERY_LIMIT'] )])
     needed = set(deployments)
     dep_idx = cols.index('deployment')
     ret_rows = []
@@ -705,15 +706,19 @@ def fetch_nth_data(stream_key, time_range, num_points=1000, location_metadata=No
         uuids.add(my_uuid)
         to_return.append(row)
     log.info("Removed %d duplicates from data", size - len(to_return))
+    log.info("Returning %s rows from %s fetch", len(to_return), stream_key.as_refdes())
     return to_xray_dataset(cols, to_return, stream_key)
 
 def sample_full_bins(stream_key, time_range, num_points, metadata_bins, cols=None):
     # Read all the data and do sampling from there.
     # There may need to be de-duplicating done on this method
-    _, all_data = fetch_with_pool(query_full_bin, stream_key, [(x,time_range.start, time_range.stop) for x in metadata_bins], cols)
-    indexes = numpy.floor(numpy.linspace(0, len(all_data)-1, num_points)).astype(int)
-    selected_data = numpy.array(all_data)[indexes].tolist()
-    results = selected_data
+    _, all_data = fetch_with_func(query_full_bin, stream_key, [(x,time_range.start, time_range.stop) for x in metadata_bins], cols)
+    if len(all_data) < num_points * 4:
+        results = all_data
+    else:
+        indexes = numpy.floor(numpy.linspace(0, len(all_data)-1, num_points)).astype(int)
+        selected_data = numpy.array(all_data)[indexes].tolist()
+        results = selected_data
     return cols, results
 
 
@@ -725,15 +730,15 @@ def sample_n_bins(stream_key, time_range, num_points, metadata_bins, cols=None):
     metadata_bins = metadata_bins[1:-1]
     indexes = numpy.floor(numpy.linspace(0, len(metadata_bins)-1, num_points-2)).astype(int)
     bins_to_use = numpy.array(metadata_bins)[indexes].tolist()
-    cols, rows = fetch_with_pool(query_first_after, stream_key, [(sb, time_range.start)], cols=cols )
+    cols, rows = fetch_with_func(query_first_after, stream_key, [(sb, time_range.start)], cols=cols )
     results.extend(rows)
 
     # Get the first data point
-    _, rows = fetch_with_pool(query_bin_first, stream_key, bins_to_use, cols)
+    _, rows = fetch_with_func(query_bin_first, stream_key, bins_to_use, cols)
     results.extend(rows)
 
     # Get the last data point
-    _, rows = fetch_with_pool(query_n_before, stream_key, [(lb, time_range.stop, 1)], cols=cols )
+    _, rows = fetch_with_func(query_n_before, stream_key, [(lb, time_range.stop, 1)], cols=cols )
     results.extend(rows)
     return cols, results
 
@@ -741,7 +746,7 @@ def sample_n_bins(stream_key, time_range, num_points, metadata_bins, cols=None):
 def sample_n_points(stream_key, time_range, num_points, metadata_bins, bin_information, cols=None):
     results = []
     # get the first point
-    cols, rows = fetch_with_pool(query_first_after, stream_key, [(metadata_bins[0], time_range.start)], cols=cols )
+    cols, rows = fetch_with_func(query_first_after, stream_key, [(metadata_bins[0], time_range.start)], cols=cols )
     results.extend(rows)
 
     # create a set to keep track of queries and avoid duplicates
@@ -768,17 +773,17 @@ def sample_n_points(stream_key, time_range, num_points, metadata_bins, bin_infor
                 queries.add((current[0], current[2], 1))
     times = list(queries)
     times.append((metadata_bins[-1][0], time_range.stop, 1))
-    _, lin_sampled= fetch_with_pool(query_n_before, stream_key, times, cols)
+    _, lin_sampled= fetch_with_func(query_n_before, stream_key, times, cols)
     results.extend(lin_sampled)
     # Sort the data
     results = sorted(results, key=lambda dat: dat[1])
     return cols, results
 
 
-def fetch_with_pool(f, stream_key, args, cols=None):
+def fetch_with_func(f, stream_key, args, cols=None):
     if cols is None:
         cols = get_query_columns(stream_key)
-    return cols, execution_pool.apply_async(f, (stream_key, args, cols)).get()
+    return cols, f(stream_key, args, cols)
 
 
 # Fetch all records in the time_range by querying for every time bin in the time_range
