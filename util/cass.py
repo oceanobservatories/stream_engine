@@ -91,7 +91,8 @@ def get_session():
             global_cassandra_state['cluster'] = Cluster(
                 engine.app.config['CASSANDRA_CONTACT_POINTS'],
                 control_connection_timeout=engine.app.config['CASSANDRA_CONNECT_TIMEOUT'],
-                compression=True)
+                compression=True,
+                protocol_version=3)
 
     if global_cassandra_state.get('session') is None:
         with multiprocess_lock:
@@ -779,7 +780,7 @@ def sample_n_points(stream_key, time_range, num_points, metadata_bins, bin_infor
 def fetch_with_pool(f, stream_key, args, cols=None):
     if cols is None:
         cols = get_query_columns(stream_key)
-    return cols, execution_pool.apply_async(f, (stream_key, args, cols)).get()
+    return cols, f(stream_key, args, cols)
 
 
 # Fetch all records in the time_range by querying for every time bin in the time_range
