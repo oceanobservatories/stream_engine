@@ -221,6 +221,8 @@ def when_ready(server):
 def worker_int(worker):
     worker.log.info("worker received INT or QUIT signal")
 
+    preload_database.database.close_connection()
+
     ## get traceback info
     import threading, traceback
     id2name = dict([(th.ident, th.name) for th in threading.enumerate()])
@@ -238,3 +240,5 @@ def worker_int(worker):
 
 def worker_abort(worker):
     worker.log.info("worker received SIGABRT signal")
+
+    preload_database.database.close_connection()
