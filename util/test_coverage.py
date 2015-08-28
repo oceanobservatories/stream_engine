@@ -26,6 +26,9 @@ def print_good(s):
 def print_bad(s):
     print '\033[91m' + str(s) + '\033[0m'
 
+def print_warn(s):
+    print '\033[93m' + str(s) + '\033[0m'
+
 limit = '50'
 if len(sys.argv) > 1:
     limit = sys.argv[1]
@@ -53,6 +56,8 @@ for url in urls:
 
     stream_page = requests.get(url, proxies={'no': 'pass'})
 
+    if stream_page.status_code == 400:
+        print_warn("Code: {}".format(stream_page.status_code))
     if stream_page.status_code != 200:
         print_bad("Code: {}".format(stream_page.status_code))
         num_errors += 1

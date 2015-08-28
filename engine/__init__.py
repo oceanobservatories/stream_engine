@@ -13,7 +13,3 @@ if app.config.get('LOGGING_CONFIG'):
     app.logger
     # Then load configuration to overwrite
     logging.config.fileConfig(app.config.get('LOGGING_CONFIG'))
-
-@app.teardown_appcontext
-def shutdown_session(exception=None):
-    preload_database.database.Session.remove()
