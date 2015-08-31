@@ -78,7 +78,7 @@ def _open_new_ds(stream_key, provenance_metadata=None, annotation_store=None):
     return xray.Dataset(init_data, attrs=attrs)
 
 
-def get_time_data(pd_data, stream_key):
+def _get_time_data(pd_data, stream_key):
     """
     Get the time data for the stream.  Can handle virtual streams.
     :param pd_data: data structure
@@ -97,7 +97,7 @@ def get_time_data(pd_data, stream_key):
 
 
 def _group_by_stream_key(ds, pd_data, stream_key):
-    time_data, time_parameter = get_time_data(pd_data, stream_key)
+    time_data, time_parameter = _get_time_data(pd_data, stream_key)
     # sometimes we will get duplicate timestamps
     # INITIAL solution is to remove any duplicate timestamps
     # and the corresponding data by creating a mask to match
@@ -171,22 +171,10 @@ def _group_by_stream_key(ds, pd_data, stream_key):
         ds.update({param_name: xray.DataArray(data, dims=dims, coords=coords, attrs=array_attrs)})
 
 
-def as_xray(stream_key, pd_data, provenance_metadata=None, annotation_store=None):
-    """
-    Converts legacy dictionary format to an xray Dataset.
-    :param stream_key: stream_key
-    :param pd_data: data structure
-    :param provenance_metadata: provenance
-    :param annotation_store: annotations
-    :return: xray Dataset.
-    """
-    ds = _open_new_ds(stream_key, provenance_metadata, annotation_store)
-    _group_by_stream_key(ds, pd_data, stream_key)
-    return ds
-
 class StreamData(object):
 
     def __init__(self, stream_request, data, provenance_metadata, annotation_store):
+        self.stream_keys = stream_request.stream_keys
         self.data = data
         if stream_request.include_annotations:
             self.annotation_store = annotation_store
@@ -198,6 +186,7 @@ class StreamData(object):
             self.provenance_metadata = None
         self.deployments = sorted(data.keys())
         self.deployment_streams = self._build_deployment_stream_map(stream_request, data)
+        self.deployment_times = {}
 
     def _build_deployment_stream_map(self, sr, data):
         dp_map = {}
@@ -208,59 +197,42 @@ class StreamData(object):
                 tp = sk.stream.time_parameter
                 if tp in dep_data:
                     if sk.as_refdes() in dep_data[tp]:
-                        streams.add(sk)
+                        streams.add(sk.as_refdes())
             dp_map[deployment] = streams
         return dp_map
 
+    def groups(self, stream_key=None, deployment=None):
+        if stream_key is None:
+            stream_keys = self.stream_keys
+        else:
+            stream_keys = [stream_key]
 
-    def full_groups(self, stream_request):
-            for stream_key in stream_request.stream_keys:
-                for deployment in self.deployments:
-                    if self.check_stream_deployment(stream_key, deployment):
-                        deployment_data = self.data[deployment]
-                        dataset = _open_new_ds(stream_key, self.provenance_metadata, self.annotation_store)
-                        _group_by_stream_key(dataset, deployment_data, stream_key)
-                        times = stream_request.deployment_times.get(deployment, None)
-                        if times is not None:
-                            ds = xinterp.interp1d_Dataset(ds, time=times)
-                        yield deployment, stream_key, dataset
+        if deployment is None:
+            deployments = self.deployments
+        else:
+            deployments = [deployment]
 
-
-    def deployment_groups(self, stream_key, stream_request):
-        for deployment in self.deployments:
-            if self.check_stream_deployment(stream_key, deployment):
-                deployment_data = self.data[deployment]
-                dataset = _open_new_ds(stream_key, self.provenance_metadata, self.annotation_store)
-                _group_by_stream_key(dataset, deployment_data, stream_key)
-                yield deployment, dataset
-
-
-    def stream_groups(self, stream_request, deployment):
-        if deployment in self.data:
-            deployment_data = self.data[deployment]
-            for stream_key in stream_request.stream_keys:
-                if self.check_stream_deployment(stream_key, deployment):
-                    dataset = _open_new_ds(stream_key, self.provenance_metadata, self.annotation_store)
-                    _group_by_stream_key(dataset, deployment_data, stream_key)
-                    times = stream_request.deployment_times.get(deployment, None)
+        for sk in stream_keys:
+            for d in deployments:
+                if self.check_stream_deployment(sk, d):
+                    pd_data = self.data[d]
+                    ds = _open_new_ds(sk, self.provenance_metadata, self.annotation_store)
+                    _group_by_stream_key(ds, pd_data, sk)
+                    times = self.deployment_times.get(d, None)
                     if times is not None:
                         ds = xinterp.interp1d_Dataset(ds, time=times)
-                    yield stream_key, ds
-
-
-    def get_stream_deployment_dataset(self, stream_key, stream_request, deployment):
-        if not self.check_stream_deployment(stream_key, deployment):
-            return None
-        deployment_data = self.data[deployment]
-        p = self.provenance_metadata if stream_request.include_provenance else None
-        a = self.annotation_store if stream_request.include_annotations else None
-        dataset = _open_new_ds(stream_key, p, a)
-        _group_by_stream_key(dataset, deployment_data, stream_key)
-        return dataset
+                    yield sk, d, ds
 
     def check_stream_deployment(self, stream_key, deployment):
         if deployment not in self.data:
             return False
-        if stream_key not in self.deployment_streams[deployment]:
+        if stream_key.as_refdes() not in self.deployment_streams[deployment]:
             return False
         return True
+
+    def get_time_data(self, stream_key):
+        deployment_times = {}
+        for d in self.deployments:
+            pd_data = self.data[d]
+            deployment_times[d] = _get_time_data(pd_data, stream_key)[0]
+        return deployment_times

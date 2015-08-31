@@ -105,7 +105,7 @@ def test_NetCDF_Generator():
     d = {1: dep1, 2 : dep2}
     sd = StreamData(request, d, None, None)
     try:
-        file_output = NetCDF_Generator(sd).chunks(request)
+        file_output = NetCDF_Generator(sd).chunks()
     except Exception as e:
         traceback.print_exc()
         raise AssertionError(e)
