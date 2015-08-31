@@ -246,9 +246,8 @@ def netcdf_save_to_filesystem():
                                          include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
                                          disk_path=input_data.get('directory','unknown'))
     except Exception as e:
-        error = '{ "status": "Request for netcdf failed for the following reason: %s" }\n' % (e.message)
-        log.error(error)
-        return Response(error, status=500, mimetype="application/json")
+        json = '{ "status": "Request for netcdf failed for the following reason: %s" }\n' % (e.message)
+        log.error(json)
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return Response(json, mimetype='application/json')
