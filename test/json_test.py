@@ -132,10 +132,14 @@ def test_JsonResponse():
         raise AssertionError(e)
 
     assert isinstance(json_data, list)
-    assert len(json_data) == 5
+    assert len(json_data) == 4 # duplicate removed
 
     for i, particle in enumerate(json_data):
         assert len(particle) == len(parameters) + 2
+
+        # shift to ignore duplicate
+        if i > 1:
+            i += 1
 
         pk = particle['pk']
         assert pk['subsite'] == 'RS00ENGC'
@@ -146,7 +150,11 @@ def test_JsonResponse():
         assert pk['time'] == data[7][stream_keys[0].as_refdes()]['data'][i]
         assert pk['deployment'] == data['deployment'][stream_keys[0].as_refdes()]['data'][i]
 
-        for param in parameters:
+        # skip 1963 ctdpf_ckl_seawater_density, it needs a separate test
+        for param in parameters[:-1]:
             assert np.array_equal(particle[param.name], data[param.id][stream_keys[0].as_refdes()]['data'][i])
+
+        # 1963 ctdpf_ckl_seawater_density is all fill values -9999999.0 because of incompatible types
+        assert np.array_equal(particle['ctdpf_ckl_seawater_density'], -9999999.0)
 
         assert particle['provenance'] == str(data['provenance'][stream_keys[0].as_refdes()]['data'][i])

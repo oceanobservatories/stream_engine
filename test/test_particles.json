@@ -1,44 +1,41 @@
-{
-  "data": [
-    {
-      "pk": {
-        "node": "XX00X",
-        "stream": "ctdpf_ckl_wfp_instrument_recovered",
-        "subsite": "XX00XXXX",
-        "time": 3589862402.0,
-        "deployment": 1,
-        "sensor": "00-CTDPFW100",
-        "method": "recovered"
-      },
-      "provenance": "de305d54-75b4-431b-adb2-eb6b9e546014",
-      "ctdpf_ckl_seawater_pressure": 0.029999999999999361
+[
+  {
+    "pk": {
+      "node": "XX00X",
+      "stream": "ctdpf_ckl_wfp_instrument_recovered",
+      "subsite": "XX00XXXX",
+      "time": 3589862402.0,
+      "deployment": 1,
+      "sensor": "00-CTDPFW100",
+      "method": "recovered"
     },
-    {
-      "pk": {
-        "node": "XX00X",
-        "stream": "ctdpf_ckl_wfp_instrument_recovered",
-        "subsite": "XX00XXXX",
-        "time": 3589862495.333333,
-        "deployment": 1,
-        "sensor": "00-CTDPFW100",
-        "method": "recovered"
-      },
-      "provenance": "de305d54-75b4-431b-adb2-eb6b9e546014",
-      "ctdpf_ckl_seawater_pressure": 0.029999999999999361
+    "provenance": "de305d54-75b4-431b-adb2-eb6b9e546014",
+    "ctdpf_ckl_seawater_pressure": 0.029999999999999361
+  },
+  {
+    "pk": {
+      "node": "XX00X",
+      "stream": "ctdpf_ckl_wfp_instrument_recovered",
+      "subsite": "XX00XXXX",
+      "time": 3589862495.333333,
+      "deployment": 1,
+      "sensor": "00-CTDPFW100",
+      "method": "recovered"
     },
-    {
-      "pk": {
-        "node": "XX00X",
-        "stream": "ctdpf_ckl_wfp_instrument_recovered",
-        "subsite": "XX00XXXX",
-        "time": 3589862588.666667,
-        "deployment": 1,
-        "sensor": "00-CTDPFW100",
-        "method": "recovered"
-      },
-      "provenance": "de305d54-75b4-431b-adb2-eb6b9e546014",
-      "ctdpf_ckl_seawater_pressure": 0.029999999999999361
-    }
-  ],
-  "annotations": []
-}
+    "provenance": "de305d54-75b4-431b-adb2-eb6b9e546014",
+    "ctdpf_ckl_seawater_pressure": 0.029999999999999361
+  },
+  {
+    "pk": {
+      "node": "XX00X",
+      "stream": "ctdpf_ckl_wfp_instrument_recovered",
+      "subsite": "XX00XXXX",
+      "time": 3589862588.666667,
+      "deployment": 1,
+      "sensor": "00-CTDPFW100",
+      "method": "recovered"
+    },
+    "provenance": "de305d54-75b4-431b-adb2-eb6b9e546014",
+    "ctdpf_ckl_seawater_pressure": 0.029999999999999361
+  }
+]
