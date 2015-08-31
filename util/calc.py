@@ -15,7 +15,7 @@ import requests
 
 from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, fetch_all_data, fetch_annotations, \
     get_available_time_range, fetch_l0_provenance, time_to_bin, bin_to_time, get_location_metadata, \
-    get_san_location_metadata, get_full_cass_dataset, insert_dataset
+    get_san_location_metadata, get_full_cass_dataset, insert_dataset, store_qc_results
 from util.common import log_timing, ntp_to_datestring,ntp_to_ISO_date, StreamKey, TimeRange, CachedParameter, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, Annotation, \
@@ -96,12 +96,80 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
     provenance_metadata.add_query_metadata(stream_request, request_uuid, 'JSON')
     pd_data = fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
 
+    do_qc_stuff(stream_keys[0], pd_data, stream_request.parameters, qc_stream_parameters)
+
     json_response = JsonResponse(pd_data,
                                  qc_stream_parameters,
                                  provenance_metadata if include_provenance else None,
                                  annotation_store if include_annotations else None)
     stream_0_parameters = [p for p in stream_request.parameters if stream_keys[0].stream.id in p.streams]
     return json_response.json(stream_keys[0], stream_0_parameters)
+
+
+def do_qc_stuff(primary_key, pd_data, parameters, qc_stream_parameters):
+    time_param = primary_key.stream.time_parameter
+    if time_param not in pd_data:
+        raise MissingTimeException("Time param: {} is missing from the primary stream".format(time_param))
+    time_data = pd_data[time_param][primary_key.as_refdes()]['data']
+
+    virtual_id_sub = None
+    particle_ids = None
+    particle_bins = None
+    particle_deploys = None
+    if not primary_key.stream.is_virtual:
+        particle_ids = pd_data['id'][primary_key.as_refdes()]['data']
+        particle_bins = pd_data['bin'][primary_key.as_refdes()]['data']
+        particle_deploys = pd_data['deployment'][primary_key.as_refdes()]['data']
+    else:
+        if 'id' in pd_data:
+            if virtual_id_sub is None:
+                for key in pd_data['id']:
+                    if len(pd_data['id'][key]['data']) == len(time_data):
+                        virtual_id_sub = key
+                        break
+            particle_ids = pd_data['id'][virtual_id_sub]['data']
+
+        if 'bin' in pd_data:
+            if virtual_id_sub is None:
+                for key in pd_data['bin']:
+                    if len(pd_data['bin'][key]['data']) == len(time_data):
+                        virtual_id_sub = key
+                        break
+            particle_bins = pd_data['bin'][virtual_id_sub]['data']
+
+        if 'deployment' in pd_data:
+            if virtual_id_sub is None:
+                for key in pd_data['deployment']:
+                    if len(pd_data['deployment'][key]['data']) == len(time_data):
+                        virtual_id_sub = key
+                        break
+            particle_deploys = pd_data['deployment'][virtual_id_sub]['data']
+
+    pk = primary_key.as_dict()
+    for param in parameters:
+        qc_results_key = '%s_%s' % (param.name, 'qc_results')
+        qc_ran_key = '%s_%s' % (param.name, 'qc_executed')
+        qc_results_values = numpy.zeros_like(time_data)
+        qc_ran_values = numpy.zeros_like(time_data)
+
+        for qc_function_name in qc_stream_parameters.get(param.name, []):
+            qc_function_results = '%s_%s' % (param.name, qc_function_name)
+
+            if qc_function_results in pd_data\
+                    and pd_data.get(qc_function_results, {}).get(primary_key.as_refdes(), {}).get('data') is not None:
+                values = pd_data[qc_function_results][primary_key.as_refdes()]['data']
+                qc_cached_function = CachedFunction.from_qc_function(qc_function_name)
+                qc_results_mask = numpy.full_like(time_data, int(qc_cached_function.qc_flag, 2))
+                qc_results_values = numpy.where(values == 0, ~qc_results_mask & qc_results_values, qc_results_mask ^ qc_results_values)
+                qc_ran_values = qc_results_mask | qc_ran_values
+
+        if particle_ids is not None and particle_bins is not None and particle_deploys is not None:
+            for i in xrange(0, len(particle_ids)):
+                pk['deployment'] = particle_deploys[i]
+                store_qc_results(qc_results_values[i], pk, particle_ids[i], particle_bins[i], param.name)
+
+        pd_data[qc_results_key] = qc_results_values
+        pd_data[qc_ran_key] = qc_ran_values
 
 
 def onload_netCDF(file_name):
