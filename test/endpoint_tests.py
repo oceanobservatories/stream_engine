@@ -10,6 +10,7 @@ from engine.routes import app
 import preload_database.database
 from util.cass import create_execution_pool, global_cassandra_state
 from util.common import StreamKey
+import numpy as np
 
 
 preload_database.database.initialize_connection(preload_database.database.PreloadDatabaseMode.POPULATED_FILE)
@@ -103,7 +104,7 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
                 'CC_longitude': [{'value': 1.0, 'deployment': 1}],
             },
             'include_provenance': False,
-            'include_annotations': True,
+            'include_annotations': False,
             'qcParameters': {}
         }
 
@@ -111,4 +112,24 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
         data = json.loads(r.data)
         with open(TEST_DIR + '/test_particles.json', mode='r') as f:
             testdata = json.loads(f.read())
-            self.assertEqual(data, testdata)
+            assert _almost_equal(data, testdata)
+
+def _almost_equal(a, b):
+    if isinstance(a, (list,tuple)) and isinstance(b, (list,tuple)):
+        if len(a) != len(b):
+            return False
+        for i in xrange(0, len(a)):
+            if not _almost_equal(a[i], b[i]):
+                return False
+    elif isinstance(a, (dict)) and isinstance(b, (dict)):
+        if a.viewkeys() != b.viewkeys():
+            return False
+        for i in a:
+            if not _almost_equal(a[i], b[i]):
+                return False
+    elif isinstance(a, float) or isinstance(b, float):
+        ac = np.allclose(a,b)
+        return ac
+    else:
+        return a == b
+    return True

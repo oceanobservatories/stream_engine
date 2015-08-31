@@ -15,7 +15,7 @@ import requests
 
 from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, fetch_all_data, fetch_annotations, \
     get_available_time_range, fetch_l0_provenance, time_to_bin, bin_to_time, get_location_metadata, \
-    get_san_location_metadata, get_full_cass_dataset, insert_dataset
+    get_san_location_metadata, get_full_cass_dataset, insert_dataset, store_qc_results
 from util.common import log_timing, ntp_to_datestring,ntp_to_ISO_date, StreamKey, TimeRange, CachedParameter, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, Annotation, \
@@ -108,9 +108,89 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
     provenance_metadata.add_query_metadata(stream_request, request_uuid, 'JSON')
     stream_data = fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
 
-    json_response = JsonResponse(stream_data, qc_stream_parameters)
-    stream_0_parameters = [p for p in stream_request.parameters if stream_keys[0].stream.id in p.streams]
-    return json_response.json(stream_keys[0], stream_0_parameters)
+    do_qc_stuff(stream_keys[0], stream_data, stream_request.parameters, qc_stream_parameters)
+
+    # If multi-stream request, default to interpolating all times to first stream
+    if len(streams) > 1:
+        stream_data.deployment_times = stream_data.get_time_data(stream_keys[0])
+
+    # create StreamKey to CachedParameter mapping for the requested streams
+    stream_to_params = {StreamKey.from_dict(s): [] for s in streams}
+    for sk in stream_to_params:
+        stream_to_params[sk] = [p for p in stream_request.parameters if sk.stream.id in p.streams]
+
+    return JsonResponse(stream_data).json(stream_to_params)
+
+
+def do_qc_stuff(primary_key, stream_data, parameters, qc_stream_parameters):
+    time_param = primary_key.stream.time_parameter
+    for deployment in stream_data.deployments:
+        if not stream_data.check_stream_deployment(primary_key, deployment):
+            log.warn("%s not in deployment %d Continuing", primary_key.as_refdes(), deployment)
+            continue
+        pd_data = stream_data.data[deployment]
+        if time_param not in pd_data:
+            raise MissingTimeException("Time param: {} is missing from the primary stream".format(time_param))
+        time_data = pd_data[time_param][primary_key.as_refdes()]['data']
+
+        virtual_id_sub = None
+        particle_ids = None
+        particle_bins = None
+        particle_deploys = None
+        if not primary_key.stream.is_virtual:
+            particle_ids = pd_data['id'][primary_key.as_refdes()]['data']
+            particle_bins = pd_data['bin'][primary_key.as_refdes()]['data']
+            particle_deploys = pd_data['deployment'][primary_key.as_refdes()]['data']
+        else:
+            if 'id' in pd_data:
+                if virtual_id_sub is None:
+                    for key in pd_data['id']:
+                        if len(pd_data['id'][key]['data']) == len(time_data):
+                            virtual_id_sub = key
+                            break
+                particle_ids = pd_data['id'][virtual_id_sub]['data']
+
+            if 'bin' in pd_data:
+                if virtual_id_sub is None:
+                    for key in pd_data['bin']:
+                        if len(pd_data['bin'][key]['data']) == len(time_data):
+                            virtual_id_sub = key
+                            break
+                particle_bins = pd_data['bin'][virtual_id_sub]['data']
+
+            if 'deployment' in pd_data:
+                if virtual_id_sub is None:
+                    for key in pd_data['deployment']:
+                        if len(pd_data['deployment'][key]['data']) == len(time_data):
+                            virtual_id_sub = key
+                            break
+                particle_deploys = pd_data['deployment'][virtual_id_sub]['data']
+
+        pk = primary_key.as_dict()
+        for param in parameters:
+            has_qc = False
+            qc_results_key = '%s_%s' % (param.name, 'qc_results')
+            qc_ran_key = '%s_%s' % (param.name, 'qc_executed')
+            qc_results_values = numpy.zeros_like(time_data)
+            qc_ran_values = numpy.zeros_like(time_data)
+
+            for qc_function_name in qc_stream_parameters.get(param.name, []):
+                qc_function_results = '%s_%s' % (param.name, qc_function_name)
+
+                if qc_function_results in pd_data\
+                        and pd_data.get(qc_function_results, {}).get(primary_key.as_refdes(), {}).get('data') is not None:
+                    has_qc = True
+                    values = pd_data[qc_function_results][primary_key.as_refdes()]['data']
+                    qc_cached_function = CachedFunction.from_qc_function(qc_function_name)
+                    qc_results_mask = numpy.full_like(time_data, int(qc_cached_function.qc_flag, 2))
+                    qc_results_values = numpy.where(values == 0, ~qc_results_mask & qc_results_values, qc_results_mask ^ qc_results_values)
+                    qc_ran_values = qc_results_mask | qc_ran_values
+
+            if has_qc:
+                if particle_ids is not None and particle_bins is not None and particle_deploys is not None:
+                    store_qc_results(qc_results_values, pk, particle_ids, particle_bins, particle_deploys, param.name)
+                pd_data[qc_results_key] = {primary_key.as_refdes(): {'data': qc_results_values}}
+                pd_data[qc_ran_key] = {primary_key.as_refdes(): {'data': qc_ran_values}}
 
 
 def onload_netCDF(file_name):
@@ -229,13 +309,12 @@ def get_netcdf(streams, start, stop, coefficients, limit=None, custom_type=None,
     provenance_metadata.add_query_metadata(stream_request, request_uuid, "netCDF")
 
     stream_data = fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
-    deployment_times = {}
+
+    # If multi-stream request, default to interpolating all times to first stream
     if len(streams) > 1:
-        for dep in stream_data:
-            deployment_time = datamodel.get_time_data(stream_data[dep], stream_keys[0])[0]
-            deployment_times[dep] = deployment_time
-    stream_request.deployment_times = deployment_times
-    return NetCDF_Generator(stream_data).chunks(stream_request, disk_path)
+        stream_data.deployment_times = stream_data.get_time_data(stream_keys[0])
+
+    return NetCDF_Generator(stream_data).chunks(disk_path)
 
 
 @log_timing
@@ -1206,7 +1285,6 @@ class StreamRequest(object):
         self.include_annotations = include_annotations
         self.strict_range = strict_range
         self._initialize(needs_only)
-        self.deployment_times = {}
 
     def _initialize(self, needs_only):
         if len(self.stream_keys) == 0:
@@ -1484,25 +1562,25 @@ class NetCDF_Generator(object):
     def __init__(self, stream_data):
         self.stream_data = stream_data
 
-    def chunks(self, r, disk_path=None):
+    def chunks(self, disk_path=None):
         try:
             if disk_path is not None:
-                return self.create_raw_files(r, disk_path)
+                return self.create_raw_files(disk_path)
             else:
-                return self.create_zip(r)
+                return self.create_zip()
         except GeneratorExit:
             raise
         except:
             log.exception('An unexpected error occurred.')
             raise
 
-    def create_raw_files(self, r, path):
+    def create_raw_files(self, path):
         strings = list()
         base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],path)
         # ensure the directory structure is there
         if not os.path.isdir(base_path):
             os.makedirs(base_path)
-        for deployment, stream_key, ds in self.stream_data.full_groups(r):
+        for stream_key, deployment, ds in self.stream_data.groups():
                 fn = '%s/deployment%04d_%s.nc' % (base_path, deployment, stream_key.as_dashed_refdes())
                 ds.to_netcdf(fn, format='NETCDF4_CLASSIC')
                 strings.append(fn)
@@ -1510,14 +1588,14 @@ class NetCDF_Generator(object):
         return json.dumps(strings)
 
 
-    def create_zip(self, r):
+    def create_zip(self):
         with tempfile.NamedTemporaryFile() as tzf:
             with zipfile.ZipFile(tzf.name, 'w') as zf:
-                self.write_to_zipfile(r, zf)
+                self.write_to_zipfile(zf)
             return tzf.read()
 
-    def write_to_zipfile(self, r, zf):
-        for deployment, stream_key, ds in self.stream_data.full_groups(r):
+    def write_to_zipfile(self, zf):
+        for stream_key, deployment, ds in self.stream_data.groups():
             with tempfile.NamedTemporaryFile() as tf:
                 # interp to main times if more than one stream was in the request.
                 ds.to_netcdf(tf.name, format='NETCDF4_CLASSIC')

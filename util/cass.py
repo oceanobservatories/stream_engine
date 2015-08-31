@@ -16,7 +16,7 @@ from cassandra.cluster import Cluster, QueryExhausted, ResponseFuture, PagedResu
 from cassandra.query import _clean_column_name, tuple_factory, SimpleStatement, BatchStatement
 from cassandra.concurrent import execute_concurrent_with_args, execute_concurrent
 from cassandra import ConsistencyLevel
-
+from itertools import izip
 import msgpack
 
 from util.common import log_timing, TimeRange, FUNCTION, to_xray_dataset
@@ -882,7 +882,7 @@ def fetch_annotations(stream_key, time_range, session=None, prepared=None, query
 
 @cassandra_session
 @log_timing
-def store_qc_results(qc_batch, session=None, strict_range=False, prepared=None, query_consistency=None):
+def store_qc_results(qc_results_values, pk, particle_ids, particle_bins, particle_deploys, param_name, session=None, strict_range=False, prepared=None, query_consistency=None):
     start_time = time.clock()
     if engine.app.config['QC_RESULTS_STORAGE_SYSTEM'] == 'cass':
         log.info('Storing QC results in Cassandra.')
@@ -891,20 +891,20 @@ def store_qc_results(qc_batch, session=None, strict_range=False, prepared=None, 
                        "values (?, ?, ?, ?, ?, ?, ?, ?, ?)")
 
         batch = BatchStatement(consistency_level=ConsistencyLevel.name_to_value.get(engine.app.config['CASSANDRA_QUERY_CONSISTENCY']))
-        for (qc_results, particle_pk, particle_id, particle_bin, parameter) in qc_batch:
-            batch.add(insert_results, (particle_pk.get('subsite'), particle_pk.get('node'), particle_pk.get('sensor'),
-                                       particle_bin, particle_pk.get('deployment'), particle_pk.get('stream'),
-                                       uuid.UUID(particle_id), parameter, str(qc_results)))
+        for (qc_results, particle_id, particle_bin, particle_deploy) in izip(qc_results_values, particle_ids, particle_bins, particle_deploys):
+            batch.add(insert_results, (pk.get('subsite'), pk.get('node'), pk.get('sensor'),
+                                       particle_bin, particle_deploy, pk.get('stream'),
+                                       uuid.UUID(particle_id), param_name, str(qc_results)))
         session.execute_async(batch)
         log.info("QC results stored in {} seconds.".format(time.clock() - start_time))
     elif engine.app.config['QC_RESULTS_STORAGE_SYSTEM'] == 'log':
         log.info('Writing QC results to log file.')
         qc_log = logging.getLogger('qc.results')
         qc_log_string = ""
-        for (qc_results, particle_pk, particle_id, particle_bin, parameter) in qc_batch:
+        for (qc_results, particle_id, particle_bin, particle_deploy) in izip(qc_results_values, particle_ids, particle_bins, particle_deploys):
             qc_log_string += "refdes:{0}-{1}-{2}, bin:{3}, stream:{4}, deployment:{5}, id:{6}, parameter:{7}, qc results:{8}\n"\
-                .format(particle_pk.get('subsite'), particle_pk.get('node'), particle_pk.get('sensor'), particle_bin,
-                        particle_pk.get('stream'), particle_pk.get('deployment'), particle_id, parameter, qc_results)
+                .format(pk.get('subsite'), pk.get('node'), pk.get('sensor'), particle_bin,
+                        pk.get('stream'), particle_deploy, particle_id, param_name, qc_results)
         qc_log.info(qc_log_string[:-1])
         log.info("QC results stored in {} seconds.".format(time.clock() - start_time))
     else:
