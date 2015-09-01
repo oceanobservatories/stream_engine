@@ -53,15 +53,17 @@ def _open_new_ds(stream_key, provenance_metadata=None, annotation_store=None):
                                                          attrs={'long_name' : 'Computed Provenance Information'})
         init_data['query_parameter_provenance'] = xray.DataArray([json.dumps(provenance_metadata.get_query_dict())], dims=['query_parameter_provenance_dim'],
                                                          attrs={'long_name' : 'Query Parameter Provenance Information'})
-        init_data['provenance_messages'] = xray.DataArray(provenance_metadata.messages, dims=['provenance_messages'],
-                                                        attrs={'long_name' : 'Provenance Messages'})
+        if len(provenance_metadata.messages) > 0:
+            init_data['provenance_messages'] = xray.DataArray(provenance_metadata.messages,
+                                                              dims=['provenance_messages'],
+                                                              attrs={'long_name': 'Provenance Messages'})
 
     if annotation_store is not None:
         annote = annotation_store.get_json_representation()
         annote_data = [json.dumps(x) for x in annote]
-        init_data['annotations'] = xray.DataArray(np.array(annote_data), dims=['dataset_annotations'],
-                                                        attrs={'long_name' : 'Data Annotations'})
-
+        if len(annote_data) > 0:
+            init_data['annotations'] = xray.DataArray(np.array(annote_data), dims=['dataset_annotations'],
+                                                      attrs={'long_name': 'Data Annotations'})
     return xray.Dataset(init_data, attrs=attrs)
 
 
