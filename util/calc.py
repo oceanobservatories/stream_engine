@@ -21,7 +21,7 @@ from util.common import log_timing, ntp_to_datestring,ntp_to_ISO_date, StreamKey
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, Annotation, \
     MissingTimeException, MissingDataException, MissingStreamMetadataException, get_stream_key_with_param, \
-    isfillvalue, InvalidInterpolationException, compile_datasets
+    isfillvalue, InvalidInterpolationException, compile_datasets, get_key_locations
 from parameter_util import PDRef
 from engine.routes import  app
 from util.san import fetch_nsan_data, fetch_full_san_data, get_san_lookback_dataset
@@ -518,6 +518,12 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
                 except Exception as e:
                     log.error("Unexpected error while running qc functions: {}".format(e.message))
         stream_data[dep_num] = pd_data
+
+    locations = {}
+    for k in stream_request.stream_keys:
+        locs = get_key_locations(k)
+        locations[k.as_three_part_refdes()] = locs
+    stream_request.location_information = locations
     sd = StreamData(stream_request, stream_data, provenance_metadata, annotation_store)
     return sd
 
@@ -994,12 +1000,14 @@ class StreamRequest(object):
     parameters and their streams
     """
     def __init__(self, stream_keys, parameters, coefficients, time_range, qc_parameters={}, needs_only=False,
-                 limit=None, include_provenance=False, include_annotations=False, strict_range=False):
+                 limit=None, include_provenance=False, include_annotations=False, strict_range=False,
+                 location_information={}):
         self.stream_keys = stream_keys
         self.time_range = time_range
         self.qc_parameters = qc_parameters if qc_parameters is not None else {}
         self.parameters = parameters
         self.coefficients = coefficients
+        self.location_information = {}
         self.needs_cc = None
         self.needs_params = None
         self.limit = limit
