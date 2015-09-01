@@ -4,10 +4,12 @@ stream_engine uses to model science data.  Data is currently being backed by a
 dictionary representation boiling down to raw numpy ndarrays, but in the future
 data will be in xray Datasets.
 """
+import uuid
+
 __author__ = 'Stephen Zakrewsky'
 
 
-from common import CachedParameter, get_stream_key_with_param, MissingTimeException
+from common import CachedParameter, get_stream_key_with_param, MissingTimeException, ntp_to_ISO_date
 import datetime
 from engine import app
 import json
@@ -21,7 +23,7 @@ import xray_interpolation as xinterp
 log = logging.getLogger(__name__)
 
 
-def _open_new_ds(stream_key, provenance_metadata=None, annotation_store=None):
+def _open_new_ds(stream_key, deployment, provenance_metadata=None, annotation_store=None):
     # set up file level attributes
     attrs = {
         'subsite': stream_key.subsite,
@@ -29,13 +31,39 @@ def _open_new_ds(stream_key, provenance_metadata=None, annotation_store=None):
         'sensor': stream_key.sensor,
         'collection_method': stream_key.method,
         'stream': stream_key.stream.name,
+        'deployment' : deployment,
         'title' : '{:s} for {:s}'.format(app.config['NETCDF_TITLE'], stream_key.as_dashed_refdes()),
         'institution' : '{:s}'.format(app.config['NETCDF_INSTITUTION']),
         'source' : '{:s}'.format(stream_key.as_dashed_refdes()),
         'history' : '{:s} {:s}'.format(datetime.datetime.utcnow().isoformat(), app.config['NETCDF_HISTORY_COMMENT']),
         'references' : '{:s}'.format(app.config['NETCDF_REFERENCE']),
         'comment' : '{:s}'.format(app.config['NETCDF_COMMENT']),
-        'Conventions' : '{:s}'.format(app.config['NETCDF_CONVENTIONS'])
+        'Conventions' : '{:s}'.format(app.config['NETCDF_CONVENTIONS']),
+        'Metadata_Conventions' : '{:s}'.format(app.config['NETCDF_METADATA_CONVENTIONS']),
+        'feature_Type' : '{:s}'.format(app.config['NETCDF_FEATURE_TYPE']),
+        'cdm_data_type' : '{:s}'.format(app.config['NETCDF_CDM_DATA_TYPE']),
+        'nodc_template_version' : '{:s}'.format(app.config['NETCDF_NODC_TEMPLATE_VERSION']),
+        'standard_name_vocabulary' : '{:s}'.format(app.config['NETCDF_STANDARD_NAME_VOCABULARY']),
+        'summary' : '{:s}'.format(app.config['NETCDF_SUMMARY']),
+        'uuid' : '{:s}'.format(str(uuid.uuid4())),
+        'id' : '{:s}'.format(stream_key.as_dashed_refdes()),
+        'naming_authority' : '{:s}'.format(app.config['NETCDF_NAMING_AUTHORITY']),
+        'creator_name' : '{:s}'.format(app.config['NETCDF_CREATOR_NAME']),
+        'creator_url' : '{:s}'.format(app.config['NETCDF_CREATOR_URL']),
+        'creator_email' : '{:s}'.format(app.config['NETCDF_CREATOR_EMAIL']),
+        'project' : '{:s}'.format(app.config['NETCDF_PROJECT']),
+        'processing_level' : '{:s}'.format(app.config['NETCDF_PROCESSING_LEVEL']),
+        'keywords_vocabulary' : '{:s}'.format(app.config['NETCDF_KEYWORDS_VOCABULARY']),
+        'keywords' : '{:s}'.format(app.config['NETCDF_KEYWORDS']),
+        'acknowledgement' : '{:s}'.format(app.config['NETCDF_ACKNOWLEDGEMENT']),
+        'contributor_name' : '{:s}'.format(app.config['NETCDF_CONTRIBUTOR_NAME']),
+        'contributor_role' : '{:s}'.format(app.config['NETCDF_CONTRIBUTOR_ROLE']),
+        'date_created' : '{:s}'.format(datetime.datetime.utcnow().isoformat()),
+        'date_modified' : '{:s}'.format(datetime.datetime.utcnow().isoformat()),
+        'publisher_name' : '{:s}'.format(app.config['NETCDF_PUBLISHER_NAME']),
+        'publisher_url' : '{:s}'.format(app.config['NETCDF_PUBLISHER_URL']),
+        'publisher_email' : '{:s}'.format(app.config['NETCDF_PUBLISHER_EMAIL']),
+        'license' : '{:s}'.format(app.config['NETCDF_LICENSE']),
     }
 
     init_data = {}
@@ -178,11 +206,83 @@ def _group_by_stream_key(ds, pd_data, stream_key):
         ds.update({param_name: xray.DataArray(data, dims=dims, coords=coords, attrs=array_attrs)})
 
 
+
+def _add_dynamic_attributes(ds, stream_key, location_information, deployment):
+    time_data = ds['time']
+    # Do a final update to insert the time_coverages, and geospatial lat and lons
+    ds.attrs['time_coverage_start'] = ntp_to_ISO_date(time_data.values[0])
+    ds.attrs['time_coverage_end'] = ntp_to_ISO_date(time_data.values[-1])
+    # Take an estimate of the number of seconds between values in the data range.
+    if len(time_data.values > 0):
+        total_time = time_data.values[-1]  - time_data.values[0]
+        hz = total_time / float(len(time_data.values))
+        ds.attrs['time_coverage_resolution'] = 'P{:.2f}S'.format(hz)
+    else:
+        ds.attrs['time_coverage_resolution'] = 'P0S'
+
+    location_vals = {}
+    for loc in location_information.get(stream_key.as_three_part_refdes(), []):
+        if loc['deployment'] == deployment:
+            location_vals = loc
+            break
+    if 'location_name' in location_vals:
+        ds.attrs['location_name'] = str(location_vals['location_name'])
+    if 'lat' not in ds.variables:
+        lat = location_vals.get('lat')
+        if lat is not None:
+            v = xray.DataArray(lat, name='lat', attrs={'standard_name' : 'latitude', 'long_name' : 'latitude', 'units' : 'degrees_north'})
+            ds.update({'lat' : v})
+            ds.attrs['geospatial_lat_min']  = lat
+            ds.attrs['geospatial_lat_max']  = lat
+        else:
+            v = xray.DataArray(-99999.9, name='lat', attrs={'standard_name' : 'latitude', 'long_name' : 'latitude', 'units' : 'degrees_north'})
+            ds.update({'lat' : v})
+            ds.attrs['geospatial_lat_min']  = -90.0
+            ds.attrs['geospatial_lat_max']  = 90.0
+    else:
+        ds.attrs['geospatial_lat_min']  = min(ds.variables['lat'].values)
+        ds.attrs['geospatial_lat_max']  = max(ds.variables['lat'].values)
+
+    if 'lon' not in ds.variables:
+        lon = location_vals.get('lon')
+        if lon is not None:
+            v = xray.DataArray(lon, name='lon', attrs={'standard_name' : 'longitude', 'long_name' : 'longitude', 'units' : 'degrees_east'})
+            ds.update({'lon' : v})
+            ds.attrs['geospatial_lon_min']  = lon
+            ds.attrs['geospatial_lon_max']  = lon
+        else:
+            v = xray.DataArray(-99999.9, name='lat', attrs={'standard_name' : 'longitude', 'long_name' : 'longitude', 'units' : 'degrees_east'})
+            ds.update({'lat' : v})
+            ds.attrs['geospatial_lon_min']  = -180.0
+            ds.attrs['geospatial_lon_max']  = 180.0
+    else:
+        ds.attrs['geospatial_lat_min']  = min(ds.variables['lat'].values)
+        ds.attrs['geospatial_lat_max']  = max(ds.variables['lat'].values)
+    ds.attrs['geospatial_lat_units']  = 'degrees_north'
+    ds.attrs['geospatial_lat_resolution']  = app.config["GEOSPATIAL_LAT_LON_RES"]
+    ds.attrs['geospatial_lon_units']  = 'degrees_east'
+    ds.attrs['geospatial_lon_resolution']  = app.config["GEOSPATIAL_LAT_LON_RES"]
+
+    depth = location_vals.get('depth', 0.0)
+    depth_units = str(location_vals.get('depth_units', app.config["Z_DEFAULT_UNITS"]))
+    if depth is not None:
+        v = xray.DataArray(depth, name=app.config["Z_AXIS_NAME"],
+                           attrs={'standard_name': app.config["Z_STANDARD_NAME"], 'long_name': app.config["Z_LONG_NAME"], 'units': depth_units,
+                                  'positive': app.config['Z_POSITIVE'], 'axis' : 'Z'})
+        ds.update({app.config["Z_AXIS_NAME"] : v})
+        ds.attrs['geospatial_vertical_min']  = depth
+        ds.attrs['geospatial_vertical_max']  = depth
+    ds.attrs['geospatial_vertical_units']  = depth_units
+    ds.attrs['geospatial_vertical_resolution']  = app.config['Z_RESOLUTION']
+    ds.attrs['geospatial_vertical_positive']  = app.config['Z_POSITIVE']
+
+
 class StreamData(object):
 
     def __init__(self, stream_request, data, provenance_metadata, annotation_store):
         self.stream_keys = stream_request.stream_keys
         self.data = data
+        self.location_information = stream_request.location_information
         if stream_request.include_annotations:
             self.annotation_store = annotation_store
         else:
@@ -223,8 +323,9 @@ class StreamData(object):
             for d in deployments:
                 if self.check_stream_deployment(sk, d):
                     pd_data = self.data[d]
-                    ds = _open_new_ds(sk, self.provenance_metadata, self.annotation_store)
+                    ds = _open_new_ds(sk, d, self.provenance_metadata, self.annotation_store)
                     _group_by_stream_key(ds, pd_data, sk)
+                    _add_dynamic_attributes(ds, sk, self.location_information, d)
                     times = self.deployment_times.get(d, None)
                     if times is not None:
                         ds = xinterp.interp1d_Dataset(ds, time=times)

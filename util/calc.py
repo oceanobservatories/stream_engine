@@ -48,7 +48,7 @@ netcdf3._nc3_dtype_coercions = {'int64': 'int32', 'bool': 'int8'}
 
 @log_timing
 def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None, custom_times=None, custom_type=None,
-                  include_provenance=False, include_annotations=False, strict_range=False, request_uuid=''):
+                  include_provenance=False, include_annotations=False, strict_range=False, location_information={}, request_uuid=''):
     """
     Returns a list of particles from the given streams, limits and times
     """
@@ -105,7 +105,7 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range,
                                    qc_parameters=qc_stream_parameters, limit=limit,
                                    include_provenance=include_provenance,include_annotations=include_annotations,
-                                   strict_range=strict_range)
+                                   strict_range=strict_range, location_information=location_information)
 
     # Create the medata store
     provenance_metadata.add_query_metadata(stream_request, request_uuid, 'JSON')
@@ -198,7 +198,8 @@ def do_qc_stuff(primary_key, stream_data, parameters, qc_stream_parameters):
 
 @log_timing
 def get_netcdf(streams, start, stop, coefficients, limit=None, custom_type=None,
-               include_provenance=False, include_annotations=False, strict_range=False, request_uuid='', disk_path=None):
+               include_provenance=False, include_annotations=False, strict_range=False, location_information={},
+               request_uuid='', disk_path=None):
     """
     Returns a netcdf from the given streams, limits and times
     """
@@ -214,7 +215,7 @@ def get_netcdf(streams, start, stop, coefficients, limit=None, custom_type=None,
     annotation_store = AnnotationStore()
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit,
                                    include_provenance=include_provenance,include_annotations=include_annotations,
-                                   strict_range=strict_range)
+                                   strict_range=strict_range, location_information=location_information)
     provenance_metadata.add_query_metadata(stream_request, request_uuid, "netCDF")
 
     stream_data = fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
@@ -518,6 +519,7 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
                 except Exception as e:
                     log.error("Unexpected error while running qc functions: {}".format(e.message))
         stream_data[dep_num] = pd_data
+
     sd = StreamData(stream_request, stream_data, provenance_metadata, annotation_store)
     return sd
 
@@ -994,12 +996,14 @@ class StreamRequest(object):
     parameters and their streams
     """
     def __init__(self, stream_keys, parameters, coefficients, time_range, qc_parameters={}, needs_only=False,
-                 limit=None, include_provenance=False, include_annotations=False, strict_range=False):
+                 limit=None, include_provenance=False, include_annotations=False, strict_range=False,
+                 location_information={}):
         self.stream_keys = stream_keys
         self.time_range = time_range
         self.qc_parameters = qc_parameters if qc_parameters is not None else {}
         self.parameters = parameters
         self.coefficients = coefficients
+        self.location_information = location_information
         self.needs_cc = None
         self.needs_params = None
         self.limit = limit

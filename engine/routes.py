@@ -85,7 +85,8 @@ def particles():
     resp = Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
                     input_data.get('qcParameters', {}), limit=limit,
                     custom_type=input_data.get('custom_type'), include_provenance=prov, include_annotations=annotate ,
-                    strict_range=input_data.get('strict_range', False), request_uuid=input_data.get('requestUUID','')),
+                    strict_range=input_data.get('strict_range', False), request_uuid=input_data.get('requestUUID',''),
+                    location_information=input_data.get('locations', {}) ),
                 mimetype='application/json')
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
@@ -143,7 +144,8 @@ def particles_save_to_filesystem():
         json_output = Response(util.calc.get_particles(streams, start, stop, input_data.get('coefficients', {}),
                         input_data.get('qcParameters', {}), limit=limit, custom_times=input_data.get('custom_times'),
                         custom_type=input_data.get('custom_type'), include_provenance=prov, include_annotations=annotate ,
-                        strict_range=input_data.get('strict_range', False), request_uuid=input_data.get('requestUUID',''))
+                        strict_range=input_data.get('strict_range', False), request_uuid=input_data.get('requestUUID',''),
+                        location_information=input_data.get('locations', {}))
                         , mimetype='application/json')
         code = 200
 
@@ -277,7 +279,8 @@ def netcdf():
     resp = Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
                                          limit=limit,
                                          custom_type=input_data.get('custom_type'), include_provenance=prov,
-                                         include_annotations=annotate, request_uuid=input_data.get('requestUUID', '')),
+                                         include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
+                                         location_information=input_data.get('locations', {})),
                     mimetype='application/netcdf')
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
@@ -332,6 +335,7 @@ def netcdf_save_to_filesystem():
                                          limit=limit,
                                          custom_type=input_data.get('custom_type'), include_provenance=prov,
                                          include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
+                                         location_information=input_data.get('locations', {}),
                                          disk_path=input_data.get('directory','unknown'))
     except Exception as e:
         output = { "code" : 500, "message": "Request for particles failed for the following reason: " + e }
