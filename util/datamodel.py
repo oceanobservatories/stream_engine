@@ -45,23 +45,35 @@ def _open_new_ds(stream_key, provenance_metadata=None, annotation_store=None):
         for k,v in prov.iteritems():
             keys.append(k)
             values.append(v['file_name'] + " " + v['parser_name'] + " " + v['parser_version'])
-        init_data['l0_provenance_keys'] = xray.DataArray(np.array(keys), dims=['l0_provenance'],
-                                                         attrs={'long_name' : 'l0 Provenance Keys'} )
-        init_data['l0_provenance_data'] = xray.DataArray(np.array(values), dims=['l0_provenance'],
-                                                         attrs={'long_name' : 'l0 Provenance Entries'})
-        init_data['computed_provenance'] = xray.DataArray([json.dumps(provenance_metadata.calculated_metatdata.get_dict())], dims=['computed_provenance_dim'],
-                                                         attrs={'long_name' : 'Computed Provenance Information'})
-        init_data['query_parameter_provenance'] = xray.DataArray([json.dumps(provenance_metadata.get_query_dict())], dims=['query_parameter_provenance_dim'],
-                                                         attrs={'long_name' : 'Query Parameter Provenance Information'})
-        init_data['provenance_messages'] = xray.DataArray(provenance_metadata.messages, dims=['provenance_messages'],
-                                                        attrs={'long_name' : 'Provenance Messages'})
+
+        if len(keys) > 0:
+            init_data['l0_provenance_keys'] = xray.DataArray(np.array(keys), dims=['l0_provenance'],
+                                                             attrs={'long_name': 'l0 Provenance Keys'})
+        if len(values) > 0:
+            init_data['l0_provenance_data'] = xray.DataArray(np.array(values), dims=['l0_provenance'],
+                                                             attrs={'long_name': 'l0 Provenance Entries'})
+        comp_prov = [json.dumps(provenance_metadata.calculated_metatdata.get_dict())]
+        if len(comp_prov) > 0:
+            init_data['computed_provenance'] = xray.DataArray(comp_prov, dims=['computed_provenance_dim'],
+                                                              attrs={'long_name': 'Computed Provenance Information'})
+
+        query_prov = [json.dumps(provenance_metadata.get_query_dict())]
+        if len(query_prov) > 0:
+            init_data['query_parameter_provenance'] = xray.DataArray(query_prov,
+                                                                     dims=['query_parameter_provenance_dim'],
+                                                                     attrs={
+                                                                     'long_name': 'Query Parameter Provenance Information'})
+        if len(provenance_metadata.messages) > 0:
+            init_data['provenance_messages'] = xray.DataArray(provenance_metadata.messages,
+                                                              dims=['provenance_messages'],
+                                                              attrs={'long_name': 'Provenance Messages'})
 
     if annotation_store is not None:
         annote = annotation_store.get_json_representation()
         annote_data = [json.dumps(x) for x in annote]
-        init_data['annotations'] = xray.DataArray(np.array(annote_data), dims=['dataset_annotations'],
-                                                        attrs={'long_name' : 'Data Annotations'})
-
+        if len(annote_data) > 0:
+            init_data['annotations'] = xray.DataArray(np.array(annote_data), dims=['dataset_annotations'],
+                                                      attrs={'long_name': 'Data Annotations'})
     return xray.Dataset(init_data, attrs=attrs)
 
 
