@@ -94,9 +94,9 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
 
     # Create the medata store
     provenance_metadata.add_query_metadata(stream_request, request_uuid, 'JSON')
-    pd_data = fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
+    stream_data = fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
 
-    json_response = JsonResponse(pd_data,
+    json_response = JsonResponse(stream_data,
                                  qc_stream_parameters,
                                  provenance_metadata if include_provenance else None,
                                  annotation_store if include_annotations else None)
@@ -219,12 +219,17 @@ def get_netcdf(streams, start, stop, coefficients, limit=None, custom_times=None
                                    strict_range=strict_range)
     provenance_metadata.add_query_metadata(stream_request, request_uuid, "netCDF")
 
-    pd_data = fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
-
+    stream_data = fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
+    deployment_times = {}
     if len(streams) > 1 and custom_times is None:
-        custom_times = datamodel.get_time_data(pd_data, stream_keys[0])[0]
-        stream_request.times = custom_times
-    return NetCDF_Generator(pd_data, provenance_metadata, annotation_store).chunks(stream_request, disk_path)
+        for dep in stream_data:
+            custom_times = datamodel.get_time_data(stream_data[dep], stream_keys[0])[0]
+            deployment_times[dep] = custom_times
+    else:
+        # Same custom time for every deployment Possibly none
+        for dep in stream_data:
+            deployment_times[dep] = custom_times
+    return NetCDF_Generator(stream_data, provenance_metadata, annotation_store, deployment_times).chunks(stream_request, disk_path)
 
 
 @log_timing
@@ -570,7 +575,7 @@ def get_dataset(key, time_range, limit, provenance_metadata):
         ds = None
     return ds
 
-def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store):
+def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store):
     """
     Fetches all parameters from the specified streams, calculates the dervived products,
     and returns the parameters in a map
@@ -602,7 +607,7 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
 
     log.info("Fetching data from {} stream(s): {}".format(len(stream_request.stream_keys), [x.as_refdes() for x in stream_request.stream_keys]))
 
-    pd_data = {}
+    stream_data = {}
     first_time = None
     for key_index, key in enumerate(stream_request.stream_keys):
         annotations = []
@@ -632,6 +637,7 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
 
         deployments = ds.groupby('deployment')
         for dep_num, data_set in deployments:
+            pd_data = stream_data.get(dep_num, {})
             for param in parameters:
                 data_slice = data_set[param.name].values
 
@@ -678,32 +684,34 @@ def fetch_pd_data(stream_request, streams, start, stop, coefficients, limit, pro
                 'data': data_set.bin.values,
                 'source': key.as_dashed_refdes()
             }
-
+            stream_data[dep_num] = pd_data
     # exec dpa for stream
 
-    # calculate time param first if it's a derived product
-    time_param = CachedParameter.from_id(primary_key.stream.time_parameter)
-    if time_param.parameter_type == FUNCTION:
-        calculate_derived_product(time_param, stream_request.coefficients, pd_data, primary_key, provenance_metadata, stream_request)
+    for dep_num in stream_data:
+        pd_data = stream_data[dep_num]
+        # calculate time param first if it's a derived product
+        time_param = CachedParameter.from_id(primary_key.stream.time_parameter)
+        if time_param.parameter_type == FUNCTION:
+            calculate_derived_product(time_param, stream_request.coefficients, pd_data, primary_key, provenance_metadata, stream_request)
 
-        if time_param.id not in pd_data or primary_key.as_refdes() not in pd_data[time_param.id]:
-            raise MissingTimeException("Time param is missing from main stream")
+            if time_param.id not in pd_data or primary_key.as_refdes() not in pd_data[time_param.id]:
+                raise MissingTimeException("Time param is missing from main stream")
 
-    for param in primary_key.stream.parameters:
-        if param.id not in pd_data:
-            if param.parameter_type == FUNCTION:
-                # calculate inserts derived products directly into pd_data
-                calculate_derived_product(param, stream_request.coefficients, pd_data, primary_key, provenance_metadata, stream_request)
-            else:
-                log.warning("Required parameter not present: {}".format(param.name))
-        if stream_request.qc_parameters.get(param.name) is not None \
-                and pd_data.get(param.id, {}).get(primary_key.as_refdes(), {}).get('data') is not None:
-            try:
-                _qc_check(stream_request, param, pd_data, primary_key)
-            except Exception as e:
-                log.error("Unexpected error while running qc functions: {}".format(e.message))
-
-    return pd_data
+        for param in primary_key.stream.parameters:
+            if param.id not in pd_data:
+                if param.parameter_type == FUNCTION:
+                    # calculate inserts derived products directly into pd_data
+                    calculate_derived_product(param, stream_request.coefficients, pd_data, primary_key, provenance_metadata, stream_request)
+                else:
+                    log.warning("Required parameter not present: {}".format(param.name))
+            if stream_request.qc_parameters.get(param.name) is not None \
+                    and pd_data.get(param.id, {}).get(primary_key.as_refdes(), {}).get('data') is not None:
+                try:
+                    _qc_check(stream_request, param, pd_data, primary_key)
+                except Exception as e:
+                    log.error("Unexpected error while running qc functions: {}".format(e.message))
+        stream_data[dep_num] = pd_data
+    return stream_data
 
 
 def _qc_check(stream_request, parameter, pd_data, primary_key):
@@ -1461,10 +1469,11 @@ def query_annotations(key, time_range):
 
 class NetCDF_Generator(object):
 
-    def __init__(self, pd_data, provenance_metadata, annotation_store):
-        self.pd_data = pd_data
+    def __init__(self, stream_data, provenance_metadata, annotation_store, deployment_times = {}):
+        self.stream_data = stream_data
         self.provenance_metadata = provenance_metadata
         self.annotation_store = annotation_store
+        self.deployment_times = deployment_times
 
     def chunks(self, r, disk_path=None):
         try:
@@ -1484,14 +1493,16 @@ class NetCDF_Generator(object):
         # ensure the directory structure is there
         if not os.path.isdir(base_path):
             os.makedirs(base_path)
-        for stream_key in r.stream_keys:
-            p = self.provenance_metadata if r.include_provenance else None
-            a = self.annotation_store if r.include_annotations else None
-            ds = datamodel.as_xray(stream_key, self.pd_data, p, a)
-            #write file to path
-            fn = '%s/%s.nc' % (base_path, stream_key.as_dashed_refdes())
-            ds.to_netcdf(fn, format='NETCDF4_CLASSIC')
-            strings.append(fn)
+        for deployment in self.stream_data:
+            for stream_key in r.stream_keys:
+                pd_data = self.stream_data[deployment]
+                p = self.provenance_metadata if r.include_provenance else None
+                a = self.annotation_store if r.include_annotations else None
+                ds = datamodel.as_xray(stream_key, pd_data, p, a)
+                #write file to path
+                fn = '%s/deployment%04d_%s.nc' % (base_path, deployment, stream_key.as_dashed_refdes())
+                ds.to_netcdf(fn, format='NETCDF4_CLASSIC')
+                strings.append(fn)
         # build json return
         return json.dumps(strings)
 
@@ -1503,15 +1514,18 @@ class NetCDF_Generator(object):
             return tzf.read()
 
     def write_to_zipfile(self, r, zf):
-        for stream_key in r.stream_keys:
-            p = self.provenance_metadata if r.include_provenance else None
-            a = self.annotation_store if r.include_annotations else None
-            ds = datamodel.as_xray(stream_key, self.pd_data, p, a)
-            with tempfile.NamedTemporaryFile() as tf:
-                if r.times is not None:
-                    ds = xinterp.interp1d_Dataset(ds, time=r.times)
-                ds.to_netcdf(tf.name, format='NETCDF4_CLASSIC')
-                zf.write(tf.name, '%s.nc' % (stream_key.as_dashed_refdes(),))
+        for deployment in self.stream_data:
+            for stream_key in r.stream_keys:
+                pd_data = self.stream_data[deployment]
+                p = self.provenance_metadata if r.include_provenance else None
+                a = self.annotation_store if r.include_annotations else None
+                ds = datamodel.as_xray(stream_key, pd_data, p, a)
+                with tempfile.NamedTemporaryFile() as tf:
+                    times = self.deployment_times.get(deployment, None)
+                    if times is not None:
+                        ds = xinterp.interp1d_Dataset(ds, time=times)
+                    ds.to_netcdf(tf.name, format='NETCDF4_CLASSIC')
+                    zf.write(tf.name, 'deployment%04d_%s.nc' % (deployment, stream_key.as_dashed_refdes(),))
 
 
 def find_stream(stream_key, streams, distinct_sensors):
