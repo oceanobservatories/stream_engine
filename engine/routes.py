@@ -79,7 +79,7 @@ def particles():
     prov = input_data.get('include_provenance', False)
     annotate = input_data.get('include_annotations', False)
     resp = Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
-                    input_data.get('qcParameters', {}), limit=limit, custom_times=input_data.get('custom_times'),
+                    input_data.get('qcParameters', {}), limit=limit,
                     custom_type=input_data.get('custom_type'), include_provenance=prov, include_annotations=annotate ,
                     strict_range=input_data.get('strict_range', False), request_uuid=input_data.get('requestUUID','')),
                 mimetype='application/json')
@@ -187,7 +187,7 @@ def netcdf():
     prov = input_data.get('include_provenance', False)
     annotate = input_data.get('include_annotations', False)
     resp = Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
-                                         limit=limit, custom_times=input_data.get('custom_times'),
+                                         limit=limit,
                                          custom_type=input_data.get('custom_type'), include_provenance=prov,
                                          include_annotations=annotate, request_uuid=input_data.get('requestUUID', '')),
                     mimetype='application/netcdf')
@@ -241,7 +241,7 @@ def netcdf_save_to_filesystem():
     annotate = input_data.get('include_annotations', False)
     try:
         json = util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
-                                         limit=limit, custom_times=input_data.get('custom_times'),
+                                         limit=limit,
                                          custom_type=input_data.get('custom_type'), include_provenance=prov,
                                          include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
                                          disk_path=input_data.get('directory','unknown'))
