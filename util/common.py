@@ -11,6 +11,7 @@ import numpy
 from scipy.interpolate import griddata
 import parameter_util
 import dateutil.parser
+import requests
 
 FUNCTION = 'function'
 
@@ -130,6 +131,17 @@ def ntp_to_datestring(ntp_time):
         return datetime.datetime.utcfromtimestamp( ntplib.ntp_to_system_time(ntp_time) ).strftime("%Y-%m-%d %H:%M:%S")
     except:
         return str(ntp_time)
+
+def get_key_locations(stream_key):
+    url = "{:s}?subsite={:s}&node={:s}&sensor={:s}".format(app.config["REFDES_LOCSEARCH_ENDPOINT"], stream_key.subsite,
+                                                           stream_key.node, stream_key.sensor)
+    resp = requests.get(url)
+    try:
+        values = resp.json()
+        return values
+    except Exception as e:
+        app.logger.exception('Could not get location!')
+        return []
 
 
 def ISO_to_ntp(ds):
