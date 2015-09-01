@@ -15,6 +15,7 @@ import logging
 import numpy as np
 import traceback
 import xray
+import xray_interpolation as xinterp
 
 
 log = logging.getLogger(__name__)
@@ -182,3 +183,61 @@ def as_xray(stream_key, pd_data, provenance_metadata=None, annotation_store=None
     ds = _open_new_ds(stream_key, provenance_metadata, annotation_store)
     _group_by_stream_key(ds, pd_data, stream_key)
     return ds
+
+class StreamData(object):
+
+    def __init__(self, data,  provenance_metadata, annotation_store):
+        self.data = data
+        self.annotation_store = annotation_store
+        self.provenance_metadata = provenance_metadata
+        self.deployments = sorted(data.keys())
+
+
+    def full_groups(self, stream_request):
+            for stream_key in stream_request.stream_keys:
+                for deployment in self.deployments:
+                    deployment_data = self.data[deployment]
+                    p = self.provenance_metadata if stream_request.include_provenance else None
+                    a = self.annotation_store if stream_request.include_annotations else None
+                    dataset = _open_new_ds(stream_key, p, a)
+                    _group_by_stream_key(dataset, deployment_data, stream_key)
+                    times = stream_request.deployment_times.get(deployment, None)
+                    if times is not None:
+                        ds = xinterp.interp1d_Dataset(ds, time=times)
+                    yield deployment, stream_key, dataset
+
+
+    def deployment_groups(self, stream_key, stream_request):
+        for deployment in self.deployments:
+            deployment_data    = self.data[deployment]
+            p = self.provenance_metadata if stream_request.include_provenance else None
+            a = self.annotation_store if stream_request.include_annotations else None
+            dataset = _open_new_ds(stream_key, p, a)
+            _group_by_stream_key(dataset, deployment_data, stream_key)
+            yield deployment, dataset
+
+
+    def stream_groups(self, stream_request, deployment):
+        if deployment in self.data:
+            deployment_data = self.data[deployment]
+            for stream_key in stream_request.stream_keys:
+                p = self.provenance_metadata if stream_request.include_provenance else None
+                a = self.annotation_store if stream_request.include_annotations else None
+                dataset = _open_new_ds(stream_key, p, a)
+                _group_by_stream_key(dataset, deployment_data, stream_key)
+                times = stream_request.deployment_times.get(deployment, None)
+                if times is not None:
+                    ds = xinterp.interp1d_Dataset(ds, time=times)
+                yield stream_key, ds
+
+
+    def get_stream_deployment_dataset(self, stream_key, stream_request, deployment):
+        if deployment not in self.data:
+            return None
+        deployment_data = self.data[deployment]
+        p = self.provenance_metadata if stream_request.include_provenance else None
+        a = self.annotation_store if stream_request.include_annotations else None
+        dataset = _open_new_ds(stream_key, p, a)
+        _group_by_stream_key(dataset, deployment_data, stream_key)
+        return dataset
+
