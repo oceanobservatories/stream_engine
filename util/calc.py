@@ -76,9 +76,21 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
             current_parameter_name = current_parameter_name.encode('ascii', 'ignore')
             qc_parameter_value = qc_parameter['value'].encode('ascii', 'ignore')
             if qc_parameter['valueType'].encode('ascii', 'ignore') == 'INT':
-                parameter_dict[current_parameter_name] = int(qc_parameter_value)
+                try:
+                    parameter_dict[current_parameter_name] = int(qc_parameter_value)
+                except ValueError:
+                    log.error(
+                        "For parameter '%s' in qc function '%s' being run against '%s', the value '%s' is not an integer number.",
+                        current_parameter_name, current_qc_id, current_stream_parameter, qc_parameter_value)
+                    parameter_dict[current_parameter_name] = float('nan')
             elif qc_parameter['valueType'].encode('ascii', 'ignore') == 'FLOAT':
-                parameter_dict[current_parameter_name] = float(qc_parameter_value)
+                try:
+                    parameter_dict[current_parameter_name] = float(qc_parameter_value)
+                except ValueError:
+                    log.error(
+                        "For parameter '%s' in qc function '%s' being run against '%s', the value '%s' is not a number.",
+                        current_parameter_name, current_qc_id, current_stream_parameter, qc_parameter_value)
+                    parameter_dict[current_parameter_name] = float('nan')
             elif qc_parameter['valueType'].encode('ascii', 'ignore') == 'LIST':
                 parameter_dict[current_parameter_name] = [float(x) for x in qc_parameter_value[1:-1].split()]
             else:
