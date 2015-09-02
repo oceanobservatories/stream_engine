@@ -34,3 +34,5 @@ ASYNC_DOWNLOAD_BASE_DIR='/opt/ooi/async'
 
 PREFERRED_DATA_LOCATION = 'san' # 'san' or 'cass': If data is present in a time bin on both the SAN and Cassandra this option chooses
                                 # which value to take if the number of entries match.  Otherwise the location with the most data is chosen.
+
+QC_RESULTS_STORAGE_SYSTEM = 'cass' # 'log' to write qc results to a file, 'cass' to write qc results to a database
