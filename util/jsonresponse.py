@@ -36,6 +36,7 @@ class JsonResponse(object):
             raise MissingTimeException("Time param: {} is missing from the primary stream".format(time_param))
 
         virtual_id_sub = None
+        qc_batch = list()
         for index in range(len(pd_data[time_param][primary_key.as_refdes()]['data'])):
             particle = OrderedDict()
             particle_id = None
@@ -109,14 +110,17 @@ class JsonResponse(object):
 
                         if particle_id is not None and particle_bin is not None:
                             if not primary_key.stream.is_virtual:
-                                store_qc_results(qc_results_value, particle.get('pk'), particle_id, particle_bin, param.name)
+                                qc_batch.append((qc_results_value, particle.get('pk'), particle_id, particle_bin, param.name))
                             else:
                                 if virtual_id_sub is not None:
                                     sub_pk = primary_key.as_dict()
                                     sub_pk['deployment'] = pd_data['deployment'][virtual_id_sub]['data'][index]
-                                    store_qc_results(qc_results_value, sub_pk, particle_id, particle_bin, param.name)
+                                    qc_batch.append((qc_results_value, sub_pk, particle_id, particle_bin, param.name))
 
             particles.append(particle)
+
+        if len(qc_batch) > 0:
+                store_qc_results(qc_batch)
 
         if provenance_metadata is not None or annotation_store is not None:
             out = OrderedDict()

@@ -1,6 +1,7 @@
 import uuid
 import numpy
 import engine
+import time
 import hashlib
 
 from collections import deque
@@ -12,7 +13,7 @@ from multiprocessing import BoundedSemaphore
 from threading import Lock, Thread
 
 from cassandra.cluster import Cluster, QueryExhausted, ResponseFuture, PagedResult, _NOT_SET
-from cassandra.query import _clean_column_name, tuple_factory, SimpleStatement
+from cassandra.query import _clean_column_name, tuple_factory, SimpleStatement, BatchStatement
 from cassandra.concurrent import execute_concurrent_with_args, execute_concurrent
 from cassandra import ConsistencyLevel
 
@@ -881,14 +882,34 @@ def fetch_annotations(stream_key, time_range, session=None, prepared=None, query
 
 @cassandra_session
 @log_timing
-def store_qc_results(qc_results, particle_pk, particle_id, particle_bin, parameter, session=None, strict_range=False, prepared=None, query_consistency=None):
-    query_string = "insert into ooi.qc_results " \
-                   "(subsite, node, sensor, bin, deployment, stream, id, parameter, results) " \
-                   "values ('{}', '{}', '{}', {}, {}, '{}', {}, '{}', '{}')".format(
-        particle_pk.get('subsite'), particle_pk.get('node'), particle_pk.get('sensor'),
-        particle_bin, particle_pk.get('deployment'), particle_pk.get('stream'),
-        particle_id, parameter, qc_results)
-    query = session.execute(query_string)
+def store_qc_results(qc_batch, session=None, strict_range=False, prepared=None, query_consistency=None):
+    start_time = time.clock()
+    if engine.app.config['QC_RESULTS_STORAGE_SYSTEM'] == 'cass':
+        log.info('Storing QC results in Cassandra.')
+        insert_results = session.prepare("insert into ooi.qc_results " \
+                       "(subsite, node, sensor, bin, deployment, stream, id, parameter, results) " \
+                       "values (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+
+        batch = BatchStatement(consistency_level=ConsistencyLevel.name_to_value.get(engine.app.config['CASSANDRA_QUERY_CONSISTENCY']))
+        for (qc_results, particle_pk, particle_id, particle_bin, parameter) in qc_batch:
+            batch.add(insert_results, (particle_pk.get('subsite'), particle_pk.get('node'), particle_pk.get('sensor'),
+                                       particle_bin, particle_pk.get('deployment'), particle_pk.get('stream'),
+                                       uuid.UUID(particle_id), parameter, str(qc_results)))
+        session.execute_async(batch)
+        log.info("QC results stored in {} seconds.".format(time.clock() - start_time))
+    elif engine.app.config['QC_RESULTS_STORAGE_SYSTEM'] == 'log':
+        log.info('Writing QC results to log file.')
+        qc_log = logging.getLogger('qc.results')
+        qc_log_string = ""
+        for (qc_results, particle_pk, particle_id, particle_bin, parameter) in qc_batch:
+            qc_log_string += "refdes:{0}-{1}-{2}, bin:{3}, stream:{4}, deployment:{5}, id:{6}, parameter:{7}, qc results:{8}\n"\
+                .format(particle_pk.get('subsite'), particle_pk.get('node'), particle_pk.get('sensor'), particle_bin,
+                        particle_pk.get('stream'), particle_pk.get('deployment'), particle_id, parameter, qc_results)
+        qc_log.info(qc_log_string[:-1])
+        log.info("QC results stored in {} seconds.".format(time.clock() - start_time))
+    else:
+        log.info("Configured storage system '{}' not recognized, qc results not stored.".format(engine.app.config['QC_RESULTS_STORAGE_SYSTEM']))
+
 
 @cassandra_session
 def stream_exists(subsite, node, sensor, method, stream, session=None, prepared=None, query_consistency=None):
