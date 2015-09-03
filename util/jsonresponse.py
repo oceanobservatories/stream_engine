@@ -58,7 +58,7 @@ class JsonResponse(object):
                             if len(pd_data['id'][key]['data']) == len(pd_data[time_param][primary_key.as_refdes()]['data']):
                                 virtual_id_sub = key
                                 break
-                    particle_id = pd_data['id'][virtual_id_sub]['data'][index]
+                    particle_id = pd_data['id'].get(virtual_id_sub, {}).get('data', {}).get(index)
 
                 if 'bin' in pd_data:
                     if virtual_id_sub is None:
@@ -66,7 +66,7 @@ class JsonResponse(object):
                             if len(pd_data['bin'][key]['data']) == len(pd_data[time_param][primary_key.as_refdes()]['data']):
                                 virtual_id_sub = key
                                 break
-                    particle_bin = pd_data['bin'][virtual_id_sub]['data'][index]
+                    particle_bin = pd_data['bin'].get(virtual_id_sub, {}).get('data', {}).get(index)
 
             for param in parameters:
                 if param.id in pd_data:
