@@ -4,7 +4,7 @@ import engine
 import time
 import hashlib
 
-from collections import deque
+from collections import deque, namedtuple
 import logging
 
 from functools import wraps
@@ -23,6 +23,9 @@ from util.common import log_timing, TimeRange, FUNCTION, to_xray_dataset
 
 log = logging.getLogger(__name__)
 
+l0_stream_columns = ['time', 'id', 'driver_class', 'driver_host', 'driver_module', 'driver_version', 'event_json']
+ProvTuple = namedtuple('provenance_tuple', ['subsite', 'sensor', 'node', 'method', 'deployment', 'id', 'file_name', 'parser_name', 'parser_version'])
+StreamProvTuple = namedtuple('stream_provenance_tuple', l0_stream_columns)
 
 # cassandra database handle
 global_cassandra_state = {}
@@ -32,6 +35,9 @@ execution_pool = None
 STREAM_EXISTS_PS = 'stream_exists'
 METADATA_FOR_REFDES_PS = 'metadata_for_refdes'
 DISTINCT_PS = 'distinct'
+L0_PROV_POS = 'l0_provenance'
+L0_STREAM_ONE_POS = 'l0_stream_1'
+L0_STREAM_RANGE_POS = 'l0_stream_range'
 
 SAN_LOCATION_NAME = 'san'
 CASS_LOCATION_NAME = 'cass'
@@ -53,6 +59,12 @@ DISTINCT_RAW = \
 SELECT DISTINCT subsite, node, sensor FROM stream_metadata
 '''
 
+L0_RAW = \
+"""select * from dataset_l0_provenance where subsite=? and node=? and sensor=? and method=? and deployment=? and id=?"""
+
+L0_STREAM_ONE_RAW = """SELECT {:s} FROM streaming_l0_provenance WHERE refdes = ? AND method = ? and time <= ? ORDER BY time DESC LIMIT 1""""".format(', '.join(l0_stream_columns))
+
+L0_STREAM_RANGE_RAW  = """SELECT {:s} FROM streaming_l0_provenance WHERE refdes = ? AND method = ? and time >= ? and time <= ?""".format(', '.join(l0_stream_columns))
 
 def get_session():
     """
@@ -93,6 +105,12 @@ def get_session():
             prep[METADATA_FOR_REFDES_PS].consistency_level = query_consistency
             prep[DISTINCT_PS] = session.prepare(DISTINCT_RAW)
             prep[DISTINCT_PS].consistency_level = query_consistency
+            prep[L0_PROV_POS] = session.prepare(L0_RAW)
+            prep[L0_PROV_POS].consistency_level = query_consistency
+            prep[L0_STREAM_ONE_POS] = session.prepare(L0_STREAM_ONE_RAW)
+            prep[L0_STREAM_ONE_POS].consistency_level = query_consistency
+            prep[L0_STREAM_RANGE_POS] = session.prepare(L0_STREAM_RANGE_RAW)
+            prep[L0_STREAM_RANGE_POS].consistency_level = query_consistency
 
     return global_cassandra_state['session'], global_cassandra_state['prepared_statements'], global_cassandra_state['query_consistency']
 
@@ -514,19 +532,57 @@ def fetch_concurrent(stream_key, cols, times, concurrency=50, session=None, prep
     return results
 
 @cassandra_session
-def fetch_l0_provenance(subsite, node, sensor, method, deployment, prov_uuid,  session=None, prepared=None,
+def fetch_l0_provenance(stream_key, provenance_values, deployment, session=None, prepared=None,
                         query_consistency=None):
     """
     Fetch the l0_provenance entry for the passed information.
     All of the neccessary infromation should be stored as a tuple in the
     provenance metadata store.
     """
-    base = "select * from dataset_l0_provenance where subsite='%s' and node='%s' and sensor='%s' and method='%s' and deployment=%s and id=%s" % \
-           (subsite, node, sensor, method, deployment, prov_uuid)
-    statement = SimpleStatement(base, consistency_level=query_consistency)
-    rows = session.execute(statement)
-    return rows
+    prov_ids = numpy.unique(provenance_values)
+    prov_ids = filter(lambda val: val[5] != 'None' and val[5] is not None, prov_ids)
+    provenance_arguments = [(stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method, deployment, uuid.UUID(prov_id)) for prov_id in prov_ids]
+    query = prepared[L0_PROV_POS]
+    ret_val = []
+    rows = execute_concurrent_with_args(session, query, provenance_arguments)
+    for results in rows:
+        ret_val.extend([ProvTuple(*res) for res in results[1]] )
+    if len(provenance_arguments) != len(ret_val):
+        log.warn("Cound not find %d provenance entries", len(provenance_arguments) - len(ret_val))
+    prov_dict = {}
+    for i in ret_val:
+        prov_dict[str(i.id)] = {'file_name' : i.file_name, 'parser_name' : i.parser_name, 'parser_version' : i.parser_version}
+    return prov_dict
 
+@cassandra_session
+def get_streaming_provenance(stream_key, times, session=None, prepared=None, query_consistency=None):
+    # Get the first entry before the current
+    q1 = prepared[L0_STREAM_ONE_POS]
+    q2 = prepared[L0_STREAM_RANGE_POS]
+    args = ['{:s}-{:s}-{:s}'.format(stream_key.subsite, stream_key.node,stream_key.sensor), stream_key.method, times[0]]
+    res = session.execute(q1, args)
+    # get the provenance results within the time range
+    args.append(times[-1])
+    res.extend(session.execute(q2,args))
+
+    prov_results = []
+    processed = set()
+    prov_dict = {}
+    # create tuples for all of the objects and instert time values into the provenance
+    for r in res:
+        r = StreamProvTuple(*r)
+        if r.id not in processed:
+            prov_results.append(r)
+            prov_dict[str(r.id)] = {name : getattr(r,name ) for name in l0_stream_columns}
+            # change the UUID to a string to prevent error on output
+            prov_dict[str(r.id)]['id'] = str(r.id)
+            processed.add(r.id)
+    prov = numpy.array(['None'] * len(times), dtype=object)
+    for sp, ep in zip(prov_results[:-1], prov_results[1:]):
+        prov[numpy.logical_and(times >= sp.time, times  <= ep.time)] = str(sp.id)
+    last_prov = prov_results[-1]
+    prov[times >= last_prov.time] = str(last_prov.id)
+    return prov, prov_dict
 
 @log_timing
 def fetch_nth_data(stream_key, time_range, num_points=1000, location_metadata=None):

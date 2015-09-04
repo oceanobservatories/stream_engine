@@ -53,6 +53,13 @@ def _open_new_ds(stream_key, provenance_metadata=None, annotation_store=None):
         if len(values) > 0:
             init_data['l0_provenance_data'] = xray.DataArray(np.array(values), dims=['l0_provenance'],
                                                              attrs={'long_name': 'l0 Provenance Entries'})
+
+        streaming = provenance_metadata.get_streaming_provenance()
+        if len(streaming) > 0:
+            init_data['streaming_provenance'] = xray.DataArray([json.dumps(streaming)],
+                                                               dims=['streaming_provenance_dim'],
+                                                               attrs={'long_name': 'Streaming Provenance Information'})
+
         comp_prov = [json.dumps(provenance_metadata.calculated_metatdata.get_dict())]
         if len(comp_prov) > 0:
             init_data['computed_provenance'] = xray.DataArray(comp_prov, dims=['computed_provenance_dim'],
