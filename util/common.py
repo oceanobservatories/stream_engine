@@ -247,6 +247,9 @@ class StreamKey(object):
     def as_dashed_refdes(self):
         return self.as_refdes().replace('|', '-')
 
+    def as_three_part_refdes(self):
+        return "{:s}-{:s}-{:s}".format(self.subsite, self.node, self.sensor)
+
     def __repr__(self):
         return repr(self.as_dict())
 
