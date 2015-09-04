@@ -68,6 +68,7 @@ class JsonResponse(object):
             out = OrderedDict()
             if stream_data.provenance_metadata is not None:
                 out['provenance'] = stream_data.provenance_metadata.get_provenance_dict()
+                out['streaming_provenance'] = stream_data.provenance_metadata.get_streaming_provenance()
                 out['computed_provenance'] = stream_data.provenance_metadata.calculated_metatdata.get_dict()
                 out['query_parameter_provenance'] = stream_data.provenance_metadata.get_query_dict()
                 out['provenance_messages'] = stream_data.provenance_metadata.messages

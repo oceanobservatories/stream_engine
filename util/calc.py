@@ -15,7 +15,7 @@ import requests
 
 from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, fetch_all_data, fetch_annotations, \
     get_available_time_range, fetch_l0_provenance, time_to_bin, bin_to_time, get_location_metadata, \
-    get_san_location_metadata, get_full_cass_dataset, insert_dataset, store_qc_results
+    get_san_location_metadata, get_full_cass_dataset, insert_dataset, store_qc_results, get_streaming_provenance
 from util.common import log_timing, ntp_to_datestring,ntp_to_ISO_date, StreamKey, TimeRange, CachedParameter, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, Annotation, \
@@ -736,18 +736,25 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
                     'source': key.as_dashed_refdes()
                 }
 
-            if stream_request.include_provenance:
-                for prov_uuid, deployment in zip(data_set.provenance.values.astype(str), data_set.deployment.values):
-                    value = (primary_key.subsite, primary_key.node, primary_key.sensor, primary_key.method, deployment, prov_uuid)
-                    provenance_metadata.add_metadata(value)
-
-            # Add non-param data to particle
             if 'provenance' not in pd_data:
                 pd_data['provenance'] = {}
-            pd_data['provenance'][key.as_refdes()] = {
-                'data': data_set.provenance.values.astype('str'),
-                'source': key.as_dashed_refdes()
-            }
+            # Add additonal delivery methods here to generate provenance for cabled streams.
+            if key.method not in ['streamed',] or not stream_request.include_provenance:
+                # Add non-param data to particle
+                pd_data['provenance'][key.as_refdes()] = {
+                    'data': data_set.provenance.values.astype('str'),
+                    'source': key.as_dashed_refdes()
+                }
+                if stream_request.include_provenance:
+                    provenance_metadata.update_provenance(fetch_l0_provenance(key, data_set.provenance.values.astype('str'), dep_num))
+            else:
+                # Get the ids for times and get the provenance information
+                prov_ids, prov_dict = get_streaming_provenance(key, data_set['time'].values)
+                provenance_metadata.update_streaming_provenance(prov_dict)
+                pd_data['provenance'][key.as_refdes()] = {
+                    'data' : prov_ids,
+                    'source' : key.as_dashed_refdes()
+                }
 
             if 'deployment' not in pd_data:
                 pd_data['deployment'] = {}
@@ -1401,6 +1408,8 @@ class ProvenanceMetadataStore(object):
         self._prov_set = set()
         self.calculated_metatdata = CalculatedProvenanceMetadataStore()
         self.messages = []
+        self._prov_dict = {}
+        self._streaming_provenance = {}
 
     def add_messages(self, messages):
         self.messages.extend(messages)
@@ -1408,24 +1417,19 @@ class ProvenanceMetadataStore(object):
     def add_metadata(self, value):
         self._prov_set.add(value)
 
-    def _get_metadata(self):
-        return list(self._prov_set)
+    def update_provenance(self, provenance):
+        for i in provenance:
+            self._prov_dict[i] = provenance[i]
+
+    def update_streaming_provenance(self, stream_prov):
+        for i in stream_prov:
+            self._streaming_provenance[i] = stream_prov[i]
+
+    def get_streaming_provenance(self):
+        return self._streaming_provenance
 
     def get_provenance_dict(self):
-        prov = {}
-        for i in self._get_metadata():
-            prov_data = fetch_l0_provenance(*i)
-            if prov_data:
-                fname = prov_data[0][-3]
-                pname = prov_data[0][-2]
-                pversion = prov_data[0][-1]
-                prov[i[-1]] = {}
-                prov[i[-1]]['file_name'] = fname
-                prov[i[-1]]['parser_name'] = pname
-                prov[i[-1]]['parser_version'] = pversion
-            else:
-                log.info("Received empty provenance row")
-        return prov
+        return self._prov_dict
 
 
     def add_query_metadata(self, stream_request, query_uuid, query_type):
