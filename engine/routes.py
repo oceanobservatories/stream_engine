@@ -248,7 +248,7 @@ def netcdf_save_to_filesystem():
                                          disk_path=input_data.get('directory','unknown'))
     except Exception as e:
         json = '{ "status": "Request for netcdf failed for the following reason: %s" }\n' % (e.message)
-        log.error(json)
+        log.exception(json)
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return Response(json, mimetype='application/json')
