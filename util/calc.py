@@ -47,7 +47,7 @@ netcdf3._nc3_dtype_coercions = {'int64': 'int32', 'bool': 'int8'}
 
 
 @log_timing
-def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None, custom_type=None,
+def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None, custom_times=None, custom_type=None,
                   include_provenance=False, include_annotations=False, strict_range=False, request_uuid=''):
     """
     Returns a list of particles from the given streams, limits and times
@@ -1294,18 +1294,17 @@ class NetCDF_Generator(object):
             raise
 
     def create_raw_files(self, path):
-        strings = list()
+        file_paths = list()
         base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],path)
         # ensure the directory structure is there
         if not os.path.isdir(base_path):
             os.makedirs(base_path)
         for stream_key, deployment, ds in self.stream_data.groups():
-                fn = '%s/deployment%04d_%s.nc' % (base_path, deployment, stream_key.as_dashed_refdes())
-                ds.to_netcdf(fn, format='NETCDF4_CLASSIC')
-                strings.append(fn)
+                file_path = '%s/deployment%04d_%s.nc' % (base_path, deployment, stream_key.as_dashed_refdes())
+                ds.to_netcdf(file_path, format='NETCDF4_CLASSIC')
+                file_paths.append(file_path)
         # build json return
-        return json.dumps(strings)
-
+        return json.dumps({'code' : 200, 'message' : file_paths }, indent=2, separators=(',',': '))
 
     def create_zip(self):
         with tempfile.NamedTemporaryFile() as tzf:
