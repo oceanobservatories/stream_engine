@@ -44,8 +44,8 @@ netcdf3._nc3_dtype_coercions = {'int64': 'int32', 'bool': 'int8'}
 
 
 @log_timing
-def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None, custom_type=None,
-                  include_provenance=False, include_annotations=False, strict_range=False, request_uuid=''):
+def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None, custom_times=None, custom_type=None,
+                  include_provenance=False, include_annotations=False, strict_range=False, request_uuid='', disk_path=None):
     """
     Returns a list of particles from the given streams, limits and times
     """
@@ -119,8 +119,18 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
     for sk in stream_to_params:
         stream_to_params[sk] = [p for p in stream_request.parameters if sk.stream.id in p.streams]
 
-    return JsonResponse(stream_data).json(stream_to_params)
-
+    json_response = JsonResponse(stream_data).json(stream_to_params)
+    if disk_path:
+        strings = list()
+        base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],disk_path)
+        os.makedirs(base_path)
+        fn = "%s/%s.json" % (base_path, stream_keys[0].as_dashed_refdes())
+        strings.append(fn)
+        with open(fn, 'w') as f:
+            f.write(json_response)
+        return '{"code":200,"message":%s}' % (json.dumps(strings))
+    else:
+        return json_response
 
 def do_qc_stuff(primary_key, stream_data, parameters, qc_stream_parameters):
     time_param = primary_key.stream.time_parameter
@@ -1585,7 +1595,7 @@ class NetCDF_Generator(object):
                 ds.to_netcdf(fn, format='NETCDF4_CLASSIC')
                 strings.append(fn)
         # build json return
-        return json.dumps(strings)
+        return '{"code":200,"message":%s}' % (json.dumps(strings))
 
 
     def create_zip(self):

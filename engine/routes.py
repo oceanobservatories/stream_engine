@@ -1,6 +1,7 @@
 import json
 import time
 import logging
+import os
 
 import ntplib
 from flask import request, Response, jsonify
@@ -86,6 +87,66 @@ def particles():
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return resp
+
+@app.route('/particles-fs', methods=['POST'])
+def particles_save_to_filesystem():
+    """
+    POST should contain a dictionary of the following format:
+    {
+        'streams': [
+            {
+                'subsite': subsite,
+                'node': node,
+                'sensor': sensor,
+                'method': method,
+                'stream': stream,
+                'parameters': [...],
+            },
+            ...
+        ],
+        'coefficients': {
+            'CC_a0': [
+                { 'start': ntptime, 'stop': ntptime, 'value': 1.0 },
+                ...
+            ],
+            ...
+        },
+        'start': ntptime,
+        'stop': ntptime
+    }
+
+    :return: JSON object:
+    """
+    input_data = request.get_json()
+    validate(input_data)
+
+    request_start_time = time.time()
+    log.info("Handling request to {} - {}".format(request.url, input_data.get('streams', "")))
+
+    start = input_data.get('start', app.config["UNBOUND_QUERY_START"])
+    stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
+    limit = input_data.get('limit', 0)
+    if limit <= 0:
+        limit = None
+
+    prov = input_data.get('include_provenance', False)
+    annotate = input_data.get('include_annotations', False)
+    try:
+        json = Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
+                        input_data.get('qcParameters', {}), limit=limit, custom_times=input_data.get('custom_times'),
+                        custom_type=input_data.get('custom_type'), include_provenance=prov, include_annotations=annotate ,
+                        strict_range=input_data.get('strict_range', False), request_uuid=input_data.get('requestUUID',''),
+                         disk_path=input_data.get('directory','unknown')), mimetype='application/json')
+    except Exception as e:
+        json = '{ "code" : 500, "message": "Request for particles failed for the following reason: %s" }\n' % (e.message)
+        log.error(json)
+        base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],input_data.get('directory','unknown'))
+        os.makedirs(base_path)
+        with open('%s/failure.json' % (base_path), 'w') as f:
+            f.write(json)
+
+    log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
+    return json
 
 @app.route('/san_offload', methods=['POST'])
 def full_netcdf():
@@ -246,8 +307,12 @@ def netcdf_save_to_filesystem():
                                          include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
                                          disk_path=input_data.get('directory','unknown'))
     except Exception as e:
-        json = '{ "status": "Request for netcdf failed for the following reason: %s" }\n' % (e.message)
+        json = '{ "code" : 500, "message": "Request for particles failed for the following reason: %s" }\n' % (e.message)
         log.error(json)
+        base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],input_data.get('directory','unknown'))
+        os.makedirs(base_path)
+        with open('%s/failure.json' % (base_path), 'w') as f:
+            f.write(json)
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return Response(json, mimetype='application/json')
