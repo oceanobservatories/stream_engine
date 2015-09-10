@@ -499,7 +499,7 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
         # calculate time param first if it's a derived product
         time_param = CachedParameter.from_id(primary_key.stream.time_parameter)
         if time_param.parameter_type == FUNCTION:
-            calculate_derived_product(time_param, stream_request.coefficients, pd_data, primary_key, provenance_metadata, stream_request)
+            calculate_derived_product(time_param, stream_request.coefficients, pd_data, primary_key, provenance_metadata, stream_request, dep_num)
 
             if time_param.id not in pd_data or primary_key.as_refdes() not in pd_data[time_param.id]:
                 raise MissingTimeException("Time param is missing from main stream")
@@ -508,7 +508,7 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
             if param.id not in pd_data:
                 if param.parameter_type == FUNCTION:
                     # calculate inserts derived products directly into pd_data
-                    calculate_derived_product(param, stream_request.coefficients, pd_data, primary_key, provenance_metadata, stream_request)
+                    calculate_derived_product(param, stream_request.coefficients, pd_data, primary_key, provenance_metadata, stream_request, dep_num)
                 else:
                     log.warning("Required parameter not present: {}".format(param.name))
             if stream_request.qc_parameters.get(param.name) is not None \
@@ -570,7 +570,7 @@ def interpolate_list(desired_time, data_time, data):
         return sp.interp(desired_time, data_time, data)
 
 
-def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_metadata, stream_request, level=1):
+def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_metadata, stream_request, deployment, level=1):
     """
     Calculates a derived product by (recursively) calulating its derived products.
 
@@ -606,7 +606,7 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
     for pdref in needs:
         needed_parameter = CachedParameter.from_id(pdref.pdid)
         if needed_parameter.parameter_type == FUNCTION:
-            sub_id = calculate_derived_product(needed_parameter, coeffs, pd_data, primary_key, provenance_metadata, stream_request, level + 1)
+            sub_id = calculate_derived_product(needed_parameter, coeffs, pd_data, primary_key, provenance_metadata, stream_request, deployment, level + 1)
             # Keep track of all sub function we used.
             if sub_id is not None:
                 # only include sub_functions if it is in the function map. Otherwise it is calculated in the sub function
@@ -644,7 +644,7 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
 
     calc_id = None
     try:
-        args, arg_meta = build_func_map(param, coeffs, pd_data, parameter_key)
+        args, arg_meta = build_func_map(param, coeffs, pd_data, parameter_key, deployment)
         args = munge_args(args, primary_key)
         data, version = execute_dpa(param, args)
 
@@ -763,7 +763,7 @@ def execute_dpa(parameter, kwargs):
     return None, version
 
 
-def build_func_map(parameter, coefficients, pd_data, base_key):
+def build_func_map(parameter, coefficients, pd_data, base_key, deployment):
     """
     Builds a map of arguments to be passed to an algorithm
     """
@@ -886,7 +886,7 @@ def build_func_map(parameter, coefficients, pd_data, base_key):
                 framed_CCs = coefficients[name]
                 # Need to catch exceptions from the call to build the CC argument.
                 try:
-                    CC_argument, CC_meta = build_CC_argument(framed_CCs, main_times)
+                    CC_argument, CC_meta = build_CC_argument(framed_CCs, main_times, deployment)
                 except StreamEngineException as e:
                     to_attach = {
                         'type' : 'CCTimeError', 'parameter' : parameter, 'begin' : main_times[0], 'end' : main_times[-1],
@@ -948,14 +948,15 @@ def in_range(frame, times):
     return mask
 
 
-def build_CC_argument(frames, times):
+def build_CC_argument(frames, times, deployment):
     st = times[0]
     et = times[-1]
     startDt = ntp_to_datestring(st)
     endDt = ntp_to_datestring(et)
     frames = [(f.get('start'), f.get('stop'), f['value'], f['deployment']) for f in frames]
     frames.sort()
-    frames = [f for f in frames if any(in_range(f, times))]
+    # filter based on times and deployment
+    frames = [f for f in frames if any(in_range(f, times)) and f[3] == deployment]
 
     try:
         sample_value = frames[0][2]
@@ -969,14 +970,20 @@ def build_CC_argument(frames, times):
     cc[:] = numpy.NAN
 
     values = []
-    for frame in frames[::-1]:
-        values.append({'CC_begin' : frame[0], 'CC_stop' : frame[1], 'value' : frame[2], 'deployment' : frame[3],
+    try:
+        for frame in frames[::-1]:
+            values.append({'CC_begin' : frame[0], 'CC_stop' : frame[1], 'value' : frame[2], 'deployment' : frame[3],
                        'CC_beginDT' : ntp_to_datestring(frame[0]), 'CC_stopDT' : ntp_to_datestring(frame[1])})
-        mask = in_range(frame, times)
-        try:
+            mask = in_range(frame, times)
             cc[mask] = frame[2]
-        except ValueError, e:
-            raise StreamEngineException('Unable to build cc arguments for algorithm: {}'.format(e))
+        # If we have any data wihtin the range fill forward and backwards so we get a value returned
+        if any(cc != numpy.NaN):
+            mask = times >=  frames[-1][1]
+            cc[mask] = frames[-1][2]
+            mask =  times <= frames[0][0]
+            cc[mask] = frames[0][2]
+    except ValueError, e:
+        raise StreamEngineException('Unable to build cc arguments for algorithm: {}'.format(e))
     cc_meta = {
         'sources' : values,
         'data_begin' :  st,
