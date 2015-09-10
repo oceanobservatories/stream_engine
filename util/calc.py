@@ -1304,7 +1304,7 @@ class NetCDF_Generator(object):
                 ds.to_netcdf(file_path, format='NETCDF4_CLASSIC')
                 file_paths.append(file_path)
         # build json return
-        return json.dumps({'code' : 200, 'message' : file_paths }, indent=2, separators=(',',': '))
+        return json.dumps({'code' : 200, 'message' : str(file_paths) }, indent=2, separators=(',',': '))
 
     def create_zip(self):
         with tempfile.NamedTemporaryFile() as tzf:

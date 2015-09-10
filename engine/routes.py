@@ -139,25 +139,23 @@ def particles_save_to_filesystem():
                              input_data.get('directory','%0f-%s' % (start, input_data.get('requestUUID', 'unknown'))))
     try:
         streams = input_data.get('streams')
-        fn = '%s.json' % (StreamKey.from_dict(streams[0]))
-        json_output = Response(util.calc.get_particles(streams, start, stop, input_data.get('coefficients', {}),
+        fn = '%s.json' % (StreamKey.from_dict(streams[0]).stream_name)
+        json_output = util.calc.get_particles(streams, start, stop, input_data.get('coefficients', {}),
                         input_data.get('qcParameters', {}), limit=limit, custom_times=input_data.get('custom_times'),
                         custom_type=input_data.get('custom_type'), include_provenance=prov, include_annotations=annotate ,
                         strict_range=input_data.get('strict_range', False), request_uuid=input_data.get('requestUUID',''))
-                        , mimetype='application/json')
         code = 200
-
     except (MissingDataException,MissingTimeException) as e:
         # treat as empty
         log.warning(e)
         code = 200
         json_output = json.dumps({})
-        output = json_output
+        message = json_output
     except Exception as e:
         code = 500
-        message = "Request for particles failed for the following reason: " + e
-        json_output = json_output
-        log.exception(json)
+        message = "Request for particles failed for the following reason: " + e.message
+        json_output = json.dumps({ 'code': 500, 'message' : message})
+        log.exception(json_output)
         fn = 'failure.json'
 
 
@@ -167,9 +165,9 @@ def particles_save_to_filesystem():
 
     # for success response, the message is a single item tuple with the file_path
     if code == 200:
-        message = file_path,
+        message = json.dumps([file_path])
 
-    with open(file_path, 'w') as f:
+    with file(file_path, 'w') as f:
         f.write(json_output)
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
@@ -328,21 +326,21 @@ def netcdf_save_to_filesystem():
     prov = input_data.get('include_provenance', False)
     annotate = input_data.get('include_annotations', False)
     try:
-        json = util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
+        json_str = util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
                                          limit=limit,
                                          custom_type=input_data.get('custom_type'), include_provenance=prov,
                                          include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
                                          disk_path=input_data.get('directory','unknown'))
     except Exception as e:
-        output = { "code" : 500, "message": "Request for particles failed for the following reason: " + e }
-        log.error(json)
+        output = { "code" : 500, "message": "Request for particles failed for the following reason: " + e.message }
         base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],input_data.get('directory','unknown'))
         os.makedirs(base_path)
-        with open('%s/failure.json' % (base_path), 'w') as f:
-            f.write(json.dumps(output, indent=2, separators=(',',': ')))
+        json_str = json.dumps(output, indent=2, separators=(',',': '))
+        with file('%s/failure.json' % (base_path), 'w') as f:
+            f.write(json_str)
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
-    return Response(json, mimetype='application/json')
+    return Response(json_str, mimetype='application/json')
 
 @app.route('/needs', methods=['POST'])
 def needs():
