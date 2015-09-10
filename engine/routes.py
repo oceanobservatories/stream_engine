@@ -169,8 +169,6 @@ def particles_save_to_filesystem():
         # set contents of stream.json to empty
         json_output = json.dumps({})
     except Exception as e:
-        # log exception
-        log.exception(json_output)
         # set code to error
         code = 500
         # make message be the error code
@@ -178,6 +176,7 @@ def particles_save_to_filesystem():
         # set the contents of failure.json
         json_output = json.dumps({ 'code': 500, 'message' : message})
         file_path = os.path.join(base_path, 'failure.json')
+        log.exception(json_output)
 
     # try to write file, if it does not succeed then return an error
     if not write_file_with_content(base_path=base_path, file_path=file_path, content=json_output):
@@ -353,7 +352,8 @@ def netcdf_save_to_filesystem():
         output = { "code" : 500, "message": "Request for particles failed for the following reason: %s" % (e.message) }
         base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],input_data.get('directory','unknown'))
          # try to write file, if it does not succeed then return an additional error
-        if not write_file_with_content(base_path=base_path, file_path=os.path.join(base_path, "failure.json"), content=output):
+        json_str = json.dumps(output, indent=2, separators=(',',': '))
+        if not write_file_with_content(base_path=base_path, file_path=os.path.join(base_path, "failure.json"), content=json_str):
             output['message'] = "%s. Supplied directory '%s' is invalid. Path specified exists but is not a directory." % (output['message'],base_path)
         json_str = json.dumps(output, indent=2, separators=(',',': '))
         log.exception(json_str)
