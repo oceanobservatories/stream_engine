@@ -91,6 +91,20 @@ def particles():
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return resp
 
+
+def write_file_with_content(base_path, file_path, content):
+    # check directory exists - if not create
+    if not os.path.exists(base_path):
+        os.makedirs(base_path)
+        # if base_path is dir, then write file, otherwise error out
+    if os.path.isdir(base_path):
+        with open(file_path, 'w') as f:
+            f.write(content)
+            return True
+    else:
+        return False
+
+
 @app.route('/particles-fs', methods=['POST'])
 def particles_save_to_filesystem():
     """
@@ -134,46 +148,48 @@ def particles_save_to_filesystem():
 
     prov = input_data.get('include_provenance', False)
     annotate = input_data.get('include_annotations', False)
-    # output is sent to filesystem
+    # output is sent to filesystem, the directory will be supplied via endpoint, in case it is not, use a backup
+    # NOTE(uFrame): If a backup is being used, there's likely a bug in uFrame, so best to track that down as soon as possible
     base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],
-                             input_data.get('directory','%0f-%s' % (start, input_data.get('requestUUID', 'unknown'))))
+                             input_data.get('directory','unknown/%0f-%s' % (start, input_data.get('requestUUID', 'unknown'))))
+    streams = input_data.get('streams')
+    fn = '%s.json' % (StreamKey.from_dict(streams[0]).stream_name)
+    code = 200
+    file_path = os.path.join(base_path, fn)
+    message = json.dumps([file_path])
     try:
-        streams = input_data.get('streams')
-        fn = '%s.json' % (StreamKey.from_dict(streams[0]))
-        json_output = Response(util.calc.get_particles(streams, start, stop, input_data.get('coefficients', {}),
+        # query for the contents of stream.json
+        json_output = util.calc.get_particles(streams, start, stop, input_data.get('coefficients', {}),
                         input_data.get('qcParameters', {}), limit=limit, custom_times=input_data.get('custom_times'),
                         custom_type=input_data.get('custom_type'), include_provenance=prov, include_annotations=annotate ,
                         strict_range=input_data.get('strict_range', False), request_uuid=input_data.get('requestUUID',''))
-                        , mimetype='application/json')
-        code = 200
-
     except (MissingDataException,MissingTimeException) as e:
         # treat as empty
         log.warning(e)
-        code = 200
+        # set contents of stream.json to empty
         json_output = json.dumps({})
-        output = json_output
     except Exception as e:
+        # log exception
+        log.exception(json_output)
+        # set code to error
         code = 500
-        message = "Request for particles failed for the following reason: " + e
-        json_output = json_output
-        log.exception(json)
-        fn = 'failure.json'
+        # make message be the error code
+        message = "Request for particles failed for the following reason: " + e.message
+        # set the contents of failure.json
+        json_output = json.dumps({ 'code': 500, 'message' : message})
+        file_path = os.path.join(base_path, 'failure.json')
 
-
-    if not os.path.isdir(base_path):
-        os.makedirs(base_path)
-    file_path = os.path.join(base_path, fn)
-
-    # for success response, the message is a single item tuple with the file_path
-    if code == 200:
-        message = file_path,
-
-    with open(file_path, 'w') as f:
-        f.write(json_output)
+    # try to write file, if it does not succeed then return an error
+    if not write_file_with_content(base_path=base_path, file_path=file_path, content=json_output):
+        # if the code is 500, append message, otherwise replace it with this error as returning a non-existent filename
+        # no longer makes sense
+        message = "%sSupplied directory '%s' is invalid. Path specified exists but is not a directory." \
+                  % (message + ". " if code == 500 else "", base_path)
+        code = 500
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
-    return Response(json.dumps({'code': code, 'message' : message},indent=2, separators=(',',': ')), mimetype='application/json')
+    return Response(json.dumps({'code': code, 'message' : message},indent=2, separators=(',',': ')),
+                    mimetype='application/json')
 
 @app.route('/san_offload', methods=['POST'])
 def full_netcdf():
@@ -328,21 +344,23 @@ def netcdf_save_to_filesystem():
     prov = input_data.get('include_provenance', False)
     annotate = input_data.get('include_annotations', False)
     try:
-        json = util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
+        json_str = util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
                                          limit=limit,
                                          custom_type=input_data.get('custom_type'), include_provenance=prov,
                                          include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
                                          disk_path=input_data.get('directory','unknown'))
     except Exception as e:
-        output = { "code" : 500, "message": "Request for particles failed for the following reason: " + e }
-        log.error(json)
+        output = { "code" : 500, "message": "Request for particles failed for the following reason: %s" % (e.message) }
         base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],input_data.get('directory','unknown'))
-        os.makedirs(base_path)
-        with open('%s/failure.json' % (base_path), 'w') as f:
-            f.write(json.dumps(output, indent=2, separators=(',',': ')))
+         # try to write file, if it does not succeed then return an additional error
+        if not write_file_with_content(base_path=base_path, file_path=os.path.join(base_path, "failure.json"), content=output):
+            output['message'] = "%s. Supplied directory '%s' is invalid. Path specified exists but is not a directory." % (output['message'],base_path)
+        json_str = json.dumps(output, indent=2, separators=(',',': '))
+        log.exception(json_str)
+
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
-    return Response(json, mimetype='application/json')
+    return Response(json_str, mimetype='application/json')
 
 @app.route('/needs', methods=['POST'])
 def needs():
