@@ -483,6 +483,13 @@ class InvalidInterpolationException(StreamEngineException):
     """
     status_code = 500
 
+class UIHardLimitExceededException(StreamEngineException):
+    """
+    The limit on UI queries size was exceeded
+    """
+    status_code = 413
+
+
 def arb(d):
     """ Returns an arbitrary value from the given dictionary """
     return next(d.itervalues())

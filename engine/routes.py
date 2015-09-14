@@ -12,7 +12,7 @@ import util.calc
 from util.cass import stream_exists, time_to_bin, bin_to_time
 from util.common import CachedParameter, StreamEngineException, MalformedRequestException, \
     InvalidStreamException, StreamUnavailableException, InvalidParameterException, ISO_to_ntp, ntp_to_ISO_date, \
-    StreamKey, MissingDataException, MissingTimeException
+    StreamKey, MissingDataException, MissingTimeException, UIHardLimitExceededException
 from util.san import onload_netCDF, SAN_netcdf
 
 
@@ -79,17 +79,21 @@ def particles():
     limit = input_data.get('limit', 0)
     if limit <= 0:
         limit = None
+    if limit <= app.config['UI_HARD_LIMIT']:
+        prov = input_data.get('include_provenance', False)
+        annotate = input_data.get('include_annotations', False)
+        resp = Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
+                        input_data.get('qcParameters', {}), limit=limit,
+                         include_provenance=prov, include_annotations=annotate ,
+                        strict_range=input_data.get('strict_range', False), request_uuid=input_data.get('requestUUID','')),
+                    mimetype='application/json')
 
-    prov = input_data.get('include_provenance', False)
-    annotate = input_data.get('include_annotations', False)
-    resp = Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
-                    input_data.get('qcParameters', {}), limit=limit,
-                     include_provenance=prov, include_annotations=annotate ,
-                    strict_range=input_data.get('strict_range', False), request_uuid=input_data.get('requestUUID','')),
-                mimetype='application/json')
+        log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
+        return resp
+    else:
+        message = 'Requested number of particles ({:,d}) larger than maximum allowed limit ({:,d})'.format(limit, app.config['UI_HARD_LIMIT'])
+        raise(UIHardLimitExceededException(message=message))
 
-    log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
-    return resp
 
 
 def write_file_with_content(base_path, file_path, content):
@@ -285,16 +289,18 @@ def netcdf():
     limit = input_data.get('limit', 0)
     if limit <= 0:
         limit = None
-
-    prov = input_data.get('include_provenance', False)
-    annotate = input_data.get('include_annotations', False)
-    resp = Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
+    if limit <= app.config["UI_HARD_LIMIT"]:
+        prov = input_data.get('include_provenance', False)
+        annotate = input_data.get('include_annotations', False)
+        resp = Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
                                          limit=limit, include_provenance=prov,
                                          include_annotations=annotate, request_uuid=input_data.get('requestUUID', '')),
                     mimetype='application/netcdf')
-
-    log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
-    return resp
+        log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
+        return resp
+    else:
+        message = 'Requested number of particles ({:,d}) larger than maximum allowed limit ({:,d})'.format(limit, app.config['UI_HARD_LIMIT'])
+        raise(UIHardLimitExceededException(message=message))
 
 @app.route('/netcdf-fs', methods=['POST'])
 def netcdf_save_to_filesystem():
