@@ -79,16 +79,24 @@ def particles():
     limit = input_data.get('limit', 0)
     if limit <= 0:
         limit = None
+    if limit <= app.config['UI_HARD_LIMIT']:
+        prov = input_data.get('include_provenance', False)
+        annotate = input_data.get('include_annotations', False)
+        resp = Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
+                        input_data.get('qcParameters', {}), limit=limit,
+                         include_provenance=prov, include_annotations=annotate ,
+                        strict_range=input_data.get('strict_range', False), request_uuid=input_data.get('requestUUID','')),
+                    mimetype='application/json')
 
-    prov = input_data.get('include_provenance', False)
-    annotate = input_data.get('include_annotations', False)
-    resp = Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
-                    input_data.get('qcParameters', {}), limit=limit,
-                     include_provenance=prov, include_annotations=annotate ,
-                    strict_range=input_data.get('strict_range', False), request_uuid=input_data.get('requestUUID','')),
-                mimetype='application/json')
+        log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
+    else:
+        message = 'Requested number of particles ({:,d}) larger than maximum allowed limit ({:,d})'.format(limit, app.config['UI_HARD_LIMIT'])
+        code = 413
+        return Response(
+            json.dumps({'code': code , 'message' : message },
+                       indent=2, separators=(',', ': ')),
+            mimetype='application/json')
 
-    log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return resp
 
 
@@ -285,15 +293,21 @@ def netcdf():
     limit = input_data.get('limit', 0)
     if limit <= 0:
         limit = None
-
-    prov = input_data.get('include_provenance', False)
-    annotate = input_data.get('include_annotations', False)
-    resp = Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
+    if limit <= app.config["UI_HARD_LIMIT"]:
+        prov = input_data.get('include_provenance', False)
+        annotate = input_data.get('include_annotations', False)
+        resp = Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
                                          limit=limit, include_provenance=prov,
                                          include_annotations=annotate, request_uuid=input_data.get('requestUUID', '')),
                     mimetype='application/netcdf')
-
-    log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
+        log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
+    else:
+        message = 'Requested number of particles ({:,d}) larger than maximum allowed limit ({:,d})'.format(limit, app.config['UI_HARD_LIMIT'])
+        code = 413
+        resp = Response(
+        json.dumps({'code': code , 'message' : message },
+                   indent=2, separators=(',', ': ')),
+        mimetype='application/json')
     return resp
 
 @app.route('/netcdf-fs', methods=['POST'])
