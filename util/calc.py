@@ -494,7 +494,8 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
             stream_data[dep_num] = pd_data
     # exec dpa for stream
 
-    for dep_num in stream_data:
+    for dep_num in primary_deployments:
+        log.warn("Computing DPA for deployment %d", dep_num)
         pd_data = stream_data[dep_num]
         # calculate time param first if it's a derived product
         time_param = CachedParameter.from_id(primary_key.stream.time_parameter)

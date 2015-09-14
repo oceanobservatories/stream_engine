@@ -675,12 +675,14 @@ def fetch_nth_data(stream_key, time_range, num_points=1000, location_metadata=No
     if location_metadata is None:
         location_metadata = get_cass_location_metadata(stream_key, time_range)
 
+    data_ratio = float(location_metadata.total) / float(num_points)
     # Fetch it all if it's gonna be close to the same size
-    if location_metadata.total < num_points * 2:
-        log.info("CASS: Total points (%d) returned is less than twice the requested (%d).  Returning all points.", location_metadata.total, num_points)
+    if data_ratio < engine.app.config['UI_FULL_RETURN_RATIO']:
+        log.info("CASS: Total points (%d) / the requested  number (%d) is less than ratio %f.  Returning all points.",
+                 location_metadata.total, num_points, engine.app.config['UI_FULL_RETURN_RATIO'])
         _, results = fetch_all_data(stream_key, time_range, location_metadata)
     # We have a small amount of bins with data so we can read them all
-    elif len(location_metadata.bin_list) < engine.app.config['UI_FULL_BIN_LIMIT']:
+    elif location_metadata.total < engine.app.config['UI_FULL_SAMPLE_LIMIT'] and data_ratio < engine.app.config['UI_FULL_SAMPLE_RATIO']:
         log.info("CASS: Reading all (%d) bins and then sampling.", len(location_metadata.bin_list))
         _, results = sample_full_bins(stream_key, time_range, num_points, location_metadata.bin_list, cols)
     # We have a lot of bins so just grab the first from each of the bins
@@ -709,12 +711,9 @@ def sample_full_bins(stream_key, time_range, num_points, metadata_bins, cols=Non
     # Read all the data and do sampling from there.
     # There may need to be de-duplicating done on this method
     _, all_data = fetch_with_pool(query_full_bin, stream_key, [(x,time_range.start, time_range.stop) for x in metadata_bins], cols)
-    if len(all_data) < num_points * 4:
-        results = all_data
-    else:
-        indexes = numpy.floor(numpy.linspace(0, len(all_data)-1, num_points)).astype(int)
-        selected_data = numpy.array(all_data)[indexes].tolist()
-        results = selected_data
+    indexes = numpy.floor(numpy.linspace(0, len(all_data)-1, num_points)).astype(int)
+    selected_data = numpy.array(all_data)[indexes].tolist()
+    results = selected_data
     return cols, results
 
 

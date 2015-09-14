@@ -142,9 +142,10 @@ def get_nc_filename(stream, nc_directory, deployment):
 
 
 def get_SAN_samples(num_points, location_metadata):
-    if location_metadata.total < num_points * 2:
-        log.info("SAN: Number of points (%d) less than twice requested (%d). Returning all",
-                 location_metadata.total, num_points)
+    data_ratio = float(location_metadata.total) / float(num_points)
+    if data_ratio < app.config['UI_FULL_RETURN_RATIO'] :
+        log.info("SAN: Number of points (%d) / requested  points (%d) is less than %f. Returning all data",
+                 location_metadata.total, num_points, app.config['UI_FULL_RETURN_RATIO'])
         to_sample = []
         for data_bin in location_metadata.bin_list:
             to_sample.append((data_bin, location_metadata.bin_information[data_bin][0]))
@@ -280,12 +281,12 @@ def get_deployment_data(direct, stream_name, num_data_points, time_range, index_
                         selection = sorted(selection)
                     idx = [x for x in range(index_start, index_start + len(selection))]
                     for var_name in dataset.variables.keys():
-                        # Don't sample on coordinate variables
-                        if var_name in dataset.coords and var_name != 'index':
+                        if var_name in dataset.coords:
                             continue
                         var = dataset[var_name]
                         var_data = var.values[selection]
                         coords = {k:v for k, v in var.coords.iteritems()}
+                        coords['index'] = idx
                         da = xray.DataArray(var_data, coords=coords, dims=var.dims, name=var.name, attrs=var.attrs)
                         out_ds.update({var_name : da})
                     # set the index here
