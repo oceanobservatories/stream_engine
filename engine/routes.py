@@ -76,7 +76,7 @@ def particles():
 
     start = input_data.get('start', app.config["UNBOUND_QUERY_START"])
     stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
-    limit = input_data.get('limit', 0)
+    limit = min(input_data.get('limit', 0), app.config['UI_HARD_LIMIT'])
     if limit <= 0:
         limit = None
 
@@ -282,7 +282,7 @@ def netcdf():
 
     start = input_data.get('start', app.config["UNBOUND_QUERY_START"])
     stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
-    limit = input_data.get('limit', 0)
+    limit = min(input_data.get('limit', 0), app.config['UI_HARD_LIMIT'])
     if limit <= 0:
         limit = None
 
