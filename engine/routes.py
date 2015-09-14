@@ -84,7 +84,7 @@ def particles():
     annotate = input_data.get('include_annotations', False)
     resp = Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
                     input_data.get('qcParameters', {}), limit=limit,
-                    custom_type=input_data.get('custom_type'), include_provenance=prov, include_annotations=annotate ,
+                     include_provenance=prov, include_annotations=annotate ,
                     strict_range=input_data.get('strict_range', False), request_uuid=input_data.get('requestUUID','')),
                 mimetype='application/json')
 
@@ -158,10 +158,8 @@ def particles_save_to_filesystem():
     file_path = os.path.join(base_path, fn)
     message = str([file_path])
     try:
-        # query for the contents of stream.json
         json_output = util.calc.get_particles(streams, start, stop, input_data.get('coefficients', {}),
-                        input_data.get('qcParameters', {}), limit=limit, custom_times=input_data.get('custom_times'),
-                        custom_type=input_data.get('custom_type'), include_provenance=prov, include_annotations=annotate ,
+                        input_data.get('qcParameters', {}), limit=limit, include_provenance=prov, include_annotations=annotate,
                         strict_range=input_data.get('strict_range', False), request_uuid=input_data.get('requestUUID',''))
     except (MissingDataException,MissingTimeException) as e:
         # treat as empty
@@ -291,8 +289,7 @@ def netcdf():
     prov = input_data.get('include_provenance', False)
     annotate = input_data.get('include_annotations', False)
     resp = Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
-                                         limit=limit,
-                                         custom_type=input_data.get('custom_type'), include_provenance=prov,
+                                         limit=limit, include_provenance=prov,
                                          include_annotations=annotate, request_uuid=input_data.get('requestUUID', '')),
                     mimetype='application/netcdf')
 
@@ -346,7 +343,7 @@ def netcdf_save_to_filesystem():
     try:
         json_str = util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
                                          limit=limit,
-                                         custom_type=input_data.get('custom_type'), include_provenance=prov,
+                                         include_provenance=prov,
                                          include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
                                          disk_path=input_data.get('directory','unknown'))
     except Exception as e:

@@ -47,7 +47,7 @@ netcdf3._nc3_dtype_coercions = {'int64': 'int32', 'bool': 'int8'}
 
 
 @log_timing
-def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None, custom_times=None, custom_type=None,
+def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
                   include_provenance=False, include_annotations=False, strict_range=False, request_uuid=''):
     """
     Returns a list of particles from the given streams, limits and times
@@ -197,7 +197,7 @@ def do_qc_stuff(primary_key, stream_data, parameters, qc_stream_parameters):
 
 
 @log_timing
-def get_netcdf(streams, start, stop, coefficients, limit=None, custom_type=None,
+def get_netcdf(streams, start, stop, coefficients, limit=None,
                include_provenance=False, include_annotations=False, strict_range=False, request_uuid='', disk_path=None):
     """
     Returns a netcdf from the given streams, limits and times
