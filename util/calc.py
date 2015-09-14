@@ -40,11 +40,6 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
-# MONKEY PATCH XRAY - REMOVE WHEN FIXED UPSTREAM
-from xray.backends import netcdf3
-netcdf3._nc3_dtype_coercions = {'int64': 'int32', 'bool': 'int8'}
-# END MONKEY PATCH - REMOVE WHEN FIXED UPSTREAM
-
 
 @log_timing
 def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None, custom_times=None, custom_type=None,
@@ -1301,7 +1296,7 @@ class NetCDF_Generator(object):
             os.makedirs(base_path)
         for stream_key, deployment, ds in self.stream_data.groups():
                 file_path = '%s/deployment%04d_%s.nc' % (base_path, deployment, stream_key.as_dashed_refdes())
-                ds.to_netcdf(file_path, format='NETCDF4_CLASSIC')
+                ds.to_netcdf(file_path)
                 file_paths.append(file_path)
         # build json return
         return json.dumps({'code' : 200, 'message' : file_paths }, indent=2, separators=(',',': '))
@@ -1316,7 +1311,7 @@ class NetCDF_Generator(object):
         for stream_key, deployment, ds in self.stream_data.groups():
             with tempfile.NamedTemporaryFile() as tf:
                 # interp to main times if more than one stream was in the request.
-                ds.to_netcdf(tf.name, format='NETCDF4_CLASSIC')
+                ds.to_netcdf(tf.name)
                 zf.write(tf.name, 'deployment%04d_%s.nc' % (deployment, stream_key.as_dashed_refdes(),))
 
 
