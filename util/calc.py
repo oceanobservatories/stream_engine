@@ -33,6 +33,12 @@ from jsonresponse import JsonResponse
 from datetime import datetime
 import time
 
+import ion_functions
+if hasattr(ion_functions, '__version__'):
+    ION_VERSION = ion_functions.__version__
+else:
+    ION_VERSION = 'unversioned'
+
 try:
     import simplejson as json
 except ImportError:
@@ -735,12 +741,10 @@ def execute_dpa(parameter, kwargs):
     if len(kwargs) == len(func_map):
         if func.function_type == 'PythonFunction':
             module = importlib.import_module(func.owner)
-
+            version = ION_VERSION
             result = None
             try:
                 dpa_function = getattr(module, func.function)
-                if hasattr(dpa_function, 'version'):
-                    version = dpa_function.version
                 result = getattr(module, func.function)(**kwargs)
             except Exception as e:
                 to_attach= {'type' : 'FunctionError', "parameter" : parameter, 'function' : str(func.id) + " " + str(func.description)}
