@@ -735,12 +735,11 @@ def execute_dpa(parameter, kwargs):
     if len(kwargs) == len(func_map):
         if func.function_type == 'PythonFunction':
             module = importlib.import_module(func.owner)
-
+            if hasattr(module, app.config['DPA_VERSION_VARIABLE']):
+                version = getattr(module, app.config['DPA_VERSION_VARIABLE'])
             result = None
             try:
                 dpa_function = getattr(module, func.function)
-                if hasattr(dpa_function, 'version'):
-                    version = dpa_function.version
                 result = getattr(module, func.function)(**kwargs)
             except Exception as e:
                 to_attach= {'type' : 'FunctionError', "parameter" : parameter, 'function' : str(func.id) + " " + str(func.description)}
