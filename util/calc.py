@@ -33,6 +33,12 @@ from jsonresponse import JsonResponse
 from datetime import datetime
 import time
 
+import ion_functions
+if hasattr(ion_functions, '__version__'):
+    ION_VERSION = ion_functions.__version__
+else:
+    ION_VERSION = 'unversioned'
+
 try:
     import simplejson as json
 except ImportError:
@@ -646,7 +652,7 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
 
         calc_meta['function_name'] = param.parameter_function.function
         calc_meta['function_type'] = param.parameter_function.function_type
-        calc_meta['function_version'] = version
+        calc_meta['function_version'] = ION_VERSION 
         calc_meta['function_id'] = param.parameter_function.id
         calc_meta['function_owner'] = param.parameter_function.owner
         calc_meta['argument_list'] = [arg for arg in param.parameter_function_map]
@@ -735,12 +741,9 @@ def execute_dpa(parameter, kwargs):
     if len(kwargs) == len(func_map):
         if func.function_type == 'PythonFunction':
             module = importlib.import_module(func.owner)
-
             result = None
             try:
                 dpa_function = getattr(module, func.function)
-                if hasattr(dpa_function, 'version'):
-                    version = dpa_function.version
                 result = getattr(module, func.function)(**kwargs)
             except Exception as e:
                 to_attach= {'type' : 'FunctionError', "parameter" : parameter, 'function' : str(func.id) + " " + str(func.description)}
