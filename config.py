@@ -28,7 +28,13 @@ NETCDF_CONVENTIONS = "CF-1.6"
 
 COLLAPSE_TIMES = True
 
-UI_FULL_BIN_LIMIT = 30 # Limit on the amount of full Cassandra bins to read before resorting to less accurate sampling
+UI_FULL_RETURN_RATIO = 2.0 # If the ratio of total data to requested points is less than this value all of the data is returned
+UI_FULL_SAMPLE_RATIO= 5.0 # If the ratio of total data to requested points is less than this value all and the total data in
+                        # Cassandra is less than the full sample limit a linear sample from all of the data is returned
+UI_FULL_SAMPLE_LIMIT= 5000 # If the ratio of total data to requested points is less than the UI_FULL_SAMPLE_RATIO and
+                            # the total number of data points is less than this value a linear sampling of all of the data is returned
+                            # Otherwise a sampling method is used pre query.
+UI_HARD_LIMIT = 20000     # set a hard limit for the maximum size a limited query can be.  All data can be accessed using an async query.
 
 ASYNC_DOWNLOAD_BASE_DIR='/opt/ooi/async'
 
