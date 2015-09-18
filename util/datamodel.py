@@ -182,6 +182,8 @@ def _group_by_stream_key(ds, pd_data, stream_key):
         if param:
             if param.unit is not None:
                 array_attrs['units'] = param.unit
+                if param.unit.startswith('seconds since'):
+                    array_attrs['calendar'] =  app.config["NETCDF_CALENDAR_TYPE"]
             if param.fill_value is not None:
                 array_attrs['_FillValue'] = param.fill_value
             # Long name needs to be display name to comply with cf 1.6.
