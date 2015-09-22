@@ -405,6 +405,18 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
 
     log.info("Fetching data from {} stream(s): {}".format(len(stream_request.stream_keys), [x.as_refdes() for x in stream_request.stream_keys]))
 
+    # Find source stream if primary_stream is virtual
+    primary_stream = stream_request.stream_keys[0].stream
+    source_stream_key = None
+    if primary_stream.is_virtual:
+        for sk in stream_request.stream_keys:
+            if sk.stream in primary_stream.source_streams:
+                source_stream_key = sk
+                break
+
+    if primary_stream.is_virtual and source_stream_key is None:
+        raise StreamEngineException("Can't find deployment for virtual stream")
+
     stream_data = {}
     first_time = None
     for key_index, key in enumerate(stream_request.stream_keys):
@@ -438,7 +450,7 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
         deployments = ds.groupby('deployment')
         for dep_num, data_set in deployments:
             pd_data = stream_data.get(dep_num, {})
-            if is_main_query:
+            if is_main_query or (primary_stream.is_virtual and key == source_stream_key):
                 primary_deployments.append(dep_num)
             for param in parameters:
                 data_slice = data_set[param.name].values
