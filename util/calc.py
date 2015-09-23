@@ -250,56 +250,6 @@ def get_needs(streams):
     return stream_list
 
 
-def replace_values(data_slice, param):
-    '''
-    Replace any missing values in the parameter
-    :param data_slice: pandas series to replace missing values in
-    :param param: Information about the parameter
-    :return: data_slice with missing values filled with fill value
-    '''
-    # Nones can only be in ndarrays with dtype == object.  NetCDF
-    # doesn't like objects.  First replace Nones with the
-    # appropriate fill value.
-    #
-    # pandas does some funny things to missing values if the whole column is missing it becomes a None filled object
-    # Otherwise pandas will replace floats with Not A Number correctly.
-    # Integers are cast as floats and missing values replaced with Not A Number
-    # The below case will take care of instances where the whole series is missing or if it is an array or
-    # some other object we don't know how to fill.
-    if data_slice.dtype == 'object' and not param.is_array:
-        nones = numpy.equal(data_slice, None)
-        if numpy.any(nones):
-            # If there are nones either fill with specific value for ints, floats, string, or throw an error
-            if param.value_encoding in ['int', 'uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64']:
-                data_slice[nones] = -999999999
-                data_slice = data_slice.astype('int64')
-            elif param.value_encoding in ['float16', 'float32', 'float64', 'float96']:
-                data_slice[nones] = numpy.nan
-                data_slice = data_slice.astype('float64')
-            elif param.value_encoding == 'string':
-                data_slice[nones] = ''
-                data_slice = data_slice.astype('str')
-            else:
-                log.error("Do not know how to fill type: {:s}".format(param.value_encoding))
-                raise StreamEngineException('Do not know how to fill for data type ' + str(param.value_encoding))
-    # otherwise if the returned data is a float we need to check and make sure it is not supposed to be an int
-    elif data_slice.dtype == 'float64':
-        # Int's are upcast to floats if there is a missing value.
-        if param.value_encoding in ['int', 'uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64']:
-            # We had a missing value because it was upcast
-            indexes = numpy.where(numpy.isnan(data_slice))
-            data_slice[indexes] = -999999999
-            data_slice = data_slice.astype('int64')
-
-    # Pandas also treats strings as objects.  NetCDF doesn't
-    # like objects.  So convert objects to strings.
-    if data_slice.dtype == object:
-        try:
-            data_slice = data_slice.astype('str')
-        except ValueError as e:
-            log.error('Unable to convert {} (PD{}) to string (may be caused by jagged arrays): {}'.format(param.name, param.id, e))
-    return data_slice
-
 
 def get_lookback_dataset(key, time_range, provenance_metadata, deployments):
     first_metadata = get_first_before_metadata(key, time_range.start)
@@ -442,9 +392,6 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
                 primary_deployments.append(dep_num)
             for param in parameters:
                 data_slice = data_set[param.name].values
-
-                # transform non scalar params
-                data_slice = replace_values(data_slice, param)
 
                 if param.id not in pd_data:
                     pd_data[param.id] = {}

@@ -11,8 +11,11 @@ import numpy
 from scipy.interpolate import griddata
 import parameter_util
 import dateutil.parser
+import logging
 
 FUNCTION = 'function'
+
+log = logging.getLogger(__name__)
 
 stream_cache = {}
 parameter_cache = {}
@@ -505,6 +508,21 @@ def get_stream_key_with_param(pd_data, stream, parameter):
     return None
 
 
+def fix_data_arrays(data, unpacked):
+    if unpacked is None:
+        return
+    if len(unpacked) != data.shape[0]:
+        app.logger.warn("Mismatched dimensions could not fill array")
+        return
+    if len(data.shape) == 1:
+        for idx, val in enumerate(unpacked):
+            if idx < len(data):
+                data[idx] = unpacked[idx]
+    else:
+        if isinstance(unpacked, list):
+            for data_sub, unpacked_sub in zip(data, unpacked):
+                fix_data_arrays(data_sub, unpacked_sub)
+
 def to_xray_dataset(cols, data, stream_key, san=False):
     """
     Make an xray dataset from the raw cassandra data
@@ -533,14 +551,14 @@ def to_xray_dataset(cols, data, stream_key, san=False):
     dataset = xray.Dataset(attrs=attrs)
     dataframe = pd.DataFrame(data=data, columns=cols)
     for column in dataframe.columns:
-        # unback any arrays
-        if column in arrays:
-            data = numpy.array([msgpack.unpackb(x) for x in dataframe[column].values])
+        # unpack any arrays
+        if column in params:
+            if column in arrays:
+                data = replace_values(dataframe[column].values, params[column], True)
+            else:
+                data = replace_values(dataframe[column].values, params[column], False)
         else:
             data = dataframe[column].values
-        # No objects. They should be strings
-        if data.dtype  == 'object':
-            data = data.astype(str)
 
         # Fix up the dimensions for possible multi-d objects
         dims = ['index']
@@ -576,6 +594,87 @@ def to_xray_dataset(cols, data, stream_key, san=False):
         dataset.update({column : xray.DataArray(data, dims=dims, attrs=array_attrs)})
 
     return dataset
+
+
+def replace_values(data_slice, param, array):
+    """
+    Replace any missing values in the parameter
+    :param data_slice: pandas series to replace missing values in
+    :param param: Information about the parameter
+    :return: data_slice with missing values filled with fill value
+    """
+    # Nones can only be in ndarrays with dtype == object.  NetCDF
+    # doesn't like objects.  First replace Nones with the
+    # appropriate fill value.
+    #
+    # pandas does some funny things to missing values if the whole column is missing it becomes a None filled object
+    # Otherwise pandas will replace floats with Not A Number correctly.
+    # Integers are cast as floats and missing values replaced with Not A Number
+    # The below case will take care of instances where the whole series is missing or if it is an array or
+    # some other object we don't know how to fill.
+    if array:
+        unpacked = [msgpack.unpackb(x) for x in data_slice]
+        no_nones = filter(None, unpacked)
+        # Get the maximum sized array using numpy
+        if len(no_nones) > 0:
+            shapes = [numpy.array(x).shape for x in no_nones]
+            max_len = max((len(x) for x in shapes))
+            shapes = filter(lambda x: len(x) == max_len, shapes)
+            max_shape = max(shapes)
+            shp = tuple([len(unpacked)] + list(max_shape))
+            data_slice= numpy.empty(shp, dtype=param.value_encoding)
+            data_slice.fill(param.fill_value)
+            try:
+                fix_data_arrays(data_slice, unpacked)
+            except Exception as e:
+                log.exception("Error filling arrays with data for parameter %s replacing with fill values", param.name)
+                data_slice.fill(param.fill_value)
+        else:
+            data_slice = numpy.array([[] for _ in unpacked], dtype=param.value_encoding)
+    if data_slice.dtype == 'object' and not param.is_array:
+        nones = numpy.equal(data_slice, None)
+        if numpy.any(nones):
+            if param.fill_value is not None:
+                data_slice[nones] = param.fill_value
+                data_slice = data_slice.astype(param.value_encoding)
+            else:
+                log.warn("No fill value for param %s", param)
+                # If there are nones either fill with specific value for ints, floats, string, or throw an error
+                if param.value_encoding in ['int', 'uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64']:
+                    data_slice[nones] = -999999999
+                    data_slice = data_slice.astype('int64')
+                elif param.value_encoding in ['float16', 'float32', 'float64', 'float96']:
+                    data_slice[nones] = numpy.nan
+                    data_slice = data_slice.astype('float64')
+                elif param.value_encoding == 'string':
+                    data_slice[nones] = ''
+                    data_slice = data_slice.astype('str')
+                else:
+                    raise StreamEngineException('Do not know how to fill for data type ' + str(param.value_encoding))
+
+    # otherwise if the returned data is a float we need to check and make sure it is not supposed to be an int
+    elif data_slice.dtype == 'float64':
+        # Int's are upcast to floats if there is a missing value.
+        if param.value_encoding in ['int', 'uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64']:
+            # We had a missing value because it was upcast
+            indexes = numpy.where(numpy.isnan(data_slice))
+            if len(indexes) > 0:
+                if param.fill_value is not None:
+                    data_slice[indexes] = param.fill_value
+                    data_slice = data_slice.astype(param.value_encoding)
+                else:
+                    log.warn("No fill value for param %s", param)
+                    data_slice[indexes] = -999999999
+                    data_slice = data_slice.astype('int64')
+
+    # Pandas also treats strings as objects.  NetCDF doesn't
+    # like objects.  So convert objects to strings.
+    if data_slice.dtype == object:
+        try:
+            data_slice = data_slice.astype(param.value_encoding)
+        except ValueError as e:
+            log.error('Unable to convert %s (PD %s) to value type (%s) (may be caused by jagged arrays): %s', param.name, param.id, param.value_encoding, e)
+    return data_slice
 
 def compile_datasets(datasets):
     """
