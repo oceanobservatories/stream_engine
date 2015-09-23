@@ -290,7 +290,23 @@ def replace_values(data_slice, param):
             indexes = numpy.where(numpy.isnan(data_slice))
             data_slice[indexes] = -999999999
             data_slice = data_slice.astype('int64')
-
+    if data_slice.dtype == 'object' and param.is_array:
+        nones = numpy.equal(data_slice, None)
+        if numpy.all(nones):
+            data_slice = numpy.array([[]])
+        else:
+            #get an index so we can fill with the correct shape.
+            log.warn("only some array values missing filling with fill values")
+            # get a non None idx to get the normal shape of the array
+            shp_idx = numpy.where(numpy.logical_not(nones))[0][0]
+            shp = data_slice[shp_idx].shape
+            temp_data = []
+            for idx, value in enumerate(data_slice):
+                if nones[idx]:
+                    temp_data.append(numpy.full(shp, param.fill_value))
+                else:
+                    temp_data.append(value)
+            data_slice = numpy.array(temp_data)
     # Pandas also treats strings as objects.  NetCDF doesn't
     # like objects.  So convert objects to strings.
     if data_slice.dtype == object:
