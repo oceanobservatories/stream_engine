@@ -159,11 +159,8 @@ def _group_by_stream_key(ds, pd_data, stream_key):
         data = pd_data[param_id][stream_key.as_refdes()]['data'][mask]
         if param is not None:
             try:
-                # In order to comply with CF1.6 we must use "classic" netcdf4.  This donesn't allow unsigned values
-                if param.value_encoding not in ['uint8', 'uint16', 'uint32', 'uint64']:
-                    data = data.astype(param.value_encoding)
-                else:
-                    log.warn("Netcdf4 Classic does not allow unsigned integers")
+                # since we are not outputting pure netcdf-4 files we do not have to worry about removing uint data types
+                data = data.astype(param.value_encoding)
             except ValueError:
                 log.warning(
                     'Unable to transform data %s named %s of type %s to preload value_encoding %s, using fill_value instead\n%s' % (

@@ -533,13 +533,20 @@ def to_xray_dataset(cols, data, stream_key, san=False):
     dataset = xray.Dataset(attrs=attrs)
     dataframe = pd.DataFrame(data=data, columns=cols)
     for column in dataframe.columns:
-        # unback any arrays
+        # unpack any arrays
         if column in arrays:
-            data = numpy.array([msgpack.unpackb(x) for x in dataframe[column].values])
+            unpacked = [msgpack.unpackb(x) for x in dataframe[column].values]
+            temp = []
+            for x in unpacked:
+                if x is not None:
+                    temp.append(numpy.array(x))
+                else:
+                    temp.append(None)
+            data = numpy.array(temp)
         else:
             data = dataframe[column].values
-        # No objects. They should be strings
-        if data.dtype  == 'object':
+        # No objects. They should be strings if going to SAN
+        if san and data.dtype  == 'object':
             data = data.astype(str)
 
         # Fix up the dimensions for possible multi-d objects
