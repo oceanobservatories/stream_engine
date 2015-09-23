@@ -158,18 +158,7 @@ def _group_by_stream_key(ds, pd_data, stream_key):
 
         data = pd_data[param_id][stream_key.as_refdes()]['data'][mask]
         if param is not None:
-            try:
-                # In order to comply with CF1.6 we must use "classic" netcdf4.  This donesn't allow unsigned values
-                if param.value_encoding not in ['uint8', 'uint16', 'uint32', 'uint64']:
-                    data = data.astype(param.value_encoding)
-                else:
-                    log.warn("Netcdf4 Classic does not allow unsigned integers")
-            except ValueError:
-                log.warning(
-                    'Unable to transform data %s named %s of type %s to preload value_encoding %s, using fill_value instead\n%s' % (
-                    param_id, param_name, data.dtype, param.value_encoding,
-                    traceback.format_exc()))
-                data = np.full(data.shape, param.fill_value, param.value_encoding)
+            data = data.astype(param.value_encoding)
 
         dims = ['time']
         coords = {'time': time_data}

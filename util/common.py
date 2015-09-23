@@ -505,6 +505,21 @@ def get_stream_key_with_param(pd_data, stream, parameter):
     return None
 
 
+def fix_data_arrays(data, unpacked):
+    if unpacked is None:
+        return
+    if len(unpacked) != data.shape[0]:
+        app.logger.warn("Mismatched dimensions could not fill array")
+        return
+    if len(data.shape) == 1:
+        for idx, val in enumerate(unpacked):
+            if idx < len(data):
+                data[idx] = unpacked[idx]
+    else:
+        if isinstance(unpacked, list):
+            for data_sub, unpacked_sub in zip(data, unpacked):
+                fix_data_arrays(data_sub, unpacked_sub)
+
 def to_xray_dataset(cols, data, stream_key, san=False):
     """
     Make an xray dataset from the raw cassandra data
@@ -533,13 +548,26 @@ def to_xray_dataset(cols, data, stream_key, san=False):
     dataset = xray.Dataset(attrs=attrs)
     dataframe = pd.DataFrame(data=data, columns=cols)
     for column in dataframe.columns:
-        # unback any arrays
+        # unpack any arrays
         if column in arrays:
-            data = numpy.array([msgpack.unpackb(x) for x in dataframe[column].values])
+            unpacked = [msgpack.unpackb(x) for x in dataframe[column].values]
+            no_nones = filter(None, unpacked)
+            # Get the maximum sized array using numpy
+            if len(no_nones) > 0:
+                shapes = [numpy.array(x).shape for x in no_nones]
+                max_len = max((len(x) for x in shapes))
+                shapes = filter(lambda x: len(x) == max_len, shapes)
+                max_shape = max(shapes)
+                shp = tuple([len(unpacked)] + list(max_shape))
+                data = numpy.empty(shp)
+                data.fill(param.fill_value)
+                fix_data_arrays(data, unpacked)
+            else:
+                data = numpy.array([[] for _ in unpacked])
         else:
             data = dataframe[column].values
-        # No objects. They should be strings
-        if data.dtype  == 'object':
+        # No objects. They should be strings if going to SAN
+        if san and data.dtype  == 'object':
             data = data.astype(str)
 
         # Fix up the dimensions for possible multi-d objects
