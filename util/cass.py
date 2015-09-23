@@ -901,11 +901,7 @@ def insert_dataset(stream_key, dataset, session=None, prepared=None, query_consi
         ref_des = stream_key.as_three_part_refdes()
         st = dataframe['time'].min()
         et = dataframe['time'].max()
-        meta_query = "INSERT INTO partition_metadata (stream, refdes, method, bin, store, count, first, last) values ('{:s}', '{:s}', '{:s}', {:d}, '{:s}', {:d}, {:f}, {:f})"\
-            .format(stream_key.stream.name, ref_des, stream_key.method, data_bin, CASS_LOCATION_NAME, count, st, et)
-        meta_query = SimpleStatement(meta_query)
-        meta_query.consistency_level = query_consistency
-        session.execute(meta_query)
+        insert_partition_metadata(stream_key.stream.name, ref_des, stream_key.method, data_bin, count, st, et)
         ret_val = 'Inserted {:d} particles into Cassandra bin {:d} for {:s}.'.format(count, dataframe['bin'].values[0], stream_key.as_refdes())
         log.info(ret_val)
         return ret_val
@@ -1017,6 +1013,39 @@ def store_qc_results(qc_results_values, pk, particle_ids, particle_bins, particl
         log.info("QC results stored in {} seconds.".format(time.clock() - start_time))
     else:
         log.info("Configured storage system '{}' not recognized, qc results not stored.".format(engine.app.config['QC_RESULTS_STORAGE_SYSTEM']))
+
+
+@cassandra_session
+def get_distinct_entries(stream, session=None, prepared=None, query_consistency=None):
+    query = """SELECT DISTINCT subsite, node, sensor, bin from {:s}""".format(stream)
+    return session.execute(query)
+
+@cassandra_session
+def get_bin_stats(stream, subsite, node, sensor, data_bin, method, session=None, prepared=None, query_consistency=None):
+    etq = """SELECT time from {:s} WHERE subsite = '{:s}' AND node = '{:s}' AND  sensor = '{:s}' and bin = {:d} and method = '{:s}' ORDER BY method DESC, time DESC LIMIT 1""".format(
+        stream, subsite, node, sensor, data_bin, method)
+    et = session.execute(etq)
+    stq = """SELECT time from {:s} WHERE subsite = '{:s}' AND node = '{:s}' AND  sensor = '{:s}' and bin = {:d} and method = '{:s}' ORDER BY method ASC, time ASC LIMIT 1""".format(
+        stream, subsite, node, sensor, data_bin, method)
+    st = session.execute(stq)
+    countq = """SELECT COUNT(*) from {:s} WHERE subsite = '{:s}' AND node = '{:s}' AND  sensor = '{:s}' and bin = {:d} and method = '{:s}'""".format(
+        stream, subsite, node, sensor, data_bin, method)
+    count =session.execute(countq)
+
+    # only return data if there is data
+    if len(st) > 0 and len(et) > 0 and len(count) > 0 and count[0][0] > 0:
+        return count[0][0], st[0][0], et[0][0]
+    else:
+        return None, None, None
+
+
+@cassandra_session
+def insert_partition_metadata(stream, ref_des, method, data_bin, count, st, et, location=CASS_LOCATION_NAME, session=None, prepared=None, query_consistency=None):
+    meta_query = "INSERT INTO partition_metadata (stream, refdes, method, bin, store, count, first, last) values ('{:s}', '{:s}', '{:s}', {:d}, '{:s}', {:d}, {:f}, {:f})"\
+            .format(stream,  ref_des, method, data_bin, location, count, st, et)
+    meta_query = SimpleStatement(meta_query)
+    meta_query.consistency_level = query_consistency
+    session.execute(meta_query)
 
 
 @cassandra_session
