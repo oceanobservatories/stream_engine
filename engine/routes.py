@@ -290,7 +290,7 @@ def netcdf():
     if limit <= 0:
         limit = None
     if limit <= app.config["UI_HARD_LIMIT"]:
-        prov = input_data.get('include_provenance', False)
+        prov = input_data.get('include_provenance', True)
         annotate = input_data.get('include_annotations', False)
         resp = Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
                                          limit=limit, include_provenance=prov,
@@ -345,7 +345,7 @@ def netcdf_save_to_filesystem():
     if limit <= 0:
         limit = None
 
-    prov = input_data.get('include_provenance', False)
+    prov = input_data.get('include_provenance', True)
     annotate = input_data.get('include_annotations', False)
     try:
         json_str = util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
