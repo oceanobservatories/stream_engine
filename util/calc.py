@@ -455,6 +455,9 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
             if is_main_query or (primary_stream.is_virtual and key == source_stream_key):
                 primary_deployments.append(dep_num)
             for param in parameters:
+                if param.name not in data_set:
+                    log.error("%s (PD%s) not in cassandra dataset, cassandra and preload may be out of sync", param.name, param.id)
+                    continue
                 data_slice = data_set[param.name].values
 
                 # transform non scalar params
