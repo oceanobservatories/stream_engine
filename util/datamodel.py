@@ -99,6 +99,12 @@ def _open_new_ds(stream_key, deployment, provenance_metadata=None, annotation_st
                                                                      dims=['query_parameter_provenance_dim'],
                                                                      attrs={
                                                                      'long_name': 'Query Parameter Provenance Information'})
+        instrument_prov = [json.dumps(provenance_metadata.get_instrument_provenance())]
+        if len(instrument_prov) > 0:
+            init_data['instrument_provenance'] = xray.DataArray(query_prov,
+                                                                     dims=['instrument_provenance_dim'],
+                                                                     attrs={
+                                                                         'long_name': 'Instrument Provenance Information'})
         if len(provenance_metadata.messages) > 0:
             init_data['provenance_messages'] = xray.DataArray(provenance_metadata.messages,
                                                               dims=['provenance_messages'],

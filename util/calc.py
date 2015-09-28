@@ -5,6 +5,9 @@ import zipfile
 import uuid
 import os
 from collections import OrderedDict, defaultdict
+from multiprocessing.pool import Pool
+
+import requests
 
 import numexpr
 import numpy
@@ -47,6 +50,12 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
+execution_pool = None
+
+def create_request_pool():
+    global execution_pool
+    pool_size = app.config['POOL_SIZE']
+    execution_pool = Pool(pool_size)
 
 @log_timing
 def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
@@ -427,6 +436,8 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
         if stream_request.include_annotations:
             annotations = query_annotations(key, time_range)
             annotation_store.add_annotations(annotations)
+        if stream_request.include_provenance:
+            provenance_metadata.add_instrument_provenance(key,time_range.start, time_range.stop)
 
         if key.stream.is_virtual:
             log.info("Skipping fetch of virtual stream: {}".format(key.stream.name))
@@ -1171,6 +1182,11 @@ class StreamRequest(object):
                       self.stream_keys[0])
             self.time_range = TimeRange(start, stop)
 
+def send_query_for_instrument(url):
+    results = requests.get(url)
+    jres = results.json()
+    return jres
+
 
 class ProvenanceMetadataStore(object):
     def __init__(self):
@@ -1179,6 +1195,7 @@ class ProvenanceMetadataStore(object):
         self.messages = []
         self._prov_dict = {}
         self._streaming_provenance = {}
+        self._instrument_provenance = {}
 
     def add_messages(self, messages):
         self.messages.extend(messages)
@@ -1200,6 +1217,16 @@ class ProvenanceMetadataStore(object):
     def get_provenance_dict(self):
         return self._prov_dict
 
+    def add_instrument_provenance(self, stream_key, st, et ):
+        url = app.config['ASSET_URL'] + 'assets/byReferenceDesignator/{:s}/{:s}/{:s}?startDT={:s}?endDT={:s}'.format(
+            stream_key.subsite, stream_key.node, stream_key.sensor,ntp_to_ISO_date(st), ntp_to_ISO_date(et))
+        self._instrument_provenance[stream_key] =  execution_pool.apply_async(send_query_for_instrument, (url,))
+
+    def get_instrument_provenance(self):
+        vals = defaultdict(list)
+        for key, value in self._instrument_provenance.iteritems():
+            vals[key.as_three_part_refdes()].extend(value.get())
+        return vals
 
     def add_query_metadata(self, stream_request, query_uuid, query_type):
         self._query_metadata = OrderedDict()

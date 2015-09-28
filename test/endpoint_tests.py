@@ -9,6 +9,7 @@ import time
 from engine.routes import app
 import preload_database.database
 from util.cass import create_execution_pool, global_cassandra_state
+from util.calc import create_request_pool
 from util.common import StreamKey
 import numpy as np
 
@@ -46,6 +47,7 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
                           control_connection_timeout=app.config['CASSANDRA_CONNECT_TIMEOUT'])
         global_cassandra_state['cluster'] = cluster
         create_execution_pool()
+        create_request_pool()
 
     def setUp(self):
         app.config['TESTING'] = True

@@ -16,7 +16,7 @@ from util.cass import fetch_data, global_cassandra_state, get_distinct_sensors, 
     fetch_nth_data, create_execution_pool
 from util.common import StreamKey, TimeRange, CachedStream, CachedParameter, stretch, interpolate
 from util.calc import StreamRequest, Chunk_Generator, Particle_Generator, find_stream, handle_byte_buffer, execute_dpa, build_func_map, in_range, build_CC_argument, \
-    Interpolation_Generator
+    Interpolation_Generator, create_request_pool
 import parameter_util
 import preload_database.database
 
@@ -54,6 +54,7 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
                           control_connection_timeout=app.config['CASSANDRA_CONNECT_TIMEOUT'])
         global_cassandra_state['cluster'] = cluster
         create_execution_pool()
+        create_request_pool()
 
     def setUp(self):
         app.config['TESTING'] = True
