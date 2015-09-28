@@ -61,6 +61,35 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
             parameters.append(CachedParameter.from_id(p))
     time_range = TimeRange(start, stop)
 
+    qc_stream_parameters = prepare_qc_stuff(qc_parameters)
+
+    # create the store that will keep track of provenance for all streams/datasources
+    provenance_metadata = ProvenanceMetadataStore()
+    annotation_store = AnnotationStore()
+    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range,
+                                   qc_parameters=qc_stream_parameters, limit=limit,
+                                   include_provenance=include_provenance,include_annotations=include_annotations,
+                                   strict_range=strict_range, location_information=location_information)
+
+    # Create the medata store
+    provenance_metadata.add_query_metadata(stream_request, request_uuid, 'JSON')
+    stream_data = fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
+
+    do_qc_stuff(stream_keys[0], stream_data, stream_request.parameters, qc_stream_parameters)
+
+    # If multi-stream request, default to interpolating all times to first stream
+    if len(streams) > 1:
+        stream_data.deployment_times = stream_data.get_time_data(stream_keys[0])
+
+
+    # create StreamKey to CachedParameter mapping for the requested streams
+    stream_to_params = {StreamKey.from_dict(s): [] for s in streams}
+    for sk in stream_to_params:
+        stream_to_params[sk] = [p for p in stream_request.parameters if sk.stream.id in p.streams]
+
+    return JsonResponse(stream_data).json(stream_to_params)
+
+def prepare_qc_stuff(qc_parameters):
     qc_stream_parameters = {}
     for qc_parameter in qc_parameters:
         qc_pk = qc_parameter['qcParameterPK']
@@ -100,33 +129,7 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
                 parameter_dict[current_parameter_name] = [float(x) for x in qc_parameter_value[1:-1].split()]
             else:
                 parameter_dict[current_parameter_name] = qc_parameter_value
-
-    # create the store that will keep track of provenance for all streams/datasources
-    provenance_metadata = ProvenanceMetadataStore()
-    annotation_store = AnnotationStore()
-    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range,
-                                   qc_parameters=qc_stream_parameters, limit=limit,
-                                   include_provenance=include_provenance,include_annotations=include_annotations,
-                                   strict_range=strict_range, location_information=location_information)
-
-    # Create the medata store
-    provenance_metadata.add_query_metadata(stream_request, request_uuid, 'JSON')
-    stream_data = fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
-
-    do_qc_stuff(stream_keys[0], stream_data, stream_request.parameters, qc_stream_parameters)
-
-    # If multi-stream request, default to interpolating all times to first stream
-    if len(streams) > 1:
-        stream_data.deployment_times = stream_data.get_time_data(stream_keys[0])
-
-
-    # create StreamKey to CachedParameter mapping for the requested streams
-    stream_to_params = {StreamKey.from_dict(s): [] for s in streams}
-    for sk in stream_to_params:
-        stream_to_params[sk] = [p for p in stream_request.parameters if sk.stream.id in p.streams]
-
-    return JsonResponse(stream_data).json(stream_to_params)
-
+    return qc_stream_parameters
 
 def do_qc_stuff(primary_key, stream_data, parameters, qc_stream_parameters):
     time_param = primary_key.stream.time_parameter
@@ -177,8 +180,8 @@ def do_qc_stuff(primary_key, stream_data, parameters, qc_stream_parameters):
             has_qc = False
             qc_results_key = '%s_%s' % (param.name, 'qc_results')
             qc_ran_key = '%s_%s' % (param.name, 'qc_executed')
-            qc_results_values = numpy.zeros_like(time_data)
-            qc_ran_values = numpy.zeros_like(time_data)
+            qc_results_values = numpy.zeros_like(time_data, dtype=numpy.int8)
+            qc_ran_values = numpy.zeros_like(time_data, dtype=numpy.int8)
 
             for qc_function_name in qc_stream_parameters.get(param.name, []):
                 qc_function_results = '%s_%s' % (param.name, qc_function_name)
@@ -186,9 +189,10 @@ def do_qc_stuff(primary_key, stream_data, parameters, qc_stream_parameters):
                 if qc_function_results in pd_data\
                         and pd_data.get(qc_function_results, {}).get(primary_key.as_refdes(), {}).get('data') is not None:
                     has_qc = True
-                    values = pd_data[qc_function_results][primary_key.as_refdes()]['data']
+                    qc_function_results_entry = pd_data.pop(qc_function_results)
+                    values = qc_function_results_entry[primary_key.as_refdes()]['data']
                     qc_cached_function = CachedFunction.from_qc_function(qc_function_name)
-                    qc_results_mask = numpy.full_like(time_data, int(qc_cached_function.qc_flag, 2))
+                    qc_results_mask = numpy.full_like(time_data, int(qc_cached_function.qc_flag, 2), dtype=numpy.int8)
                     qc_results_values = numpy.where(values == 0, ~qc_results_mask & qc_results_values, qc_results_mask ^ qc_results_values)
                     qc_ran_values = qc_results_mask | qc_ran_values
 
@@ -200,7 +204,7 @@ def do_qc_stuff(primary_key, stream_data, parameters, qc_stream_parameters):
 
 
 @log_timing
-def get_netcdf(streams, start, stop, coefficients, limit=None,
+def get_netcdf(streams, start, stop, coefficients, qc_parameters, limit=None,
                include_provenance=False, include_annotations=False, strict_range=False, location_information={},
                request_uuid='', disk_path=None):
     """
@@ -213,15 +217,20 @@ def get_netcdf(streams, start, stop, coefficients, limit=None,
             parameters.append(CachedParameter.from_id(p))
     time_range = TimeRange(start, stop)
 
+    qc_stream_parameters = prepare_qc_stuff(qc_parameters)
+
     # Create the provenance metadata store to keep track of all files that are used
     provenance_metadata = ProvenanceMetadataStore()
     annotation_store = AnnotationStore()
-    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit,
+    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range,
+                                   qc_parameters=qc_stream_parameters, limit=limit,
                                    include_provenance=include_provenance,include_annotations=include_annotations,
                                    strict_range=strict_range, location_information=location_information)
     provenance_metadata.add_query_metadata(stream_request, request_uuid, "netCDF")
 
     stream_data = fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
+
+    do_qc_stuff(stream_keys[0], stream_data, stream_request.parameters, qc_stream_parameters)
 
     # If multi-stream request, default to interpolating all times to first stream
     if len(streams) > 1:

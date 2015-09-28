@@ -293,7 +293,7 @@ def netcdf():
         prov = input_data.get('include_provenance', True)
         annotate = input_data.get('include_annotations', False)
         resp = Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
-                                         limit=limit, include_provenance=prov,
+                                         input_data.get('qcParameters', {}), limit=limit, include_provenance=prov,
                                          include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
                                          location_information=input_data.get('locations', {})),
                     mimetype='application/netcdf')
@@ -349,6 +349,7 @@ def netcdf_save_to_filesystem():
     annotate = input_data.get('include_annotations', False)
     try:
         json_str = util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
+                                         input_data.get('qcParameters', {}),
                                          limit=limit,
                                          include_provenance=prov,
                                          include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
