@@ -196,12 +196,14 @@ proc_name = 'stream_engine'
 def post_fork(server, worker):
     server.log.info("Worker spawned (pid: %s)", worker.pid)
     from util.cass import get_session, create_execution_pool
+    from util.calc import create_request_pool
     with worker_lock:
         worker.log.debug('Connecting worker to cassandra')
         get_session()
         worker.log.debug('Connected worker to cassandra')
         worker.log.debug('Worker creating execution pool')
         create_execution_pool()
+        create_request_pool()
         worker.log.debug('Worker created execution pool')
     preload_database.database.open_connection()
 
