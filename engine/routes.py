@@ -433,19 +433,20 @@ def get_bins():
     """Given ntp time return bins"""
     st = request.args.get('start')
     et = request.args.get('stop')
-    if st is None or et is None:
+    stream = request.args.get('stream')
+    if st is None or et is None or stream is None:
         return "Need start and end time to compute bin range"
     try:
         stf = float(st)
         etf = float(et)
-        start_bin = time_to_bin(stf)
-        end_bin = time_to_bin(etf)
+        start_bin = time_to_bin(stf, stream)
+        end_bin = time_to_bin(etf, stream)
     except:
         # assuming it is in the form YY-MM-DDTHH-MM-SS.sssZ
         st = ISO_to_ntp(st)
         et = ISO_to_ntp(et)
-        start_bin = time_to_bin(st)
-        end_bin = time_to_bin(et)
+        start_bin = time_to_bin(st, stream)
+        end_bin = time_to_bin(et, stream)
     return Response(json.dumps({'start_bin' : start_bin, 'stop_bin' : end_bin}), mimetype='application/json')
 
 @app.route("/get_times", methods=['GET'])

@@ -282,7 +282,7 @@ def query_partition_metadata_before(stream_key, time_start, session=None, prepar
     '''
     query_name = "bin_meta_first_{:s}_{:s}_{:s}_{:s}_{:s}".format(stream_key.subsite, stream_key.node, stream_key.sensor,
                                                             stream_key.method, stream_key.stream.name)
-    start_bin=  time_to_bin(time_start)
+    start_bin=  time_to_bin(time_start, stream_key.stream.name)
     if query_name not in prepared:
         base = (
             "SELECT {:s} FROM partition_metadata WHERE stream = '{:s}' AND  refdes = '{:s}' AND method = '{:s}' AND bin <= ? ORDER BY method DESC, bin DESC LIMIT 4").format(
@@ -315,8 +315,8 @@ def query_partition_metadata(stream_key, time_range, session=None, prepared=None
     '''
     query_name = "bin_meta_{:s}_{:s}_{:s}_{:s}_{:s}".format(stream_key.subsite, stream_key.node, stream_key.sensor,
                                                             stream_key.method, stream_key.stream.name)
-    start_bin=  time_to_bin(time_range.start)
-    end_bin = time_to_bin(time_range.stop)
+    start_bin=  time_to_bin(time_range.start, stream_key.stream.name)
+    end_bin = time_to_bin(time_range.stop, stream_key.stream.name)
     if query_name not in prepared:
         base = (
             "SELECT bin, store, count, first, last FROM partition_metadata WHERE stream = '{:s}' AND  refdes = '{:s}' AND method = '{:s}' AND bin >= ? and bin <= ?").format(
@@ -579,11 +579,11 @@ def fetch_data_sync(stream_key, time_range, strict_range=False, session=None, pr
     # attempt to find one data point beyond the requested start/stop times
     if not strict_range:
         first_statment = SimpleStatement(
-            base % ('time', time_to_bin(start)) + ' and time<%s order by method desc limit 1', (start,),
+            base % ('time', time_to_bin(start, stream_key.stream.name)) + ' and time<%s order by method desc limit 1', (start,),
             consistency_level=query_consistency)
         first = session.execute(first_statment)
         second_statement = SimpleStatement(
-            base % ('time', time_to_bin(stop)) + ' and time>%s limit 1', (stop,),
+            base % ('time', time_to_bin(stop, stream_key.stream.name)) + ' and time>%s limit 1', (stop,),
             consistency_level=query_consistency
         )
         last = session.execute(second_statement)
@@ -595,7 +595,7 @@ def fetch_data_sync(stream_key, time_range, strict_range=False, session=None, pr
         start -= 0.005
         stop += 0.005
 
-    times = [(b, start, stop) for b in xrange(time_to_bin(start), time_to_bin(stop) + 1)]
+    times = [(b, start, stop) for b in xrange(time_to_bin(start, stream_key.stream.name), time_to_bin(stop, stream_key.stream.name) + 1)]
     return cols, ConcurrentBatchFuture(stream_key, cols, times)
 
 
@@ -1052,11 +1052,12 @@ def create_execution_pool():
     [f.get() for f in futures]
 
 
-def time_to_bin(t):
-    return int(t / (24 * 60 * 60))
+def time_to_bin(t, stream):
+    bin_size_seconds = 24 * 60 * 60
+    return long(t / bin_size_seconds) * bin_size_seconds
 
-def bin_to_time(b):
-    return b * 24 * 60 * 60
+def bin_to_time(b, stream):
+    return float(b)
 
 @cassandra_session
 def get_available_time_range(stream_key, session=None, prepared=None, query_consistency=None):
