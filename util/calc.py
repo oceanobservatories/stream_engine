@@ -24,6 +24,8 @@ from util.common import log_timing, ntp_to_datestring,ntp_to_ISO_date, StreamKey
 
 from parameter_util import PDArgument, FQNArgument, DPIArgument, CCArgument, NumericArgument, FunctionArgument
 
+from csvresponse import CSVGenerator
+
 from engine.routes import app
 from util.san import fetch_nsan_data, fetch_full_san_data, get_san_lookback_dataset
 
@@ -202,6 +204,35 @@ def do_qc_stuff(primary_key, stream_data, parameters, qc_stream_parameters):
                 pd_data[qc_results_key] = {primary_key.as_refdes(): {'data': qc_results_values}}
                 pd_data[qc_ran_key] = {primary_key.as_refdes(): {'data': qc_ran_values}}
 
+
+@log_timing
+def get_csv(streams, start, stop, coefficients, limit=None,
+               include_provenance=False, include_annotations=False, strict_range=False, location_information={},
+               request_uuid='', disk_path=None, delimiter=','):
+    if len(streams) > 1 and disk_path is None:
+        msg ="Syncronous delimited data not currently permitted for multiple streams"
+        log.error(msg)
+        raise StreamEngineException(msg, status_code=400)
+    stream_keys = [StreamKey.from_dict(d) for d in streams]
+    parameters = []
+    for s in streams:
+        for p in s.get('parameters', []):
+            parameters.append(CachedParameter.from_id(p))
+    time_range = TimeRange(start, stop)
+
+    # Create the provenance metadata store to keep track of all files that are used
+    provenance_metadata = ProvenanceMetadataStore()
+    annotation_store = AnnotationStore()
+    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit,
+                                   include_provenance=include_provenance,include_annotations=include_annotations,
+                                   strict_range=strict_range, location_information=location_information)
+    provenance_metadata.add_query_metadata(stream_request, request_uuid, "netCDF")
+    stream_data = fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
+    # create StreamKey to CachedParameter mapping for the requested streams
+    stream_to_params = {StreamKey.from_dict(s): [] for s in streams}
+    for sk in stream_to_params:
+        stream_to_params[sk] = [p for p in stream_request.parameters if sk.stream.id in p.streams]
+    return CSVGenerator(stream_data, delimiter, stream_to_params).chunks(disk_path)
 
 @log_timing
 def get_netcdf(streams, start, stop, coefficients, qc_parameters, limit=None,
