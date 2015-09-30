@@ -104,6 +104,8 @@ def write_file_with_content(base_path, file_path, content):
     if os.path.isdir(base_path):
         with open(file_path, 'w') as f:
             f.write(content)
+            with open(os.path.join(base_path, "status.txt"), 'w') as s:
+                s.write("complete")
             return True
     else:
         return False
