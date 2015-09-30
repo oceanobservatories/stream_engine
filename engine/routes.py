@@ -196,6 +196,11 @@ def write_file_with_content(base_path, file_path, content):
     else:
         return False
 
+def write_status(path, status="complete"):
+    if not os.path.exists(path):
+        os.makedirs(path)
+    with open(os.path.join(path, "status.txt"), 'w') as s:
+        s.write(status)
 
 @app.route('/particles-fs', methods=['POST'])
 def particles_save_to_filesystem():
@@ -268,7 +273,6 @@ def particles_save_to_filesystem():
         json_output = json.dumps({ 'code': 500, 'message' : message})
         file_path = os.path.join(base_path, 'failure.json')
         log.exception(json_output)
-
     # try to write file, if it does not succeed then return an error
     if not write_file_with_content(base_path=base_path, file_path=file_path, content=json_output):
         # if the code is 500, append message, otherwise replace it with this error as returning a non-existent filename
@@ -276,6 +280,8 @@ def particles_save_to_filesystem():
         message = "%sSupplied directory '%s' is invalid. Path specified exists but is not a directory." \
                   % (message + ". " if code == 500 else "", base_path)
         code = 500
+
+    write_status(base_path)
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return Response(json.dumps({'code': code, 'message' : message},indent=2, separators=(',',': ')),
@@ -360,6 +366,7 @@ def delimited_to_filesystem(input_data, delimiter=','):
 
     prov = input_data.get('include_provenance', True)
     annotate = input_data.get('include_annotations', False)
+    base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],input_data.get('directory','unknown'))
     try:
         json_str = util.calc.get_csv(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
                                          limit=limit,
@@ -369,13 +376,15 @@ def delimited_to_filesystem(input_data, delimiter=','):
                                          disk_path=input_data.get('directory','unknown'), delimiter=delimiter)
     except Exception as e:
         output = { "code" : 500, "message": "Request for particles failed for the following reason: %s" % (e.message) }
-        base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],input_data.get('directory','unknown'))
          # try to write file, if it does not succeed then return an additional error
         json_str = json.dumps(output, indent=2, separators=(',',': '))
         if not write_file_with_content(base_path=base_path, file_path=os.path.join(base_path, "failure.json"), content=json_str):
             output['message'] = "%s. Supplied directory '%s' is invalid. Path specified exists but is not a directory." % (output['message'],base_path)
         json_str = json.dumps(output, indent=2, separators=(',',': '))
         log.exception(json_str)
+
+    write_status(base_path)
+
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return Response(json_str, mimetype='application/json')
 
@@ -534,6 +543,7 @@ def netcdf_save_to_filesystem():
 
     prov = input_data.get('include_provenance', True)
     annotate = input_data.get('include_annotations', False)
+    base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],input_data.get('directory','unknown'))
     try:
         json_str = util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
                                          input_data.get('qcParameters', {}),
@@ -544,7 +554,6 @@ def netcdf_save_to_filesystem():
                                          disk_path=input_data.get('directory','unknown'))
     except Exception as e:
         output = { "code" : 500, "message": "Request for particles failed for the following reason: %s" % (e.message) }
-        base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],input_data.get('directory','unknown'))
          # try to write file, if it does not succeed then return an additional error
         json_str = json.dumps(output, indent=2, separators=(',',': '))
         if not write_file_with_content(base_path=base_path, file_path=os.path.join(base_path, "failure.json"), content=json_str):
@@ -552,6 +561,7 @@ def netcdf_save_to_filesystem():
         json_str = json.dumps(output, indent=2, separators=(',',': '))
         log.exception(json_str)
 
+    write_status(base_path)
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return Response(json_str, mimetype='application/json')
