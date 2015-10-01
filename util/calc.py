@@ -4,6 +4,7 @@ import tempfile
 import zipfile
 import uuid
 import os
+import cPickle as pickle
 from collections import OrderedDict, defaultdict
 
 import numexpr
@@ -49,6 +50,58 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
+
+@log_timing(log)
+def get_pickle(streams, start, stop, coefficients, qc_parameters, limit=None,
+               include_provenance=False, include_annotations=False, strict_range=False, location_information={},
+               request_uuid='', disk_path=None):
+    """
+    Returns a list of particles from the given streams, limits and times
+    """
+    stream_keys = [StreamKey.from_dict(d) for d in streams]
+    parameters = []
+    for s in streams:
+        for p in s.get('parameters', []):
+            parameters.append(CachedParameter.from_id(p))
+    time_range = TimeRange(start, stop)
+
+    qc_stream_parameters = prepare_qc_stuff(qc_parameters)
+
+    # create the store that will keep track of provenance for all streams/datasources
+    provenance_metadata = ProvenanceMetadataStore()
+    annotation_store = AnnotationStore()
+    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range,
+                                   qc_parameters=qc_stream_parameters, limit=limit,
+                                   include_provenance=include_provenance, include_annotations=include_annotations,
+                                   strict_range=strict_range, location_information=location_information)
+
+    # Create the medata store
+    provenance_metadata.add_query_metadata(stream_request, request_uuid, 'PICKLE')
+    stream_data = fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata,
+                                    annotation_store)
+    do_qc_stuff(stream_keys[0], stream_data, stream_request.parameters, qc_stream_parameters)
+    output_data = {}
+    for k, d, ds in stream_data.groups():
+        val = output_data.get(k.as_dashed_refdes(), {})
+        val[d] = ds
+        output_data[k.as_dashed_refdes()] = val
+
+    if disk_path is None:
+        return pickle.dumps(output_data, protocol=2)
+    else:
+        file_paths = []
+        base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], disk_path)
+        # ensure the directory structure is there
+        if not os.path.isdir(base_path):
+            os.makedirs(base_path)
+            file_path = '%s/%s.pickle' % (base_path, str(uuid.uuid4()))
+            with open(file_path, 'wb') as pick_file:
+                pickle.dump(output_data, pick_file, protocol=2)
+            file_paths.append(file_path)
+        # build json return
+        return json.dumps({'code': 200, 'message': str(file_paths)}, indent=2, separators=(',', ': '))
+    log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
+    return Response(json_str, mimetype='application/json')
 
 @log_timing(log)
 def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
