@@ -196,6 +196,99 @@ def write_file_with_content(base_path, file_path, content):
     else:
         return False
 
+@app.route('/pickle', methods=['POST'])
+def pickles():
+    """
+    POST should contain a dictionary of the following format:
+    {
+        'streams': [
+            {
+                'subsite': subsite,
+                'node': node,
+                'sensor': sensor,
+                'method': method,
+                'stream': stream,
+                'parameters': [...],
+            },
+            ...
+        ],
+        'coefficients': {
+            'CC_a0': [
+                { 'start': ntptime, 'stop': ntptime, 'value': 1.0 },
+                ...
+            ],
+            ...
+        },
+        'start': ntptime,
+        'stop': ntptime
+    }
+
+    :return: JSON object:
+    """
+    input_data = request.get_json()
+    validate(input_data)
+
+    request_start_time = time.time()
+    log.info("Handling request to {} - {}".format(request.url, input_data.get('streams', "")))
+
+    start = input_data.get('start', app.config["UNBOUND_QUERY_START"])
+    stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
+    limit = input_data.get('limit', 0)
+    if limit <= 0:
+        limit = None
+    if limit <= app.config['UI_HARD_LIMIT']:
+        prov = input_data.get('include_provenance', False)
+        annotate = input_data.get('include_annotations', False)
+        resp = Response(util.calc.get_pickle(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
+                                                input_data.get('qcParameters', {}), limit=limit,
+                                                include_provenance=prov, include_annotations=annotate ,
+                                                strict_range=input_data.get('strict_range', False), request_uuid=input_data.get('requestUUID',''), location_information=input_data.get('locations', {})),
+                        mimetype='application/octet-stream')
+
+        log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
+        return resp
+    else:
+        message = 'Requested number of particles ({:,d}) larger than maximum allowed limit ({:,d})'.format(limit, app.config['UI_HARD_LIMIT'])
+        raise(UIHardLimitExceededException(message=message))
+
+
+
+
+@app.route('/pickle-fs', methods=['POST'])
+def pickles_fs():
+    input_data = request.get_json()
+    validate(input_data)
+    log.info("Handling request to {} - {}".format(request.url, input_data.get('streams', "")))
+    request_start_time = time.time()
+    start = input_data.get('start', app.config["UNBOUND_QUERY_START"])
+    stop = input_data.get('stop', ntplib.system_to_ntp_time(time.time()))
+    limit = input_data.get('limit', 0)
+    if limit <= 0:
+        limit = None
+
+    prov = input_data.get('include_provenance', False)
+    annotate = input_data.get('include_annotations', False)
+    # output is sent to filesystem, the directory will be supplied via endpoint, in case it is not, use a backup
+    # NOTE(uFrame): If a backup is being used, there's likely a bug in uFrame, so best to track that down as soon as possible
+    try:
+        json_str = util.calc.get_pickle(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
+                                         input_data.get('qcParameters', {}),
+                                         limit=limit,
+                                         include_provenance=prov,
+                                         include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
+                                         location_information=input_data.get('locations', {}),
+                                         disk_path=input_data.get('directory','unknown'))
+    except Exception as e:
+        output = { "code" : 500, "message": "Request for particles failed for the following reason: %s" % (e.message) }
+        base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],input_data.get('directory','unknown'))
+         # try to write file, if it does not succeed then return an additional error
+        json_str = json.dumps(output, indent=2, separators=(',',': '))
+        if not write_file_with_content(base_path=base_path, file_path=os.path.join(base_path, "failure.json"), content=json_str):
+            output['message'] = "%s. Supplied directory '%s' is invalid. Path specified exists but is not a directory." % (output['message'],base_path)
+        json_str = json.dumps(output, indent=2, separators=(',',': '))
+        log.exception(json_str)
+    log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
+    return Response(json_str, mimetype='application/json')
 
 @app.route('/particles-fs', methods=['POST'])
 def particles_save_to_filesystem():
