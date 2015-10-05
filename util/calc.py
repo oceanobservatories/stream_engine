@@ -66,12 +66,12 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
     qc_stream_parameters = prepare_qc_stuff(qc_parameters)
 
     # create the store that will keep track of provenance for all streams/datasources
-    provenance_metadata = ProvenanceMetadataStore()
+    provenance_metadata = ProvenanceMetadataStore(request_uuid)
     annotation_store = AnnotationStore()
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range,
                                    qc_parameters=qc_stream_parameters, limit=limit,
                                    include_provenance=include_provenance,include_annotations=include_annotations,
-                                   strict_range=strict_range, location_information=location_information)
+                                   strict_range=strict_range, location_information=location_information, request_id=request_uuid)
 
     # Create the medata store
     provenance_metadata.add_query_metadata(stream_request, request_uuid, 'JSON')
@@ -221,11 +221,11 @@ def get_csv(streams, start, stop, coefficients, limit=None,
     time_range = TimeRange(start, stop)
 
     # Create the provenance metadata store to keep track of all files that are used
-    provenance_metadata = ProvenanceMetadataStore()
+    provenance_metadata = ProvenanceMetadataStore(request_uuid)
     annotation_store = AnnotationStore()
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit,
                                    include_provenance=include_provenance,include_annotations=include_annotations,
-                                   strict_range=strict_range, location_information=location_information)
+                                   strict_range=strict_range, location_information=location_information, request_uuid=request_uuid)
     provenance_metadata.add_query_metadata(stream_request, request_uuid, "netCDF")
     stream_data = fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
     # create StreamKey to CachedParameter mapping for the requested streams
@@ -251,12 +251,12 @@ def get_netcdf(streams, start, stop, coefficients, qc_parameters, limit=None,
     qc_stream_parameters = prepare_qc_stuff(qc_parameters)
 
     # Create the provenance metadata store to keep track of all files that are used
-    provenance_metadata = ProvenanceMetadataStore()
+    provenance_metadata = ProvenanceMetadataStore(request_uuid)
     annotation_store = AnnotationStore()
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range,
                                    qc_parameters=qc_stream_parameters, limit=limit,
                                    include_provenance=include_provenance,include_annotations=include_annotations,
-                                   strict_range=strict_range, location_information=location_information)
+                                   strict_range=strict_range, location_information=location_information, request_id=request_uuid)
     provenance_metadata.add_query_metadata(stream_request, request_uuid, "netCDF")
 
     stream_data = fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
@@ -993,7 +993,7 @@ class StreamRequest(object):
     """
     def __init__(self, stream_keys, parameters, coefficients, time_range, qc_parameters={}, needs_only=False,
                  limit=None, include_provenance=False, include_annotations=False, strict_range=False,
-                 location_information={}):
+                 location_information={}, request_id=''):
         self.stream_keys = stream_keys
         self.time_range = time_range
         self.qc_parameters = qc_parameters if qc_parameters is not None else {}
@@ -1007,6 +1007,7 @@ class StreamRequest(object):
         self.include_annotations = include_annotations
         self.strict_range = strict_range
         self._initialize(needs_only)
+        self.request_id = request_id
 
     def _initialize(self, needs_only):
         if len(self.stream_keys) == 0:
@@ -1160,7 +1161,8 @@ class StreamRequest(object):
 
 
 class ProvenanceMetadataStore(object):
-    def __init__(self):
+    def __init__(self, request_uuid):
+        self.request_uuid = request_uuid
         self._prov_set = set()
         self.calculated_metatdata = CalculatedProvenanceMetadataStore()
         self.messages = []
