@@ -12,7 +12,7 @@ import util.calc
 from util.cass import stream_exists, time_to_bin, bin_to_time
 from util.common import CachedParameter, StreamEngineException, MalformedRequestException, \
     InvalidStreamException, StreamUnavailableException, InvalidParameterException, ISO_to_ntp, ntp_to_ISO_date, \
-    StreamKey, MissingDataException, MissingTimeException, UIHardLimitExceededException
+    StreamKey, MissingDataException, MissingTimeException, UIHardLimitExceededException, ntp_to_fname_string
 from util.san import onload_netCDF, SAN_netcdf
 
 
@@ -245,7 +245,7 @@ def particles_save_to_filesystem():
     base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],
                              input_data.get('directory','unknown/%0f-%s' % (start, input_data.get('requestUUID', 'unknown'))))
     streams = input_data.get('streams')
-    fn = '%s.json' % (StreamKey.from_dict(streams[0]).stream_name)
+    fn = '%s-%s.json' % (ntp_to_fname_string(start), StreamKey.from_dict(streams[0]).stream_name)
     code = 200
     file_path = os.path.join(base_path, fn)
     message = str([file_path])
@@ -266,7 +266,7 @@ def particles_save_to_filesystem():
         message = "Request for particles failed for the following reason: " + e.message
         # set the contents of failure.json
         json_output = json.dumps({ 'code': 500, 'message' : message})
-        file_path = os.path.join(base_path, 'failure.json')
+        file_path = os.path.join(base_path, 'failure-{:s}-{:s}.json'.format(ntp_to_fname_string(start), input_data.get('requestUUID', 'unknown')))
         log.exception(json_output)
 
     # try to write file, if it does not succeed then return an error
@@ -372,7 +372,7 @@ def delimited_to_filesystem(input_data, delimiter=','):
         base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],input_data.get('directory','unknown'))
          # try to write file, if it does not succeed then return an additional error
         json_str = json.dumps(output, indent=2, separators=(',',': '))
-        if not write_file_with_content(base_path=base_path, file_path=os.path.join(base_path, "failure.json"), content=json_str):
+        if not write_file_with_content(base_path=base_path, file_path=os.path.join(base_path, "failure-{:s}-{:s}.json".format(ntp_to_fname_string(start), input_data.get('requestUUID', 'unknown'))), content=json_str):
             output['message'] = "%s. Supplied directory '%s' is invalid. Path specified exists but is not a directory." % (output['message'],base_path)
         json_str = json.dumps(output, indent=2, separators=(',',': '))
         log.exception(json_str)
@@ -547,7 +547,7 @@ def netcdf_save_to_filesystem():
         base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],input_data.get('directory','unknown'))
          # try to write file, if it does not succeed then return an additional error
         json_str = json.dumps(output, indent=2, separators=(',',': '))
-        if not write_file_with_content(base_path=base_path, file_path=os.path.join(base_path, "failure.json"), content=json_str):
+        if not write_file_with_content(base_path=base_path, file_path=os.path.join(base_path, "failure-{:s}-{:s}.json".format(ntp_to_fname_string(start), input_data.get('requestUUID', 'unknown'))), content=json_str):
             output['message'] = "%s. Supplied directory '%s' is invalid. Path specified exists but is not a directory." % (output['message'],base_path)
         json_str = json.dumps(output, indent=2, separators=(',',': '))
         log.exception(json_str)

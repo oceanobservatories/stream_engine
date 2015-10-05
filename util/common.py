@@ -22,6 +22,13 @@ parameter_cache = {}
 function_cache = {}
 
 
+def get_file_name(stream_key, stream_request, deployment,  suffix, file_path=None):
+    file_name = '{:s}-deployment{:04d}-{:s}{:s}'.format(ntp_to_fname_string(stream_request.time_range.start), deployment, stream_key.as_dashed_refdes(), suffix)
+    if file_path is not None:
+        file_name = '{:s}/{:s}'.format(file_path, file_name)
+    return file_name
+
+
 def isfillvalue(a):
     """
     Test element-wise for fill values and return result as a boolean array.
@@ -131,6 +138,13 @@ def ntp_to_datestring(ntp_time):
     try:
         ntp_time = float(ntp_time)
         return datetime.datetime.utcfromtimestamp( ntplib.ntp_to_system_time(ntp_time) ).strftime("%Y-%m-%d %H:%M:%S")
+    except:
+        return str(ntp_time)
+
+def ntp_to_fname_string(ntp_time):
+    try:
+        ntp_time = float(ntp_time)
+        return datetime.datetime.utcfromtimestamp( ntplib.ntp_to_system_time(ntp_time) ).strftime("%Y-%m-%d-%H-%M-%S")
     except:
         return str(ntp_time)
 

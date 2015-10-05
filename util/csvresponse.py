@@ -7,7 +7,7 @@ import numpy
 import xray
 
 from engine.routes import app
-from util.common import StreamEngineException
+from util.common import StreamEngineException, get_file_name
 
 log = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ class CSVGenerator(object):
         if not os.path.isdir(base_path):
             os.makedirs(base_path)
         for stream_key, deployment, ds in self.stream_data.groups():
-            file_path = '%s/deployment%04d_%s%s' % (base_path, deployment, stream_key.as_dashed_refdes(), self.get_suffix())
+            file_path = get_file_name(stream_key, self.stream_data.stream_request, deployment, self.get_suffix(), base_path)
             with open(file_path, 'w') as fileout:
                 to_use, attr = self._get_async_parameters(ds)
                 self._write_csv_out(fileout, ds, to_use, attr)

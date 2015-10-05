@@ -285,6 +285,7 @@ class StreamData(object):
         self.deployments = sorted(data.keys())
         self.deployment_streams = self._build_deployment_stream_map(stream_request, data)
         self.deployment_times = {}
+        self.stream_request = stream_request
 
     def _build_deployment_stream_map(self, sr, data):
         dp_map = {}
