@@ -20,7 +20,7 @@ from util.common import log_timing, ntp_to_datestring,ntp_to_ISO_date, StreamKey
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, Annotation, \
     MissingTimeException, MissingDataException, MissingStreamMetadataException, get_stream_key_with_param, \
-    isfillvalue, InvalidInterpolationException, to_xray_dataset, get_params_with_dpi, ParamUnavailableException, compile_datasets
+    isfillvalue, InvalidInterpolationException, to_xray_dataset, get_params_with_dpi, ParamUnavailableException, compile_datasets, get_file_name
 
 from parameter_util import PDArgument, FQNArgument, DPIArgument, CCArgument, NumericArgument, FunctionArgument
 
@@ -1341,7 +1341,7 @@ class NetCDF_Generator(object):
         if not os.path.isdir(base_path):
             os.makedirs(base_path)
         for stream_key, deployment, ds in self.stream_data.groups():
-                file_path = '%s/deployment%04d_%s.nc' % (base_path, deployment, stream_key.as_dashed_refdes())
+                file_path = get_file_name(stream_key, self.stream_data.stream_request, deployment, '.nc', base_path)
                 ds.to_netcdf(file_path)
                 file_paths.append(file_path)
         # build json return
@@ -1358,7 +1358,7 @@ class NetCDF_Generator(object):
             with tempfile.NamedTemporaryFile() as tf:
                 # interp to main times if more than one stream was in the request.
                 ds.to_netcdf(tf.name)
-                zf.write(tf.name, 'deployment%04d_%s.nc' % (deployment, stream_key.as_dashed_refdes(),))
+                zf.write(tf.name, get_file_name(stream_key, self.stream_data.stream_request, deployment, '.nc'))
 
 
 def find_stream(stream_key, streams, distinct_sensors):
