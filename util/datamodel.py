@@ -23,7 +23,7 @@ import xray_interpolation as xinterp
 log = logging.getLogger(__name__)
 
 
-def _open_new_ds(stream_key, deployment, provenance_metadata=None, annotation_store=None):
+def _open_new_ds(stream_key, deployment, request_uuid, provenance_metadata=None, annotation_store=None):
     # set up file level attributes
     attrs = {
         'subsite': stream_key.subsite,
@@ -45,7 +45,8 @@ def _open_new_ds(stream_key, deployment, provenance_metadata=None, annotation_st
         'nodc_template_version' : '{:s}'.format(app.config['NETCDF_NODC_TEMPLATE_VERSION']),
         'standard_name_vocabulary' : '{:s}'.format(app.config['NETCDF_STANDARD_NAME_VOCABULARY']),
         'summary' : '{:s}'.format(app.config['NETCDF_SUMMARY']),
-        'uuid' : '{:s}'.format(str(uuid.uuid4())),
+        'uuid' : '{:s}'.format(str(request_uuid)),
+        'requestUUID' : '{:s}'.format(str(request_uuid)),
         'id' : '{:s}'.format(stream_key.as_dashed_refdes()),
         'naming_authority' : '{:s}'.format(app.config['NETCDF_NAMING_AUTHORITY']),
         'creator_name' : '{:s}'.format(app.config['NETCDF_CREATOR_NAME']),
@@ -271,6 +272,7 @@ def _add_dynamic_attributes(ds, stream_key, location_information, deployment):
 class StreamData(object):
 
     def __init__(self, stream_request, data, provenance_metadata, annotation_store):
+        self.stream_request = stream_request
         self.stream_keys = stream_request.stream_keys
         self.data = data
         self.location_information = stream_request.location_information
@@ -310,11 +312,12 @@ class StreamData(object):
         else:
             deployments = [deployment]
 
+        request_id = self.stream_request.request_id
         for sk in stream_keys:
             for d in deployments:
                 if self.check_stream_deployment(sk, d):
                     pd_data = self.data[d]
-                    ds = _open_new_ds(sk, d, self.provenance_metadata, self.annotation_store)
+                    ds = _open_new_ds(sk, d, request_id, self.provenance_metadata, self.annotation_store)
                     _group_by_stream_key(ds, pd_data, sk)
                     _add_dynamic_attributes(ds, sk, self.location_information, d)
                     times = self.deployment_times.get(d, None)

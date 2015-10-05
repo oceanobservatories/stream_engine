@@ -76,6 +76,7 @@ class JsonResponse(object):
                 out['computed_provenance'] = stream_data.provenance_metadata.calculated_metatdata.get_dict()
                 out['query_parameter_provenance'] = stream_data.provenance_metadata.get_query_dict()
                 out['provenance_messages'] = stream_data.provenance_metadata.messages
+                out['requestUUID'] = stream_data.provenance_metadata.request_uuid
             if stream_data.annotation_store is not None:
                 out['annotations'] = stream_data.annotation_store.get_json_representation()
             return out

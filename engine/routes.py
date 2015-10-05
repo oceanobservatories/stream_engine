@@ -21,22 +21,27 @@ log = logging.getLogger(__name__)
 
 @app.errorhandler(StreamEngineException)
 def handle_stream_not_found(error):
-    response = jsonify(error.to_dict())
+    reqID = request.get_json().get('requestUUID', '')
+    errd = error.to_dict()
+    errd['requestUUID'] = reqID
+    response = jsonify(errd)
     response.status_code = error.status_code
-
-    log.info("Returning exception: {}".format(error.to_dict()))
+    log.info("Returning exception: {}".format(errd))
     return response
 
 @app.errorhandler(Exception)
 def handle_stream_not_found(error):
-    msg = "Unexpected internal error during request"
-    log.exception(msg)
-    return '{{\n  "message": "{}"\n}}'.format(msg)
+    reqID = request.get_json().get('requestUUID', '')
+    msg = "Unexpected internal error during request: {:s}".format(reqID)
+    errd = {'message' : msg, 'requestUUID' : reqID}
+    response = jsonify(errd)
+    response.status_code = 500
+    return response
 
 
 @app.before_request
 def log_request():
-    log.info('Incoming request url=%s data=%s', request.url, request.data)
+    log.info('Incoming request (%s) url=%s data=%s',request.get_json().get('requestUUID',''), request.url, request.data)
 
 
 @app.route('/particles', methods=['POST'])
@@ -265,7 +270,7 @@ def particles_save_to_filesystem():
         # make message be the error code
         message = "Request for particles failed for the following reason: " + e.message
         # set the contents of failure.json
-        json_output = json.dumps({ 'code': 500, 'message' : message})
+        json_output = json.dumps({ 'code': 500, 'message' : message, 'requestUUID' : input_data.get('requestUUID', '')})
         file_path = os.path.join(base_path, 'failure.json')
         log.exception(json_output)
 
@@ -368,14 +373,7 @@ def delimited_to_filesystem(input_data, delimiter=','):
                                          location_information=input_data.get('locations', {}),
                                          disk_path=input_data.get('directory','unknown'), delimiter=delimiter)
     except Exception as e:
-        output = { "code" : 500, "message": "Request for particles failed for the following reason: %s" % (e.message) }
-        base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],input_data.get('directory','unknown'))
-         # try to write file, if it does not succeed then return an additional error
-        json_str = json.dumps(output, indent=2, separators=(',',': '))
-        if not write_file_with_content(base_path=base_path, file_path=os.path.join(base_path, "failure.json"), content=json_str):
-            output['message'] = "%s. Supplied directory '%s' is invalid. Path specified exists but is not a directory." % (output['message'],base_path)
-        json_str = json.dumps(output, indent=2, separators=(',',': '))
-        log.exception(json_str)
+        output_async_error(input_data, e)
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return Response(json_str, mimetype='application/json')
 
@@ -543,15 +541,7 @@ def netcdf_save_to_filesystem():
                                          location_information=input_data.get('locations', {}),
                                          disk_path=input_data.get('directory','unknown'))
     except Exception as e:
-        output = { "code" : 500, "message": "Request for particles failed for the following reason: %s" % (e.message) }
-        base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],input_data.get('directory','unknown'))
-         # try to write file, if it does not succeed then return an additional error
-        json_str = json.dumps(output, indent=2, separators=(',',': '))
-        if not write_file_with_content(base_path=base_path, file_path=os.path.join(base_path, "failure.json"), content=json_str):
-            output['message'] = "%s. Supplied directory '%s' is invalid. Path specified exists but is not a directory." % (output['message'],base_path)
-        json_str = json.dumps(output, indent=2, separators=(',',': '))
-        log.exception(json_str)
-
+        output_async_error(input_data, e)
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return Response(json_str, mimetype='application/json')
@@ -707,3 +697,18 @@ def validate(input_data):
     if not isinstance(input_data.get('coefficients', {}), dict):
         raise MalformedRequestException('Received invalid coefficient data, must be a map',
                                         payload={'coefficients': input_data.get('coefficients')})
+
+def output_async_error(input_data, e):
+    output = {
+        "code" : 500,
+        "message" : "Request for particles failed for the following reason: %s" % (e.message),
+        'requestUUID' : input_data.get('requestUUID', '')
+    }
+    base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],input_data.get('directory','unknown'))
+    # try to write file, if it does not succeed then return an additional error
+    json_str = json.dumps(output, indent=2, separators=(',',': '))
+    if not write_file_with_content(base_path=base_path, file_path=os.path.join(base_path, "failure.json"), content=json_str):
+        output['message'] = "%s. Supplied directory '%s' is invalid. Path specified exists but is not a directory." % (output['message'],base_path)
+    json_str = json.dumps(output, indent=2, separators=(',',': '))
+    log.exception(json_str)
+    return json_str
