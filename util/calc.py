@@ -226,7 +226,7 @@ def get_csv(streams, start, stop, coefficients, limit=None,
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit,
                                    include_provenance=include_provenance,include_annotations=include_annotations,
                                    strict_range=strict_range, location_information=location_information)
-    provenance_metadata.add_query_metadata(stream_request, request_uuid, "netCDF")
+    provenance_metadata.add_query_metadata(stream_request, request_uuid, "delimited({:s})".format(delimiter))
     stream_data = fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
     # create StreamKey to CachedParameter mapping for the requested streams
     stream_to_params = {StreamKey.from_dict(s): [] for s in streams}
@@ -528,7 +528,7 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
                 try:
                     _qc_check(stream_request, param, pd_data, primary_key)
                 except Exception as e:
-                    log.error("Unexpected error while running qc functions: {}".format(e.message))
+                    log.exception("Unexpected error while running qc functions: {}".format(e.message))
         stream_data[dep_num] = pd_data
 
     sd = StreamData(stream_request, stream_data, provenance_metadata, annotation_store)
@@ -537,20 +537,23 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
 
 def _qc_check(stream_request, parameter, pd_data, primary_key):
     qcs = stream_request.qc_parameters.get(parameter.name)
+    local_qc_args = defaultdict(dict)
     for function_name in qcs:
         for qcp in qcs[function_name].keys(): #vector qc parameters are the only ones with string values and need populating
             if qcs[function_name][qcp] == 'time': #populate time vectors with particle times
-                qcs[function_name][qcp] =  pd_data[primary_key.stream.time_parameter][primary_key.as_refdes()]['data'][:]
-            if qcs[function_name][qcp] == 'data': #populate data vectors with particle data
-                qcs[function_name][qcp] = pd_data[parameter.id][primary_key.as_refdes()]['data']
-            if isinstance(qcs[function_name][qcp], basestring):
+                local_qc_args[function_name][qcp] =  pd_data[primary_key.stream.time_parameter][primary_key.as_refdes()]['data'][:]
+            elif qcs[function_name][qcp] == 'data': #populate data vectors with particle data
+                local_qc_args[function_name][qcp] = pd_data[parameter.id][primary_key.as_refdes()]['data']
+            elif isinstance(qcs[function_name][qcp], basestring):
                 for p in stream_request.parameters: #populate stream parameter vectors with data from that stream
                     if p.name.encode('ascii', 'ignore') == qcs[function_name][qcp] and pd_data.get(p.id, {}).get(primary_key.as_refdes(), {}).get('data') is not None:
-                        qcs[function_name][qcp] = pd_data[p.id][primary_key.as_refdes()]['data']
+                        local_qc_args[function_name][qcp] = pd_data[p.id][primary_key.as_refdes()]['data']
                         break
+            else:
+                local_qc_args[function_name][qcp] = qcs[function_name][qcp]
 
         if 'strict_validation' not in qcs[function_name]:
-            qcs[function_name]['strict_validation'] = False
+            local_qc_args[function_name]['strict_validation'] = False
 
         module = importlib.import_module(CachedFunction.from_qc_function(function_name).owner)
 
@@ -558,7 +561,7 @@ def _qc_check(stream_request, parameter, pd_data, primary_key):
         if qc_name not in pd_data:
             pd_data[qc_name] = {}
         pd_data[qc_name][primary_key.as_refdes()] = {
-            'data': getattr(module, function_name)(**qcs.get(function_name)),
+            'data': getattr(module, function_name)(**local_qc_args.get(function_name)),
             'source': 'qc'
         }
 
