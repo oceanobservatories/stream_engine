@@ -1,11 +1,13 @@
 import os
+import logging
+
 import numpy
 import xray
-from engine import app
-from util.cass import insert_dataset, fetch_all_data, bin_to_time, get_san_location_metadata
-from util.common import StreamKey, FUNCTION, TimeRange, to_xray_dataset, compile_datasets
 
-import logging
+from engine import app
+from util.cass import insert_dataset, get_san_location_metadata, fetch_bin, execution_pool
+from util.common import StreamKey, to_xray_dataset, compile_datasets, log_timing
+
 log = logging.getLogger(__name__)
 
 DEPLOYMENT_FORMAT = 'deployment_{:04d}'
@@ -89,7 +91,7 @@ def SAN_netcdf(streams, bins):
 
 def offload_bin(stream, data_bin, san_dir_string):
     #get the data and drop duplicates
-    cols, data = fetch_all_data(stream, TimeRange(bin_to_time(data_bin), bin_to_time(data_bin+1)))
+    cols, data = fetch_bin(stream, data_bin)
     dataset = to_xray_dataset(cols, data, stream, san=True)
     nc_directory = san_dir_string.format(data_bin)
     if not os.path.exists(nc_directory):
@@ -164,6 +166,7 @@ def get_SAN_samples(num_points, location_metadata):
     return to_sample
 
 
+@log_timing(log)
 def fetch_nsan_data(stream_key, time_range, num_points=1000, location_metadata=None):
     """
     Given a time range and stream key.  Genereate evenly spaced times over the inverval using data
@@ -185,27 +188,36 @@ def fetch_nsan_data(stream_key, time_range, num_points=1000, location_metadata=N
     missed = 0
     data = []
     next_index = 0
+    futures = []
     for time_bin, num_data_points in to_sample:
         direct = dir_string.format(time_bin)
         if os.path.exists(direct):
             # get data from all of the  deployments
             deployments = os.listdir(direct)
+
             for deployment in deployments:
                 full_path = os.path.join(direct, deployment)
                 if os.path.isdir(full_path):
-                    new_data = get_deployment_data(full_path, stream_key.stream_name, num_data_points, time_range, index_start=next_index)
-                    if new_data is None:
-                        missed += num_data_points
-                        continue
-                    count = len(new_data['index'])
-                    missed += (num_data_points - count)
-                    data.append(new_data)
-                    # keep track of the indexes so that the final dataset has unique indices
-                    next_index += len(new_data['index'])
+                    futures.append(
+                        execution_pool.apply_async(get_deployment_data,
+                                                   (full_path, stream_key.stream_name, num_data_points, time_range),
+                                                   kwds={'index_start': next_index}))
         else:
             missed += num_data_points
+
+    for future in futures:
+        new_data = future.get()
+        if new_data is None:
+            missed += num_data_points
+            continue
+        count = len(new_data['index'])
+        missed += (num_data_points - count)
+        data.append(new_data)
+        # keep track of the indexes so that the final dataset has unique indices
+        next_index += len(new_data['index'])
+
     log.warn("SAN: Failed to produce {:d} points due to nature of sampling".format(missed))
-    return  compile_datasets(data)
+    return compile_datasets(data)
 
 def fetch_full_san_data(stream_key, time_range, location_metadata=None):
     """
@@ -242,6 +254,7 @@ def fetch_full_san_data(stream_key, time_range, location_metadata=None):
     return xray.concat(data, dim='index')
 
 
+@log_timing(log)
 def get_deployment_data(direct, stream_name, num_data_points, time_range, index_start=0, forward_slice=True):
     """
     Given a directory of NETCDF files for a deployment
@@ -262,7 +275,8 @@ def get_deployment_data(direct, stream_name, num_data_points, time_range, index_
             f = os.path.join(direct, f)
             with xray.open_dataset(f, decode_times=False) as dataset:
                 out_ds = xray.Dataset(attrs=dataset.attrs)
-                t = dataset['time'].values
+                t = dataset.time
+                t.load()
                 # get the indexes to pull out of the data
                 indexes = numpy.where(numpy.logical_and(time_range.start <= t, t <= time_range.stop))[0]
                 if len(indexes) != 0:
@@ -283,14 +297,11 @@ def get_deployment_data(direct, stream_name, num_data_points, time_range, index_
                     for var_name in dataset.variables.keys():
                         if var_name in dataset.coords:
                             continue
-                        var = dataset[var_name]
-                        var_data = var.values[selection]
-                        coords = {k:v for k, v in var.coords.iteritems()}
-                        coords['index'] = idx
-                        da = xray.DataArray(var_data, coords=coords, dims=var.dims, name=var.name, attrs=var.attrs)
-                        out_ds.update({var_name : da})
+                        var = dataset[var_name][selection]
+                        out_ds.update({var_name : var})
                     # set the index here
                     out_ds['index'] = idx
+                    out_ds.load()
                     return out_ds
     return None
 

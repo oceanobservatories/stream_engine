@@ -216,7 +216,7 @@ class ConcurrentBatchFuture(ResponseFuture):
             self._final_result = self._fetch_data_concurrent(self.times)
         return self._final_result
 
-    @log_timing
+    @log_timing(log)
     def _fetch_data_concurrent(self, times):
         futures = []
         for i in xrange(0, len(times), self.q_per_proc):
@@ -233,21 +233,21 @@ class ConcurrentBatchFuture(ResponseFuture):
         return rows
 
 
-@log_timing
+@log_timing(log)
 @cassandra_session
 def get_distinct_sensors(session=None, prepared=None, query_consistency=None):
     rows = session.execute(prepared.get(DISTINCT_PS))
     return rows
 
 
-@log_timing
+@log_timing(log)
 @cassandra_session
 def get_streams(subsite, node, sensor, method, session=None, prepared=None, query_consistency=None):
     rows = session.execute(prepared[METADATA_FOR_REFDES_PS], (subsite, node, sensor, method))
     return [row[0] for row in rows]  # return streams with count>0
 
 
-@log_timing
+@log_timing(log)
 @cassandra_session
 def get_query_columns(stream_key, session=None, prepared=None, query_consistency=None):
     # grab the column names from our metadata
@@ -259,7 +259,7 @@ def get_query_columns(stream_key, session=None, prepared=None, query_consistency
     return cols
 
 
-@log_timing
+@log_timing(log)
 @cassandra_session
 def query_partition_metadata_before(stream_key, time_start, session=None, prepared=None, query_consistency=None):
     '''
@@ -295,7 +295,7 @@ def query_partition_metadata_before(stream_key, time_start, session=None, prepar
     res = session.execute(query, [start_bin])
     return [Row(*row) for row in res]
 
-@log_timing
+@log_timing(log)
 @cassandra_session
 def query_partition_metadata(stream_key, time_range, session=None, prepared=None, query_consistency=None):
     '''
@@ -328,6 +328,7 @@ def query_partition_metadata(stream_key, time_range, session=None, prepared=None
     query = prepared[query_name]
     return session.execute(query, [start_bin, end_bin])
 
+@log_timing(log)
 def get_cass_location_metadata(stream_key, time_range):
     """
     Get the bins, counts, times, and total data contained in cassandra for a streamkey in the given time range
@@ -347,6 +348,7 @@ def get_cass_location_metadata(stream_key, time_range):
             bins[data_bin] =  (count, first, last)
     return LocationMetadata(sorted(bins.keys()), bins, total)
 
+@log_timing(log)
 def get_san_location_metadata(stream_key, time_range):
     """
     Get the bins, counts, times, and total data contained in cassandra for a streamkey in the given time range
@@ -366,7 +368,7 @@ def get_san_location_metadata(stream_key, time_range):
             bins[data_bin] =  (count, first, last)
     return LocationMetadata(sorted(bins.keys()), bins, total)
 
-
+@log_timing(log)
 def get_cass_lookback_dataset(stream_key, start_time, data_bin, deployments):
     # try to fetch the first n times to ensure we get a deployment value in there.
     cols, rows = fetch_with_func(query_n_before, stream_key, [(data_bin, start_time,engine.app.config['LOOKBACK_QUERY_LIMIT'] )])
@@ -379,7 +381,7 @@ def get_cass_lookback_dataset(stream_key, start_time, data_bin, deployments):
             needed.remove(r[dep_idx])
     return to_xray_dataset(cols, ret_rows, stream_key)
 
-
+@log_timing(log)
 def get_first_before_metadata(stream_key, start_time):
     """
     Return metadata information for the first bin before the time range
@@ -412,6 +414,7 @@ def get_first_before_metadata(stream_key, start_time):
                 to_use =res[0]
     return {to_use.store : LocationMetadata([to_use.bin], {to_use.bin :(to_use.count, to_use.first, to_use.last)}, to_use.count)}
 
+@log_timing(log)
 def get_location_metadata(stream_key, time_range):
     results = query_partition_metadata(stream_key, time_range)
     cass_bins = {}
@@ -485,7 +488,7 @@ class LocationMetadata(object):
         return self.__repr__()
 
 
-@log_timing
+@log_timing(log)
 @cassandra_session
 def query_bin_first(stream_key, bins, cols=None,  session=None, prepared=None, query_consistency=None):
     query_name = 'bin_first_%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite, stream_key.node,
@@ -507,7 +510,7 @@ def query_bin_first(stream_key, bins, cols=None,  session=None, prepared=None, q
             result.extend(list(rows))
     return result
 
-@log_timing
+@log_timing(log)
 @cassandra_session
 def query_first_after(stream_key, times_and_bins, cols, session=None, prepared=None, query_consistency=None):
     query_name = 'first_after_%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite, stream_key.node,
@@ -526,7 +529,7 @@ def query_first_after(stream_key, times_and_bins, cols, session=None, prepared=N
             result.extend(list(rows))
     return result
 
-@log_timing
+@log_timing(log)
 @cassandra_session
 def query_n_before(stream_key, query_arguments, cols, session=None, prepared=None, query_consistency=None):
     query_name = 'first_before_%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite, stream_key.node,
@@ -545,7 +548,7 @@ def query_n_before(stream_key, query_arguments, cols, session=None, prepared=Non
             result.extend(list(rows))
     return result
 
-@log_timing
+@log_timing(log)
 @cassandra_session
 def query_full_bin(stream_key, bins_and_limit, cols, session=None, prepared=None, query_consistency=None):
     query_name = 'full_bin_%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite, stream_key.node,
@@ -565,7 +568,7 @@ def query_full_bin(stream_key, bins_and_limit, cols, session=None, prepared=None
     return result
 
 
-@log_timing
+@log_timing(log)
 @cassandra_session
 def fetch_data_sync(stream_key, time_range, strict_range=False, session=None, prepared=None, query_consistency=None):
     cols = get_query_columns(stream_key)
@@ -599,7 +602,7 @@ def fetch_data_sync(stream_key, time_range, strict_range=False, session=None, pr
     return cols, ConcurrentBatchFuture(stream_key, cols, times)
 
 
-@log_timing
+@log_timing(log)
 @cassandra_session
 def fetch_concurrent(stream_key, cols, times, concurrency=50, session=None, prepared=None, query_consistency=None):
     query_name = 'fetch_data_%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite,
@@ -616,6 +619,7 @@ def fetch_concurrent(stream_key, cols, times, concurrency=50, session=None, prep
     results = [list(r[1]) if type(r[1]) == PagedResult else r[1] for r in results if r[0]]
     return results
 
+@log_timing(log)
 @cassandra_session
 def fetch_l0_provenance(stream_key, provenance_values, deployment, session=None, prepared=None,
                         query_consistency=None):
@@ -635,6 +639,7 @@ def fetch_l0_provenance(stream_key, provenance_values, deployment, session=None,
     prov_dict = {str(row.id) : {'file_name' : row.file_name, 'parser_name' : row.parser_name, 'parser_version' : row.parser_version} for row in records}
     return prov_dict
 
+@log_timing(log)
 @cassandra_session
 def get_streaming_provenance(stream_key, times, session=None, prepared=None, query_consistency=None):
     # Get the first entry before the current
@@ -661,7 +666,7 @@ def get_streaming_provenance(stream_key, times, session=None, prepared=None, que
     prov[times >= last_prov.time] = str(last_prov.id)
     return prov, prov_dict
 
-@log_timing
+@log_timing(log)
 def fetch_nth_data(stream_key, time_range, num_points=1000, location_metadata=None):
     """
     Given a time range, generate evenly spaced times over the specified interval. Fetch a single
@@ -709,6 +714,7 @@ def fetch_nth_data(stream_key, time_range, num_points=1000, location_metadata=No
     log.info("Returning %s rows from %s fetch", len(to_return), stream_key.as_refdes())
     return to_xray_dataset(cols, to_return, stream_key)
 
+@log_timing(log)
 def sample_full_bins(stream_key, time_range, num_points, metadata_bins, cols=None):
     # Read all the data and do sampling from there.
     # There may need to be de-duplicating done on this method
@@ -721,7 +727,7 @@ def sample_full_bins(stream_key, time_range, num_points, metadata_bins, cols=Non
         results = selected_data
     return cols, results
 
-
+@log_timing(log)
 def sample_n_bins(stream_key, time_range, num_points, metadata_bins, cols=None):
     results = []
     sb = metadata_bins[0]
@@ -742,7 +748,7 @@ def sample_n_bins(stream_key, time_range, num_points, metadata_bins, cols=None):
     results.extend(rows)
     return cols, results
 
-
+@log_timing(log)
 def sample_n_points(stream_key, time_range, num_points, metadata_bins, bin_information, cols=None):
     results = []
     # get the first point
@@ -786,8 +792,24 @@ def fetch_with_func(f, stream_key, args, cols=None):
     return cols, f(stream_key, args, cols)
 
 
+@log_timing(log)
+@cassandra_session
+def fetch_bin(stream_key, time_bin, session=None, prepared=None, query_consistency=None):
+    cols = get_query_columns(stream_key)
+
+    base = ("select %s from %s where subsite=%%s and node=%%s and sensor=%%s and bin=%%s " + \
+            "and method=%%s") % (','.join(cols), stream_key.stream.name)
+    query = SimpleStatement(base)
+    query.consistency_level = query_consistency
+    return cols, list(session.execute(query, (stream_key.subsite,
+                                              stream_key.node,
+                                              stream_key.sensor,
+                                              time_bin,
+                                              stream_key.method)))
+
+
 # Fetch all records in the time_range by querying for every time bin in the time_range
-@log_timing
+@log_timing(log)
 def fetch_all_data(stream_key, time_range, location_metadata=None):
 
     """
@@ -812,13 +834,14 @@ def fetch_all_data(stream_key, time_range, location_metadata=None):
 
     return cols, rows
 
+@log_timing(log)
 def get_full_cass_dataset(stream_key, time_range, location_metadata=None):
     cols, rows = fetch_all_data(stream_key, time_range, location_metadata)
     return to_xray_dataset(cols, rows, stream_key)
 
 
 @cassandra_session
-@log_timing
+@log_timing(log)
 def execute_unlimited_query(stream_key, cols, time_bin, time_range, session=None, prepared=None,
                             query_consistency=None):
 
@@ -835,7 +858,7 @@ def execute_unlimited_query(stream_key, cols, time_bin, time_range, session=None
                                         time_range.stop)))
 
 @cassandra_session
-@log_timing
+@log_timing(log)
 def insert_dataset(stream_key, dataset, session=None, prepared=None, query_consistency=None ):
     """
     Insert an xray dataset back into CASSANDRA.
@@ -934,7 +957,7 @@ def insert_dataset(stream_key, dataset, session=None, prepared=None, query_consi
         return ret_val
 
 @cassandra_session
-@log_timing
+@log_timing(log)
 def fetch_annotations(stream_key, time_range, session=None, prepared=None, query_consistency=None, with_mooring=True):
     #------- Query 1 -------
     # query where annotation effectivity is whithin the query time range
@@ -951,7 +974,7 @@ def fetch_annotations(stream_key, time_range, session=None, prepared=None, query
 
     #------- Query 2 --------
     # Where annoation effectivity straddles the entire query time range
-    # -- This is necessary because of the way the Cassandra uses the 
+    # -- This is necessary because of the way the Cassandra uses the
     #    start-time in the primary key
     time_constraint_wide = " and time<=%s"
     query_base_wide = select_clause + where_clause + time_constraint_wide
@@ -988,13 +1011,13 @@ def fetch_annotations(stream_key, time_range, session=None, prepared=None, query
     for row in temp:
         time2 = row[4]
         if time_range.stop < time2:
-            result.append(row) 
+            result.append(row)
 
     return result
 
 
 @cassandra_session
-@log_timing
+@log_timing(log)
 def store_qc_results(qc_results_values, pk, particle_ids, particle_bins, particle_deploys, param_name, session=None, strict_range=False, prepared=None, query_consistency=None):
     start_time = time.clock()
     if engine.app.config['QC_RESULTS_STORAGE_SYSTEM'] == 'cass':
@@ -1023,7 +1046,7 @@ def store_qc_results(qc_results_values, pk, particle_ids, particle_bins, particl
     else:
         log.info("Configured storage system '{}' not recognized, qc results not stored.".format(engine.app.config['QC_RESULTS_STORAGE_SYSTEM']))
 
-
+@log_timing(log)
 @cassandra_session
 def stream_exists(subsite, node, sensor, method, stream, session=None, prepared=None, query_consistency=None):
     ps = prepared.get(STREAM_EXISTS_PS)
@@ -1039,7 +1062,7 @@ def initialize_worker():
 def connect_worker():
     get_session()
 
-
+@log_timing(log)
 def create_execution_pool():
     global execution_pool
     pool_size = engine.app.config['POOL_SIZE']
@@ -1056,10 +1079,11 @@ def time_to_bin(t, stream):
     bin_size_seconds = 24 * 60 * 60
     return long(t / bin_size_seconds) * bin_size_seconds
 
-def bin_to_time(b, stream):
+def bin_to_time(b):
     return float(b)
 
 @cassandra_session
+@log_timing(log)
 def get_available_time_range(stream_key, session=None, prepared=None, query_consistency=None):
     rows = session.execute(prepared[STREAM_EXISTS_PS], (stream_key.subsite, stream_key.node,
                                                         stream_key.sensor, stream_key.method,
