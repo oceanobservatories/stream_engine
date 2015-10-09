@@ -249,13 +249,13 @@ def _add_dynamic_attributes(ds, stream_key, location_information, deployment):
             ds.attrs['geospatial_lon_min']  = lon
             ds.attrs['geospatial_lon_max']  = lon
         else:
-            v = xray.DataArray(-99999.9, name='lat', attrs={'standard_name' : 'longitude', 'long_name' : 'longitude', 'units' : 'degrees_east'})
-            ds.update({'lat' : v})
+            v = xray.DataArray(-99999.9, name='lon', attrs={'standard_name' : 'longitude', 'long_name' : 'longitude', 'units' : 'degrees_east'})
+            ds.update({'lon' : v})
             ds.attrs['geospatial_lon_min']  = -180.0
             ds.attrs['geospatial_lon_max']  = 180.0
     else:
-        ds.attrs['geospatial_lat_min']  = min(ds.variables['lat'].values)
-        ds.attrs['geospatial_lat_max']  = max(ds.variables['lat'].values)
+        ds.attrs['geospatial_lon_min']  = min(ds.variables['lon'].values)
+        ds.attrs['geospatial_lon_max']  = max(ds.variables['lon'].values)
     ds.attrs['geospatial_lat_units']  = 'degrees_north'
     ds.attrs['geospatial_lat_resolution']  = app.config["GEOSPATIAL_LAT_LON_RES"]
     ds.attrs['geospatial_lon_units']  = 'degrees_east'
