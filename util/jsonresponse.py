@@ -4,6 +4,7 @@ from collections import OrderedDict
 import json
 import logging
 import numpy as np
+from common import log_timing
 
 
 log = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ class JsonResponse(object):
     def __init__(self, stream_data):
         self.stream_data = stream_data
 
+    @log_timing(log)
     def json(self, stream_to_params):
         groups = {}
         for stream_key in stream_to_params.keys():
@@ -37,6 +39,7 @@ class JsonResponse(object):
 
         return json.dumps(out, indent=2, cls=NumpyJSONEncoder)
 
+    @log_timing(log)
     def _particles(self, ds, stream_key, parameters):
         # convert data into a list of particles
         particles = []
@@ -67,6 +70,7 @@ class JsonResponse(object):
             particles.append(particle)
         return particles
 
+    @log_timing(log)
     def _metadata(self, stream_data):
         if stream_data.provenance_metadata is not None or stream_data.annotation_store is not None:
             out = OrderedDict()
@@ -80,6 +84,7 @@ class JsonResponse(object):
                 out['annotations'] = stream_data.annotation_store.get_json_representation()
             return out
 
+    @log_timing(log)
     def _reconstruct(self, value):
         parts = value.split(' ')
         return {

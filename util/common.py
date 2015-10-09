@@ -102,22 +102,24 @@ def last_seen(times, data, interp_times):
     return numpy.array(new_data)
 
 
-def log_timing(func):
-    if app.logger.isEnabledFor('debug'):
-        @wraps(func)
-        def inner(*args, **kwargs):
-            app.logger.debug('Entered method: %s', func)
-            start = time.time()
-            results = func(*args, **kwargs)
-            elapsed = time.time() - start
-            app.logger.debug('Completed method: %s in %.2f', func, elapsed)
-            return results
-    else:
-        @wraps(func)
-        def inner(*args, **kwargs):
-            return func(*args, **kwargs)
+def log_timing(logger):
+    def _log_timing(func):
+        if logger.isEnabledFor('debug'):
+            @wraps(func)
+            def inner(*args, **kwargs):
+                logger.debug('Entered method: %s', func)
+                start = time.time()
+                results = func(*args, **kwargs)
+                elapsed = time.time() - start
+                logger.debug('Completed method: %s in %.2f', func, elapsed)
+                return results
+        else:
+            @wraps(func)
+            def inner(*args, **kwargs):
+                return func(*args, **kwargs)
 
-    return inner
+        return inner
+    return _log_timing
 
 
 def parse_pdid(pdid_string):
@@ -541,7 +543,6 @@ def to_xray_dataset(cols, data, stream_key, san=False):
     """
     if len(data) == 0:
         return None
-    arrays = set([p.name for p in stream_key.stream.parameters if p.parameter_type != FUNCTION and p.is_array])
     params = {p.name : p for p in stream_key.stream.parameters if p.parameter_type != FUNCTION }
     attrs = {
         'subsite': stream_key.subsite,
@@ -565,12 +566,13 @@ def to_xray_dataset(cols, data, stream_key, san=False):
     for column in dataframe.columns:
         # unpack any arrays
         if column in params:
-            if column in arrays:
-                data = replace_values(dataframe[column].values, params[column], True)
-            else:
-                data = replace_values(dataframe[column].values, params[column], False)
+            data = replace_values(dataframe[column].values,
+                                  params[column].value_encoding,
+                                  params[column].fill_value,
+                                  params[column].is_array,
+                                  params[column].name)
         else:
-            data = dataframe[column].values
+            data = replace_values(dataframe[column].values, str, '', False, column)
 
         # Fix up the dimensions for possible multi-d objects
         dims = ['index']
@@ -608,11 +610,13 @@ def to_xray_dataset(cols, data, stream_key, san=False):
     return dataset
 
 
-def replace_values(data_slice, param, array):
+def replace_values(data_slice, value_encoding, fill_value, is_array, name):
     """
     Replace any missing values in the parameter
     :param data_slice: pandas series to replace missing values in
-    :param param: Information about the parameter
+    :param value_encoding: Type information about the parameter
+    :param fill_value: Fill value for the parameter
+    :param is_array: Flag indicating if this is a msgpack array
     :return: data_slice with missing values filled with fill value
     """
     # Nones can only be in ndarrays with dtype == object.  NetCDF
@@ -624,7 +628,7 @@ def replace_values(data_slice, param, array):
     # Integers are cast as floats and missing values replaced with Not A Number
     # The below case will take care of instances where the whole series is missing or if it is an array or
     # some other object we don't know how to fill.
-    if array:
+    if is_array:
         unpacked = [msgpack.unpackb(x) for x in data_slice]
         no_nones = filter(None, unpacked)
         # Get the maximum sized array using numpy
@@ -634,48 +638,48 @@ def replace_values(data_slice, param, array):
             shapes = filter(lambda x: len(x) == max_len, shapes)
             max_shape = max(shapes)
             shp = tuple([len(unpacked)] + list(max_shape))
-            data_slice= numpy.empty(shp, dtype=param.value_encoding)
-            data_slice.fill(param.fill_value)
+            data_slice= numpy.empty(shp, dtype=value_encoding)
+            data_slice.fill(fill_value)
             try:
                 fix_data_arrays(data_slice, unpacked)
-            except Exception as e:
-                log.exception("Error filling arrays with data for parameter %s replacing with fill values", param.name)
-                data_slice.fill(param.fill_value)
+            except Exception:
+                log.exception("Error filling arrays with data for parameter %s replacing with fill values", name)
+                data_slice.fill(fill_value)
         else:
-            data_slice = numpy.array([[] for _ in unpacked], dtype=param.value_encoding)
-    if data_slice.dtype == 'object' and not param.is_array:
+            data_slice = numpy.array([[] for _ in unpacked], dtype=value_encoding)
+    if data_slice.dtype == 'object' and not is_array:
         nones = numpy.equal(data_slice, None)
         if numpy.any(nones):
-            if param.fill_value is not None:
-                data_slice[nones] = param.fill_value
-                data_slice = data_slice.astype(param.value_encoding)
+            if fill_value is not None:
+                data_slice[nones] = fill_value
+                data_slice = data_slice.astype(value_encoding)
             else:
-                log.warn("No fill value for param %s", param)
+                log.warn("No fill value for param %s", name)
                 # If there are nones either fill with specific value for ints, floats, string, or throw an error
-                if param.value_encoding in ['int', 'uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64']:
+                if value_encoding in ['int', 'uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64']:
                     data_slice[nones] = -999999999
                     data_slice = data_slice.astype('int64')
-                elif param.value_encoding in ['float16', 'float32', 'float64', 'float96']:
+                elif value_encoding in ['float16', 'float32', 'float64', 'float96']:
                     data_slice[nones] = numpy.nan
                     data_slice = data_slice.astype('float64')
-                elif param.value_encoding == 'string':
+                elif value_encoding == 'string':
                     data_slice[nones] = ''
                     data_slice = data_slice.astype('str')
                 else:
-                    raise StreamEngineException('Do not know how to fill for data type ' + str(param.value_encoding))
+                    raise StreamEngineException('Do not know how to fill for data type %s', value_encoding)
 
     # otherwise if the returned data is a float we need to check and make sure it is not supposed to be an int
     elif data_slice.dtype == 'float64':
         # Int's are upcast to floats if there is a missing value.
-        if param.value_encoding in ['int', 'uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64']:
+        if value_encoding in ['int', 'uint8', 'uint16', 'uint32', 'uint64', 'int8', 'int16', 'int32', 'int64']:
             # We had a missing value because it was upcast
             indexes = numpy.where(numpy.isnan(data_slice))
             if len(indexes) > 0:
-                if param.fill_value is not None:
-                    data_slice[indexes] = param.fill_value
-                    data_slice = data_slice.astype(param.value_encoding)
+                if fill_value is not None:
+                    data_slice[indexes] = fill_value
+                    data_slice = data_slice.astype(value_encoding)
                 else:
-                    log.warn("No fill value for param %s", param)
+                    log.warn("No fill value for param %s", name)
                     data_slice[indexes] = -999999999
                     data_slice = data_slice.astype('int64')
 
@@ -683,9 +687,10 @@ def replace_values(data_slice, param, array):
     # like objects.  So convert objects to strings.
     if data_slice.dtype == object:
         try:
-            data_slice = data_slice.astype(param.value_encoding)
+            data_slice = data_slice.astype(value_encoding)
         except ValueError as e:
-            log.error('Unable to convert %s (PD %s) to value type (%s) (may be caused by jagged arrays): %s', param.name, param.id, param.value_encoding, e)
+            log.error('Unable to convert %s to value type (%s) (may be caused by jagged arrays): %s',
+                      name, value_encoding, e)
     return data_slice
 
 def compile_datasets(datasets):
