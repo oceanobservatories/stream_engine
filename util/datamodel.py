@@ -159,6 +159,13 @@ def _group_by_stream_key(ds, pd_data, stream_key):
         data = pd_data[param_id][stream_key.as_refdes()]['data'][mask]
         if param is not None:
             data = data.astype(param.value_encoding)
+        else:
+            if param_name in app.config['INTERNAL_OUTPUT_MAPPING']:
+                data = data.astype(app.config['INTERNAL_OUTPUT_MAPPING'][param_name])
+
+        if param_name in app.config['INTERNAL_OUTPUT_EXCLUDE_LIST']:
+            continue
+
 
         dims = ['time']
         coords = {'time': time_data}

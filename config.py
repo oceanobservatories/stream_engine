@@ -76,3 +76,6 @@ QC_RESULTS_STORAGE_SYSTEM = 'none' # 'log' to write qc results to a file, 'cass'
 LOOKBACK_QUERY_LIMIT = 100 # Number of cassandra rows used to the correct deployment for padding of streams which provide cal coefficients and other needed data
 
 DPA_VERSION_VARIABLE = "version" # The name of the variable that contains the version string for the ion_functions at the package level.
+
+INTERNAL_OUTPUT_EXCLUDE_LIST = ['bin', ]
+INTERNAL_OUTPUT_MAPPING = {'deployment' : 'int32', 'id' : 'str'}
