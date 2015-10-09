@@ -15,7 +15,7 @@ from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, fetch_a
     get_available_time_range, fetch_l0_provenance, time_to_bin, bin_to_time, store_qc_results, get_location_metadata, \
     get_first_before_metadata, get_cass_lookback_dataset, get_full_cass_dataset, get_san_location_metadata, \
     get_full_cass_dataset, insert_dataset, get_streaming_provenance, CASS_LOCATION_NAME, SAN_LOCATION_NAME
-    
+
 from util.common import log_timing, ntp_to_datestring,ntp_to_ISO_date, StreamKey, TimeRange, CachedParameter, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, Annotation, \
@@ -50,7 +50,7 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 
-@log_timing
+@log_timing(log)
 def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
                   include_provenance=False, include_annotations=False, strict_range=False, location_information={}, request_uuid=''):
     """
@@ -83,7 +83,6 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
     if len(streams) > 1:
         stream_data.deployment_times = stream_data.get_time_data(stream_keys[0])
 
-
     # create StreamKey to CachedParameter mapping for the requested streams
     stream_to_params = {StreamKey.from_dict(s): [] for s in streams}
     for sk in stream_to_params:
@@ -91,6 +90,7 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
 
     return JsonResponse(stream_data).json(stream_to_params)
 
+@log_timing(log)
 def prepare_qc_stuff(qc_parameters):
     qc_stream_parameters = {}
     for qc_parameter in qc_parameters:
@@ -133,6 +133,7 @@ def prepare_qc_stuff(qc_parameters):
                 parameter_dict[current_parameter_name] = qc_parameter_value
     return qc_stream_parameters
 
+@log_timing(log)
 def do_qc_stuff(primary_key, stream_data, parameters, qc_stream_parameters):
     time_param = primary_key.stream.time_parameter
     for deployment in stream_data.deployments:
@@ -205,7 +206,7 @@ def do_qc_stuff(primary_key, stream_data, parameters, qc_stream_parameters):
                 pd_data[qc_ran_key] = {primary_key.as_refdes(): {'data': qc_ran_values}}
 
 
-@log_timing
+@log_timing(log)
 def get_csv(streams, start, stop, coefficients, limit=None,
                include_provenance=False, include_annotations=False, strict_range=False, location_information={},
                request_uuid='', disk_path=None, delimiter=','):
@@ -234,7 +235,8 @@ def get_csv(streams, start, stop, coefficients, limit=None,
         stream_to_params[sk] = [p for p in stream_request.parameters if sk.stream.id in p.streams]
     return CSVGenerator(stream_data, delimiter, stream_to_params).chunks(disk_path)
 
-@log_timing
+
+@log_timing(log)
 def get_netcdf(streams, start, stop, coefficients, qc_parameters, limit=None,
                include_provenance=False, include_annotations=False, strict_range=False, location_information={},
                request_uuid='', disk_path=None):
@@ -270,7 +272,7 @@ def get_netcdf(streams, start, stop, coefficients, qc_parameters, limit=None,
     return NetCDF_Generator(stream_data).chunks(disk_path)
 
 
-@log_timing
+@log_timing(log)
 def get_needs(streams):
     """
     Returns a list of required calibration constants for a list of streams
@@ -292,7 +294,7 @@ def get_needs(streams):
     return stream_list
 
 
-
+@log_timing(log)
 def get_lookback_dataset(key, time_range, provenance_metadata, deployments):
     first_metadata = get_first_before_metadata(key, time_range.start)
     if CASS_LOCATION_NAME in first_metadata:
@@ -305,6 +307,7 @@ def get_lookback_dataset(key, time_range, provenance_metadata, deployments):
         return None
 
 
+@log_timing(log)
 def get_dataset(key, time_range, limit, provenance_metadata, pad_forward, deployments):
     cass_locations, san_locations, messages = get_location_metadata(key, time_range)
     provenance_metadata.add_messages(messages)
@@ -356,6 +359,7 @@ def get_dataset(key, time_range, limit, provenance_metadata, pad_forward, deploy
     return compile_datasets(datasets)
 
 
+@log_timing(log)
 def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store):
     """
     Fetches all parameters from the specified streams, calculates the dervived products,
@@ -535,6 +539,7 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
     return sd
 
 
+@log_timing(log)
 def _qc_check(stream_request, parameter, pd_data, primary_key):
     qcs = stream_request.qc_parameters.get(parameter.name)
     for function_name in qcs:
@@ -563,6 +568,7 @@ def _qc_check(stream_request, parameter, pd_data, primary_key):
         }
 
 
+@log_timing(log)
 def interpolate_list(desired_time, data_time, data):
     if len(data) == 0:
         raise InvalidInterpolationException("Can't perform interpolation, data is empty".format(len(data_time), len(data)))
@@ -583,6 +589,7 @@ def interpolate_list(desired_time, data_time, data):
         return sp.interp(desired_time, data_time, data)
 
 
+@log_timing(log)
 def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_metadata, stream_request, deployment, level=1):
     """
     Calculates a derived product by (recursively) calulating its derived products.
@@ -712,7 +719,6 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
         if not isinstance(data, (list, tuple, numpy.ndarray)):
             data = [data]
 
-
         pd_data[param.id][parameter_key.as_refdes()] = {'data': data, 'source': 'derived'}
         calc_id = provenance_metadata.calculated_metatdata.insert_metadata(param, this_ref, calc_meta)
 
@@ -721,6 +727,8 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
 
     return calc_id
 
+
+@log_timing(log)
 def munge_args(args, primary_key):
     """
     Munges algorithm arguments, most of this should be preload/algorithm changes
@@ -747,6 +755,7 @@ def munge_args(args, primary_key):
     return args
 
 
+@log_timing(log)
 def execute_dpa(parameter, kwargs):
     """
     Executes a derived product algorithm
@@ -780,9 +789,8 @@ def execute_dpa(parameter, kwargs):
     else:
         raise StreamEngineException("Wrong number of arguments passed to function")
 
-    return None, version
 
-
+@log_timing(log)
 def build_func_map(parameter, coefficients, pd_data, base_key, deployment, stream_request, spaces=""):
     """
     Builds a map of arguments to be passed to an algorithm
@@ -912,6 +920,7 @@ def build_func_map(parameter, coefficients, pd_data, base_key, deployment, strea
     return args, arg_metadata, messages
 
 
+@log_timing(log)
 def in_range(frame, times):
     """
     Returns boolean masking array for times in range.
@@ -938,6 +947,7 @@ def in_range(frame, times):
     return mask
 
 
+@log_timing(log)
 def build_CC_argument(frames, times, deployment):
     st = times[0]
     et = times[-1]
@@ -1008,6 +1018,7 @@ class StreamRequest(object):
         self.strict_range = strict_range
         self._initialize(needs_only)
 
+    @log_timing(log)
     def _initialize(self, needs_only):
         if len(self.stream_keys) == 0:
             raise StreamEngineException('Received no stream keys', status_code=400)
@@ -1116,7 +1127,6 @@ class StreamRequest(object):
                                 found_args = found_args.union(DPIArgument(p.data_product_identifier, p.id, new_sk) for p in product_stream.parameters)
                                 found_args = found_args.union(FQNArgument(p.id, found_stream_key.stream.name, new_sk) for p in product_stream.parameters)
 
-
                                 if new_sk not in self.stream_keys:
                                     self.stream_keys.append(new_sk)
 
@@ -1138,6 +1148,7 @@ class StreamRequest(object):
         if len(self.needs_cc) > 0:
             log.error('Missing calibration coefficients: %s', self.needs_cc)
 
+    @log_timing(log)
     def _fit_time_range(self):
         # assumes start <= stop for time ranges
         try:
@@ -1187,7 +1198,6 @@ class ProvenanceMetadataStore(object):
     def get_provenance_dict(self):
         return self._prov_dict
 
-
     def add_query_metadata(self, stream_request, query_uuid, query_type):
         self._query_metadata = OrderedDict()
         self._query_metadata["query_type"] = query_type
@@ -1201,7 +1211,6 @@ class ProvenanceMetadataStore(object):
         self._query_metadata["include_provenance"] = stream_request.include_provenance
         self._query_metadata["include_annotations"] = stream_request.include_annotations
         self._query_metadata["strict_range"] = stream_request.strict_range
-
 
     def get_query_dict(self):
         return self._query_metadata
@@ -1301,7 +1310,7 @@ def query_annotations(key, time_range):
     resultList = []
     # Seconds from NTP epoch to UNIX epoch
     NTP_OFFSET_SECS = 2208988800
-    
+
     for r in result:
         # Annotations columns in order defined in cass.py
         subsite,node,sensor,time1,time2,parameters,provenance,annotation,method,deployment,myid = r
@@ -1334,6 +1343,7 @@ class NetCDF_Generator(object):
             log.exception('An unexpected error occurred.')
             raise
 
+    @log_timing(log)
     def create_raw_files(self, path):
         file_paths = list()
         base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],path)
@@ -1347,12 +1357,14 @@ class NetCDF_Generator(object):
         # build json return
         return json.dumps({'code' : 200, 'message' : str(file_paths) }, indent=2, separators=(',',': '))
 
+    @log_timing(log)
     def create_zip(self):
         with tempfile.NamedTemporaryFile() as tzf:
             with zipfile.ZipFile(tzf.name, 'w') as zf:
                 self.write_to_zipfile(zf)
             return tzf.read()
 
+    @log_timing(log)
     def write_to_zipfile(self, zf):
         for stream_key, deployment, ds in self.stream_data.groups():
             with tempfile.NamedTemporaryFile() as tf:
@@ -1361,6 +1373,7 @@ class NetCDF_Generator(object):
                 zf.write(tf.name, 'deployment%04d_%s.nc' % (deployment, stream_key.as_dashed_refdes(),))
 
 
+@log_timing(log)
 def find_stream(stream_key, streams, distinct_sensors):
     """
     Attempt to find a "related" sensor which provides one of these streams
