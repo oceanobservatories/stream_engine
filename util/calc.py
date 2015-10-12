@@ -227,12 +227,18 @@ def get_csv(streams, start, stop, coefficients, limit=None,
                                    include_provenance=include_provenance,include_annotations=include_annotations,
                                    strict_range=strict_range, location_information=location_information)
     provenance_metadata.add_query_metadata(stream_request, request_uuid, "netCDF")
+    fetch_compute_start_time = time.time()
     stream_data = fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
+
+    log.info("Request '{0}' fetch and compute took {1:.2f}s to complete".format(request_uuid, time.time() - fetch_compute_start_time))
     # create StreamKey to CachedParameter mapping for the requested streams
     stream_to_params = {StreamKey.from_dict(s): [] for s in streams}
     for sk in stream_to_params:
         stream_to_params[sk] = [p for p in stream_request.parameters if sk.stream.id in p.streams]
-    return CSVGenerator(stream_data, delimiter, stream_to_params).chunks(disk_path)
+    csv_start_time = time.time()
+    result = CSVGenerator(stream_data, delimiter, stream_to_params).chunks(disk_path)
+    log.info("Request '{0}' delimited fs write took {1:.2f}s to complete".format(request_uuid, time.time() - csv_start_time))
+    return result
 
 @log_timing
 def get_netcdf(streams, start, stop, coefficients, qc_parameters, limit=None,
@@ -262,12 +268,16 @@ def get_netcdf(streams, start, stop, coefficients, qc_parameters, limit=None,
     stream_data = fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
 
     do_qc_stuff(stream_keys[0], stream_data, stream_request.parameters, qc_stream_parameters)
+    log.info("Request '{0}' fetch and compute took {1:.2f}s to complete".format(request_uuid, time.time() - fetch_compute_start_time))
 
     # If multi-stream request, default to interpolating all times to first stream
     if len(streams) > 1:
         stream_data.deployment_times = stream_data.get_time_data(stream_keys[0])
 
-    return NetCDF_Generator(stream_data).chunks(disk_path)
+    netcdf_start_time = time.time()
+    result = NetCDF_Generator(stream_data).chunks(disk_path)
+    log.info("Request '{0}' NetCDF fs write took {1:.2f}s to complete".format(request_uuid, time.time() - netcdf_start_time))
+    return result
 
 
 @log_timing
