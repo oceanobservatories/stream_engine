@@ -657,8 +657,9 @@ def get_streaming_provenance(stream_key, times, session=None, prepared=None, que
     prov = numpy.array(['None'] * len(times), dtype=object)
     for sp, ep in zip(prov_results[:-1], prov_results[1:]):
         prov[numpy.logical_and(times >= sp.time, times  <= ep.time)] = str(sp.id)
-    last_prov = prov_results[-1]
-    prov[times >= last_prov.time] = str(last_prov.id)
+    if len(prov_results) > 0:
+        last_prov = prov_results[-1]
+        prov[times >= last_prov.time] = str(last_prov.id)
     return prov, prov_dict
 
 @log_timing
