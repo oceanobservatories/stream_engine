@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<netcdf title="joinExisting test on netcdf Grid granules">
+    <aggregation type="joinExisting" dimName="time" >
+    {% for fname, info in coord_dict.iteritems() %}
+        <netcdf location="{{ fname }}" ncoords="{{ info['size']}}"/>
+    {% endfor %}
+    </aggregation>
+    <attribute name="NC_GLOBAL" type="Structure">
+    {% for attr, info in attr_dict.iteritems() %}
+        <attribute name="{{ attr }}" type="{{ info['type'] }}" value="{{ info['value'] }}" />
+    {% endfor %}
+    </attribute>
+    {% for var_name, info in var_dict.iteritems() %}
+    <remove name="{{ var_name }}" type="variable" />
+    {% endfor %}
+    {% for var_name, info in var_dict.iteritems() %}
+    <variable name="{{ var_name }}" type="{{ info['type'] }}" shape="{{ info['size'] }}">
+        {% if  info['separator'] is not none %}
+        <values separator="{{ info['separator'] }}">
+            {% for value in info['value'] %} {% if not loop.last %} {{ value }}{{ info['separator']}}{% else %} {{ value }} {% endif %} {% endfor %}
+
+        </values>
+        {% else %}
+        <values>
+            {% for value in info['value'] %} {{ value }} {% endfor %}
+        </values>
+        {% endif %}
+    </variable>
+    {% endfor %}
+</netcdf>

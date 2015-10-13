@@ -9,6 +9,7 @@ from flask import request, Response, jsonify
 from engine import app
 from preload_database.model.preload import Stream
 import util.calc
+import util.aggregation
 from util.cass import stream_exists, time_to_bin, bin_to_time
 from util.common import CachedParameter, StreamEngineException, MalformedRequestException, \
     InvalidStreamException, StreamUnavailableException, InvalidParameterException, ISO_to_ntp, ntp_to_ISO_date, \
@@ -353,6 +354,17 @@ def tab_save_to_filesystem():
     input_data = request.get_json()
     validate(input_data)
     return delimited_to_filesystem(input_data, '\t')
+
+@app.route('/aggregate', methods=['POST'])
+def aggregate_async():
+    input_data = request.get_json()
+    async_job = input_data.get("async_job")
+    log.warn("Performing aggregation on asynchronous job %s", async_job)
+    st = time.time()
+    util.aggregation.aggregate(async_job)
+    et = time.time()
+    log.warn("Done performing aggregation on asynchronous job %s took %s seconds", async_job, et-st)
+    return "done"
 
 def delimited_to_filesystem(input_data, delimiter=','):
     request_start_time = time.time()
