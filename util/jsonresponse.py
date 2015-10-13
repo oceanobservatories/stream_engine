@@ -65,7 +65,7 @@ class JsonResponse(object):
 
         for index in xrange(len(ds.time)):
             # Create our particle from the list of parameters
-            particle = {p: data[p][index] for p in params}
+            particle = {p: data[p][index] for p in params if p not in missing}
 
             # Add primary key, deployment, provenance
             if not stream_key.stream.is_virtual:
