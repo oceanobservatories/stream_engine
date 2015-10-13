@@ -44,29 +44,38 @@ class JsonResponse(object):
         # convert data into a list of particles
         particles = []
         warned = set()
-        for index in xrange(len(ds['time'])):
+        data = {}
+
+        for p in ds.data_vars:
+            data[p] = ds[p].values
+
+        if 'time' not in data:
+            data['time'] = ds.time.values
+
+        for index in xrange(len(ds.time)):
             particle = OrderedDict()
+
             if not stream_key.stream.is_virtual:
                 particle['pk'] = stream_key.as_dict()
                 # Add non-param data to particle
-                particle['pk']['deployment'] = ds['deployment'].values[index]
-                particle['pk']['time'] = ds['time'].values[index]
-                particle['provenance'] = str(ds['provenance'].values[index])
+                particle['pk']['deployment'] = data['deployment'][index]
+                particle['pk']['time'] = data['time'][index]
+                particle['provenance'] = str(data['provenance'][index])
 
             for param in parameters:
-                if param.name not in ds:
+                if param.name not in data:
                     if param.name not in warned:
                         log.info("Failed to get data for %d: Not in Dataset", param.id)
                         # Only one once for missing parameter
                         warned.add(param.name)
                     continue
-                particle[param.name] = ds[param.name].values[index]
+                particle[param.name] = data[param.name][index]
 
                 qc_postfixes = ['qc_results', 'qc_executed']
                 for qc_postfix in qc_postfixes:
                     qc_key = '%s_%s' % (param.name, qc_postfix)
-                    if qc_key in ds:
-                        particle[qc_key] = ds[qc_key].values[index]
+                    if qc_key in data:
+                        particle[qc_key] = data[qc_key][index]
             particles.append(particle)
         return particles
 
@@ -92,6 +101,7 @@ class JsonResponse(object):
             'parser_name': parts[1],
             'parser_version': parts[2]
         }
+
 
 class NumpyJSONEncoder(json.JSONEncoder):
     """
