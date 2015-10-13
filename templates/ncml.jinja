@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<netcdf title="joinExisting test on netcdf Grid granules">
+    <aggregation type="joinExisting" dimName="time" >
+    {% for fname, info in coord_dict.iteritems() %}
+        <netcdf location="{{ fname }}" ncoords="{{ info['size']}}"/>
+    {% endfor %}
+    </aggregation>
+    <attribute name="NC_GLOBAL" type="Structure">
+    {% for attr, info in attr_dict.iteritems() %}
+        <attribute name="{{ attr }}" type="{{ info['type'] }}" value="{{ info['value'] }}" />
+    {% endfor %}
+    </attribute>
+</netcdf>
