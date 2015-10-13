@@ -41,32 +41,49 @@ class JsonResponse(object):
 
     @log_timing(log)
     def _particles(self, ds, stream_key, parameters):
-        # convert data into a list of particles
+        """
+        Convert an xray Dataset into a list of dictionaries, each representing a single point in time
+        """
         particles = []
-        warned = set()
-        for index in xrange(len(ds['time'])):
-            particle = OrderedDict()
+
+        # extract the underlying numpy arrays from the dataset (indexing into the dataset is expensive)
+        data = {}
+        for p in ds.data_vars:
+            data[p] = ds[p].values
+
+        # Sometimes time is a coordinate, not a data_var, make sure we get it
+        if 'time' not in data:
+            data['time'] = ds.time.values
+
+        # Extract the parameter names from the parameter objects
+        params = [p.name for p in parameters]
+
+        # Warn for any missing parameters
+        missing = [p for p in params if p not in data]
+        if missing:
+            log.warn('Failed to get data for %r: Not in Dataset', missing)
+
+        for index in xrange(len(ds.time)):
+            # Create our particle from the list of parameters
+            particle = {p: data[p][index] for p in params}
+
+            # Add primary key, deployment, provenance
             if not stream_key.stream.is_virtual:
                 particle['pk'] = stream_key.as_dict()
                 # Add non-param data to particle
-                particle['pk']['deployment'] = ds['deployment'].values[index]
-                particle['pk']['time'] = ds['time'].values[index]
-                particle['provenance'] = str(ds['provenance'].values[index])
+                particle['pk']['deployment'] = data['deployment'][index]
+                # TODO: remove, time is already present outside primary key.
+                # TODO: Currently UI uses for stacked timeseries, need to remove dependency
+                particle['pk']['time'] = data['time'][index]
+                particle['provenance'] = str(data['provenance'][index])
 
-            for param in parameters:
-                if param.name not in ds:
-                    if param.name not in warned:
-                        log.info("Failed to get data for %d: Not in Dataset", param.id)
-                        # Only one once for missing parameter
-                        warned.add(param.name)
-                    continue
-                particle[param.name] = ds[param.name].values[index]
-
+            # Add any QC if it exists
+            for param in params:
                 qc_postfixes = ['qc_results', 'qc_executed']
                 for qc_postfix in qc_postfixes:
-                    qc_key = '%s_%s' % (param.name, qc_postfix)
-                    if qc_key in ds:
-                        particle[qc_key] = ds[qc_key].values[index]
+                    qc_key = '%s_%s' % (param, qc_postfix)
+                    if qc_key in data:
+                        particle[qc_key] = data[qc_key][index]
             particles.append(particle)
         return particles
 
@@ -92,6 +109,7 @@ class JsonResponse(object):
             'parser_name': parts[1],
             'parser_version': parts[2]
         }
+
 
 class NumpyJSONEncoder(json.JSONEncoder):
     """
