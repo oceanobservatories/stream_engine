@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<netcdf title="joinExisting test on netcdf Grid granules">
+    <aggregation type="joinExisting" dimName="time" >
+    {% for fname, tsize in coord_dict.iteritems() %}
+        <netcdf location="{{ fname }}" ncoords="{{ tsize }}"/>
+    {% endfor %}
+    </aggregation>
+</netcdf>
