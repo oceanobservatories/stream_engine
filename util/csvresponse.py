@@ -4,6 +4,7 @@ import os
 import tempfile
 import csv
 import numpy
+import time
 import xray
 
 from engine.routes import app
@@ -123,14 +124,20 @@ class CSVGenerator(object):
         # CSV variables to exclude
         writer = csv.DictWriter(fileout, to_use, delimiter=self.delimiter)
         writer.writeheader()
-        for index in xrange(len(ds['time'])):
+        attr_values = {a: ds.attrs[a] for a in attrs}
+        log.warn(attr_values)
+        data = {}
+        for param in to_use:
+            if param not in attrs:
+                data[param] = ds[param].values
+        data['time'] = ds.time.values
+        for index in xrange(ds.time.size):
             row = {}
             for param in to_use:
                 if param in attrs:
-                    row[param] = ds.attrs[param]
+                    row[param] = attr_values[param]
                 else:
-                    row[param] = ds[param].values[index]
-
+                    row[param] = data[param][index]
                 #TODO QC
             writer.writerow(row)
         fileout.flush()
