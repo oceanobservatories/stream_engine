@@ -125,7 +125,6 @@ class CSVGenerator(object):
         writer = csv.DictWriter(fileout, to_use, delimiter=self.delimiter)
         writer.writeheader()
         attr_values = {a: ds.attrs[a] for a in attrs}
-        log.warn(attr_values)
         data = {}
         for param in to_use:
             if param not in attrs:
