@@ -317,7 +317,12 @@ class CachedParameter(object):
             cp.value_encoding = parameter.value_encoding.value if parameter.value_encoding is not None else None
             cp.code_set = parameter.code_set.value if parameter.code_set is not None else None
             cp.unit = parameter.unit.value if parameter.unit is not None else None
-            cp.fill_value = parameter.fill_value.value if parameter.fill_value is not None else None
+            if parameter.fill_value is not None:
+                cp.fill_value = parameter.fill_value.value
+            elif parameter.value_encoding is not None and parameter.value_encoding in app.config['FILL_VALUES']:
+                cp.fill_value = app.config['FILL_VALUES'][parameter.value_encoding]
+            else:
+                cp.fill_value = None
             cp.display_name = parameter.display_name
             cp.standard_name = parameter.standard_name
             cp.precision = parameter.precision

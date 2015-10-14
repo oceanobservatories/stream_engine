@@ -714,6 +714,13 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
             error_info['message'] = e.message
             provenance_metadata.calculated_metatdata.errors.append(error_info)
 
+        #To support netcdf aggregation we need to fill all missing values across all files in case it is defined in all other locations.
+        shp = get_shape(param, parameter_key, pd_data)
+        data = numpy.empty(shape=shp, dtype=param.value_encoding)
+        data.fill(param.fill_value)
+        if param.id not in pd_data:
+            pd_data[param.id] = {}
+        pd_data[param.id][parameter_key.as_refdes()] = {'data': data, 'source': 'filled'}
         log.info("{}aborting - {}".format(spaces, e.message))
     else:
         if param.id not in pd_data:
@@ -729,6 +736,28 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
     log.info("{}}}".format(spaces[:-4]))
 
     return calc_id
+
+def get_shape(param, base_key, pd_data):
+    if base_key.stream.is_virtual:
+        # use source stream for time
+        time_stream = base_key.stream.source_streams[0]
+        time_stream_key = get_stream_key_with_param(pd_data, time_stream, time_stream.time_parameter)
+    else:
+        time_stream_key = base_key
+    if time_stream_key is None:
+        raise MissingTimeException("Could not compute time shape for {:s}".format(param.name))
+    time_stream_refdes = time_stream_key.as_refdes()
+    if time_stream_key.stream.time_parameter in pd_data and time_stream_refdes in pd_data[time_stream_key.stream.time_parameter]:
+        main_times = pd_data[time_stream_key.stream.time_parameter][time_stream_refdes]['data']
+    elif 7 in pd_data and time_stream_refdes in pd_data[7]:
+        main_times = pd_data[7][time_stream_refdes]['data']
+    else:
+        raise MissingTimeException("Could not compute time shape for {:s}".format(param.name))
+    # TODO Populate preload with shape information so we can return the shape values for now only filling with no dimension
+    return (len(main_times),)
+
+
+
 
 
 @log_timing(log)
