@@ -1078,6 +1078,8 @@ def create_execution_pool():
 
     [f.get() for f in futures]
 
+def get_pool():
+    return execution_pool
 
 def time_to_bin(t, stream):
     bin_size_seconds = 24 * 60 * 60

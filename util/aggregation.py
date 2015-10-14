@@ -33,6 +33,7 @@ VARIABLE_CARRYOVER_MAP = {
     'streaming_provenance': {'type': 'string', 'func': extract_single_value},
     'computed_provenance': {'type': 'string', 'func': extract_single_value},
     'query_parameter_provenance': {'type': 'string', 'func': extract_single_value},
+    'instrument_provenance': {'type': 'string', 'func': extract_single_value},
     'provenance_messages': {'type': 'string', 'func': flatten},
     'annotations': {'type': 'string', 'func': flatten},
 }

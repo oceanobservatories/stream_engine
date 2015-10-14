@@ -99,6 +99,12 @@ def _open_new_ds(stream_key, deployment, provenance_metadata=None, annotation_st
                                                                      dims=['query_parameter_provenance_dim'],
                                                                      attrs={
                                                                      'long_name': 'Query Parameter Provenance Information'})
+        instrument_prov = [json.dumps(provenance_metadata.get_instrument_provenance())]
+        if len(instrument_prov) > 0:
+            init_data['instrument_provenance'] = xray.DataArray(instrument_prov,
+                                                                     dims=['instrument_provenance_dim'],
+                                                                     attrs={
+                                                                     'long_name': 'Instrument Provenance Information'})
         if len(provenance_metadata.messages) > 0:
             init_data['provenance_messages'] = xray.DataArray(provenance_metadata.messages,
                                                               dims=['provenance_messages'],
@@ -211,7 +217,7 @@ def _add_dynamic_attributes(ds, stream_key, location_information, deployment):
     ds.attrs['time_coverage_start'] = ntp_to_ISO_date(time_data.values[0])
     ds.attrs['time_coverage_end'] = ntp_to_ISO_date(time_data.values[-1])
     # Take an estimate of the number of seconds between values in the data range.
-    if len(time_data.values > 0):
+    if time_data.size > 0:
         total_time = time_data.values[-1]  - time_data.values[0]
         hz = total_time / float(len(time_data.values))
         ds.attrs['time_coverage_resolution'] = 'P{:.2f}S'.format(hz)
