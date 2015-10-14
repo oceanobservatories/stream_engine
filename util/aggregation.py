@@ -6,6 +6,7 @@ import os
 import re
 import xray
 from engine.routes import app
+import numpy as np
 
 import jinja2
 
@@ -39,6 +40,7 @@ VARIABLE_CARRYOVER_MAP = {
 
 
 def get_nc_info(file_name):
+    string_sizes = {}
     ds = xray.open_dataset(file_name, decode_times=False)
     ret_val = {
         'size': ds.time.size,
@@ -55,7 +57,10 @@ def get_nc_info(file_name):
     for i in VARIABLE_CARRYOVER_MAP:
         if i in ds.variables:
             ret_val[i] = ds.variables[i].values
-    return ret_val
+    for var in ds.variables:
+        if ds.variables[var].dtype.kind == 'S':
+            string_sizes[var] = len(ds.variables[var].values[0])
+    return ret_val, string_sizes
 
 
 def collect_subjob_info(job_direct):
@@ -65,15 +70,48 @@ def collect_subjob_info(job_direct):
     """
     root_dir = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], job_direct)
     subjob_info = {}
+    string_sizes = {}
     for direct, subdirs, files in os.walk(root_dir):
         for i in files:
             if i.endswith('.nc'):
                 idx = direct.index(job_direct)
                 pname = direct[idx+len(job_direct)+1:]
                 fname = os.path.join(pname, i)
-                subjob_info[fname] = get_nc_info(os.path.join(direct, i))
+                nc_info, ss = get_nc_info(os.path.join(direct, i))
+                subjob_info[fname] = nc_info
+                # store the size of all string parameters in the nc file
+                string_sizes[os.path.join(direct, i)]  = ss
+
+    #get a set of all of the sizes strings in the subjobs
+    var_sizes = defaultdict(set)
+    for i in string_sizes:
+        for v in string_sizes[i]:
+            var_sizes[v].add(string_sizes[i][v])
+    to_mod = {}
+    # check to see if we have any mismatches
+    for v in var_sizes:
+        if len(var_sizes[v]) > 1:
+            to_mod[v] = max(var_sizes[v])
+    # if mismatches we need to rewrite the string values
+    if len(to_mod) > 0:
+        files = string_sizes.keys()
+        modify_strings(files, to_mod)
     return subjob_info
 
+def modify_strings(files, to_mod):
+    """
+    :param files:  List of files to rewrite
+    :param to_mod:  Dictonary of variables that need to be modified to the max size
+    :return:
+    """
+    for f in files:
+        ds = xray.open_dataset(f, decode_times=False)
+        for var, size in to_mod.iteritems():
+            # pad the strings
+            ds.variables[var].values = np.array([x.rjust(size) for x in ds.variables[var].values]).astype(str)
+        # xray does not let you modify netcdf files in place so have to write out and move???
+        ds.to_netcdf(f+'mod.nc')
+        os.rename(f+'mod.nc', f)
 
 def do_provenance(param):
     prov_dict = {}
