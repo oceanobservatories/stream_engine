@@ -1,5 +1,5 @@
 DEBUG = False
-STREAM_ENGINE_VERSION = "0.7.21"
+STREAM_ENGINE_VERSION = "0.7.22"
 
 CASSANDRA_CONTACT_POINTS = ['127.0.0.1']
 CASSANDRA_KEYSPACE = 'ooi'
@@ -81,3 +81,20 @@ INTERNAL_OUTPUT_EXCLUDE_LIST = ['bin', ]
 INTERNAL_OUTPUT_MAPPING = {'deployment' : 'int32', 'id' : 'str'}
 
 REQUEST_TIMEOUT_SECONDS = 600 # 10 minutes
+
+#Added these for netcdf outputs because the values in preload are not as reliable as they should be and we would like to filter purley based on data type.
+FILL_VALUES = {
+    "float32": -9999999,
+    "float64": -9999999,
+    "int":  -9999999,
+    "int8": -9,
+    "int16": -9999,
+    "int32":  -9999999,
+    "int64": -9999999,
+    "uint8": 256,
+    "uint16": 65536,
+    "uint32": 4294967296,
+    "uint64": 18446744073709551616,
+    "string": "",
+    "boolean": -9
+}

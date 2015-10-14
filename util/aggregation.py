@@ -6,6 +6,7 @@ import os
 import re
 import xray
 from engine.routes import app
+import numpy as np
 
 import jinja2
 
@@ -39,23 +40,30 @@ VARIABLE_CARRYOVER_MAP = {
 
 
 def get_nc_info(file_name):
-    ds = xray.open_dataset(file_name, decode_times=False)
-    ret_val = {
-        'size': ds.time.size,
-    }
-    for i in ATTRIBUTE_CARRYOVER_MAP:
-        if i in ds.attrs:
-            ret_val[i] = ds.attrs[i]
+    string_sizes = {}
+    with xray.open_dataset(file_name, decode_times=False) as ds:
+        ret_val = {
+            'size': ds.time.size,
+        }
+        for i in ATTRIBUTE_CARRYOVER_MAP:
+            if i in ds.attrs:
+                ret_val[i] = ds.attrs[i]
 
-    if 'l0_provenance_keys' in ds.variables and 'l0_provenance_data' in ds.variables:
-        ret_val['l0_provenance'] = zip(ds.variables['l0_provenance_keys'].values,
-                                   ds.variables['l0_provenance_data'].values)
+        if 'l0_provenance_keys' in ds.variables and 'l0_provenance_data' in ds.variables:
+            ret_val['l0_provenance'] = zip(ds.variables['l0_provenance_keys'].values,
+                                       ds.variables['l0_provenance_data'].values)
 
-    ret_val['file_start_time'] = ds.time.values[-1]
-    for i in VARIABLE_CARRYOVER_MAP:
-        if i in ds.variables:
-            ret_val[i] = ds.variables[i].values
-    return ret_val
+        ret_val['file_start_time'] = ds.time.values[-1]
+        for i in VARIABLE_CARRYOVER_MAP:
+            if i in ds.variables:
+                ret_val[i] = ds.variables[i].values
+        for var in ds.variables:
+            if ds.variables[var].dtype.kind == 'S':
+                string_sizes[var] =  ds[var].dtype.itemsize
+            #xray has a habit of loading strings as objects.  So cast it to a string and get the max size.
+            elif ds.variables[var].dtype == 'object':
+                string_sizes[var] = ds.variables[var].values.astype(str).dtype.itemsize
+    return ret_val, string_sizes
 
 
 def collect_subjob_info(job_direct):
@@ -65,15 +73,48 @@ def collect_subjob_info(job_direct):
     """
     root_dir = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], job_direct)
     subjob_info = {}
+    string_sizes = {}
     for direct, subdirs, files in os.walk(root_dir):
         for i in files:
             if i.endswith('.nc'):
                 idx = direct.index(job_direct)
                 pname = direct[idx+len(job_direct)+1:]
                 fname = os.path.join(pname, i)
-                subjob_info[fname] = get_nc_info(os.path.join(direct, i))
+                nc_info, ss = get_nc_info(os.path.join(direct, i))
+                subjob_info[fname] = nc_info
+                # store the size of all string parameters in the nc file
+                string_sizes[os.path.join(direct, i)]  = ss
+
+    #get a set of all of the sizes strings in the subjobs
+    var_sizes = defaultdict(set)
+    for i in string_sizes:
+        for v in string_sizes[i]:
+            var_sizes[v].add(string_sizes[i][v])
+    to_mod = {}
+    # check to see if we have any mismatches
+    for v in var_sizes:
+        if len(var_sizes[v]) > 1:
+            to_mod[v] = max(var_sizes[v])
+    # if mismatches we need to rewrite the string values
+    if len(to_mod) > 0:
+        files = string_sizes.keys()
+        modify_strings(files, to_mod)
     return subjob_info
 
+def modify_strings(files, to_mod):
+    """
+    :param files:  List of files to rewrite
+    :param to_mod:  Dictonary of variables that need to be modified to the max size
+    :return:
+    """
+    for f in files:
+        with xray.open_dataset(f, decode_times=False) as ds:
+            for var, size in to_mod.iteritems():
+            # pad the strings
+                ds.variables[var].values = np.array([x.ljust(size) for x in ds.variables[var].values]).astype(str)
+            new_ds = ds.copy(deep=True)
+            new_ds.load()
+        new_ds.to_netcdf(f)
 
 def do_provenance(param):
     prov_dict = {}
