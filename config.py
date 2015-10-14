@@ -79,3 +79,20 @@ DPA_VERSION_VARIABLE = "version" # The name of the variable that contains the ve
 
 INTERNAL_OUTPUT_EXCLUDE_LIST = ['bin', ]
 INTERNAL_OUTPUT_MAPPING = {'deployment' : 'int32', 'id' : 'str'}
+
+#Added these for netcdf outputs because the values in preload are not as reliable as they should be and we would like to filter purley based on data type.
+FILL_VALUES = {
+    "float32": -9999999,
+    "float64": -9999999,
+    "int":  -9999999,
+    "int8": -9,
+    "int16": -9999,
+    "int32":  -9999999,
+    "int64": -9999999,
+    "uint8": 256,
+    "uint16": 65536,
+    "uint32": 4294967296,
+    "uint64": 18446744073709551616,
+    "string": "empty",
+    "boolean": -9
+}

@@ -710,6 +710,13 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
                 error_info['missing_display_name'] = error_parameter.display_name
                 error_info['missing_possible_stream_names'] = [CachedStream.from_id(s).name for s in error_parameter.streams]
                 error_info['missing_possible_stream_ids'] = [s for s in error_parameter.streams]
+            shp = get_shape(param, parameter_key, pd_data)
+            log.warn('HEY! %s', shp)
+            data = numpy.empty(shape=shp, dtype=param.value_encoding)
+            data.fill(param.fill_value)
+            if param.id not in pd_data:
+                pd_data[param.id] = {}
+            pd_data[param.id][parameter_key.as_refdes()] = {'data': data, 'source': 'filled'}
 
             error_info['message'] = e.message
             provenance_metadata.calculated_metatdata.errors.append(error_info)
@@ -729,6 +736,35 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
     log.info("{}}}".format(spaces[:-4]))
 
     return calc_id
+
+def get_shape(param, base_key, pd_data):
+    if base_key.stream.is_virtual:
+        # use source stream for time
+        time_stream = base_key.stream.source_streams[0]
+        time_stream_key = get_stream_key_with_param(pd_data, time_stream, time_stream.time_parameter)
+    else:
+        time_stream_key = base_key
+    if time_stream_key is None:
+        raise MissingTimeException("Could not compute time shape for {:s}".format(param.name))
+    time_stream_refdes = time_stream_key.as_refdes()
+    if time_stream_key.stream.time_parameter in pd_data and time_stream_refdes in pd_data[time_stream_key.stream.time_parameter]:
+        main_times = pd_data[time_stream_key.stream.time_parameter][time_stream_refdes]['data']
+    elif 7 in pd_data and time_stream_refdes in pd_data[7]:
+        main_times = pd_data[7][time_stream_refdes]['data']
+    else:
+        raise MissingTimeException("Could not compute time shape for {:s}".format(param.name))
+    if isinstance(param.shape, basestring):
+        #parse pd and get shape out of pd data..
+        return (len(main_times,))
+    elif isinstance(param.shape, tuple):
+        return (len(main_times),) + param.shape
+    else:
+        # 1 d just return main times
+        return (len(main_times,))
+
+
+
+
 
 
 @log_timing(log)
