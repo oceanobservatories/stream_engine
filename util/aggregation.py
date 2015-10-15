@@ -46,8 +46,13 @@ def get_nc_info(file_name):
     for i in ATTRIBUTE_CARRYOVER_MAP:
         if i in ds.attrs:
             ret_val[i] = ds.attrs[i]
-    ret_val['l0_provenance'] = zip(ds.variables['l0_provenance_keys'].values,
+    try:
+        ret_val['l0_provenance'] = zip(ds.variables['l0_provenance_keys'].values,
                                    ds.variables['l0_provenance_data'].values)
+    except KeyError:
+        # provenance was not output into files
+        pass
+
     ret_val['file_start_time'] = ds.time.values[-1]
     for i in VARIABLE_CARRYOVER_MAP:
         if i in ds.variables:
@@ -101,13 +106,19 @@ def output_ncml(mapping):
                 pass
 
         # do something with provenance...
-        l0keys, l0values = do_provenance([x['l0_provenance'] for x in info_dict.itervalues()])
         file_start_time = [x['file_start_time'] for x in info_dict.itervalues()]
-        variable_dict = {
-            'l0_provenance_keys': {'value': l0keys, 'type': 'string', 'size': len(l0keys), 'separator': '*'},
-            'l0_provenance_data': {'value': l0values, 'type': 'string', 'size': len(l0values), 'separator': '*'},
-            'combined_file_start_time': {'value': file_start_time, 'type': 'float', 'size': len(file_start_time), 'separator': None}
-        }
+        try:
+            l0keys, l0values = do_provenance([x['l0_provenance'] for x in info_dict.itervalues()])
+            variable_dict = {
+                'l0_provenance_keys': {'value': l0keys, 'type': 'string', 'size': len(l0keys), 'separator': '*'},
+                'l0_provenance_data': {'value': l0values, 'type': 'string', 'size': len(l0values), 'separator': '*'},
+                'combined_file_start_time': {'value': file_start_time, 'type': 'float', 'size': len(file_start_time), 'separator': None}
+            }
+        except KeyError:
+            #no l0_provenance output
+            variable_dict = {
+                'combined_file_start_time': {'value': file_start_time, 'type': 'float', 'size': len(file_start_time), 'separator': None}
+            }
 
         for i in VARIABLE_CARRYOVER_MAP:
             try:
