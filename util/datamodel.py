@@ -9,7 +9,7 @@ import uuid
 __author__ = 'Stephen Zakrewsky'
 
 
-from common import CachedParameter, get_stream_key_with_param, MissingTimeException, ntp_to_ISO_date
+from common import CachedParameter, get_stream_key_with_param, MissingTimeException, ntp_to_ISO_date, MissingDataException
 import datetime
 from engine import app
 import json
@@ -122,10 +122,6 @@ def _get_time_data(pd_data, stream_key):
     :param stream_key: stream key
     :return: tuple of time data as array and the time parameter parameter key
     """
-    if stream_key.stream.is_virtual:
-        source_stream = stream_key.stream.source_streams[0]
-        stream_key = get_stream_key_with_param(pd_data, source_stream, source_stream.time_parameter)
-
     tp = stream_key.stream.time_parameter
     try:
         return pd_data[tp][stream_key.as_refdes()]['data'], tp
@@ -158,7 +154,12 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
         # like deployment for deployment number
         param_name = param_id if param is None else param.name
 
-        data = pd_data[param_id][stream_key.as_refdes()]['data'][mask]
+        data = pd_data[param_id][stream_key.as_refdes()]['data']
+        if len(mask) != len(data):
+            log.error("Length of mask does not equal length of data")
+            continue
+
+        data = data[mask]
         if param is not None:
             data = data.astype(param.value_encoding)
         else:
@@ -252,8 +253,10 @@ def fix_lat_lon_depth(ds, stream_key, deployment, location_information):
         ds['depth'] = ('obs', deptharr, attrs)
 
 
-
 def _add_dynamic_attributes(ds, stream_key, location_information, deployment):
+    if len(ds.keys()) == 0:
+        raise MissingDataException("No data present in dataset")
+
     time_data = ds['time']
     # Do a final update to insert the time_coverages, and geospatial lat and lons
     ds.attrs['time_coverage_start'] = ntp_to_ISO_date(time_data.values[0])

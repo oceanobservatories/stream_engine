@@ -160,6 +160,9 @@ def do_qc_stuff(primary_key, stream_data, parameters, qc_stream_parameters):
                         if len(pd_data['id'][key]['data']) == len(time_data):
                             virtual_id_sub = key
                             break
+                if virtual_id_sub is None:
+                    continue
+
                 particle_ids = pd_data['id'][virtual_id_sub]['data']
 
             if 'bin' in pd_data:
@@ -504,6 +507,7 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
             stream_data[dep_num] = pd_data
     # exec dpa for stream
 
+    refdes_lengths = {} # used for checking that all data returned from a refdes is the same length
     for dep_num in primary_deployments:
         log.info("Computing DPA for deployment %d", dep_num)
         pd_data = stream_data[dep_num]
@@ -513,7 +517,7 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
         for pd_arg in stream_request.found_args:
             time_param = CachedParameter.from_id(pd_arg.stream_key.stream.time_parameter)
             if time_param.parameter_type == FUNCTION and time_param.id not in found_time_params:
-                calculate_derived_product(time_param, stream_request.coefficients, pd_data, primary_key, provenance_metadata, stream_request, dep_num)
+                calculate_derived_product(time_param, stream_request.coefficients, pd_data, primary_key, provenance_metadata, stream_request, dep_num, refdes_lengths)
 
                 if time_param.id not in pd_data or pd_arg.stream_key.as_refdes() not in pd_data[time_param.id]:
                     raise MissingTimeException("Time param (PD%s) is missing for PD%s" % (time_param.id, pd_arg.pdid))
@@ -524,7 +528,7 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
             if param.id not in pd_data:
                 if param.parameter_type == FUNCTION:
                     # calculate inserts derived products directly into pd_data
-                    calculate_derived_product(param, stream_request.coefficients, pd_data, primary_key, provenance_metadata, stream_request, dep_num)
+                    calculate_derived_product(param, stream_request.coefficients, pd_data, primary_key, provenance_metadata, stream_request, dep_num, refdes_lengths)
                 else:
                     log.warning("Required parameter not present: {}".format(param.name))
             if stream_request.qc_parameters.get(param.name) is not None \
@@ -593,7 +597,7 @@ def interpolate_list(desired_time, data_time, data):
 
 
 @log_timing(log)
-def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_metadata, stream_request, deployment, level=1):
+def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_metadata, stream_request, deployment, refdes_lengths, level=1):
     """
     Calculates a derived product by (recursively) calulating its derived products.
 
@@ -635,7 +639,15 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
             continue
         needed_parameter = CachedParameter.from_id(found_arg.pdid)
         if needed_parameter.parameter_type == FUNCTION:
-            sub_id = calculate_derived_product(needed_parameter, coeffs, pd_data, primary_key, provenance_metadata, stream_request, deployment, level + 1)
+            sub_id = calculate_derived_product(needed_parameter,
+                                               coeffs,
+                                               pd_data,
+                                               primary_key,
+                                               provenance_metadata,
+                                               stream_request,
+                                               deployment,
+                                               refdes_lengths,
+                                               level + 1)
             # Keep track of all sub function we used.
             if sub_id is not None:
                 # only include sub_functions if it is in the function map. Otherwise it is calculated in the sub function
@@ -721,6 +733,14 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
 
         if not isinstance(data, (list, tuple, numpy.ndarray)):
             data = [data]
+
+        # confirm that data lengths are consistent for a stream key
+        if parameter_key in refdes_lengths:
+            if len(data) != refdes_lengths[parameter_key]:
+                log.error("length of data returned does match other params in refdes")
+                return calc_id
+        else:
+            refdes_lengths[parameter_key] = len(data)
 
         pd_data[param.id][parameter_key.as_refdes()] = {'data': data, 'source': 'derived'}
         calc_id = provenance_metadata.calculated_metatdata.insert_metadata(param, this_ref, calc_meta)

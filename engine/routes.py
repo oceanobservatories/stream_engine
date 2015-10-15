@@ -37,7 +37,7 @@ def handleException(error):
     response = jsonify(errd)
     response.status_code = status_code
     log.info("Returning exception: %s", errd)
-    return response
+    return response, 500
 
 
 @app.before_request
