@@ -31,7 +31,7 @@ def handle_stream_not_found(error):
 def handle_stream_not_found(error):
     msg = "Unexpected internal error during request"
     log.exception(msg)
-    return '{{\n  "message": "{}"\n}}'.format(msg)
+    return '{{\n  "message": "{}"\n}}'.format(msg), 500
 
 
 @app.before_request
