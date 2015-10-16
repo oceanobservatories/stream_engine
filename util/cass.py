@@ -682,14 +682,17 @@ def fetch_nth_data(stream_key, time_range, num_points=1000, location_metadata=No
     if location_metadata is None:
         location_metadata = get_cass_location_metadata(stream_key, time_range)
 
-    data_ratio = float(location_metadata.total) / float(num_points)
+    mean_rate = float(location_metadata.total) / (location_metadata.bin_information[location_metadata.bin_list[-1]][2] - location_metadata.bin_information[location_metadata.bin_list[0]][1])
+    estimated_particles = int((time_range.stop - time_range.start) * mean_rate)
+    data_ratio = estimated_particles / num_points
+    log.info("CASS: Estimated total number of points to be %d based on calculated mean rate of %f particles/s", estimated_particles, mean_rate)
     # Fetch it all if it's gonna be close to the same size
     if data_ratio < engine.app.config['UI_FULL_RETURN_RATIO']:
-        log.info("CASS: Total points (%d) / the requested  number (%d) is less than ratio %f.  Returning all points.",
-                 location_metadata.total, num_points, engine.app.config['UI_FULL_RETURN_RATIO'])
+        log.info("CASS: Estimated points (%d) / the requested  number (%d) is less than ratio %f.  Returning all points.",
+                 estimated_particles, num_points, engine.app.config['UI_FULL_RETURN_RATIO'])
         _, results = fetch_all_data(stream_key, time_range, location_metadata)
     # We have a small amount of bins with data so we can read them all
-    elif location_metadata.total < engine.app.config['UI_FULL_SAMPLE_LIMIT'] and data_ratio < engine.app.config['UI_FULL_SAMPLE_RATIO']:
+    elif estimated_particles < engine.app.config['UI_FULL_SAMPLE_LIMIT'] and data_ratio < engine.app.config['UI_FULL_SAMPLE_RATIO']:
         log.info("CASS: Reading all (%d) bins and then sampling.", len(location_metadata.bin_list))
         _, results = sample_full_bins(stream_key, time_range, num_points, location_metadata.bin_list, cols)
     # We have a lot of bins so just grab the first from each of the bins
