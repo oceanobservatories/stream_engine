@@ -506,6 +506,9 @@ class UIHardLimitExceededException(StreamEngineException):
     """
     status_code = 413
 
+class TimedOutException(Exception):
+    pass
+
 
 def arb(d):
     """ Returns an arbitrary value from the given dictionary """
