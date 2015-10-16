@@ -3,6 +3,9 @@ import time
 import logging
 import os
 
+import signal
+from functools import wraps
+
 import ntplib
 from flask import request, Response, jsonify
 
@@ -13,7 +16,7 @@ import util.aggregation
 from util.cass import stream_exists, time_to_bin, bin_to_time
 from util.common import CachedParameter, StreamEngineException, MalformedRequestException, \
     InvalidStreamException, StreamUnavailableException, InvalidParameterException, ISO_to_ntp, ntp_to_ISO_date, \
-    StreamKey, MissingDataException, MissingTimeException, UIHardLimitExceededException
+    StreamKey, MissingDataException, MissingTimeException, UIHardLimitExceededException, TimedOutException
 from util.san import onload_netCDF, SAN_netcdf
 
 
@@ -42,8 +45,28 @@ def log_request():
     log.info('Incoming request (%s) url=%s data=%s', request.get_json().get('requestUUID'), request.url,
              request.data)
 
+def signal_handler(signum, frame):
+    raise TimedOutException()
+
+def set_timeout(func):
+    @wraps(func)
+    def decorated_function(*args, **kwargs):
+        result = None
+        signal.signal(signal.SIGALRM, signal_handler)
+        signal.alarm(int(app.config['REQUEST_TIMEOUT_SECONDS']))
+        try:
+            result = func(*args, **kwargs)
+        except TimedOutException:
+            signal.alarm(0)
+            raise StreamEngineException("Data processing timed out", status_code=408)
+        signal.alarm(0)
+
+        return result
+    return decorated_function
+
 
 @app.route('/particles', methods=['POST'])
+@set_timeout
 def particles():
     """
     POST should contain a dictionary of the following format:
@@ -86,6 +109,7 @@ def particles():
     if limit <= app.config['UI_HARD_LIMIT']:
         prov = input_data.get('include_provenance', False)
         annotate = input_data.get('include_annotations', False)
+
         resp = Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
                         input_data.get('qcParameters', {}), limit=limit,
                          include_provenance=prov, include_annotations=annotate ,
@@ -100,6 +124,7 @@ def particles():
 
 
 @app.route('/csv', methods=['POST'])
+@set_timeout
 def csv():
     """
     POST should contain a dictionary of the following format:
@@ -133,6 +158,7 @@ def csv():
     return Response(delimited_data(input_data, delimiter=','), mimetype='application/csv')
 
 @app.route('/tab', methods=['POST'])
+@set_timeout
 def tab():
     """
     POST should contain a dictionary of the following format:
@@ -207,6 +233,7 @@ def write_status(path, status="complete"):
         s.write(status)
 
 @app.route('/particles-fs', methods=['POST'])
+@set_timeout
 def particles_save_to_filesystem():
     """
     POST should contain a dictionary of the following format:
@@ -292,6 +319,7 @@ def particles_save_to_filesystem():
                     mimetype='application/json')
 
 @app.route('/csv-fs', methods=['POST'])
+@set_timeout
 def csv_save_to_filesystem():
     """
     POST should contain a dictionary of the following format:
@@ -326,6 +354,7 @@ def csv_save_to_filesystem():
 
 
 @app.route('/tab-fs', methods=['POST'])
+@set_timeout
 def tab_save_to_filesystem():
     """
     POST should contain a dictionary of the following format:
@@ -359,6 +388,7 @@ def tab_save_to_filesystem():
     return delimited_to_filesystem(input_data, '\t')
 
 @app.route('/aggregate', methods=['POST'])
+@set_timeout
 def aggregate_async():
     input_data = request.get_json()
     async_job = input_data.get("async_job")
@@ -397,6 +427,7 @@ def delimited_to_filesystem(input_data, delimiter=','):
 
 
 @app.route('/san_offload', methods=['POST'])
+@set_timeout
 def full_netcdf():
     """
     POST should contain a dictionary of the following format:
@@ -437,6 +468,7 @@ def full_netcdf():
 
 
 @app.route('/san_onload', methods=['POST'])
+@set_timeout
 def onload_netcdf():
     """
     Post should contain the fileName : string file name to onload
@@ -453,6 +485,7 @@ def onload_netcdf():
 
 
 @app.route('/netcdf', methods=['POST'])
+@set_timeout
 def netcdf():
     """
     POST should contain a dictionary of the following format:
@@ -507,6 +540,7 @@ def netcdf():
         raise(UIHardLimitExceededException(message=message))
 
 @app.route('/netcdf-fs', methods=['POST'])
+@set_timeout
 def netcdf_save_to_filesystem():
     """
     POST should contain a dictionary of the following format:
@@ -568,6 +602,7 @@ def netcdf_save_to_filesystem():
     return Response(json_str, mimetype='application/json')
 
 @app.route('/needs', methods=['POST'])
+@set_timeout
 def needs():
     """
     Given a list of reference designators, streams and parameters, return the
@@ -628,6 +663,7 @@ def needs():
 
 
 @app.route("/get_bins", methods=['GET'])
+@set_timeout
 def get_bins():
     """Given ntp time return bins"""
     st = request.args.get('start')
@@ -649,6 +685,7 @@ def get_bins():
     return Response(json.dumps({'start_bin' : start_bin, 'stop_bin' : end_bin}), mimetype='application/json')
 
 @app.route("/get_times", methods=['GET'])
+@set_timeout
 def get_times():
     """Given bins return start time of first and start time of first + 1 bins"""
     sb = request.args.get('start')
@@ -667,6 +704,7 @@ def get_times():
 
 
 @app.route('/')
+@set_timeout
 def index():
     return "You are trying to access <strong>stream engine</strong> directly. Please access through uframe instead."
 

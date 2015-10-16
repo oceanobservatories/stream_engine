@@ -79,3 +79,5 @@ DPA_VERSION_VARIABLE = "version" # The name of the variable that contains the ve
 
 INTERNAL_OUTPUT_EXCLUDE_LIST = ['bin', ]
 INTERNAL_OUTPUT_MAPPING = {'deployment' : 'int32', 'id' : 'str'}
+
+REQUEST_TIMEOUT_SECONDS = 20
