@@ -480,6 +480,7 @@ class LocationMetadata(object):
         self.bin_information = bin_info
         self.total = total
 
+
     def __repr__(self):
         val = 'total: {:d} Bins -> '.format(self.total) + str(self.bin_list)
         return val
@@ -487,6 +488,11 @@ class LocationMetadata(object):
     def __str__(self):
         return self.__repr__()
 
+    def secs(self):
+        return self.bin_information[self.bin_list[-1]][2]-self.bin_information[self.bin_list[0]][1]
+
+    def particle_rate(self):
+        return float(self.total) / self.secs()
 
 @log_timing(log)
 @cassandra_session
@@ -682,23 +688,30 @@ def fetch_nth_data(stream_key, time_range, num_points=1000, location_metadata=No
     if location_metadata is None:
         location_metadata = get_cass_location_metadata(stream_key, time_range)
 
-    data_ratio = float(location_metadata.total) / float(num_points)
+    estimated_rate = location_metadata.particle_rate()
+    estimated_particles = int(estimated_rate * time_range.secs())
+    data_ratio = estimated_particles / num_points
+    log.info("CASS: Estimated total number of points to be %d based on calculated mean rate of %f particles/s",
+             estimated_particles, estimated_rate)
     # Fetch it all if it's gonna be close to the same size
     if data_ratio < engine.app.config['UI_FULL_RETURN_RATIO']:
-        log.info("CASS: Total points (%d) / the requested  number (%d) is less than ratio %f.  Returning all points.",
-                 location_metadata.total, num_points, engine.app.config['UI_FULL_RETURN_RATIO'])
+        log.info("CASS: Estimated points (%d) / the requested  number (%d) is less than ratio %f.  Returning all points.",
+                 estimated_particles, num_points, engine.app.config['UI_FULL_RETURN_RATIO'])
         _, results = fetch_all_data(stream_key, time_range, location_metadata)
     # We have a small amount of bins with data so we can read them all
-    elif location_metadata.total < engine.app.config['UI_FULL_SAMPLE_LIMIT'] and data_ratio < engine.app.config['UI_FULL_SAMPLE_RATIO']:
+    elif estimated_particles < engine.app.config['UI_FULL_SAMPLE_LIMIT'] \
+            and data_ratio < engine.app.config['UI_FULL_SAMPLE_RATIO']:
         log.info("CASS: Reading all (%d) bins and then sampling.", len(location_metadata.bin_list))
         _, results = sample_full_bins(stream_key, time_range, num_points, location_metadata.bin_list, cols)
     # We have a lot of bins so just grab the first from each of the bins
     elif len(location_metadata.bin_list) > num_points:
-        log.info("CASS: More bins (%d) than requested points (%d). Selecting first particle from %d bins.", len(location_metadata.bin_list), num_points, num_points)
+        log.info("CASS: More bins (%d) than requested points (%d). Selecting first particle from %d bins.",
+                 len(location_metadata.bin_list), num_points, num_points)
         _, results = sample_n_bins(stream_key, time_range, num_points, location_metadata.bin_list, cols)
     else:
         log.info("CASS: Sampling %d points across %d bins.", num_points, len(location_metadata.bin_list))
-        _, results = sample_n_points(stream_key, time_range, num_points, location_metadata.bin_list, location_metadata.bin_information, cols)
+        _, results = sample_n_points(stream_key, time_range, num_points, location_metadata.bin_list,
+                                     location_metadata.bin_information, cols)
 
     # dedup data before return values
     size = len(results)
