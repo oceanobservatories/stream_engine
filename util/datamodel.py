@@ -41,6 +41,7 @@ def _open_new_ds(stream_key, deployment, request_uuid, provenance_metadata=None,
         'Conventions' : '{:s}'.format(app.config['NETCDF_CONVENTIONS']),
         'Metadata_Conventions' : '{:s}'.format(app.config['NETCDF_METADATA_CONVENTIONS']),
         'feature_Type' : '{:s}'.format(app.config['NETCDF_FEATURE_TYPE']),
+        'featureType' : '{:s}'.format(app.config['NETCDF_FEATURE_TYPE']),
         'cdm_data_type' : '{:s}'.format(app.config['NETCDF_CDM_DATA_TYPE']),
         'nodc_template_version' : '{:s}'.format(app.config['NETCDF_NODC_TEMPLATE_VERSION']),
         'standard_name_vocabulary' : '{:s}'.format(app.config['NETCDF_STANDARD_NAME_VOCABULARY']),
@@ -132,7 +133,7 @@ def _get_time_data(pd_data, stream_key):
         raise MissingTimeException("Could not find time parameter %s for %s" % (tp, stream_key))
 
 
-def _group_by_stream_key(ds, pd_data, stream_key):
+def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployment):
     time_data, time_parameter = _get_time_data(pd_data, stream_key)
     # sometimes we will get duplicate timestamps
     # INITIAL solution is to remove any duplicate timestamps
@@ -140,18 +141,18 @@ def _group_by_stream_key(ds, pd_data, stream_key):
     # only valid INCREASING times
     mask = np.diff(np.insert(time_data, 0, 0.0)) != 0
     time_data = time_data[mask]
-    time_data = xray.Variable('time',time_data,  attrs={'units' : 'seconds since 1900-01-01 0:0:0',
-                                                        'standard_name' : 'time',
-                                                        'long_name'  : 'time',
-                                                        'calendar' : app.config["NETCDF_CALENDAR_TYPE"]})
-
+    attrs = {'units': 'seconds since 1900-01-01 0:0:0', 'standard_name': 'time',
+             'long_name': 'time',
+             'axis': 'T',
+             'calendar': app.config["NETCDF_CALENDAR_TYPE"]}
+    ds['time'] = ('obs', time_data, attrs)
+    # put in lat and lon here
     for param_id in pd_data:
         if (
             param_id == time_parameter or
             stream_key.as_refdes() not in pd_data[param_id]
            ):
             continue
-
         param = CachedParameter.from_id(param_id)
         # param can be None if this is not a real parameter,
         # like deployment for deployment number
@@ -168,14 +169,16 @@ def _group_by_stream_key(ds, pd_data, stream_key):
             continue
 
 
-        dims = ['time']
-        coords = {'time': time_data}
+        dims = ['obs']
         if len(data.shape) > 1:
             for index, dimension in enumerate(data.shape[1:]):
                 name = '%s_dim_%d' % (param_name, index)
                 dims.append(name)
 
-        array_attrs = {}
+        if param_name in ['lat', 'lon', 'depth']:
+            array_attrs = {}
+        else:
+            array_attrs = {'coordinates' : 'time lat lon depth'}
         if param:
             if param.unit is not None:
                 array_attrs['units'] = param.unit
@@ -202,7 +205,51 @@ def _group_by_stream_key(ds, pd_data, stream_key):
             # To comply with cf 1.6 giving long name the same as parameter name
             array_attrs['long_name'] = param_name
 
-        ds.update({param_name: xray.DataArray(data, dims=dims, coords=coords, attrs=array_attrs)})
+        ds[param_name] = (dims, data, array_attrs)
+
+    fix_lat_lon_depth(ds, stream_key, deployment, location_information )
+
+
+def fix_lat_lon_depth(ds, stream_key, deployment, location_information):
+    location_vals = {}
+    for loc in location_information.get(stream_key.as_three_part_refdes(), []):
+        if loc['deployment'] == deployment:
+            location_vals = loc
+            break
+    if 'lat' not in ds.variables:
+        lat = location_vals.get('lat')
+        if lat is None:
+            log.warn('No latitude!! Using fill value')
+            lat = 90.0
+        latarr = np.empty(ds.time.size)
+        latarr.fill(lat)
+        ds['lat'] = ('obs', latarr, {'axis': 'Y', 'units': 'degrees_north', 'standard_name': 'latitude'})
+    else:
+        ds['lat'].attr['axis'] = 'Y'
+        ds['lat'].standard_name = 'latitude'
+
+    if 'lon' not in ds.variables:
+        lon = location_vals.get('lon')
+        if lon is None:
+            log.warn('No longitude!! Using fill value')
+            lon = -180.0
+        lonarr = np.empty(ds.time.size)
+        lonarr.fill(lon)
+        ds['lon'] = ('obs', lonarr, {'axis': 'X', 'units': 'degrees_east', 'standard_name': 'longitude'})
+    else:
+        ds['lon'].attr['axis'] = 'X'
+        ds['lon'].standard_name = 'longitude'
+
+    if 'depth' not in ds.variables:
+        depth = location_vals.get('depth', 0.0)
+        if depth is None:
+            log.warn("Depth not present using fill value")
+            depth = 0.0
+        deptharr = np.empty(ds.time.size)
+        deptharr.fill(depth)
+        attrs = {'standard_name': app.config["Z_STANDARD_NAME"], 'long_name': app.config["Z_LONG_NAME"], 'units': 'm',
+                 'positive': app.config['Z_POSITIVE'], 'axis': 'Z'}
+        ds['depth'] = ('obs', deptharr, attrs)
 
 
 
@@ -226,51 +273,15 @@ def _add_dynamic_attributes(ds, stream_key, location_information, deployment):
             break
     if 'location_name' in location_vals:
         ds.attrs['location_name'] = str(location_vals['location_name'])
-    if 'lat' not in ds.variables:
-        lat = location_vals.get('lat')
-        if lat is not None:
-            v = xray.DataArray(lat, name='lat', attrs={'standard_name' : 'latitude', 'long_name' : 'latitude', 'units' : 'degrees_north'})
-            ds.update({'lat' : v})
-            ds.attrs['geospatial_lat_min']  = lat
-            ds.attrs['geospatial_lat_max']  = lat
-        else:
-            v = xray.DataArray(-99999.9, name='lat', attrs={'standard_name' : 'latitude', 'long_name' : 'latitude', 'units' : 'degrees_north'})
-            ds.update({'lat' : v})
-            ds.attrs['geospatial_lat_min']  = -90.0
-            ds.attrs['geospatial_lat_max']  = 90.0
-    else:
-        ds.attrs['geospatial_lat_min']  = min(ds.variables['lat'].values)
-        ds.attrs['geospatial_lat_max']  = max(ds.variables['lat'].values)
-
-    if 'lon' not in ds.variables:
-        lon = location_vals.get('lon')
-        if lon is not None:
-            v = xray.DataArray(lon, name='lon', attrs={'standard_name' : 'longitude', 'long_name' : 'longitude', 'units' : 'degrees_east'})
-            ds.update({'lon' : v})
-            ds.attrs['geospatial_lon_min']  = lon
-            ds.attrs['geospatial_lon_max']  = lon
-        else:
-            v = xray.DataArray(-99999.9, name='lon', attrs={'standard_name' : 'longitude', 'long_name' : 'longitude', 'units' : 'degrees_east'})
-            ds.update({'lon' : v})
-            ds.attrs['geospatial_lon_min']  = -180.0
-            ds.attrs['geospatial_lon_max']  = 180.0
-    else:
-        ds.attrs['geospatial_lon_min']  = min(ds.variables['lon'].values)
-        ds.attrs['geospatial_lon_max']  = max(ds.variables['lon'].values)
+    ds.attrs['geospatial_lat_min']  = min(ds.variables['lat'].values)
+    ds.attrs['geospatial_lat_max']  = max(ds.variables['lat'].values)
+    ds.attrs['geospatial_lon_min']  = min(ds.variables['lon'].values)
+    ds.attrs['geospatial_lon_max']  = max(ds.variables['lon'].values)
     ds.attrs['geospatial_lat_units']  = 'degrees_north'
     ds.attrs['geospatial_lat_resolution']  = app.config["GEOSPATIAL_LAT_LON_RES"]
     ds.attrs['geospatial_lon_units']  = 'degrees_east'
     ds.attrs['geospatial_lon_resolution']  = app.config["GEOSPATIAL_LAT_LON_RES"]
-
-    depth = location_vals.get('depth', 0.0)
     depth_units = str(location_vals.get('depth_units', app.config["Z_DEFAULT_UNITS"]))
-    if depth is not None:
-        v = xray.DataArray(depth, name=app.config["Z_AXIS_NAME"],
-                           attrs={'standard_name': app.config["Z_STANDARD_NAME"], 'long_name': app.config["Z_LONG_NAME"], 'units': depth_units,
-                                  'positive': app.config['Z_POSITIVE'], 'axis' : 'Z'})
-        ds.update({app.config["Z_AXIS_NAME"] : v})
-        ds.attrs['geospatial_vertical_min']  = depth
-        ds.attrs['geospatial_vertical_max']  = depth
     ds.attrs['geospatial_vertical_units']  = depth_units
     ds.attrs['geospatial_vertical_resolution']  = app.config['Z_RESOLUTION']
     ds.attrs['geospatial_vertical_positive']  = app.config['Z_POSITIVE']
@@ -325,7 +336,7 @@ class StreamData(object):
                 if self.check_stream_deployment(sk, d):
                     pd_data = self.data[d]
                     ds = _open_new_ds(sk, d, request_id, self.provenance_metadata, self.annotation_store)
-                    _group_by_stream_key(ds, pd_data, sk)
+                    _group_by_stream_key(ds, pd_data, sk, self.location_information, d)
                     _add_dynamic_attributes(ds, sk, self.location_information, d)
                     times = self.deployment_times.get(d, None)
                     if times is not None:
