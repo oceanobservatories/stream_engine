@@ -390,7 +390,7 @@ def delimited_to_filesystem(input_data, delimiter=','):
                                          location_information=input_data.get('locations', {}),
                                          disk_path=input_data.get('directory','unknown'), delimiter=delimiter)
     except Exception as e:
-        output_async_error(input_data, e)
+        json_str = output_async_error(input_data, e)
     write_status(base_path)
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return Response(json_str, mimetype='application/json')
@@ -498,7 +498,7 @@ def netcdf():
         resp = Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
                                          input_data.get('qcParameters', {}), limit=limit, include_provenance=prov,
                                          include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
-                                         location_information=input_data.get('locations', {})),
+                                         location_information=input_data.get('locations', {}), classic=input_data.get('classic', False)),
                     mimetype='application/netcdf')
         log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
         return resp
@@ -558,9 +558,9 @@ def netcdf_save_to_filesystem():
                                          include_provenance=prov,
                                          include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
                                          location_information=input_data.get('locations', {}),
-                                         disk_path=input_data.get('directory','unknown'))
+                                         disk_path=input_data.get('directory','unknown'), classic=input_data.get('classic', False))
     except Exception as e:
-        output_async_error(input_data, e)
+        json_str = output_async_error(input_data, e)
 
     write_status(base_path)
 
