@@ -239,7 +239,7 @@ def get_csv(streams, start, stop, coefficients, limit=None,
 @log_timing(log)
 def get_netcdf(streams, start, stop, coefficients, qc_parameters, limit=None,
                include_provenance=False, include_annotations=False, strict_range=False, location_information={},
-               request_uuid='', disk_path=None):
+               request_uuid='', disk_path=None, classic=False):
     """
     Returns a netcdf from the given streams, limits and times
     """
@@ -269,7 +269,7 @@ def get_netcdf(streams, start, stop, coefficients, qc_parameters, limit=None,
     if len(streams) > 1:
         stream_data.deployment_times = stream_data.get_time_data(stream_keys[0])
 
-    return NetCDF_Generator(stream_data).chunks(disk_path)
+    return NetCDF_Generator(stream_data, classic=classic).chunks(disk_path)
 
 
 @log_timing(log)
@@ -1333,8 +1333,9 @@ def query_annotations(key, time_range):
 
 class NetCDF_Generator(object):
 
-    def __init__(self, stream_data):
+    def __init__(self, stream_data, classic=False):
         self.stream_data = stream_data
+        self.classic = classic
 
     def chunks(self, disk_path=None):
         try:
@@ -1357,7 +1358,8 @@ class NetCDF_Generator(object):
             os.makedirs(base_path)
         for stream_key, deployment, ds in self.stream_data.groups():
                 file_path = '%s/deployment%04d_%s.nc' % (base_path, deployment, stream_key.as_dashed_refdes())
-                ds.to_netcdf(file_path)
+                #ds.to_netcdf(file_path)
+                self.to_netcdf(ds, file_path)
                 file_paths.append(file_path)
         # build json return
         return json.dumps({'code' : 200, 'message' : str(file_paths) }, indent=2, separators=(',',': '))
@@ -1374,9 +1376,23 @@ class NetCDF_Generator(object):
         for stream_key, deployment, ds in self.stream_data.groups():
             with tempfile.NamedTemporaryFile() as tf:
                 # interp to main times if more than one stream was in the request.
-                ds.to_netcdf(tf.name)
+                #ds.to_netcdf(tf.name)
+                self.to_netcdf(ds, tf.name)
                 zf.write(tf.name, 'deployment%04d_%s.nc' % (deployment, stream_key.as_dashed_refdes(),))
 
+    @log_timing(log)
+    def to_netcdf(self, ds, file_path):
+        if self.classic:
+            for data_array_name in ds.data_vars:
+                data_array = ds.get(data_array_name)
+                data_type = data_array.dtype
+                if data_type == numpy.int64 or data_type == numpy.uint32 or data_type == numpy.uint64:
+                    ds.update(data_array.astype(numpy.str).to_dataset(), inplace=True)
+                elif data_type == numpy.uint16:
+                    ds.update(data_array.astype(numpy.int32).to_dataset(), inplace=True)
+            ds.to_netcdf(path=file_path, format="NETCDF4_CLASSIC")
+        else:
+            ds.to_netcdf(file_path)
 
 @log_timing(log)
 def find_stream(stream_key, streams, distinct_sensors):
