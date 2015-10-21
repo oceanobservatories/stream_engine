@@ -69,50 +69,7 @@ def _open_new_ds(stream_key, deployment, request_uuid, provenance_metadata=None,
     }
 
     init_data = {}
-    if provenance_metadata is not None:
-        prov = provenance_metadata.get_provenance_dict()
-        keys = []
-        values = []
-        for k,v in prov.iteritems():
-            keys.append(k)
-            values.append(v['file_name'] + " " + v['parser_name'] + " " + v['parser_version'])
-
-        if len(keys) > 0:
-            init_data['l0_provenance_keys'] = xray.DataArray(np.array(keys), dims=['l0_provenance'],
-                                                             attrs={'long_name': 'l0 Provenance Keys'})
-        if len(values) > 0:
-            init_data['l0_provenance_data'] = xray.DataArray(np.array(values), dims=['l0_provenance'],
-                                                             attrs={'long_name': 'l0 Provenance Entries'})
-
-        streaming = provenance_metadata.get_streaming_provenance()
-        if len(streaming) > 0:
-            init_data['streaming_provenance'] = xray.DataArray([json.dumps(streaming)],
-                                                               dims=['streaming_provenance_dim'],
-                                                               attrs={'long_name': 'Streaming Provenance Information'})
-
-        comp_prov = [json.dumps(provenance_metadata.calculated_metatdata.get_dict())]
-        if len(comp_prov) > 0:
-            init_data['computed_provenance'] = xray.DataArray(comp_prov, dims=['computed_provenance_dim'],
-                                                              attrs={'long_name': 'Computed Provenance Information'})
-
-        query_prov = [json.dumps(provenance_metadata.get_query_dict())]
-        if len(query_prov) > 0:
-            init_data['query_parameter_provenance'] = xray.DataArray(query_prov,
-                                                                     dims=['query_parameter_provenance_dim'],
-                                                                     attrs={
-                                                                     'long_name': 'Query Parameter Provenance Information'})
-        if len(provenance_metadata.messages) > 0:
-            init_data['provenance_messages'] = xray.DataArray(provenance_metadata.messages,
-                                                              dims=['provenance_messages'],
-                                                              attrs={'long_name': 'Provenance Messages'})
-
-    if annotation_store is not None:
-        annote = annotation_store.get_json_representation()
-        annote_data = [json.dumps(x) for x in annote]
-        if len(annote_data) > 0:
-            init_data['annotations'] = xray.DataArray(np.array(annote_data), dims=['dataset_annotations'],
-                                                      attrs={'long_name': 'Data Annotations'})
-    return xray.Dataset(init_data, attrs=attrs)
+    return xray.Dataset(attrs=attrs)
 
 
 def _get_time_data(pd_data, stream_key):
@@ -133,7 +90,7 @@ def _get_time_data(pd_data, stream_key):
         raise MissingTimeException("Could not find time parameter %s for %s" % (tp, stream_key))
 
 
-def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployment):
+def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployment, provenance_metadata, annotation_store):
     time_data, time_parameter = _get_time_data(pd_data, stream_key)
     # sometimes we will get duplicate timestamps
     # INITIAL solution is to remove any duplicate timestamps
@@ -208,6 +165,41 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
         ds[param_name] = (dims, data, array_attrs)
 
     fix_lat_lon_depth(ds, stream_key, deployment, location_information )
+    # Add in l0 provenance here:
+    if provenance_metadata is not None:
+        prov = provenance_metadata.get_provenance_dict()
+        values = {}
+        for k,v in prov.iteritems():
+            values[k]= v['file_name'] + " " + v['parser_name'] + " " + v['parser_version']
+        prov_array = [values[d] for d in ds.provenance.values]
+        log.warn(prov_array)
+        prov_array = np.array(prov_array).astype(str)
+        log.warn(prov_array)
+        ds['l0_provenance_data'] = ('obs', prov_array,{'long_name': 'l0_provenance_values', 'coordinates': 'time lat lon depth'} )
+
+        streaming = provenance_metadata.get_streaming_provenance()
+        if len(streaming) > 0:
+            s = json.dumps(streaming)
+            da = np.array([s for _ in range(ds.obs.size)]).astype(str)
+            ds['streaming_provenance'] = ('obs', da, {'long_name': 'Streaming Provenance Information', 'coordinates': 'time lat lon depth'})
+
+        s = json.dumps(provenance_metadata.calculated_metatdata.get_dict())
+        da = np.array([s for _ in range(ds.obs.size)]).astype(str)
+        ds['computed_provenance'] = ('obs', da,  {'long_name': 'Computed Provenance Information', 'coordinates': 'time lat lon depth'})
+
+        s = json.dumps(provenance_metadata.get_query_dict())
+        da = np.array([s for _ in range(ds.obs.size)]).astype(str)
+        ds['query_parameter_provenance'] = ('obs', da, {'long_name': 'Query Parameter Provenance Information', 'coordinates': 'time lat lon depth'})
+        if len(provenance_metadata.messages) > 0:
+            s = json.dumps(provenance_metadata.messages)
+            da = np.array([s for _ in range(ds.obs.size)]).astype(str)
+            ds['provenance_messages'] = ('obs', da,  {'long_name': 'Provenance Messages', 'coordinates': 'time lat lon depth'})
+
+    if annotation_store is not None:
+        annote = annotation_store.get_json_representation()
+        s = json.dumps(annote)
+        da = np.array([s for _ in range(ds.obs.size)]).astype(str)
+        ds['annotations'] = ('obs', da, {'long_name': 'Data Annotations', 'coordinates': 'time lat lon depth'})
 
 
 def fix_lat_lon_depth(ds, stream_key, deployment, location_information):
@@ -336,7 +328,7 @@ class StreamData(object):
                 if self.check_stream_deployment(sk, d):
                     pd_data = self.data[d]
                     ds = _open_new_ds(sk, d, request_id, self.provenance_metadata, self.annotation_store)
-                    _group_by_stream_key(ds, pd_data, sk, self.location_information, d)
+                    _group_by_stream_key(ds, pd_data, sk, self.location_information, d, self.provenance_metadata, self.annotation_store)
                     _add_dynamic_attributes(ds, sk, self.location_information, d)
                     times = self.deployment_times.get(d, None)
                     if times is not None:
