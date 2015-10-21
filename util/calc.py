@@ -710,17 +710,17 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
                 error_info['missing_display_name'] = error_parameter.display_name
                 error_info['missing_possible_stream_names'] = [CachedStream.from_id(s).name for s in error_parameter.streams]
                 error_info['missing_possible_stream_ids'] = [s for s in error_parameter.streams]
-            shp = get_shape(param, parameter_key, pd_data)
-            log.warn('HEY! %s', shp)
-            data = numpy.empty(shape=shp, dtype=param.value_encoding)
-            data.fill(param.fill_value)
-            if param.id not in pd_data:
-                pd_data[param.id] = {}
-            pd_data[param.id][parameter_key.as_refdes()] = {'data': data, 'source': 'filled'}
 
             error_info['message'] = e.message
             provenance_metadata.calculated_metatdata.errors.append(error_info)
 
+        #To support netcdf aggregation we need to fill all missing values across all files in case it is defined in all other locations.
+        shp = get_shape(param, parameter_key, pd_data)
+        data = numpy.empty(shape=shp, dtype=param.value_encoding)
+        data.fill(param.fill_value)
+        if param.id not in pd_data:
+            pd_data[param.id] = {}
+        pd_data[param.id][parameter_key.as_refdes()] = {'data': data, 'source': 'filled'}
         log.info("{}aborting - {}".format(spaces, e.message))
     else:
         if param.id not in pd_data:
@@ -753,14 +753,16 @@ def get_shape(param, base_key, pd_data):
         main_times = pd_data[7][time_stream_refdes]['data']
     else:
         raise MissingTimeException("Could not compute time shape for {:s}".format(param.name))
-    if isinstance(param.shape, basestring):
-        #parse pd and get shape out of pd data..
-        return (len(main_times,))
-    elif isinstance(param.shape, tuple):
-        return (len(main_times),) + param.shape
-    else:
-        # 1 d just return main times
-        return (len(main_times,))
+    # TODO Populate preload with shape information so we can return the shape values for now only filling with 1d array
+    return (len(main_times),)
+    # if isinstance(param.shape, basestring):
+    #     #parse pd and get shape out of pd data..
+    #     return (len(main_times,))
+    # elif isinstance(param.shape, tuple):
+    #     return (len(main_times),) + param.shape
+    # else:
+    #     # 1 d just return main times
+    #     return (len(main_times,))
 
 
 
