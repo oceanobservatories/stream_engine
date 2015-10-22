@@ -215,13 +215,14 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
         for k,v in prov.iteritems():
             prov_values[k] = v['file_name'] + " " + v['parser_name'] + " " + v['parser_version']
         prov_array = []
-        for i in ds['provenance'].values:
-            if i in prov_values:
-                prov_array.append(prov_values[i])
-            else:
-                prov_array.append('')
-        prov_array = np.array(prov_array, dtype=str)
-        ds['l0_provenance_information'] = ('obs', prov_array, {'long_name': 'l0_provenance_data', 'description': 'file name, parser name, and parser version'})
+        if 'provenance' in ds:
+            for i in ds['provenance'].values:
+                if i in prov_values:
+                    prov_array.append(prov_values[i])
+                else:
+                    prov_array.append('')
+            prov_array = np.array(prov_array, dtype=str)
+            ds['l0_provenance_information'] = ('obs', prov_array, {'long_name': 'l0_provenance_data', 'description': 'file name, parser name, and parser version'})
 
 
 def fix_lat_lon_depth(ds, stream_key, deployment, location_information):
