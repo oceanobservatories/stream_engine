@@ -7,4 +7,7 @@ preload_database.database.initialize_connection(preload_database.database.Preloa
 preload_database.database.open_connection()
 get_session()
 create_execution_pool()
-app.run(debug=True)
+
+# The reloader must be disabled so stream engine
+# runs on the main thread
+app.run(debug=True, use_reloader=False)
