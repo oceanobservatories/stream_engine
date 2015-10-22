@@ -129,7 +129,7 @@ def _get_time_data(pd_data, stream_key):
         raise MissingTimeException("Could not find time parameter %s for %s" % (tp, stream_key))
 
 
-def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployment):
+def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployment, provenance_metadata):
     time_data, time_parameter = _get_time_data(pd_data, stream_key)
     # sometimes we will get duplicate timestamps
     # INITIAL solution is to remove any duplicate timestamps
@@ -209,6 +209,19 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
         ds[param_name] = (dims, data, array_attrs)
 
     fix_lat_lon_depth(ds, stream_key, deployment, location_information )
+    if provenance_metadata is not None:
+        prov = provenance_metadata.get_provenance_dict()
+        prov_values = {}
+        for k,v in prov.iteritems():
+            prov_values[k] = v['file_name'] + " " + v['parser_name'] + " " + v['parser_version']
+        prov_array = []
+        for i in ds['provenance'].values:
+            if i in prov_values:
+                prov_array.append(prov_values[i])
+            else:
+                prov_array.append('')
+        prov_array = np.array(prov_array, dtype=str)
+        ds['l0_provenance_information'] = ('obs', prov_array, {'long_name': 'l0_provenance_data', 'description': 'file name, parser name, and parser version'})
 
 
 def fix_lat_lon_depth(ds, stream_key, deployment, location_information):
@@ -339,7 +352,7 @@ class StreamData(object):
                 if self.check_stream_deployment(sk, d):
                     pd_data = self.data[d]
                     ds = _open_new_ds(sk, d, request_id, self.provenance_metadata, self.annotation_store)
-                    _group_by_stream_key(ds, pd_data, sk, self.location_information, d)
+                    _group_by_stream_key(ds, pd_data, sk, self.location_information, d, self.provenance_metadata)
                     _add_dynamic_attributes(ds, sk, self.location_information, d)
                     times = self.deployment_times.get(d, None)
                     if times is not None:
