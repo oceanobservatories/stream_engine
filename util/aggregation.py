@@ -27,7 +27,7 @@ def extract_single_value(arr):
 
 
 def flatten(arr):
-    return chain.from_iterable(arr)
+    return [x for x in chain.from_iterable(arr)]
 
 
 VARIABLE_CARRYOVER_MAP = {
