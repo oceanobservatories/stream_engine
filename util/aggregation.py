@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import codecs
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from itertools import chain
 import os
 import re
@@ -27,7 +27,7 @@ def extract_single_value(arr):
 
 
 def flatten(arr):
-    return chain.from_iterable(arr)
+    return list(chain.from_iterable(arr))
 
 
 VARIABLE_CARRYOVER_MAP = {
@@ -174,8 +174,8 @@ def output_ncml(mapping):
         # Temporary output both values for opendap and thredds
         ddir, _ = os.path.split(combined_file)
         prefix =  ddir[len(app.config['ASYNC_DOWNLOAD_BASE_DIR'])+1:]
-        new_info_dict = {}
-        for i in info_dict:
+        new_info_dict = OrderedDict()
+        for i in sorted(info_dict):
             new_info_dict[os.path.join(prefix, i)] = info_dict[i]
         with codecs.open(combined_file + '.opendap.ncml', 'wb', 'utf-8') as ncml_file:
             ncml_file.write(
@@ -192,7 +192,14 @@ def generate_combination_map(direct, subjob_info):
             ncml_name = '{:s}.ncml'.format(file_base)
             ncml_name = os.path.join(direct, ncml_name)
             mapping[ncml_name][fname] = info
-    return mapping
+    #sort the map so the time in the file increases along with obs
+    sorted_map = {}
+    for fname, sji in mapping.iteritems():
+        sorted_subjobs = OrderedDict()
+        for subjob in sorted(sji):
+            sorted_subjobs[subjob] = sji[subjob]
+        sorted_map[fname] = sorted_subjobs
+    return sorted_map
 
 
 def aggregate(async_job_dir):
