@@ -331,10 +331,10 @@ def get_dataset(key, time_range, limit, provenance_metadata, pad_forward, deploy
         # put the range down if we are within the time range
         t1 = time_range.start
         t2 = time_range.stop
-        if t1 < san_locations.bin_information[san_locations.bin_list[0]][1]:
-            t1 = san_locations.bin_information[san_locations.bin_list[0]][1]
-        if t2 > san_locations.bin_information[san_locations.bin_list[-1]][2]:
-            t2 = san_locations.bin_information[san_locations.bin_list[-1]][2]
+        if t1 < san_locations.start_time:
+            t1 = san_locations.start_time
+        if t2 > san_locations.end_time:
+            t2 = san_locations.end_time
         san_times = TimeRange(t1, t2)
         if limit:
             datasets.append(fetch_nsan_data(key, san_times, num_points=int(limit * san_percent),
@@ -344,10 +344,10 @@ def get_dataset(key, time_range, limit, provenance_metadata, pad_forward, deploy
     if cass_locations.total > 0:
         t1 = time_range.start
         t2 = time_range.stop
-        if t1 < cass_locations.bin_information[cass_locations.bin_list[0]][1]:
-            t1 = cass_locations.bin_information[cass_locations.bin_list[0]][1]
-        if t2 > cass_locations.bin_information[cass_locations.bin_list[-1]][2]:
-            t2 = cass_locations.bin_information[cass_locations.bin_list[-1]][2]
+        if t1 < cass_locations.start_time:
+            t1 = cass_locations.start_time
+        if t2 > cass_locations.end_time:
+            t2 = cass_locations.end_time
         # issues arise when sending cassandra a query with the exact time range.  Data points at the start and end will
         # be left out of the results.  This is an issue for full data queries.  To compensate for this we add .1 seconds
         # to the given start and end time

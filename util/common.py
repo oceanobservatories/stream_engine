@@ -716,22 +716,18 @@ def compile_datasets(datasets):
     start = 0
     end = 0
     idx = 0
-    in_order = True
     for ds in datasets:
         ns = ds['time'].min()
         ne = ds['time'].max()
         # Determine if the max and the min are all in order
-        within_range =  ns < end and ne > start
-        in_order = in_order and not within_range
         start = ns
         end = ne
         new_index = [i for i in range(idx, idx + len(ds['index']))]
         ds['index'] = new_index
         idx = new_index[-1] + 1
     dataset = xray.concat(datasets, dim='index')
-    if not in_order:
-        sorted_idx = dataset.time.argsort()
-        dataset = dataset.reindex({'index' : sorted_idx})
+    sorted_idx = dataset.time.argsort()
+    dataset = dataset.reindex({'index' : sorted_idx})
     return dataset
 
 def get_params_with_dpi(dpi):

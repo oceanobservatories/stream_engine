@@ -315,8 +315,8 @@ def query_partition_metadata(stream_key, time_range, session=None, prepared=None
     '''
     query_name = "bin_meta_{:s}_{:s}_{:s}_{:s}_{:s}".format(stream_key.subsite, stream_key.node, stream_key.sensor,
                                                             stream_key.method, stream_key.stream.name)
-    start_bin=  time_to_bin(time_range.start, stream_key.stream.name)
-    end_bin = time_to_bin(time_range.stop, stream_key.stream.name)
+    start_bin=  get_first_possible_bin(time_range.start, stream_key.stream.name)
+    end_bin = time_in_bin_units(time_range.stop, stream_key.stream.name)
     if query_name not in prepared:
         base = (
             "SELECT bin, store, count, first, last FROM partition_metadata WHERE stream = '{:s}' AND  refdes = '{:s}' AND method = '{:s}' AND bin >= ? and bin <= ?").format(
@@ -346,7 +346,7 @@ def get_cass_location_metadata(stream_key, time_range):
         if location == 'cass':
             total = total + count
             bins[data_bin] =  (count, first, last)
-    return LocationMetadata(sorted(bins.keys()), bins, total)
+    return LocationMetadata(bins)
 
 @log_timing(log)
 def get_san_location_metadata(stream_key, time_range):
@@ -366,7 +366,7 @@ def get_san_location_metadata(stream_key, time_range):
         if location == SAN_LOCATION_NAME:
             total = total + count
             bins[data_bin] =  (count, first, last)
-    return LocationMetadata(sorted(bins.keys()), bins, total)
+    return LocationMetadata(bins)
 
 @log_timing(log)
 def get_cass_lookback_dataset(stream_key, start_time, data_bin, deployments):
@@ -412,7 +412,7 @@ def get_first_before_metadata(stream_key, start_time):
                 to_use = res[1]
             else:
                 to_use =res[0]
-    return {to_use.store : LocationMetadata([to_use.bin], {to_use.bin :(to_use.count, to_use.first, to_use.last)}, to_use.count)}
+    return {to_use.store : LocationMetadata({to_use.bin: (to_use.count, to_use.first, to_use.last)})}
 
 @log_timing(log)
 def get_location_metadata(stream_key, time_range):
@@ -469,16 +469,35 @@ def get_location_metadata(stream_key, time_range):
                 else:
                     san_bins.pop(key)
                     san_total -= san_count
-    cass_metadata = LocationMetadata(sorted(cass_bins.keys()), cass_bins, cass_total)
-    san_metadata = LocationMetadata(sorted(san_bins.keys()), san_bins, san_total)
+    cass_metadata = LocationMetadata(cass_bins)
+    san_metadata = LocationMetadata(san_bins)
     return cass_metadata, san_metadata, messages
 
 class LocationMetadata(object):
 
-    def __init__(self, bin_list, bin_info, total):
+    def __init__(self,bin_dict):
+        # bin, count, first, last
+        values = [(i, bin_dict[i][0], bin_dict[i][1], bin_dict[i][2]) for i in bin_dict]
+        # sort by start time
+        values = sorted(values, key=lambda x: x[1])
+        bin_list = []
+        total = 0
+        if len(values) > 0:
+            st = values[0][2]
+            et =  values[0][3]
+        else:
+            st = 0
+            et = 0
+        for bin_info in values:
+            total += bin_info[1]
+            bin_list.append(bin_info[0])
+            st = min(st, bin_info[2])
+            et = max(et, bin_info[3])
         self.bin_list = bin_list
-        self.bin_information = bin_info
+        self.bin_information = bin_dict
         self.total = total
+        self.start_time = st
+        self.end_time = et
 
 
     def __repr__(self):
@@ -489,7 +508,7 @@ class LocationMetadata(object):
         return self.__repr__()
 
     def secs(self):
-        return self.bin_information[self.bin_list[-1]][2]-self.bin_information[self.bin_list[0]][1]
+        return self.end_time - self.start_time
 
     def particle_rate(self):
         return float(self.total) / self.secs()
@@ -1091,6 +1110,12 @@ def create_execution_pool():
 
     [f.get() for f in futures]
 
+def get_first_possible_bin(t, stream):
+    t =  t - (engine.app.config['MAX_BIN_SIZE_MIN'] * 60)
+    return long(t)
+
+def time_in_bin_units(t, stream):
+    return long(t)
 
 def time_to_bin(t, stream):
     bin_size_seconds = 24 * 60 * 60
