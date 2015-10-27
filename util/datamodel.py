@@ -159,6 +159,9 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
             log.error("Length of mask does not equal length of data")
             continue
 
+        if not isinstance(data,np.ndarray):
+            log.warn("Expected parameter '%s' (%s) to be in numpy format but was %s.  Converting", param_name, param_id, type(data))
+            data = np.array(data)
         data = data[mask]
         if param is not None:
             data = data.astype(param.value_encoding)
