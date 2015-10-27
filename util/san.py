@@ -25,7 +25,7 @@ def onload_netCDF(file_name):
         return "File {:s} does not exist".format(file_name)
     # Validate that it has the information that we need and read in the data
     try:
-        with xray.open_dataset(file_name, decode_times=False) as dataset:
+        with xray.open_dataset(file_name, decode_times=False, mask_and_scale=False) as dataset:
             stream_key, errors = validate_dataset(dataset)
             if stream_key is None:
                 return errors

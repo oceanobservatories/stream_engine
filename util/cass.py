@@ -29,6 +29,8 @@ l0_stream_columns = ['time', 'id', 'driver_class', 'driver_host', 'driver_module
 ProvTuple = namedtuple('provenance_tuple', ['subsite', 'sensor', 'node', 'method', 'deployment', 'id', 'file_name', 'parser_name', 'parser_version'])
 StreamProvTuple = namedtuple('stream_provenance_tuple', l0_stream_columns)
 
+BinInfo = namedtuple('BinInfo', 'bin count first last')
+
 # cassandra database handle
 global_cassandra_state = {}
 multiprocess_lock = BoundedSemaphore(2)
@@ -40,6 +42,7 @@ DISTINCT_PS = 'distinct'
 L0_PROV_POS = 'l0_provenance'
 L0_STREAM_ONE_POS = 'l0_stream_1'
 L0_STREAM_RANGE_POS = 'l0_stream_range'
+PARTITION_INSERT_QUERY = 'partition_insert'
 
 SAN_LOCATION_NAME = 'san'
 CASS_LOCATION_NAME = 'cass'
@@ -67,6 +70,10 @@ L0_RAW = \
 L0_STREAM_ONE_RAW = """SELECT {:s} FROM streaming_l0_provenance WHERE refdes = ? AND method = ? and time <= ? ORDER BY time DESC LIMIT 1""""".format(', '.join(l0_stream_columns))
 
 L0_STREAM_RANGE_RAW  = """SELECT {:s} FROM streaming_l0_provenance WHERE refdes = ? AND method = ? and time >= ? and time <= ?""".format(', '.join(l0_stream_columns))
+
+PARITION_INSERT_RAW = """INSERT INTO partition_metadata (stream, refdes, method, bin, store, count, first, last) values (?, ?, ?, ?, ?, ?, ?, ?)"""
+
+COUNT_QUERY_RAW = """SELECT COUNT(*) from {:s} WHERE subsite = ? and node = ? and sensor = ? and bin = ? and method = ?"""
 
 def get_session():
     """
@@ -282,7 +289,7 @@ def query_partition_metadata_before(stream_key, time_start, session=None, prepar
     '''
     query_name = "bin_meta_first_{:s}_{:s}_{:s}_{:s}_{:s}".format(stream_key.subsite, stream_key.node, stream_key.sensor,
                                                             stream_key.method, stream_key.stream.name)
-    start_bin=  time_to_bin(time_start, stream_key.stream.name)
+    start_bin=  time_in_bin_units(time_start, stream_key.stream.name)
     if query_name not in prepared:
         base = (
             "SELECT {:s} FROM partition_metadata WHERE stream = '{:s}' AND  refdes = '{:s}' AND method = '{:s}' AND bin <= ? ORDER BY method DESC, bin DESC LIMIT 4").format(
@@ -315,8 +322,8 @@ def query_partition_metadata(stream_key, time_range, session=None, prepared=None
     '''
     query_name = "bin_meta_{:s}_{:s}_{:s}_{:s}_{:s}".format(stream_key.subsite, stream_key.node, stream_key.sensor,
                                                             stream_key.method, stream_key.stream.name)
-    start_bin=  time_to_bin(time_range.start, stream_key.stream.name)
-    end_bin = time_to_bin(time_range.stop, stream_key.stream.name)
+    start_bin=  get_first_possible_bin(time_range.start, stream_key.stream.name)
+    end_bin = time_in_bin_units(time_range.stop, stream_key.stream.name)
     if query_name not in prepared:
         base = (
             "SELECT bin, store, count, first, last FROM partition_metadata WHERE stream = '{:s}' AND  refdes = '{:s}' AND method = '{:s}' AND bin >= ? and bin <= ?").format(
@@ -346,7 +353,7 @@ def get_cass_location_metadata(stream_key, time_range):
         if location == 'cass':
             total = total + count
             bins[data_bin] =  (count, first, last)
-    return LocationMetadata(sorted(bins.keys()), bins, total)
+    return LocationMetadata(bins)
 
 @log_timing(log)
 def get_san_location_metadata(stream_key, time_range):
@@ -366,7 +373,7 @@ def get_san_location_metadata(stream_key, time_range):
         if location == SAN_LOCATION_NAME:
             total = total + count
             bins[data_bin] =  (count, first, last)
-    return LocationMetadata(sorted(bins.keys()), bins, total)
+    return LocationMetadata(bins)
 
 @log_timing(log)
 def get_cass_lookback_dataset(stream_key, start_time, data_bin, deployments):
@@ -412,7 +419,7 @@ def get_first_before_metadata(stream_key, start_time):
                 to_use = res[1]
             else:
                 to_use =res[0]
-    return {to_use.store : LocationMetadata([to_use.bin], {to_use.bin :(to_use.count, to_use.first, to_use.last)}, to_use.count)}
+    return {to_use.store : LocationMetadata({to_use.bin: (to_use.count, to_use.first, to_use.last)})}
 
 @log_timing(log)
 def get_location_metadata(stream_key, time_range):
@@ -469,17 +476,31 @@ def get_location_metadata(stream_key, time_range):
                 else:
                     san_bins.pop(key)
                     san_total -= san_count
-    cass_metadata = LocationMetadata(sorted(cass_bins.keys()), cass_bins, cass_total)
-    san_metadata = LocationMetadata(sorted(san_bins.keys()), san_bins, san_total)
+    cass_metadata = LocationMetadata(cass_bins)
+    san_metadata = LocationMetadata(san_bins)
     return cass_metadata, san_metadata, messages
 
 class LocationMetadata(object):
 
-    def __init__(self, bin_list, bin_info, total):
+    def __init__(self,bin_dict):
+        # bin, count, first, last
+        values = [BinInfo(*((i,) + bin_dict[i])) for i in bin_dict]
+        # sort by start time
+        values = sorted(values, key=lambda x: x.first)
+        firsts = [b.first for b in values]
+        lasts = [b.last for b in values]
+        bin_list = [b.bin for b in values]
+        counts = [b.count for b in values]
+        if len(bin_list) > 0:
+            self.total = sum(counts)
+            self.start_time = min(firsts)
+            self.end_time = max(lasts)
+        else:
+            self.total = 0
+            self.start_time = 0
+            self.end_time = 0
         self.bin_list = bin_list
-        self.bin_information = bin_info
-        self.total = total
-
+        self.bin_information = bin_dict
 
     def __repr__(self):
         val = 'total: {:d} Bins -> '.format(self.total) + str(self.bin_list)
@@ -489,7 +510,7 @@ class LocationMetadata(object):
         return self.__repr__()
 
     def secs(self):
-        return self.bin_information[self.bin_list[-1]][2]-self.bin_information[self.bin_list[0]][1]
+        return self.end_time - self.start_time
 
     def particle_rate(self):
         return float(self.total) / self.secs()
@@ -686,7 +707,7 @@ def fetch_nth_data(stream_key, time_range, num_points=1000, location_metadata=No
     cols = get_query_columns(stream_key)
 
     if location_metadata is None:
-        location_metadata = get_cass_location_metadata(stream_key, time_range)
+        location_metadata, _, _ = get_location_metadata(stream_key, time_range)
 
     estimated_rate = location_metadata.particle_rate()
     estimated_particles = int(estimated_rate * time_range.secs())
@@ -885,10 +906,10 @@ def insert_dataset(stream_key, dataset, session=None, prepared=None, query_consi
     :param dataset: xray dataset we are updating
     :return:
     """
-    # It's easier to use pandas. So covert to dataframe
-    dataframe = dataset.to_dataframe()
     # All of the bins on SAN data will be the same in the netcdf file take the first
-    data_bin = dataframe['bin'].values[0]
+    data_bin = dataset['bin'].values[0]
+    data_lists = {}
+    size = dataset['index'].size
     #get the metadata partion
     meta = query_partition_metadata(stream_key, TimeRange(bin_to_time(data_bin),
                                                           bin_to_time(data_bin + 1)))
@@ -897,73 +918,96 @@ def insert_dataset(stream_key, dataset, session=None, prepared=None, query_consi
         if i[0] == data_bin and i[1] == CASS_LOCATION_NAME:
             bin_meta = i
             break
-
-    # get the data in the correct format
-    cols = get_query_columns(stream_key)
-    cols = ['subsite', 'node', 'sensor', 'bin', 'method'] + cols[1:]
-    arrays = set([p.name for p in stream_key.stream.parameters if p.parameter_type != FUNCTION and p.is_array])
-    dataframe['subsite'] = stream_key.subsite
-    dataframe['node'] =stream_key.node
-    dataframe['sensor'] = stream_key.sensor
-    dataframe['method'] = stream_key.method
-    # id and provenance are expected to be UUIDs so convert them to uuids
-    dataframe['id'] = dataframe['id'].apply(lambda x: uuid.UUID(x))
-    dataframe['provenance'] = dataframe['provenance'].apply(lambda x: uuid.UUID(x))
-    for i in arrays:
-        dataframe[i] =  dataframe[i].apply(lambda x: msgpack.packb(x))
-    dataframe = dataframe[cols]
-
-    # if we don't have metadata for the bin or we want to overwrite the values from cassandra continue
-    count = 0
-    if bin_meta is None or engine.app.config['SAN_CASS_OVERWRITE']:
-        if bin_meta is not None:
-            log.warn("Data present in Cassandra bin %s for %s.  Overwriting old and adding new data.", data_bin, stream_key.as_refdes())
-
-        # get the query to insert information
-        query_name = 'load_{:s}_{:s}_{:s}_{:s}_{:s}'.format(stream_key.stream_name, stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method)
-        if query_name not in prepared:
-            query = 'INSERT INTO {:s} ({:s}) values ({:s})'.format(stream_key.stream.name,', '.join(cols), ', '.join(['?' for _ in cols]) )
-            query = session.prepare(query)
-            query.consistency_level = query_consistency
-            prepared[query_name] = query
-        query = prepared[query_name]
-
-        # insert data
-        for good, x in execute_concurrent_with_args(session, query, dataframe.values.tolist(), concurrency=50):
-            if not good:
-                log.warn("Failed to insert a particle into Cassandra bin %d for %s!", data_bin, stream_key.as_refdes())
-            else:
-                count += 1
-    else:
+    if bin_meta is not None and not engine.app.config['SAN_CASS_OVERWRITE']:
         # If there is already data and we do not want overwriting return an error
         error_message = "Data present in Cassandra bin {:d} for {:s}. Aborting operation!".format(data_bin, stream_key.as_refdes())
         log.error(error_message)
         return error_message
 
+    # get the data in the correct format
+    cols = get_query_columns(stream_key)
+    dynamic_cols = cols[1:]
+    key_cols = ['subsite', 'node', 'sensor', 'bin', 'method']
+    cols = key_cols + dynamic_cols
+    arrays = set([p.name for p in stream_key.stream.parameters if p.parameter_type != FUNCTION and p.is_array])
+    data_lists['bin'] = [data_bin] * size
+    # id and provenance are expected to be UUIDs so convert them to uuids
+    data_lists['id'] = [uuid.UUID(x) for x in  dataset['id'].values]
+    data_lists['provenance'] = [uuid.UUID(x) for x in dataset['provenance'].values]
+    for i in arrays:
+        data_lists[i] =  [msgpack.packb(x) for x in dataset[i].values.tolist()]
+    for dc in dynamic_cols:
+        # if it is in the dataset and not already in the datalist we need to put it in the list
+        if dc in dataset and dc not in data_lists:
+            if '_FillValue' in dataset[dc].attrs:
+                temp_val = dataset[dc].values.astype(object)
+                temp_val[temp_val == dataset[dc].attrs['_FillValue']] = None
+                data_lists[dc] = temp_val
+            else:
+                data_lists[dc] = dataset[dc].values
+
+    # if we don't have metadata for the bin or we want to overwrite the values from cassandra continue
+    count = 0
+    if bin_meta is not None:
+        log.warn("Data present in Cassandra bin %s for %s.  Overwriting old and adding new data.", data_bin, stream_key.as_refdes())
+
+    # get the query to insert information
+    query_name = 'load_{:s}_{:s}_{:s}_{:s}_{:s}'.format(stream_key.stream_name, stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method)
+    if query_name not in prepared:
+        col_names = ', '.join(cols)
+        # Take subsite, node, sensor, ?, and method
+        key_str= "'{:s}', '{:s}', '{:s}', ?, '{:s}'".format(stream_key.subsite, stream_key.sensor, stream_key.node, stream_key.method)
+        #and the rest as ? for thingskey_cols[:3] +['?'] + key_cols[4:] + ['?' for _ in cols]
+        data_str = ', '.join(['?' for _ in dynamic_cols])
+        full_str = '{:s}, {:s}'.format(key_str, data_str)
+        query = 'INSERT INTO {:s} ({:s}) values ({:s})'.format(stream_key.stream.name, col_names, full_str)
+        query = session.prepare(query)
+        query.consistency_level = query_consistency
+        prepared[query_name] = query
+    query = prepared[query_name]
+    # make the data list
+    to_insert = []
+    data_names = ['bin'] + dynamic_cols
+    for i in range(size):
+        row = [data_lists[col][i] for col in data_names]
+        to_insert.append(row)
+
+    # insert data
+    fails = 0
+    for good, x in execute_concurrent_with_args(session, query, to_insert,  concurrency=50):
+        if not good:
+            fails += 1
+        else:
+            count += 1
+    if fails > 0:
+        log.warn("Failed to insert %s particles into Cassandra bin %d for %s!", fails, data_bin, stream_key.as_refdes())
+
+    if PARTITION_INSERT_QUERY not in prepared:
+        partion_insert_query = session.prepare(PARITION_INSERT_RAW)
+        partion_insert_query.consistency_level = query_consistency
+        prepared[PARTITION_INSERT_QUERY] = partion_insert_query
+    partion_insert_query = prepared.get(PARTITION_INSERT_QUERY)
     # Update the metadata
     if bin_meta is None:
         # Create metadata entry for the new bin
         ref_des = stream_key.as_three_part_refdes()
-        st = dataframe['time'].min()
-        et = dataframe['time'].max()
-        meta_query = "INSERT INTO partition_metadata (stream, refdes, method, bin, store, count, first, last) values ('{:s}', '{:s}', '{:s}', {:d}, '{:s}', {:d}, {:f}, {:f})"\
-            .format(stream_key.stream.name, ref_des, stream_key.method, data_bin, CASS_LOCATION_NAME, count, st, et)
-        meta_query = SimpleStatement(meta_query)
-        meta_query.consistency_level = query_consistency
-        session.execute(meta_query)
-        ret_val = 'Inserted {:d} particles into Cassandra bin {:d} for {:s}.'.format(count, dataframe['bin'].values[0], stream_key.as_refdes())
-        log.info(ret_val)
+        st = dataset['time'].min()
+        et = dataset['time'].max()
+        session.execute(partion_insert_query, (stream_key.stream.name, ref_des, stream_key.method, data_bin, CASS_LOCATION_NAME, count, st, et))
+        ret_val = 'Inserted {:d} particles into Cassandra bin {:d} for {:s}.'.format(count, dataset['bin'].values[0], stream_key.as_refdes())
         return ret_val
     else:
+        query_key = "{:s}_count_bin_particles".format(stream_key.stream.name)
+        if query_key not in prepared:
+            count_query = session.prepare(COUNT_QUERY_RAW.format(stream_key.stream.name))
+            count_query.consistency_level = query_consistency
+            prepared[query_key] = count_query
+        count_query = prepared.get(query_key)
         # get the new count, check times, and update metadata
-        q = "SELECT COUNT(*) from {:s} WHERE subsite = '{:s}' and node = '{:s}' and sensor = '{:s}' and bin = {:d} and method = '{:s}'".format(
-            stream_key.stream.name, stream_key.subsite, stream_key.node, stream_key.sensor, data_bin, stream_key.method)
-        q = SimpleStatement(q)
-        q.consistency_level = query_consistency
-        new_count = session.execute(q)[0][0]
+        new_count = session.execute(count_query, (stream_key.subsite, stream_key.node, stream_key.sensor, data_bin, stream_key.method))[0][0]
         ref_des = stream_key.as_three_part_refdes()
-        st = min(dataframe['time'].min(), bin_meta[3])
-        et = max(dataframe['time'].max(), bin_meta[4])
+        st = min(dataset['time'].values.min(), bin_meta[3])
+        et = max(dataset['time'].values.max(), bin_meta[4])
         meta_query = "INSERT INTO partition_metadata (stream, refdes, method, bin, store, count, first, last) values ('{:s}', '{:s}', '{:s}', {:d}, '{:s}', {:d}, {:f}, {:f})" \
             .format(stream_key.stream.name, ref_des, stream_key.method, data_bin, CASS_LOCATION_NAME, new_count, st, et)
         meta_query = SimpleStatement(meta_query)
@@ -1093,6 +1137,13 @@ def create_execution_pool():
 
 def get_pool():
     return execution_pool
+
+def get_first_possible_bin(t, stream):
+    t =  t - (engine.app.config['MAX_BIN_SIZE_MIN'] * 60)
+    return long(t)
+
+def time_in_bin_units(t, stream):
+    return long(t)
 
 def time_to_bin(t, stream):
     bin_size_seconds = 24 * 60 * 60
