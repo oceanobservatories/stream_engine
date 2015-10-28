@@ -70,7 +70,8 @@ class CSVGenerator(object):
         for sk, deployment, ds in self.stream_data.groups(self.stream_param_map.keys()[0]):
             ds, output_vars = self._fix_for_sync(ds, self.stream_param_map[sk])
             datasets.append(ds)
-        final_data = xray.concat(datasets, dim='time')
+        final_data = xray.concat(datasets, dim='obs')
+        final_data['obs'].values = numpy.arange(0, final_data['obs'].size, dtype=numpy.int32)
         key_vars = ['subsite', 'node', 'sensor', 'stream']
         # output columns in the correct order
         output_vars = output_vars[:1] + key_vars + output_vars[1:]
