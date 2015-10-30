@@ -74,8 +74,7 @@ class CSVGenerator(object):
         final_data['obs'].values = numpy.arange(0, final_data['obs'].size, dtype=numpy.int32)
         key_vars = ['subsite', 'node', 'sensor', 'stream']
         # output columns in the correct order
-        output_vars = output_vars[:1] + key_vars + output_vars[1:]
-        log.warn(output_vars)
+        output_vars = output_vars[:4] + key_vars + output_vars[4:]
         final_data.attrs['subsite'] = datasets[0].attrs['subsite']
         final_data.attrs['node'] = datasets[0].attrs['node']
         final_data.attrs['sensor'] = datasets[0].attrs['sensor']
@@ -92,13 +91,13 @@ class CSVGenerator(object):
                 log.warn("Dataset missing %s (%s) using fill value", p.name, p.id)
                 arr = numpy.empty(len(ds.time), dtype=p.value_encoding)
                 arr.fill(p.fill_value)
-                dims = ['time']
+                dims = ['obs']
                 if len(arr.shape) > 1:
                     for index, dim in enumerate(arr.shape[1:]):
                         name = "{:s}_dim_{:d}".format(p.name, index)
                         dims.append(name)
                 ds.update({p.name : xray.DataArray(arr, dims=dims, attrs={'long_name' : p.name})})
-        req = ['time', 'deployment']
+        req = ['time', 'lat', 'lon', 'depth', 'deployment']
         to_use = [p.name for p in params if p.name  not in req]
         req.extend(to_use)
         return ds[req], req
@@ -106,15 +105,15 @@ class CSVGenerator(object):
     def _get_async_parameters(self, ds):
         to_exclude = set(['bin','id', 'l0_provenance_keys', 'l0_provenance_data','streaming_provenance', 'computed_provenance', 'query_parameter_provenance',
                           'provenance_messages', 'annotations'])
-        to_use = ['time', 'subsite', 'node', 'sensor', 'stream', 'deployment']
+        to_use = ['time', 'lat', 'lon', 'depth', 'subsite', 'node', 'sensor', 'stream', 'deployment']
         not_time_based = []
         # variables gotten from dataset attributes
         attrs = set(['subsite', 'node', 'sensor', 'stream'])
-        for param in ds.data_vars.iterkeys():
-            if param == 'time' or param in to_exclude:
+        for param in ds.data_vars:
+            if param in to_use or param in to_exclude:
                 continue
             else:
-                if 'time' in ds[param].dims:
+                if 'obs' in ds[param].dims:
                     to_use.append(param)
                 else:
                     not_time_based.append(param)
