@@ -744,7 +744,9 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
         # confirm that data lengths are consistent for a stream key
         if parameter_key in refdes_lengths:
             if len(data) != refdes_lengths[parameter_key]:
-                log.error("length of data returned does match other params in refdes")
+                log.error("length of data returned does match other params in refdes, refdes len: {}, data len: {}".format(
+                    refdes_lengths[parameter_key], len(data)))
+                log.info("{}}}".format(spaces[:-4]))
                 return calc_id
         else:
             refdes_lengths[parameter_key] = len(data)
