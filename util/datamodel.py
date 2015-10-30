@@ -215,6 +215,9 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
         ds[param_name] = (dims, data, array_attrs)
 
     fix_lat_lon_depth(ds, stream_key, deployment, location_information )
+    if 'deployment' not in ds:
+        ds['deployment'] = ('obs', np.array([deployment] * ds.obs.size, dtype=np.int32), {'long_name': 'deployment'} )
+        print 'HEY WHAT WHY NOT?'
     if provenance_metadata is not None:
         prov = provenance_metadata.get_provenance_dict()
         prov_values = {}
