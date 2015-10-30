@@ -31,7 +31,7 @@ def handleException(error):
         status_code = error.status_code
     else:
         log.exception('error during request')
-        msg = "Unexpected internal error during request: {:s}".format(reqID)
+        msg = "Unexpected internal error during request"
         errd = {'message' :msg, 'requestUUID': reqID}
         status_code = 500
     response = jsonify(errd)
