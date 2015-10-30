@@ -689,6 +689,20 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
         provenance_metadata.add_messages(messages)
         data, version = execute_dpa(param, args)
 
+        if not isinstance(data, (list, tuple, numpy.ndarray)):
+            data = [data]
+
+        # confirm that data lengths are consistent for a stream key
+        if parameter_key in refdes_lengths:
+            if len(data) != refdes_lengths[parameter_key]:
+                raise StreamEngineException(
+                    "length of data returned does not match other params in refdes, refdes len: {}, data len: {}"
+                    .format( refdes_lengths[parameter_key], len(data)))
+                log.info("{}}}".format(spaces[:-4]))
+                return calc_id
+        else:
+            refdes_lengths[parameter_key] = len(data)
+
         calc_meta['function_name'] = param.parameter_function.function
         calc_meta['function_type'] = param.parameter_function.function_type
         calc_meta['function_version'] = version
@@ -737,18 +751,6 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
     else:
         if param.id not in pd_data:
             pd_data[param.id] = {}
-
-        if not isinstance(data, (list, tuple, numpy.ndarray)):
-            data = [data]
-
-        # confirm that data lengths are consistent for a stream key
-        if parameter_key in refdes_lengths:
-            if len(data) != refdes_lengths[parameter_key]:
-                log.error("length of data returned does match other params in refdes")
-                return calc_id
-        else:
-            refdes_lengths[parameter_key] = len(data)
-
         pd_data[param.id][parameter_key.as_refdes()] = {'data': data, 'source': 'derived'}
         calc_id = provenance_metadata.calculated_metatdata.insert_metadata(param, this_ref, calc_meta)
 
