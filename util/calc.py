@@ -6,6 +6,8 @@ import uuid
 import os
 from collections import OrderedDict, defaultdict
 
+import requests
+
 import numexpr
 import numpy
 import xray
@@ -14,7 +16,7 @@ import scipy as sp
 from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, fetch_all_data, fetch_annotations, \
     get_available_time_range, fetch_l0_provenance, time_to_bin, bin_to_time, store_qc_results, get_location_metadata, \
     get_first_before_metadata, get_cass_lookback_dataset, get_full_cass_dataset, get_san_location_metadata, \
-    get_full_cass_dataset, insert_dataset, get_streaming_provenance, CASS_LOCATION_NAME, SAN_LOCATION_NAME
+    get_full_cass_dataset, insert_dataset, get_streaming_provenance, CASS_LOCATION_NAME, SAN_LOCATION_NAME, get_pool
 
 from util.common import log_timing, ntp_to_datestring,ntp_to_ISO_date, StreamKey, TimeRange, CachedParameter, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
@@ -424,6 +426,8 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
         if stream_request.include_annotations:
             annotations = query_annotations(key, time_range)
             annotation_store.add_annotations(annotations)
+        if stream_request.include_provenance:
+            provenance_metadata.add_instrument_provenance(key,time_range.start, time_range.stop)
 
         if key.stream.is_virtual:
             log.info("Skipping fetch of virtual stream: {}".format(key.stream.name))
@@ -1222,6 +1226,10 @@ class StreamRequest(object):
                       self.stream_keys[0])
             self.time_range = TimeRange(start, stop)
 
+def send_query_for_instrument(url):
+    results = requests.get(url)
+    jres = results.json()
+    return jres
 
 class ProvenanceMetadataStore(object):
     def __init__(self, request_uuid):
@@ -1231,6 +1239,7 @@ class ProvenanceMetadataStore(object):
         self.messages = []
         self._prov_dict = {}
         self._streaming_provenance = {}
+        self._instrument_provenance = {}
 
     def add_messages(self, messages):
         self.messages.extend(messages)
@@ -1251,6 +1260,18 @@ class ProvenanceMetadataStore(object):
 
     def get_provenance_dict(self):
         return self._prov_dict
+
+    def add_instrument_provenance(self, stream_key, st, et ):
+        url = app.config['ASSET_URL'] + 'assets/byReferenceDesignator/{:s}/{:s}/{:s}?startDT={:s}?endDT={:s}'.format(
+            stream_key.subsite, stream_key.node, stream_key.sensor,ntp_to_ISO_date(st), ntp_to_ISO_date(et))
+        self._instrument_provenance[stream_key] =  get_pool().apply_async(send_query_for_instrument, (url,))
+
+    def get_instrument_provenance(self):
+        vals = defaultdict(list)
+        for key, value in self._instrument_provenance.iteritems():
+            vals[key.as_three_part_refdes()].extend(value.get())
+        return vals
+
 
     def add_query_metadata(self, stream_request, query_uuid, query_type):
         self._query_metadata = OrderedDict()
