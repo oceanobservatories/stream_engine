@@ -134,7 +134,6 @@ def output_ncml(mapping):
     loader = jinja2.FileSystemLoader(searchpath='templates')
     env = jinja2.Environment(loader=loader, trim_blocks=True, lstrip_blocks=True)
     ncml_template = env.get_template('ncml.jinja')
-    opendap_template = env.get_template('ncml_opendap.jinja')
     for combined_file, info_dict in mapping.iteritems():
         attr_dict = {}
         for i in ATTRIBUTE_CARRYOVER_MAP:
@@ -171,16 +170,6 @@ def output_ncml(mapping):
         with codecs.open(combined_file, 'wb', 'utf-8') as ncml_file:
             ncml_file.write(
                 ncml_template.render(coord_dict=info_dict, attr_dict=attr_dict,
-                                     var_dict=variable_dict))
-        # Temporary output both values for opendap and thredds
-        ddir, _ = os.path.split(combined_file)
-        prefix =  ddir[len(app.config['ASYNC_DOWNLOAD_BASE_DIR'])+1:]
-        new_info_dict = OrderedDict()
-        for i in sorted(info_dict):
-            new_info_dict[os.path.join(prefix, i)] = info_dict[i]
-        with codecs.open(combined_file + '.opendap.ncml', 'wb', 'utf-8') as ncml_file:
-            ncml_file.write(
-                opendap_template.render(coord_dict=new_info_dict, attr_dict=attr_dict,
                                      var_dict=variable_dict))
 
 
