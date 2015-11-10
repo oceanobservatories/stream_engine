@@ -130,7 +130,7 @@ def do_provenance(param):
     return keys, values
 
 
-def output_ncml(mapping):
+def output_ncml(mapping, async_job_dir):
     loader = jinja2.FileSystemLoader(searchpath='templates')
     env = jinja2.Environment(loader=loader, trim_blocks=True, lstrip_blocks=True)
     ncml_template = env.get_template('ncml.jinja')
@@ -162,8 +162,13 @@ def output_ncml(mapping):
 
         for i in VARIABLE_CARRYOVER_MAP:
             try:
-                vals = VARIABLE_CARRYOVER_MAP[i]['func']([x[i] for x in info_dict.itervalues()])
-                variable_dict[i] = {'value': vals, 'type': VARIABLE_CARRYOVER_MAP[i]['type'], 'size': len(vals),
+                arr = []
+                for x in info_dict.itervalues():
+                    if i in x:
+                        arr.append(x[i])
+                if len(arr) > 0:
+                    vals = VARIABLE_CARRYOVER_MAP[i]['func'](arr)
+                    variable_dict[i] = {'value': vals, 'type': VARIABLE_CARRYOVER_MAP[i]['type'], 'size': len(vals),
                                     'separator': '*'}
             except KeyError:
                 pass
@@ -171,6 +176,38 @@ def output_ncml(mapping):
             ncml_file.write(
                 ncml_template.render(coord_dict=info_dict, attr_dict=attr_dict,
                                      var_dict=variable_dict))
+
+        # aggregate the netcdf files now.
+        datasets = []
+        size = 0
+        for datafile, info in info_dict.iteritems():
+            size += info['size']
+            to_open = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], async_job_dir, datafile)
+            # open the dataset
+            ds = xray.open_dataset(to_open)
+
+            # for each variable that we are going to readd later remove it from the dataset
+            to_delete = set()
+            for i in variable_dict:
+                if i in ds:
+                    to_delete.add(i)
+                    for thing in ds[i].coords:
+                        to_delete.add(thing)
+            for deleteme in list(to_delete):
+                if deleteme in  ds:
+                    del ds[deleteme]
+            datasets.append(ds)
+
+        new_ds = xray.concat(datasets, dim='obs', data_vars='minimal', coords='minimal')
+
+        #add and fix up variables
+        new_ds['obs'].values= np.array([x for x in range(new_ds.obs.size)], dtype=np.int32)
+        for updated_var, info in variable_dict.iteritems():
+            data = info['value']
+            npdata = np.array(data)
+            new_ds[updated_var] = (updated_var + '_dim0', npdata, {'long_name': updated_var})
+        base, _ = os.path.splitext(combined_file)
+        new_ds.to_netcdf(base+ '.nc')
 
 
 def generate_combination_map(direct, subjob_info):
@@ -196,4 +233,4 @@ def aggregate(async_job_dir):
     subjob_info = collect_subjob_info(async_job_dir)
     direct = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], async_job_dir)
     mapping = generate_combination_map(direct, subjob_info)
-    output_ncml(mapping)
+    output_ncml(mapping, async_job_dir)
