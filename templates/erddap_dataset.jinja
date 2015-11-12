@@ -1,0 +1,36 @@
+<dataset type="EDDTableFromNcCFFiles" datasetID="{{dataset_id}}" active="true">
+    <reloadEveryNMinutes>1</reloadEveryNMinutes>
+    <fileDir>{{dataset_dir}}</fileDir>
+    <recursive>false</recursive>
+    <fileNameRegex>{{base_file_name}}\.nc</fileNameRegex>
+    <metadataFrom>last</metadataFrom>
+    <preExtractRegex></preExtractRegex>
+    <postExtractRegex></postExtractRegex>
+    <extractRegex></extractRegex>
+    <columnNameForExtract></columnNameForExtract>
+    <sortFilesBySourceNames></sortFilesBySourceNames>
+    <fileTableInMemory>false</fileTableInMemory>
+    <addAttributes>
+        {% for attr_name, attr_val in attr_dict.iteritems() %}
+        <att name="{{ attr_name }}">{{ attr_val }}</att>
+        {% endfor %}
+    </addAttributes>
+    {% for var_name, data_type in data_vars.iteritems() %}
+    <dataVariable>
+        <sourceName>{{ var_name }}</sourceName>
+        {% if var_name == 'lat' %}
+            <destinationName>latitude</destinationName>
+        {% elif var_name == 'lon' %}
+            <destinationName>longitude</destinationName>
+        {% else %}
+            <destinationName>{{ var_name }}</destinationName>
+        {% endif %}
+        <dataType>{{ data_type['dataType'] }}</dataType>
+        <addAttributes>
+        {% for attr, value in data_type['attrs'].iteritems() %}
+            <att name="{{ attr }}">{{ value }}</att>
+        {% endfor %}
+        </addAttributes>
+    </dataVariable>
+    {% endfor %}
+</dataset>

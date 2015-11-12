@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import codecs
 from collections import defaultdict, OrderedDict
+import glob
 from itertools import chain
 import os
 import re
@@ -234,3 +235,92 @@ def aggregate(async_job_dir):
     direct = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], async_job_dir)
     mapping = generate_combination_map(direct, subjob_info)
     output_ncml(mapping, async_job_dir)
+    erddap(async_job_dir)
+
+def find_representative_nc_file(file_paths, file_base):
+    nc_name = file_base + '.nc'
+    agg_nc = os.path.join(file_paths,  nc_name)
+    if os.path.exists(agg_nc):
+        # return aggregated file and we want to include it.
+        return agg_nc, True
+    else:
+        #walk directory and find first include subfile we do not want to include nc file in output
+        for directory, _, files in os.walk(file_paths):
+            for f in files:
+                if f == nc_name:
+                    return os.path.join(directory, f), False
+
+def map_erddap_type(dtype):
+        '''
+        Returns the ERDDAP data type for a given dtype
+        '''
+        dtype_map = {
+            np.dtype('float64') : 'double',
+            np.dtype('float32') : 'float',
+            np.dtype('int64')   : 'long',
+            np.dtype('int32')   : 'int',
+            np.dtype('int16')   : 'short',
+            np.dtype('int8')    : 'byte',
+            np.dtype('uint64')  : 'unsignedLong',
+            np.dtype('uint32')  : 'unsignedInt',
+            np.dtype('uint16')  : 'unsignedShort',
+            np.dtype('uint8')   : 'unsignedByte',
+            np.dtype('bool')    : 'boolean',
+            np.dtype('S')       : 'String',
+            np.dtype('O')       : 'String',
+        }
+        if dtype.char == 'S':
+            return 'String'
+
+        return dtype_map[dtype]
+
+def get_type_map(nc_file_name):
+    data_vars = {}
+    with xray.open_dataset(nc_file_name, decode_times=False) as ds:
+        for nc_var in ds.variables:
+            if ds[nc_var].dims[0] == 'obs':
+                data_type = map_erddap_type(ds[nc_var].dtype)
+                data_vars[nc_var] = {'dataType': data_type, 'attrs': {}}
+                for i in ds[nc_var].attrs:
+                    data_vars[nc_var]['attrs'][i] = ds[nc_var].attrs[i]
+    return data_vars
+
+
+def get_template():
+    '''
+    Returns the XML for the dataset entry in ERDDAP's datasets.xml
+    '''
+    loader = jinja2.FileSystemLoader(searchpath='templates')
+    env = jinja2.Environment(loader=loader, trim_blocks=True, lstrip_blocks=True)
+    template = env.get_template('erddap_dataset.jinja')
+    return template
+
+def get_attr_dict(nc_file):
+    attrs = {}
+    with xray.open_dataset(nc_file, decode_times=False) as ds:
+        for i in ds.attrs:
+            attrs[i] = ds.attrs[i]
+    return attrs
+
+
+def erddap(agg_dir):
+    path_to_dataset = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], agg_dir)
+    _, async_job_id = os.path.split(path_to_dataset)
+    # get datasets (deployments and nc files) and representative netcdf files and wheter we are doing ncml or just one
+    for ncml_file in glob.glob(path_to_dataset + '/*.ncml'):
+        _, fname = os.path.split(ncml_file)
+        file_base, _ = os.path.splitext(fname)
+        nc_file, include = find_representative_nc_file(path_to_dataset, file_base)
+        dataset_vars = get_type_map(nc_file)
+        attr_dict = get_attr_dict(nc_file)
+        template = get_template()
+        title = '{:s}_{:s}'.format(async_job_id, file_base)
+        with codecs.open(os.path.join(path_to_dataset, file_base+ '_erddap.xml'), 'wb', 'utf-8') as erddap_file:
+            erddap_file.write(template.render(dataset_title=title,
+                           dataset_id=title,
+                           dataset_dir=path_to_dataset,
+                           data_vars=dataset_vars,
+                           attr_dict=attr_dict,
+                           base_file_name=file_base,
+                           recursive=not include,
+                    ))
