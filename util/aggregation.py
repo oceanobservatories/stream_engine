@@ -43,6 +43,7 @@ VARIABLE_CARRYOVER_MAP = {
 
 def get_nc_info(file_name):
     string_sizes = {}
+    arr_sizes = {}
     with xray.open_dataset(file_name, decode_times=False) as ds:
         ret_val = {
             'size': ds.time.size,
@@ -65,7 +66,11 @@ def get_nc_info(file_name):
             #xray has a habit of loading strings as objects.  So cast it to a string and get the max size.
             elif ds.variables[var].dtype == 'object':
                 string_sizes[var] = ds.variables[var].values.astype(str).dtype.itemsize
-    return ret_val, string_sizes
+            elif len(ds.variables[var].shape) > 1:
+                arr_sizes[var] =  tuple(ds.variables[var].shape[1:])
+            else:
+                arr_sizes[var] = 1
+    return ret_val, string_sizes, arr_sizes
 
 
 def collect_subjob_info(job_direct):
@@ -76,16 +81,18 @@ def collect_subjob_info(job_direct):
     root_dir = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], job_direct)
     subjob_info = {}
     string_sizes = {}
+    array_sizes = {}
     for direct, subdirs, files in os.walk(root_dir):
         for i in files:
             if i.endswith('.nc'):
                 idx = direct.index(job_direct)
                 pname = direct[idx+len(job_direct)+1:]
                 fname = os.path.join(pname, i)
-                nc_info, ss = get_nc_info(os.path.join(direct, i))
+                nc_info, ss, arrs = get_nc_info(os.path.join(direct, i))
                 subjob_info[fname] = nc_info
                 # store the size of all string parameters in the nc file
                 string_sizes[os.path.join(direct, i)]  = ss
+                array_sizes[os.path.join(direct, i)] = arrs
 
     #get a set of all of the sizes strings in the subjobs
     var_sizes = defaultdict(set)
@@ -101,7 +108,47 @@ def collect_subjob_info(job_direct):
     if len(to_mod) > 0:
         files = string_sizes.keys()
         modify_strings(files, to_mod)
+
+
+    # clean up array size mismatch.
+    var_sizes = defaultdict(set)
+    for i in array_sizes:
+        for v in array_sizes[i]:
+            var_sizes[v].add(array_sizes[i][v])
+    to_mod = {}
+    # check to see if we have any mismatches
+    for v in var_sizes:
+        if len(var_sizes[v]) > 1:
+            to_mod[v] = max(var_sizes[v])
+    # if mismatches we need to rewrite the string values
+    if len(to_mod) > 0:
+        files = string_sizes.keys()
+        modify_arrs(files, to_mod)
     return subjob_info
+
+def modify_arrs(files, to_mod):
+    for f in files:
+        modified = False
+        with xray.open_dataset(f, decode_times=False, mask_and_scale=False) as ds:
+            for var, size in to_mod.iteritems():
+                if ds[var].shape[1:] != size:
+                    modified = True
+                    new_shape =  ds[var].shape[:1] + size
+                    arr = np.empty(new_shape, ds[var].dtype)
+                    if '_FillValue' in ds[var].attrs:
+                        arr.fill(ds[var].attrs['_FillValue'])
+                    else:
+                        arr.fill(-9999)
+                    # fix dimensions
+                    dims = ['obs']
+                    for i in range(len(size)):
+                        dims.append("{:s}_dim_{:d}".format(var, i))
+                    ds[var] = (dims, arr, ds[var].attrs)
+            if modified:
+                new_ds = ds.copy(deep=True)
+                new_ds.load()
+        if modified:
+            new_ds.to_netcdf(f)
 
 def modify_strings(files, to_mod):
     """
