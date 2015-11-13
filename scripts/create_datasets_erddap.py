@@ -15,6 +15,7 @@ if __name__ == '__main__':
                 print directory
                 with open(os.path.join(directory, f)) as dataset_file:
                     datasets_string.extend(dataset_file.readlines())
+                    datasets_string.append('\n')
     datasets_string.append('\n')
     with open(ERRDAP_DATSETS_FILE, 'w') as master_ds_file:
         master_ds_file.write('<?xml version="1.0" encoding="ISO-8859-1" ?>\n<erddapDatasets>')
