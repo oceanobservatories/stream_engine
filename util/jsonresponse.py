@@ -5,6 +5,7 @@ import json
 import logging
 import numpy as np
 from common import log_timing
+from config import LAT_FILL, LON_FILL, DEPTH_FILL
 
 
 log = logging.getLogger(__name__)
@@ -76,6 +77,11 @@ class JsonResponse(object):
                 # TODO: Currently UI uses for stacked timeseries, need to remove dependency
                 particle['pk']['time'] = data['time'][index]
                 particle['provenance'] = str(data['provenance'][index])
+
+                # Add location information
+                particle['lat'] = ds['lat'].values[index] if 'lat' in ds else LAT_FILL
+                particle['lon'] = ds['lon'].values[index] if 'lon' in ds else LON_FILL
+                particle['depth'] = ds['depth'].values[index] if 'depth' in ds else DEPTH_FILL
 
             # Add any QC if it exists
             for param in params:

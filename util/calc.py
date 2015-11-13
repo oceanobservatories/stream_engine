@@ -500,13 +500,54 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
                 'data': data_set.bin.values,
                 'source': key.as_dashed_refdes()
             }
+
             stream_data[dep_num] = pd_data
-    # exec dpa for stream
 
     refdes_lengths = {} # used for checking that all data returned from a refdes is the same length
     for dep_num in primary_deployments:
-        log.info("Computing DPA for deployment %d", dep_num)
         pd_data = stream_data[dep_num]
+
+        # find location data
+        primary_stream_len = pd_data[primary_stream.time_parameter][primary_key.as_refdes()]['data']
+
+        lat_sk = stream_request.lat_stream_key
+        if primary_stream.lat_param_id is not None:
+            interped_data = interpolate_list(primary_stream_len,
+                                            pd_data[lat_sk.stream.time_parameter][lat_sk.as_refdes()]['data'],
+                                            pd_data[primary_stream.lat_param_id][lat_sk.as_refdes()]['data'])
+            if 'lat' not in pd_data:
+                pd_data['lat'] = {}
+            pd_data['lat'][primary_key.as_refdes()] = {
+                'data': interped_data,
+                'source': lat_sk.as_dashed_refdes()
+            }
+
+        lon_sk = stream_request.lon_stream_key
+        if primary_stream.lat_param_id is not None:
+            interped_data = interpolate_list(primary_stream_len,
+                                            pd_data[lon_sk.stream.time_parameter][lon_sk.as_refdes()]['data'],
+                                            pd_data[primary_stream.lon_param_id][lon_sk.as_refdes()]['data'])
+            if 'lon' not in pd_data:
+                pd_data['lon'] = {}
+            pd_data['lon'][primary_key.as_refdes()] = {
+                'data': interped_data,
+                'source': lon_sk.as_dashed_refdes()
+            }
+
+        depth_sk = stream_request.depth_stream_key
+        if primary_stream.depth_param_id is not None:
+            interped_data = interpolate_list(primary_stream_len,
+                                            pd_data[depth_sk.stream.time_parameter][depth_sk.as_refdes()]['data'],
+                                            pd_data[primary_stream.depth_param_id][depth_sk.as_refdes()]['data'])
+            if 'depth' not in pd_data:
+                pd_data['depth'] = {}
+            pd_data['depth'][primary_key.as_refdes()] = {
+                'data': interped_data,
+                'source': depth_sk.as_dashed_refdes()
+            }
+
+        # exec dpa for stream
+        log.info("Computing DPA for deployment %d", dep_num)
 
         # calculate all time params first if they are derived products
         found_time_params = {}
@@ -694,8 +735,6 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
                 raise StreamEngineException(
                     "length of data returned does not match other params in refdes, refdes len: {}, data len: {}"
                     .format( refdes_lengths[parameter_key], len(data)))
-                log.info("{}}}".format(spaces[:-4]))
-                return calc_id
         else:
             refdes_lengths[parameter_key] = len(data)
 
@@ -763,36 +802,6 @@ def get_shape(param, base_key, pd_data):
         raise MissingTimeException("Could not find time parameter %s for %s" % (tp, stream_key))
     # TODO Populate preload with shape information so we can return the shape values for now only filling with no dimension
     return (len(main_times),)
-
-
-
-
-
-@log_timing(log)
-def munge_args(args, primary_key):
-    """
-    Munges algorithm arguments, most of this should be preload/algorithm changes
-    """
-    # jcool and jwarm must *always* be 1
-    if "jcool" in args:
-        args["jcool"] = 1
-
-    if "jwarm" in args:
-        args["jwarm"] = 1
-
-    # zwindsp, ztmpwat, ztmpair, zhumair should be scalars when calculating metbk
-    if "zwindsp" in args:
-        args["zwindsp"] = args["zwindsp"][0]
-
-    if "ztmpwat" in args:
-        args["ztmpwat"] = args["ztmpwat"][0]
-
-    if "ztmpair" in args:
-        args["ztmpair"] = args["ztmpair"][0]
-
-    if "zhumair" in args:
-        args["zhumair"] = args["zhumair"][0]
-    return args
 
 
 @log_timing(log)
@@ -915,7 +924,7 @@ def build_func_map(parameter, coefficients, pd_data, base_key, deployment, strea
         elif CCArgument.is_cc(val):
             name = val
             if name in coefficients:
-                framed_CCs = coefficients[name]
+                framed_CCs = get_framed_CCs(stream_request, coefficients, pd_data, base_key, name)
                 # Need to catch exceptions from the call to build the CC argument.
                 try:
                     CC_argument, CC_meta = build_CC_argument(framed_CCs, main_times, deployment)
@@ -958,6 +967,45 @@ def build_func_map(parameter, coefficients, pd_data, base_key, deployment, strea
             raise StreamEngineException('Unable to resolve parameter \'%s\' in PD%s %s' %
                                         (func_map[key], parameter.id, parameter.name), payload=to_attach)
     return args, arg_metadata, messages
+
+
+def get_framed_CCs(stream_request, coefficients, pd_data, base_key, name):
+    if name != "CC_latitude" and name != "CC_longitude" and name != "CC_depth":
+        # Get CC from Cal coefficients
+        framed_CCs = coefficients[name] 
+    else:
+        # Get location info from deployment event
+        dep_loc = stream_request.location_information.get(base_key.as_three_part_refdes())
+        loc_val = None
+
+        # try to get loc data from pd_data first, otherwise looking in location_information
+        if name == "CC_latitude":
+            if 'lat' in pd_data and base_key.as_refdes() in pd_data['lat']:
+                loc_val = pd_data['lat'][base_key.as_refdes()]
+            else:
+                loc_val = dep_loc[0].get("lat")
+
+        elif name == "CC_longitude":
+            if 'lon' in pd_data and base_key.as_refdes() in pd_data['lon']:
+                loc_val = pd_data['lon'][base_key.as_refdes()]
+            else:
+                loc_val = dep_loc[0].get("lon")
+
+        elif name == "CC_depth":
+            if 'depth' in pd_data and base_key.as_refdes() in pd_data['depth']:
+                loc_val = pd_data['depth'][base_key.as_refdes()]
+            else:
+                loc_val = dep_loc[0].get("depth")
+
+        loc_data = {
+            'start': stream_request.time_range.start,
+            'stop': stream_request.time_range.stop,
+            'value': loc_val,
+            'deployment': dep_loc[0].get('deployment')
+        }
+        framed_CCs = [loc_data]
+    print "framed cc: ", framed_CCs
+    return framed_CCs
 
 
 @log_timing(log)
@@ -1056,13 +1104,16 @@ class StreamRequest(object):
         self.include_provenance = include_provenance
         self.include_annotations = include_annotations
         self.strict_range = strict_range
-        self._initialize(needs_only)
         self.request_id = request_id
+
+        self._initialize(needs_only)
 
     @log_timing(log)
     def _initialize(self, needs_only):
         if len(self.stream_keys) == 0:
             raise StreamEngineException('Received no stream keys', status_code=400)
+
+        primary_key = self.stream_keys[0]
 
         # virtual streams are not in cassandra, so we can't fit the time range
         if not needs_only and not self.stream_keys[0].stream.is_virtual:
@@ -1154,7 +1205,7 @@ class StreamRequest(object):
                 # if we couldn't find a providing stream key, the arg might be provided by a virtual stream
                 for s in possible_streams:
                     if s.is_virtual:
-                        found_stream_key = find_stream(self.stream_keys[0], s.source_streams, distinct_sensors)
+                        found_stream_key = find_stream(primary_key, s.source_streams, distinct_sensors)
 
                         if found_stream_key is not None:
                             for product_stream in found_stream_key.stream.product_streams:
@@ -1173,6 +1224,31 @@ class StreamRequest(object):
 
         self.found_args = {arg:arg for arg in found_args}
         self.needs_params = needs.difference(x for x in needs if x in found_args)
+
+        # Find streams that provide location data
+        #lat
+        found_stream_key = find_stream(primary_key, primary_key.stream.lat_stream, distinct_sensors)
+        if found_stream_key is not None:
+            self.lat_stream_key = found_stream_key
+            self.stream_keys.append(found_stream_key)
+        else:
+            log.error("Couldn't find stream to provide lat data")
+
+        #lon
+        found_stream_key = find_stream(primary_key, primary_key.stream.lon_stream, distinct_sensors)
+        if found_stream_key is not None:
+            self.lon_stream_key = found_stream_key
+            self.stream_keys.append(found_stream_key)
+        else:
+            log.error("Couldn't find stream to provide lon data")
+
+        #depth
+        found_stream_key = find_stream(primary_key, primary_key.stream.depth_stream, distinct_sensors)
+        if found_stream_key is not None:
+            self.depth_stream_key = found_stream_key
+            self.stream_keys.append(found_stream_key)
+        else:
+            log.error("Couldn't find stream to provide depth data")
 
         needs_cc = set()
         for sk in self.stream_keys:
@@ -1461,6 +1537,8 @@ def find_stream(stream_key, streams, distinct_sensors):
     :param stream_key
     :return:
     """
+    if not isinstance(streams, list):
+        streams = [streams]
     stream_map = {s.name: s for s in streams}
     # check our specific reference designator first
     for stream in get_streams(stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method):
