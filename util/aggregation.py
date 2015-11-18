@@ -237,7 +237,8 @@ def output_ncml(mapping, async_job_dir):
             size += info['size']
             to_open = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], async_job_dir, datafile)
             # open the dataset
-            ds = xray.open_dataset(to_open)
+            ds = xray.open_dataset(to_open, decode_times=False)
+
 
             # for each variable that we are going to readd later remove it from the dataset
             to_delete = set()
