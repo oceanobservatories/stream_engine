@@ -503,6 +503,9 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
             stream_data[dep_num] = pd_data
     # exec dpa for stream
 
+    # Add deployed lat,lon,depth to pd_data
+    set_geoloc_from_deployment(stream_request, primary_key, pd_data)
+
     refdes_lengths = {} # used for checking that all data returned from a refdes is the same length
     for dep_num in primary_deployments:
         log.info("Computing DPA for deployment %d", dep_num)
@@ -537,6 +540,90 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
 
     sd = StreamData(stream_request, stream_data, provenance_metadata, annotation_store)
     return sd
+
+#############################################################################
+# NAME
+#    set_geoloc_from_deployment
+# DESCRIPTION
+#    This function sets the lat,lon and depth values in pd_data using 
+#    values from deployment info
+#############################################################################
+def set_geoloc_from_deployment(stream_request, base_key, pd_data):
+    # Get deployment constant
+    set_pd_data_from_deployment(stream_request,base_key,pd_data, 'lat', 'DC_latitude', -999.99)
+    set_pd_data_from_deployment(stream_request,base_key,pd_data, 'lon', 'DC_longitude', -999.99)
+    set_pd_data_from_deployment(stream_request,base_key,pd_data, 'depth', 'DC_depth', -999.99)
+
+#############################################################################
+#############################################################################
+def set_pd_data_from_deployment(stream_request, base_key, pd_data, depl_name, pd_name, default_value):
+
+    # get value from the deployment data field, depl_name -- e.g., 'lat', 'lon'
+    # "value" is a single value from deployment info
+    value = get_deployment_datum(stream_request, base_key, depl_name, default_value)
+
+    # virtual data size of metbk_hourly differs from source stream size
+    # but this check is left for now.
+    if base_key.stream.is_virtual:
+        time_stream = base_key.stream.source_streams[0]
+        time_stream_key = get_stream_key_with_param(pd_data, time_stream, time_stream.time_parameter)
+    else:
+        time_stream_key = base_key
+
+    time_stream_refdes = time_stream_key.as_refdes()
+    # Spread the values across all particles in pd_data
+    time_stream_refdes = time_stream_key.as_refdes()
+    if time_stream_key.stream.time_parameter in pd_data:
+        main_times = pd_data[time_stream_key.stream.time_parameter][time_stream_refdes]['data']
+        np_array = make_nparray(value, main_times)
+
+        log.info("Inserting deployment parameter, \'%s\', into %s", depl_name, base_key.as_refdes())
+
+        if pd_name not in pd_data:
+            pd_data[pd_name] = {}
+
+        pd_data[pd_name][base_key.as_refdes()] = {
+            'data': np_array,
+            'source': base_key.as_dashed_refdes()
+        }
+    else:
+        log.warn("Failed to set time parameter-id for %s: %s not in pd_data",
+                  base_key.as_refdes(), base_key.stream.time_parameter)
+
+#############################################################################
+# NAME
+#    make_nparray
+#
+# DESCRIPTION
+#    create and fill an array of size = the number of source times
+#############################################################################
+def make_nparray(value, main_times):
+    # Replicate geo values across all particles in pd_data
+    a = numpy.zeros(shape=(len(main_times)))
+    count = 0
+    for time in main_times:
+        a[count] = value
+        count = count + 1
+
+    return a
+
+#############################################################################
+# NAME
+#    get_deployment_datum
+# DESCRIPTION
+#    This function returns the requested parameter from deployment info 
+#    associated with the primary stream
+#############################################################################
+def get_deployment_datum(stream_request, base_key, depl_name, default_value=None):
+    refdes_key = base_key.as_three_part_refdes()
+    dep_loc = stream_request.location_information.get(refdes_key)
+
+    if dep_loc is not None and len(dep_loc) > 0 and depl_name in dep_loc[0]:
+        value = dep_loc[0].get(depl_name)
+    else:
+        value = default_value
+
+    return value
 
 
 @log_timing(log)
@@ -794,6 +881,27 @@ def munge_args(args, primary_key):
         args["zhumair"] = args["zhumair"][0]
     return args
 
+# pseudo-dirived parameters
+# args = {"desired_time": "PD12", "time": "PD13", "lat": "PD1382"}
+def interp_lat(desired_time, time, lat):
+    return interpolate_list(desired_time, time, lat)
+
+def interp_lon(desired_time, time, lon):
+    return interpolate_list(desired_time, time, lon)
+
+def interp_depth(desired_time,time, depth):
+    return interpolate_list(desired_time, time, depth)
+
+def get_depl_lat(lat):
+    return lat
+
+def get_depl_lon(lon):
+    return lon
+
+def get_depl_depth(depth):
+    return depth
+
+
 
 @log_timing(log)
 def execute_dpa(parameter, kwargs):
@@ -915,7 +1023,7 @@ def build_func_map(parameter, coefficients, pd_data, base_key, deployment, strea
         elif CCArgument.is_cc(val):
             name = val
             if name in coefficients:
-                framed_CCs = coefficients[name]
+                framed_CCs = get_framed_CCs(stream_request, coefficients, pd_data, base_key, name)
                 # Need to catch exceptions from the call to build the CC argument.
                 try:
                     CC_argument, CC_meta = build_CC_argument(framed_CCs, main_times, deployment)
@@ -958,6 +1066,42 @@ def build_func_map(parameter, coefficients, pd_data, base_key, deployment, strea
             raise StreamEngineException('Unable to resolve parameter \'%s\' in PD%s %s' %
                                         (func_map[key], parameter.id, parameter.name), payload=to_attach)
     return args, arg_metadata, messages
+
+##############################################################################################
+#
+##############################################################################################
+def get_framed_CCs(stream_request, coefficients, pd_data, base_key, name):
+    if name != "CC_latitude" and name != "CC_longitude" and name != "CC_depth":
+        # Get CC values from Cal coefficients (other than CC_latitude,CC_longitude,CC_depth)
+        framed_CCs = coefficients[name]
+    else:
+        # Get lat,lon,depth from deployment location
+        refdes_key = base_key.as_three_part_refdes()
+        dep_loc = stream_request.location_information.get(refdes_key)
+        if name == "CC_latitude":
+            #value = dep_loc[0].get("lat")
+            dclat = pd_data.get('DC_latitude').get(base_key.as_refdes(), {}).get('data')
+            value = dclat[0]
+        elif name == "CC_longitude":
+            #value = dep_loc[0].get("lon")
+            dclon = pd_data.get('DC_longitude').get(base_key.as_refdes(), {}).get('data')
+            value = dclon[0]
+        elif name == "CC_depth":
+            #value = dep_loc[0].get("depth")
+            dcdepth = pd_data.get('DC_depth').get(base_key.as_refdes(), {}).get('data')
+            value = dcdepth[0]
+
+        # format a "framed CC"
+        loc_data = {}
+        framed_CCs = [];
+        loc_data['start'] = stream_request.time_range.start
+        loc_data['stop'] = stream_request.time_range.stop
+        loc_data['value'] = value
+        loc_data['deployment'] = dep_loc[0].get("deployment")
+        loc = json.dumps(loc_data)
+        framed_CCs.append(loc_data)
+
+    return framed_CCs
 
 
 @log_timing(log)

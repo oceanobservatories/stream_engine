@@ -77,6 +77,26 @@ class JsonResponse(object):
                 particle['pk']['time'] = data['time'][index]
                 particle['provenance'] = str(data['provenance'][index])
 
+                if 'auv_latitude' in data and 'auv_longitude' in data and 'm_depth' in data:
+                    particle['latitude'] = data['auv_latitude'][index]
+                    particle['longitude'] = data['auv_longitude'][index]
+                    particle['depth'] = data['m_depth'][index]
+                elif 'v_lat' in data and 'v_lon' in data and 'v_depth' in data:
+                    particle['latitude'] = data['v_lat'][index]
+                    particle['longitude'] = data['v_lon'][index]
+                    particle['depth'] = data['v_depth'][index]
+                    del particle['v_lat']
+                    del particle['v_lon']
+                    del particle['v_depth']
+                else: # Stationary instruments, use geospatial info from deployment data
+                    if 'DC_latitude' in data:
+                        particle['latitude'] = data['DC_latitude'][index]
+                    if 'DC_longitude' in data:
+                        particle['longitude'] = data['DC_longitude'][index]
+                    if 'DC_depth' in data:
+                        particle['depth'] = data['DC_depth'][index]
+
+
             # Add any QC if it exists
             for param in params:
                 qc_postfixes = ['qc_results', 'qc_executed']
