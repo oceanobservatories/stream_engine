@@ -21,6 +21,7 @@ import msgpack
 
 from util.common import log_timing, TimeRange, FUNCTION, to_xray_dataset
 
+logging.getLogger('cassandra').setLevel(logging.WARNING)
 log = logging.getLogger(__name__)
 
 PARTITION_COLUMNS = ['bin', 'store', 'count', 'first', 'last']
