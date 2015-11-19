@@ -280,11 +280,29 @@ def output_ncml(mapping, async_job_dir):
                 else:
                     drop_obs[i] = new_ds[i]
 
-            # May need to change attributes here
             drop_obs.to_netcdf(base + '_time_indexed.nc')
-
+            #As a final step drop lat, lon, depth if they are all the same and put them in the attributes indexes
+            no_dups = drop_same_data(drop_obs.copy(deep=True))
+            no_dups.to_netcdf(base + '_latlon_attr.nc')
+            # May need to change attributes here
         except Exception as e:
             log.exception("Exception when aggregating netcdf file for request: %s", async_job_dir)
+
+def drop_same_data(ds):
+    lats = set(ds.lat.values)
+    lons = set(ds.lon.values)
+    depths = set(ds.depth.values)
+    if len(lats) == 1 and len(lons) == 1:
+        # get rid of lat and lon and put in header
+        ds.attrs['lat'] = list(lats)[0]
+        ds.attrs['lon'] = list(lons)[0]
+        del ds['lon']
+        del ds['lat']
+    if len(depths) == 1:
+        ds.attrs['depth'] = list(depths)[0]
+        del ds['depth']
+        # put depths in the header
+    return ds
 
 def drop_first_time(ds):
     new_ds = xray.Dataset(attrs=ds.attrs)
@@ -431,5 +449,19 @@ def erddap(agg_dir):
                                               data_vars=dataset_vars,
                                               attr_dict=attr_dict,
                                               base_file_name=file_base  + '_time_indexed',
+                                              recursive=not include,
+                                              ))
+        nc_file, include = find_representative_nc_file(path_to_dataset, file_base + '_latlon_attr')
+        dataset_vars = get_type_map(nc_file, index='time')
+        attr_dict = get_attr_dict(nc_file)
+        template = get_template()
+        title = '{:s}_{:s}'.format(async_job_id, file_base)
+        with codecs.open(os.path.join(path_to_dataset, file_base+ '_latlon_attr_erddap.xml'), 'wb', 'utf-8') as erddap_file:
+            erddap_file.write(template.render(dataset_title=title,
+                                              dataset_id=title + '_ns',
+                                              dataset_dir=path_to_dataset,
+                                              data_vars=dataset_vars,
+                                              attr_dict=attr_dict,
+                                              base_file_name=file_base  + '_latlon_attr',
                                               recursive=not include,
                                               ))
