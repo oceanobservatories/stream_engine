@@ -262,6 +262,20 @@ def output_ncml(mapping, async_job_dir):
                 new_ds[updated_var] = (updated_var + '_dim0', npdata, {'long_name': updated_var})
             base, _ = os.path.splitext(combined_file)
             new_ds.to_netcdf(base+ '.nc')
+            drop_obs = xray.Dataset(attrs=new_ds.attrs)
+            for i in new_ds.variables:
+                if i == 'obs':
+                    continue
+                dims = new_ds.variables[i].dims
+                if dims[0] == 'obs':
+                    new_dims = ('time',) + dims[1:]
+                    drop_obs[i] = (new_dims, new_ds.variables[i].values, new_ds.variables[i].attrs)
+                else:
+                    drop_obs[i] = new_ds[i]
+
+            # May need to change attributes here
+            drop_obs.to_netcdf(base + '_time_indexed.nc')
+
         except Exception as e:
             log.exception("Exception when aggregating netcdf file for request: %s", async_job_dir)
 
@@ -329,11 +343,12 @@ def map_erddap_type(dtype):
 
         return dtype_map[dtype]
 
-def get_type_map(nc_file_name):
+def get_type_map(nc_file_name, index='obs'):
     data_vars = {}
     with xray.open_dataset(nc_file_name, decode_times=False) as ds:
         for nc_var in ds.variables:
-            if ds[nc_var].dims[0] == 'obs':
+            # TODO: if multi variables continue to cause problems we can drop them here if dims > 1
+            if ds[nc_var].dims[0] == index:
                 data_type = map_erddap_type(ds[nc_var].dtype)
                 data_vars[nc_var] = {'dataType': data_type, 'attrs': {}}
                 for i in ds[nc_var].attrs:
@@ -379,3 +394,17 @@ def erddap(agg_dir):
                            base_file_name=file_base,
                            recursive=not include,
                     ))
+        nc_file, include = find_representative_nc_file(path_to_dataset, file_base + '_time_indexed')
+        dataset_vars = get_type_map(nc_file, index='time')
+        attr_dict = get_attr_dict(nc_file)
+        template = get_template()
+        title = '{:s}_{:s}'.format(async_job_id, file_base)
+        with codecs.open(os.path.join(path_to_dataset, file_base+ '_time_indexed_erddap.xml'), 'wb', 'utf-8') as erddap_file:
+            erddap_file.write(template.render(dataset_title=title,
+                                              dataset_id=title + '_te',
+                                              dataset_dir=path_to_dataset,
+                                              data_vars=dataset_vars,
+                                              attr_dict=attr_dict,
+                                              base_file_name=file_base  + '_time_indexed',
+                                              recursive=not include,
+                                              ))
