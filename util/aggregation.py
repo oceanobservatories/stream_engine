@@ -233,14 +233,19 @@ def output_ncml(mapping, async_job_dir):
         # aggregate the netcdf files now.
         datasets = []
         size = 0
+        last_time = 0
         for datafile, info in info_dict.iteritems():
             size += info['size']
             to_open = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], async_job_dir, datafile)
             # open the dataset
             ds = xray.open_dataset(to_open, decode_times=False)
+            time = ds.time.values[0]
+            if time == last_time:
+                log.warn("Duplicate time dropping first time!")
+                ds = drop_first_time(ds)
+            last_time = ds.time.values[-1]
 
-
-            # for each variable that we are going to readd later remove it from the dataset
+            # for each variable that we are going to read later remove it from the dataset
             to_delete = set()
             for i in variable_dict:
                 if i in ds:
@@ -262,8 +267,42 @@ def output_ncml(mapping, async_job_dir):
                 new_ds[updated_var] = (updated_var + '_dim0', npdata, {'long_name': updated_var})
             base, _ = os.path.splitext(combined_file)
             new_ds.to_netcdf(base+ '.nc')
+
+            # Now reindex the new dataset based on times!
+            drop_obs = xray.Dataset(attrs=new_ds.attrs)
+            for i in new_ds.variables:
+                if i == 'obs':
+                    continue
+                dims = new_ds.variables[i].dims
+                if dims[0] == 'obs':
+                    new_dims = ('time',) + dims[1:]
+                    drop_obs[i] = (new_dims, new_ds.variables[i].values, new_ds.variables[i].attrs)
+                else:
+                    drop_obs[i] = new_ds[i]
+
+            # May need to change attributes here
+            drop_obs.to_netcdf(base + '_time_indexed.nc')
+
         except Exception as e:
             log.exception("Exception when aggregating netcdf file for request: %s", async_job_dir)
+
+def drop_first_time(ds):
+    new_ds = xray.Dataset(attrs=ds.attrs)
+    new_cord = {}
+    # Set up the new coordinates
+    for i in ['time', 'lat', 'lon', 'depth']:
+        if ds[i].dims[0] == 'obs':
+            a = xray.DataArray(ds[i].values[1:], dims=ds[i].dims, attrs=ds[i].attrs)
+            new_cord[i] = a
+    # drop the first variable of data values along the obs
+    for v in ds.variables:
+        if ds[v].dims[0] == 'obs':
+            data_arr = xray.DataArray(ds[v].values[1:], coords=new_cord, dims=ds[v].dims, attrs=ds[v].attrs)
+            new_ds[v] = data_arr
+        else:
+            new_ds[v] = ds[v]
+
+    return new_ds
 
 
 def generate_combination_map(direct, subjob_info):
@@ -329,11 +368,12 @@ def map_erddap_type(dtype):
 
         return dtype_map[dtype]
 
-def get_type_map(nc_file_name):
+def get_type_map(nc_file_name, index='obs'):
     data_vars = {}
     with xray.open_dataset(nc_file_name, decode_times=False) as ds:
         for nc_var in ds.variables:
-            if ds[nc_var].dims[0] == 'obs':
+            # if multi variables continue to cause problems we can drop them here if dims > 1
+            if ds[nc_var].dims[0] == index:
                 data_type = map_erddap_type(ds[nc_var].dtype)
                 data_vars[nc_var] = {'dataType': data_type, 'attrs': {}}
                 for i in ds[nc_var].attrs:
@@ -379,3 +419,17 @@ def erddap(agg_dir):
                            base_file_name=file_base,
                            recursive=not include,
                     ))
+        nc_file, include = find_representative_nc_file(path_to_dataset, file_base + '_time_indexed')
+        dataset_vars = get_type_map(nc_file, index='time')
+        attr_dict = get_attr_dict(nc_file)
+        template = get_template()
+        title = '{:s}_{:s}'.format(async_job_id, file_base)
+        with codecs.open(os.path.join(path_to_dataset, file_base+ '_time_indexed_erddap.xml'), 'wb', 'utf-8') as erddap_file:
+            erddap_file.write(template.render(dataset_title=title,
+                                              dataset_id=title + '_te',
+                                              dataset_dir=path_to_dataset,
+                                              data_vars=dataset_vars,
+                                              attr_dict=attr_dict,
+                                              base_file_name=file_base  + '_time_indexed',
+                                              recursive=not include,
+                                              ))
