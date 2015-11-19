@@ -281,6 +281,14 @@ class CachedStream(object):
             s.product_streams = stream.product_streams
             s.is_virtual = len(stream.source_streams) > 0
 
+            s.lat_param_id = stream.lat_param_id
+            s.lon_param_id = stream.lon_param_id
+            s.depth_param_id = stream.depth_param_id
+            
+            s.lat_stream_id = stream.lat_stream_id
+            s.lon_stream_id = stream.lon_stream_id
+            s.depth_stream_id = stream.depth_stream_id
+
             stream_cache[stream.id] = s
         return stream_cache[stream.id]
 
@@ -296,6 +304,18 @@ class CachedStream(object):
             'name': self.name,
             'parameters': self.parameters
         }
+
+    @property
+    def lat_stream(self):
+        return CachedStream.from_id(self.lat_stream_id)
+
+    @property
+    def lon_stream(self):
+        return CachedStream.from_id(self.lon_stream_id)
+
+    @property
+    def depth_stream(self):
+        return CachedStream.from_id(self.depth_stream_id)
 
     def __eq__(self, other):
         return self.id == other.id

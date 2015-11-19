@@ -52,8 +52,6 @@ def _open_new_ds(stream_key, deployment, request_uuid, provenance_metadata=None,
         'naming_authority' : '{:s}'.format(app.config['NETCDF_NAMING_AUTHORITY']),
         'creator_name' : '{:s}'.format(app.config['NETCDF_CREATOR_NAME']),
         'creator_url' : '{:s}'.format(app.config['NETCDF_CREATOR_URL']),
-        'infoUrl' : '{:s}'.format(app.config['NETCDF_INFO_URL']),
-        'sourceUrl' : '{:s}'.format(app.config['NETCDF_SOURCE_URL']),
         'creator_email' : '{:s}'.format(app.config['NETCDF_CREATOR_EMAIL']),
         'project' : '{:s}'.format(app.config['NETCDF_PROJECT']),
         'processing_level' : '{:s}'.format(app.config['NETCDF_PROCESSING_LEVEL']),
@@ -120,6 +118,7 @@ def _open_new_ds(stream_key, deployment, request_uuid, provenance_metadata=None,
         if len(annote_data) > 0:
             init_data['annotations'] = xray.DataArray(np.array(annote_data), dims=['dataset_annotations'],
                                                       attrs={'long_name': 'Data Annotations'})
+
     return xray.Dataset(init_data, attrs=attrs)
 
 
@@ -219,7 +218,7 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
 
         ds[param_name] = (dims, data, array_attrs)
 
-    fix_lat_lon_depth(ds, stream_key, deployment, location_information )
+    fix_lat_lon_depth(ds, stream_key, deployment, location_information)
     if 'deployment' not in ds:
         ds['deployment'] = ('obs', np.array([deployment] * ds.obs.size, dtype=np.int32), {'long_name': 'deployment'} )
     if provenance_metadata is not None:
@@ -253,7 +252,7 @@ def fix_lat_lon_depth(ds, stream_key, deployment, location_information):
         latarr.fill(lat)
         ds['lat'] = ('obs', latarr, {'axis': 'Y', 'units': 'degrees_north', 'standard_name': 'latitude'})
     else:
-        ds['lat'].attr['axis'] = 'Y'
+        ds['lat'].attrs['axis'] = 'Y'
         ds['lat'].standard_name = 'latitude'
 
     if 'lon' not in ds.variables:
@@ -265,13 +264,13 @@ def fix_lat_lon_depth(ds, stream_key, deployment, location_information):
         lonarr.fill(lon)
         ds['lon'] = ('obs', lonarr, {'axis': 'X', 'units': 'degrees_east', 'standard_name': 'longitude'})
     else:
-        ds['lon'].attr['axis'] = 'X'
+        ds['lon'].attrs['axis'] = 'X'
         ds['lon'].standard_name = 'longitude'
 
     if 'depth' not in ds.variables:
-        depth = location_vals.get('depth', 0.0)
+        depth = location_vals.get('depth')
         if depth is None:
-            log.warn("Depth not present using fill value")
+            log.warn("No depth!! Using fill value")
             depth = 0.0
         deptharr = np.empty(ds.time.size)
         deptharr.fill(depth)
@@ -301,6 +300,7 @@ def _add_dynamic_attributes(ds, stream_key, location_information, deployment):
         if loc['deployment'] == deployment:
             location_vals = loc
             break
+
     if 'location_name' in location_vals:
         ds.attrs['location_name'] = str(location_vals['location_name'])
     ds.attrs['geospatial_lat_min']  = min(ds.variables['lat'].values)
