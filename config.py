@@ -1,5 +1,5 @@
 DEBUG = False
-STREAM_ENGINE_VERSION = "0.8.2"
+STREAM_ENGINE_VERSION = "0.8.3"
 
 CASSANDRA_CONTACT_POINTS = ['127.0.0.1']
 CASSANDRA_KEYSPACE = 'ooi'
@@ -82,7 +82,13 @@ LOOKBACK_QUERY_LIMIT = 100 # Number of cassandra rows used to the correct deploy
 DPA_VERSION_VARIABLE = "version" # The name of the variable that contains the version string for the ion_functions at the package level.
 
 INTERNAL_OUTPUT_EXCLUDE_LIST = ['bin', ]
-INTERNAL_OUTPUT_MAPPING = {'deployment' : 'int32', 'id' : 'str'}
+INTERNAL_OUTPUT_MAPPING = {
+    'deployment' : 'int32',
+    'id' : 'str',
+    'lat': 'float64',
+    'lon': 'float64',
+    'depth': 'float64'
+}
 
 REQUEST_TIMEOUT_SECONDS = 600 # 10 minutes
 
@@ -102,3 +108,8 @@ FILL_VALUES = {
     "string": "",
     "boolean": -9
 }
+
+# Used for fill values when location data is missing
+LAT_FILL = 90.0
+LON_FILL = -180.0
+DEPTH_FILL = 0.0
