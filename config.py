@@ -113,3 +113,5 @@ FILL_VALUES = {
 LAT_FILL = 90.0
 LON_FILL = -180.0
 DEPTH_FILL = 0.0
+
+DATA_TO_ATTRIBUTE_PARTS = {'ADCP': ['bin_1_distance', 'num_cells', 'cell_length', 'deployment_depth']}
