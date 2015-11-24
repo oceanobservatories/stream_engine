@@ -118,4 +118,4 @@ DEPTH_FILL = 0.0
 # into the attributes of a netcdf file.
 # In this map the sensor will contain a list of all variables that should be placed in the header if they
 # are in the data.
-DATA_TO_ATTRIBUTE_PARTS = {'ADCP': ['bin_1_distance', 'num_cells', 'cell_length', 'deployment_depth']}
+DATA_TO_ATTRIBUTE_PARTS = {'ADCP': ['bin_1_distance', 'num_cells', 'cell_length', 'deployment_depth', ' height_above_bottom']}

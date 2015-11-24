@@ -283,10 +283,44 @@ def output_ncml(mapping, async_job_dir):
             drop_obs.to_netcdf(base + '_time_indexed.nc')
             #As a final step drop lat, lon, depth if they are all the same and put them in the attributes indexes
             no_dups = drop_same_data(drop_obs.copy(deep=True))
+            # TEMPORARY WORKAROUND TO GET ADCP sensors in correct format
+            # This calcuation should be moved to stream engine proper when time permits.
+            if 'ADCP' in no_dups.sensor:
+                no_dups = fix_adcp(no_dups)
             no_dups.to_netcdf(base + '_latlon_attr.nc')
             # May need to change attributes here
         except Exception as e:
             log.exception("Exception when aggregating netcdf file for request: %s", async_job_dir)
+
+def fix_adcp(ds):
+    # get num cells
+    if 'num_cells' in ds.attrs:
+        num_cells = ds.num_cells
+    elif 'num_cells' in ds.variables:
+        num_cells = ds.variables['num_cells']
+    else:
+        log.warn("No number of cells in ADCP data")
+        return ds
+    if 'cell_length' in ds.attrs:
+        cell_length = ds.cell_length
+    elif 'cell_length' in ds.variables:
+        cell_length = ds.variables['cell_length']
+    else:
+        log.warn("No cell_length in ADCP data")
+        return ds
+    if 'bin_1_distance' in ds.attrs:
+        bin_1_distance = ds.bin_1_distance
+    elif 'bin_1_distance' in ds.variables:
+        bin_1_distance = ds.variables['bin_1_distance']
+    else:
+        log.warn("No bin_1_distance in ADCP data")
+        return ds
+
+    z = np.linspace(0, num_cells-1, num=num_cells) * cell_length + bin_1_distance
+    ds['z'] = ('z_dim', z, {'long_name' : 'the distance of the center of the cells to the ADDCP transducer head'})
+    return ds
+
+
 
 def drop_same_data(ds):
     lats = set(ds.lat.values)
