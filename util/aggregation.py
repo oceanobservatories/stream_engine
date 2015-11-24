@@ -302,6 +302,12 @@ def drop_same_data(ds):
         ds.attrs['depth'] = list(depths)[0]
         del ds['depth']
         # put depths in the header
+    for i in app.config['DATA_TO_ATTRIBUTE_PARTS']:
+        if i in ds.subsite or i in ds.node or i in ds.sensor:
+            for data_var in app.config['DATA_TO_ATTRIBUTE_PARTS'][i]:
+                if data_var in ds.variables:
+                    ds.attrs[data_var] = ds[data_var].values[0]
+                    del ds[data_var]
     return ds
 
 def drop_first_time(ds):

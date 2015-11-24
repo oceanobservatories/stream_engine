@@ -102,3 +102,5 @@ FILL_VALUES = {
     "string": "",
     "boolean": -9
 }
+
+DATA_TO_ATTRIBUTE_PARTS = {'ADCP': ['bin_1_distance', 'num_cells', 'cell_length', 'deployment_depth']}
