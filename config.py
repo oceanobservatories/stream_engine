@@ -113,3 +113,9 @@ FILL_VALUES = {
 LAT_FILL = 90.0
 LON_FILL = -180.0
 DEPTH_FILL = 0.0
+
+# This allows the configuration sensors to have data variables with all the same values to be placed
+# into the attributes of a netcdf file.
+# In this map the sensor will contain a list of all variables that should be placed in the header if they
+# are in the data.
+DATA_TO_ATTRIBUTE_PARTS = {'ADCP': ['bin_1_distance', 'num_cells', 'cell_length', 'deployment_depth']}
