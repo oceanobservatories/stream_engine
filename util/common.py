@@ -559,7 +559,9 @@ def fix_data_arrays(data, unpacked):
     if len(data.shape) == 1:
         for idx, val in enumerate(unpacked):
             if idx < len(data):
-                data[idx] = unpacked[idx]
+                """ Don't overwrite the fill value when data is None """
+                if data[idx] is not None:
+                    data[idx] = unpacked[idx]
     else:
         if isinstance(unpacked, list):
             for data_sub, unpacked_sub in zip(data, unpacked):
