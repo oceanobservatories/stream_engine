@@ -192,6 +192,7 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
             array_attrs = {}
         else:
             array_attrs = {'coordinates' : 'time lat lon depth'}
+
         if param:
             if param.unit is not None:
                 array_attrs['units'] = param.unit
@@ -217,6 +218,15 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
         else:
             # To comply with cf 1.6 giving long name the same as parameter name
             array_attrs['long_name'] = param_name
+            # depth,lat,lon are not is Preload, so set units to expected values
+            if param_name == 'depth':
+                # All pressure-depth values are expected to come from CTD instruments
+                # 1527 = sci_water_pressure
+                pressure_param = CachedParameter.from_id(1527)
+                if pressure_param:
+                    array_attrs['units'] = pressure_param.unit
+            elif param_name in ['lat', 'lon']:
+                array_attrs['units'] = "degrees"
 
         ds[param_name] = (dims, data, array_attrs)
 
