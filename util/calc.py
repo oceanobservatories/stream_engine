@@ -580,9 +580,9 @@ def set_geospatial(pd_data, stream_request):
         interped_data = interpolate_list(primary_stream_len,
                                         pd_data[depth_sk.stream.time_parameter][depth_sk.as_refdes()]['data'],
                                         pd_data[primary_stream.depth_param_id][depth_sk.as_refdes()]['data'])
-        if 'depth' not in pd_data:
-            pd_data['depth'] = {}
-        pd_data['depth'][primary_key.as_refdes()] = {
+        if 'pressure_depth' not in pd_data:
+            pd_data['pressure_depth'] = {}
+        pd_data['pressure_depth'][primary_key.as_refdes()] = {
             'data': interped_data,
             'source': depth_sk.as_dashed_refdes()
         }
@@ -1001,8 +1001,9 @@ def get_framed_CCs(stream_request, coefficients, pd_data, base_key, name):
                 loc_val = dep_loc[0].get("lon")
 
         elif name == "CC_depth":
-            if 'depth' in pd_data and base_key.as_refdes() in pd_data['depth']:
-                loc_val = pd_data['depth'][base_key.as_refdes()]
+            # what do derived parameters need for depth, pressure (bar) or depth in m?
+            if 'pressure_depth' in pd_data and base_key.as_refdes() in pd_data['pressure_depth']:
+                loc_val = pd_data['pressure_depth'][base_key.as_refdes()]
             else:
                 loc_val = dep_loc[0].get("depth")
 
@@ -1257,7 +1258,7 @@ class StreamRequest(object):
             self.depth_stream_key = found_stream_key
             self.stream_keys.append(found_stream_key)
         else:
-            log.error("Couldn't find stream to provide depth data")
+            log.error("Couldn't find stream to provide depth(pressure) data")
 
         needs_cc = set()
         for sk in self.stream_keys:
