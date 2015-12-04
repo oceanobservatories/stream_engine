@@ -333,8 +333,9 @@ def drop_same_data(ds):
         del ds['lon']
         del ds['lat']
     if len(depths) == 1:
-        ds.attrs['depth'] = list(depths)[0]
-        del ds['depth']
+        ds.attrs['pressure_depth'] = list(depths)[0]
+        del ds['pressure_depth']
+
         # put depths in the header
     for i in app.config['DATA_TO_ATTRIBUTE_PARTS']:
         if i in ds.sensor:
@@ -348,7 +349,7 @@ def drop_first_time(ds):
     new_ds = xray.Dataset(attrs=ds.attrs)
     new_cord = {}
     # Set up the new coordinates
-    for i in ['time', 'lat', 'lon', 'depth']:
+    for i in ['time', 'lat', 'lon', 'pressure_depth']:
         if ds[i].dims[0] == 'obs':
             a = xray.DataArray(ds[i].values[1:], dims=ds[i].dims, attrs=ds[i].attrs)
             new_cord[i] = a
