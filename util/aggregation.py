@@ -383,11 +383,12 @@ def generate_combination_map(direct, subjob_info):
 
 
 def aggregate(async_job_dir):
-    subjob_info = collect_subjob_info(async_job_dir)
-    direct = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], async_job_dir)
-    mapping = generate_combination_map(direct, subjob_info)
-    output_ncml(mapping, async_job_dir)
-    erddap(async_job_dir)
+    if app.config['AGGREGATE']:
+        subjob_info = collect_subjob_info(async_job_dir)
+        direct = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], async_job_dir)
+        mapping = generate_combination_map(direct, subjob_info)
+        output_ncml(mapping, async_job_dir)
+        erddap(async_job_dir)
 
 def find_representative_nc_file(file_paths, file_base):
     nc_name = file_base + '.nc'
