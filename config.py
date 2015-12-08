@@ -120,5 +120,5 @@ DEPTH_FILL = 0.0
 # are in the data.
 DATA_TO_ATTRIBUTE_PARTS = {'ADCP': ['bin_1_distance', 'num_cells', 'cell_length', 'deployment_depth', ' height_above_bottom']}
 
-# Turn netcdf aggregation on or off (will turn off all output ncml and netcdf files)
-AGGREGATE = False
+# Turn netcdf aggregation on or off
+AGGREGATE = True
