@@ -45,8 +45,6 @@ VARIABLE_CARRYOVER_MAP = {
 
 
 def get_nc_info(file_name):
-    string_sizes = {}
-    arr_sizes = {}
     with xray.open_dataset(file_name, decode_times=False) as ds:
         ret_val = {
             'size': ds.time.size,
@@ -63,17 +61,7 @@ def get_nc_info(file_name):
         for i in VARIABLE_CARRYOVER_MAP:
             if i in ds.variables:
                 ret_val[i] = ds.variables[i].values
-        for var in ds.variables:
-            if ds.variables[var].dtype.kind == 'S':
-                string_sizes[var] =  ds[var].dtype.itemsize
-            #xray has a habit of loading strings as objects.  So cast it to a string and get the max size.
-            elif ds.variables[var].dtype == 'object':
-                string_sizes[var] = ds.variables[var].values.astype(str).dtype.itemsize
-            elif len(ds.variables[var].shape) > 1:
-                arr_sizes[var] =  tuple(ds.variables[var].shape[1:])
-            else:
-                arr_sizes[var] = 1
-    return ret_val, string_sizes, arr_sizes
+    return ret_val
 
 
 def collect_subjob_info(job_direct):
@@ -83,92 +71,17 @@ def collect_subjob_info(job_direct):
     """
     root_dir = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], job_direct)
     subjob_info = {}
-    string_sizes = {}
-    array_sizes = {}
     for direct, subdirs, files in os.walk(root_dir):
         for i in files:
             if i.endswith('.nc'):
                 idx = direct.index(job_direct)
                 pname = direct[idx+len(job_direct)+1:]
                 fname = os.path.join(pname, i)
-                nc_info, ss, arrs = get_nc_info(os.path.join(direct, i))
+                nc_info = get_nc_info(os.path.join(direct, i))
                 subjob_info[fname] = nc_info
-                # store the size of all string parameters in the nc file
-                string_sizes[os.path.join(direct, i)]  = ss
-                array_sizes[os.path.join(direct, i)] = arrs
 
-    #get a set of all of the sizes strings in the subjobs
-    var_sizes = defaultdict(set)
-    for i in string_sizes:
-        for v in string_sizes[i]:
-            var_sizes[v].add(string_sizes[i][v])
-    to_mod = {}
-    # check to see if we have any mismatches
-    for v in var_sizes:
-        if len(var_sizes[v]) > 1:
-            to_mod[v] = max(var_sizes[v])
-    # if mismatches we need to rewrite the string values
-    if len(to_mod) > 0:
-        files = string_sizes.keys()
-        modify_strings(files, to_mod)
-
-
-    # clean up array size mismatch.
-    var_sizes = defaultdict(set)
-    for i in array_sizes:
-        for v in array_sizes[i]:
-            var_sizes[v].add(array_sizes[i][v])
-    to_mod = {}
-    # check to see if we have any mismatches
-    for v in var_sizes:
-        if len(var_sizes[v]) > 1:
-            to_mod[v] = max(var_sizes[v])
-    # if mismatches we need to rewrite the string values
-    if len(to_mod) > 0:
-        files = string_sizes.keys()
-        modify_arrs(files, to_mod)
     return subjob_info
 
-def modify_arrs(files, to_mod):
-    for f in files:
-        modified = False
-        with xray.open_dataset(f, decode_times=False, mask_and_scale=False) as ds:
-            for var, size in to_mod.iteritems():
-                if ds[var].shape[1:] != size:
-                    log.warn("Array size mismatch in file %s for parameter %s", f, var)
-                    modified = True
-                    new_shape =  ds[var].shape[:1] + size
-                    arr = np.empty(new_shape, ds[var].dtype)
-                    if '_FillValue' in ds[var].attrs:
-                        arr.fill(ds[var].attrs['_FillValue'])
-                    else:
-                        log.warn("No fill value for %s which had size mismatch", var)
-                        arr.fill(-9999)
-                    # fix dimensions
-                    dims = ['obs']
-                    for i in range(len(size)):
-                        dims.append("{:s}_dim_{:d}".format(var, i))
-                    ds[var] = (dims, arr, ds[var].attrs)
-            if modified:
-                new_ds = ds.copy(deep=True)
-                new_ds.load()
-        if modified:
-            new_ds.to_netcdf(f)
-
-def modify_strings(files, to_mod):
-    """
-    :param files:  List of files to rewrite
-    :param to_mod:  Dictonary of variables that need to be modified to the max size
-    :return:
-    """
-    for f in files:
-        with xray.open_dataset(f, decode_times=False) as ds:
-            for var, size in to_mod.iteritems():
-            # pad the strings
-                ds.variables[var].values = np.array([x.ljust(size) for x in ds.variables[var].values]).astype(str)
-            new_ds = ds.copy(deep=True)
-            new_ds.load()
-        new_ds.to_netcdf(f)
 
 def do_provenance(param):
     prov_dict = {}
@@ -229,138 +142,6 @@ def output_ncml(mapping, async_job_dir):
             ncml_file.write(
                 ncml_template.render(coord_dict=info_dict, attr_dict=attr_dict,
                                      var_dict=variable_dict))
-
-        # aggregate the netcdf files now.
-        datasets = []
-        size = 0
-        last_time = 0
-        for datafile, info in info_dict.iteritems():
-            size += info['size']
-            to_open = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], async_job_dir, datafile)
-            # open the dataset
-            ds = xray.open_dataset(to_open, decode_times=False)
-            time = ds.time.values[0]
-            if time == last_time:
-                log.warn("Duplicate time dropping first time!")
-                ds = drop_first_time(ds)
-            last_time = ds.time.values[-1]
-
-            # for each variable that we are going to read later remove it from the dataset
-            to_delete = set()
-            for i in variable_dict:
-                if i in ds:
-                    to_delete.add(i)
-                    for thing in ds[i].coords:
-                        to_delete.add(thing)
-            for deleteme in list(to_delete):
-                if deleteme in  ds:
-                    del ds[deleteme]
-            datasets.append(ds)
-
-        try:
-            new_ds = xray.concat(datasets, dim='obs', data_vars='minimal', coords='minimal')
-            #add and fix up variables
-            new_ds['obs'].values= np.array([x for x in range(new_ds.obs.size)], dtype=np.int32)
-            for updated_var, info in variable_dict.iteritems():
-                data = info['value']
-                npdata = np.array(data)
-                new_ds[updated_var] = (updated_var + '_dim0', npdata, {'long_name': updated_var})
-            base, _ = os.path.splitext(combined_file)
-            new_ds.to_netcdf(base+ '.nc')
-
-            # Now reindex the new dataset based on times!
-            drop_obs = xray.Dataset(attrs=new_ds.attrs)
-            for i in new_ds.variables:
-                if i == 'obs':
-                    continue
-                dims = new_ds.variables[i].dims
-                if dims[0] == 'obs':
-                    new_dims = ('time',) + dims[1:]
-                    drop_obs[i] = (new_dims, new_ds.variables[i].values, new_ds.variables[i].attrs)
-                else:
-                    drop_obs[i] = new_ds[i]
-
-            drop_obs.to_netcdf(base + '_time_indexed.nc')
-            #As a final step drop lat, lon, depth if they are all the same and put them in the attributes indexes
-            no_dups = drop_same_data(drop_obs.copy(deep=True))
-            # TEMPORARY WORKAROUND TO GET ADCP sensors in correct format
-            # This calcuation should be moved to stream engine proper when time permits.
-            if 'ADCP' in no_dups.sensor:
-                no_dups = fix_adcp(no_dups)
-            no_dups.to_netcdf(base + '_latlon_attr.nc')
-            # May need to change attributes here
-        except Exception as e:
-            log.exception("Exception when aggregating netcdf file for request: %s", async_job_dir)
-
-def fix_adcp(ds):
-    # get num cells
-    if 'num_cells' in ds.attrs:
-        num_cells = ds.num_cells
-    elif 'num_cells' in ds.variables:
-        num_cells = ds.variables['num_cells']
-    else:
-        log.warn("No number of cells in ADCP data")
-        return ds
-    if 'cell_length' in ds.attrs:
-        cell_length = ds.cell_length
-    elif 'cell_length' in ds.variables:
-        cell_length = ds.variables['cell_length']
-    else:
-        log.warn("No cell_length in ADCP data")
-        return ds
-    if 'bin_1_distance' in ds.attrs:
-        bin_1_distance = ds.bin_1_distance
-    elif 'bin_1_distance' in ds.variables:
-        bin_1_distance = ds.variables['bin_1_distance']
-    else:
-        log.warn("No bin_1_distance in ADCP data")
-        return ds
-
-    z = np.linspace(0, num_cells-1, num=num_cells) * cell_length + bin_1_distance
-    ds['z'] = ('z_dim', z, {'long_name' : 'the distance of the center of the cells to the ADDCP transducer head'})
-    return ds
-
-
-
-def drop_same_data(ds):
-    lats = set(ds.lat.values)
-    lons = set(ds.lon.values)
-    depths = set(ds.depth.values)
-    if len(lats) == 1 and len(lons) == 1:
-        # get rid of lat and lon and put in header
-        ds.attrs['lat'] = list(lats)[0]
-        ds.attrs['lon'] = list(lons)[0]
-        del ds['lon']
-        del ds['lat']
-    if len(depths) == 1:
-        ds.attrs['depth'] = list(depths)[0]
-        del ds['depth']
-        # put depths in the header
-    for i in app.config['DATA_TO_ATTRIBUTE_PARTS']:
-        if i in ds.sensor:
-            for data_var in app.config['DATA_TO_ATTRIBUTE_PARTS'][i]:
-                if data_var in ds.variables:
-                    ds.attrs[data_var] = ds[data_var].values[0]
-                    del ds[data_var]
-    return ds
-
-def drop_first_time(ds):
-    new_ds = xray.Dataset(attrs=ds.attrs)
-    new_cord = {}
-    # Set up the new coordinates
-    for i in ['time', 'lat', 'lon', 'depth']:
-        if ds[i].dims[0] == 'obs':
-            a = xray.DataArray(ds[i].values[1:], dims=ds[i].dims, attrs=ds[i].attrs)
-            new_cord[i] = a
-    # drop the first variable of data values along the obs
-    for v in ds.variables:
-        if ds[v].dims[0] == 'obs':
-            data_arr = xray.DataArray(ds[v].values[1:], coords=new_cord, dims=ds[v].dims, attrs=ds[v].attrs)
-            new_ds[v] = data_arr
-        else:
-            new_ds[v] = ds[v]
-
-    return new_ds
 
 
 def generate_combination_map(direct, subjob_info):
@@ -476,33 +257,5 @@ def erddap(agg_dir):
                            data_vars=dataset_vars,
                            attr_dict=attr_dict,
                            base_file_name=file_base,
-                           recursive=not include,
+                           recursive=str(not include).lower(),
                     ))
-        nc_file, include = find_representative_nc_file(path_to_dataset, file_base + '_time_indexed')
-        dataset_vars = get_type_map(nc_file, index='time')
-        attr_dict = get_attr_dict(nc_file)
-        template = get_template()
-        title = '{:s}_{:s}'.format(async_job_id, file_base)
-        with codecs.open(os.path.join(path_to_dataset, file_base+ '_time_indexed_erddap.xml'), 'wb', 'utf-8') as erddap_file:
-            erddap_file.write(template.render(dataset_title=title,
-                                              dataset_id=title + '_te',
-                                              dataset_dir=path_to_dataset,
-                                              data_vars=dataset_vars,
-                                              attr_dict=attr_dict,
-                                              base_file_name=file_base  + '_time_indexed',
-                                              recursive=not include,
-                                              ))
-        nc_file, include = find_representative_nc_file(path_to_dataset, file_base + '_latlon_attr')
-        dataset_vars = get_type_map(nc_file, index='time')
-        attr_dict = get_attr_dict(nc_file)
-        template = get_template()
-        title = '{:s}_{:s}'.format(async_job_id, file_base)
-        with codecs.open(os.path.join(path_to_dataset, file_base+ '_latlon_attr_erddap.xml'), 'wb', 'utf-8') as erddap_file:
-            erddap_file.write(template.render(dataset_title=title,
-                                              dataset_id=title + '_ns',
-                                              dataset_dir=path_to_dataset,
-                                              data_vars=dataset_vars,
-                                              attr_dict=attr_dict,
-                                              base_file_name=file_base  + '_latlon_attr',
-                                              recursive=not include,
-                                              ))
