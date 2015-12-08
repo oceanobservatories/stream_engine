@@ -87,7 +87,7 @@ INTERNAL_OUTPUT_MAPPING = {
     'id' : 'str',
     'lat': 'float64',
     'lon': 'float64',
-    'depth': 'float64'
+    'pressure_depth': 'float64'
 }
 
 REQUEST_TIMEOUT_SECONDS = 600 # 10 minutes

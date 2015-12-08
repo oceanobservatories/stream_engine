@@ -10,6 +10,7 @@ __author__ = 'Stephen Zakrewsky'
 
 
 from common import CachedParameter, get_stream_key_with_param, MissingTimeException, ntp_to_ISO_date, MissingDataException
+from preload_database.model.preload import Parameter
 import datetime
 from engine import app
 import json
@@ -188,10 +189,11 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
                 name = '%s_dim_%d' % (param_name, index)
                 dims.append(name)
 
-        if param_name in ['lat', 'lon', 'depth']:
+        if param_name in ['lat', 'lon', 'loc_water_pressure']:
             array_attrs = {}
         else:
             array_attrs = {'coordinates' : 'time lat lon depth'}
+
         if param:
             if param.unit is not None:
                 array_attrs['units'] = param.unit
@@ -217,6 +219,15 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
         else:
             # To comply with cf 1.6 giving long name the same as parameter name
             array_attrs['long_name'] = param_name
+            # depth,lat,lon are not in Preload, so set units to expected values
+            if param_name == 'loc_water_pressure':
+                # All pressure-depth values are expected to come from CTD instruments
+                # 1527 = sci_water_pressure
+                pressure_param = CachedParameter.from_id(1527)
+                if pressure_param:
+                    array_attrs['units'] = pressure_param.unit
+            elif param_name in ['lat', 'lon']:
+                array_attrs['units'] = "degrees"
 
         ds[param_name] = (dims, data, array_attrs)
 
@@ -269,8 +280,8 @@ def fix_lat_lon_depth(ds, stream_key, deployment, location_information):
         ds['lon'].attrs['axis'] = 'X'
         ds['lon'].standard_name = 'longitude'
 
-    if 'depth' not in ds.variables:
-        depth = location_vals.get('depth')
+    if 'loc_water_pressure' not in ds.variables:
+        depth = location_vals.get('loc_water_pressure')
         if depth is None:
             log.warn("No depth!! Using fill value")
             depth = 0.0
@@ -278,7 +289,7 @@ def fix_lat_lon_depth(ds, stream_key, deployment, location_information):
         deptharr.fill(depth)
         attrs = {'standard_name': app.config["Z_STANDARD_NAME"], 'long_name': app.config["Z_LONG_NAME"], 'units': 'm',
                  'positive': app.config['Z_POSITIVE'], 'axis': 'Z'}
-        ds['depth'] = ('obs', deptharr, attrs)
+        ds['loc_water_pressure'] = ('obs', deptharr, attrs)
 
 
 def _add_dynamic_attributes(ds, stream_key, location_information, deployment):
