@@ -537,6 +537,8 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
                     _qc_check(stream_request, param, pd_data, primary_key)
                 except Exception as e:
                     log.exception("Unexpected error while running qc functions: {}".format(e.message))
+
+        set_pressure_depth(pd_data, stream_request)
         stream_data[dep_num] = pd_data
 
     sd = StreamData(stream_request, stream_data, provenance_metadata, annotation_store)
@@ -575,7 +577,17 @@ def set_geospatial(pd_data, stream_request):
             'source': lon_sk.as_dashed_refdes()
         }
 
+
+@log_timing(log)
+def set_pressure_depth(pd_data, stream_request):
+    primary_stream = stream_request.stream_keys[0].stream
+    primary_key = stream_request.stream_keys[0]
+
+    # find location data
+    primary_stream_len = pd_data[primary_stream.time_parameter][primary_key.as_refdes()]['data']
+
     depth_sk = stream_request.depth_stream_key
+
     if primary_stream.depth_param_id is not None:
         interped_data = interpolate_list(primary_stream_len,
                                         pd_data[depth_sk.stream.time_parameter][depth_sk.as_refdes()]['data'],
@@ -1115,6 +1127,7 @@ class StreamRequest(object):
         self.include_annotations = include_annotations
         self.strict_range = strict_range
         self.request_id = request_id
+        self._ctd_source = {}
 
         self._initialize(needs_only)
 
@@ -1135,6 +1148,10 @@ class StreamRequest(object):
             if key in handled:
                 raise StreamEngineException('Received duplicate stream_keys', status_code=400)
             handled.append(key)
+
+        # Retrieve co-located CTD
+        for key in self.stream_keys:
+            self.query_for_ctdstream(key)
 
         # populate self.parameters if empty or None
         if self.parameters is None or len(self.parameters) == 0:
@@ -1260,6 +1277,34 @@ class StreamRequest(object):
         else:
             log.error("Couldn't find stream to provide depth(pressure) data")
 
+        # 
+        if primary_key.stream.uses_ctd:
+            depth_parameters = [CachedParameter.from_id(id) for id in app.config['POSSIBLE_PRESSURE_PARAMETERS']]
+
+            found_pressure_stream_key = None
+            found_pressure_param = None
+            matching_stream_keys = []
+            for param in depth_parameters:
+                possible_stream = find_stream(primary_key, [CachedStream.from_id(s) for s in param.streams], distinct_sensors)
+                if possible_stream is not None:
+                    matching_stream_keys.append(possible_stream)
+            
+            for stream_key in matching_stream_keys:
+                # if matching stream is colocated
+                if stream_key.node == primary_key.node:
+                    found_pressure_stream_key = stream_key
+
+            intersection_of_params = set(found_pressure_stream_key.stream.parameters).intersection(set(depth_parameters))
+            if len(intersection_of_params) > 0:
+                found_pressure_param = list(intersection_of_params)[0]
+
+            if found_pressure_stream_key is not None and found_pressure_param is not None:
+                primary_key.stream.depth_stream_id = found_pressure_stream_key.stream.id
+                primary_key.stream.depth_param_id = found_pressure_param.id
+                self.stream_keys.append(found_pressure_stream_key) 
+            else:
+                log.error("Could not find stream key that defines a valid pressure parameter")
+
         needs_cc = set()
         for sk in self.stream_keys:
             needs_cc = needs_cc.union(sk.needs_cc)
@@ -1274,6 +1319,21 @@ class StreamRequest(object):
 
         if len(self.needs_cc) > 0:
             log.error('Missing calibration coefficients: %s', self.needs_cc)
+
+    # maps primary stream to CTD {refdes : stream-name)
+    def query_for_ctdstream(self, stream_key):
+        url = app.config['CTD_SVC_URL'] + 'sensor/ctd/{:s}/{:s}?method={:s}'.format(
+              stream_key.subsite, stream_key.node, stream_key.method)
+        self._ctd_source[stream_key] = get_pool().apply_async(send_query_for_instrument, (url,))
+        
+ 
+    def get_ctdStream_info(self):
+        vals = defaultdict(dict)
+        if len(self._ctd_source) > 0:
+            for key, value in self._ctd_source.iteritems():
+                vals[key.as_three_part_refdes()].update(value.get())
+        return vals
+
 
     @log_timing(log)
     def _fit_time_range(self):

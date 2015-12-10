@@ -289,6 +289,8 @@ class CachedStream(object):
             s.lon_stream_id = stream.lon_stream_id
             s.depth_stream_id = stream.depth_stream_id
 
+            s.uses_ctd = stream.uses_ctd
+
             stream_cache[stream.id] = s
         return stream_cache[stream.id]
 
