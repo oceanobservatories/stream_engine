@@ -1150,10 +1150,6 @@ class StreamRequest(object):
                 raise StreamEngineException('Received duplicate stream_keys', status_code=400)
             handled.append(key)
 
-        # Retrieve co-located CTD
-        for key in self.stream_keys:
-            self.query_for_ctdstream(key)
-
         # populate self.parameters if empty or None
         if self.parameters is None or len(self.parameters) == 0:
             self.parameters = set()
@@ -1278,22 +1274,32 @@ class StreamRequest(object):
         else:
             log.error("Couldn't find stream to provide depth(pressure) data")
 
-        # Only look for CTD pressure_depth (sea water pressure) if depth_param_id == NULL
-        if primary_key.stream.depth_stream.id == primary_key.stream.id:
-            ctdinfo = self.get_ctdStream_info() 
-            ctdstream = ctdinfo[primary_key.as_three_part_refdes()]
-            for key, value in ctdstream.iteritems():
-                refdes = key.split("-", 3)
-                ctd_subsite = refdes[0]
-                ctd_node = refdes[1]
-                ctd_sensor = refdes[2] + "-" + refdes[3]
-                ctd_method = primary_key.method
-                ctd_stream = value
-                ctd_sk = StreamKey(ctd_subsite, ctd_node, ctd_sensor, ctd_method, ctd_stream)
-                self.depth_stream_key = ctd_sk
-                self.stream_keys.append(ctd_sk)
-                # UFrame CTD service is capable of sending a list but only one is expected/needed
-                break
+        if primary_key.stream.uses_ctd:
+            depth_parameters = [CachedParameter.from_id(id) for id in app.config['POSSIBLE_PRESSURE_PARAMETERS']]
+
+            found_pressure_stream_key = None
+            found_pressure_param = None
+            matching_stream_keys = []
+            for param in depth_parameters:
+                possible_stream = find_stream(primary_key, [CachedStream.from_id(s) for s in param.streams], distinct_sensors)
+                if possible_stream is not None:
+                    matching_stream_keys.append(possible_stream)
+            
+            for stream_key in matching_stream_keys:
+                # if matching stream is colocated
+                if stream_key.node == primary_key.node:
+                    found_pressure_stream_key = stream_key
+
+            intersection_of_params = set(found_pressure_stream_key.stream.parameters).intersection(set(depth_parameters))
+            if len(intersection_of_params) > 0:
+                found_pressure_param = list(intersection_of_params)[0]
+
+            if found_pressure_stream_key is not None and found_pressure_param is not None:
+                primary_key.stream.depth_stream_id = found_pressure_stream_key.stream.id
+                primary_key.stream.depth_param_id = found_pressure_param.id
+                self.stream_keys.append(found_pressure_stream_key) 
+            else:
+                log.error("Could not find stream key that defines a valid pressure parameter")
 
         needs_cc = set()
         for sk in self.stream_keys:
@@ -1309,20 +1315,6 @@ class StreamRequest(object):
 
         if len(self.needs_cc) > 0:
             log.error('Missing calibration coefficients: %s', self.needs_cc)
-
-    # maps primary stream to CTD {refdes : stream-name)
-    def query_for_ctdstream(self, stream_key):
-        url = app.config['CDT_SVC_URL'] + 'sensor/cdt/{:s}/{:s}?method={:s}'.format(
-              stream_key.subsite, stream_key.node, stream_key.method)
-        self._ctd_source[stream_key] = get_pool().apply_async(send_query_for_instrument, (url,))
-        
- 
-    def get_ctdStream_info(self):
-        vals = defaultdict(dict)
-        for key, value in self._ctd_source.iteritems():
-            vals[key.as_three_part_refdes()].update(value.get())
-        return vals
-
 
     @log_timing(log)
     def _fit_time_range(self):
