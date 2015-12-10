@@ -537,6 +537,8 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
                     _qc_check(stream_request, param, pd_data, primary_key)
                 except Exception as e:
                     log.exception("Unexpected error while running qc functions: {}".format(e.message))
+
+        set_pressure_depth(pd_data, stream_request)
         stream_data[dep_num] = pd_data
 
     sd = StreamData(stream_request, stream_data, provenance_metadata, annotation_store)
@@ -575,7 +577,18 @@ def set_geospatial(pd_data, stream_request):
             'source': lon_sk.as_dashed_refdes()
         }
 
+
+@log_timing(log)
+def set_pressure_depth(pd_data, stream_request):
+
+    primary_stream = stream_request.stream_keys[0].stream
+    primary_key = stream_request.stream_keys[0]
+
+    # find location data
+    primary_stream_len = pd_data[primary_stream.time_parameter][primary_key.as_refdes()]['data']
+
     depth_sk = stream_request.depth_stream_key
+
     if primary_stream.depth_param_id is not None:
         interped_data = interpolate_list(primary_stream_len,
                                         pd_data[depth_sk.stream.time_parameter][depth_sk.as_refdes()]['data'],
@@ -1115,6 +1128,7 @@ class StreamRequest(object):
         self.include_annotations = include_annotations
         self.strict_range = strict_range
         self.request_id = request_id
+        self._ctd_source = {}
 
         self._initialize(needs_only)
 
@@ -1135,6 +1149,10 @@ class StreamRequest(object):
             if key in handled:
                 raise StreamEngineException('Received duplicate stream_keys', status_code=400)
             handled.append(key)
+
+        # Retrieve co-located CTD
+        for key in self.stream_keys:
+            self.query_for_ctdstream(key)
 
         # populate self.parameters if empty or None
         if self.parameters is None or len(self.parameters) == 0:
@@ -1260,6 +1278,60 @@ class StreamRequest(object):
         else:
             log.error("Couldn't find stream to provide depth(pressure) data")
 
+        # Only look for CTD pressure_depth (sea water pressure) if depth_param_id == NULL
+        if primary_key.stream.depth_stream.id == primary_key.stream.id:
+            ctdinfo = self.get_ctdStream_info() 
+            ctdstream = ctdinfo[primary_key.as_three_part_refdes()]
+            for key, value in ctdstream.iteritems():
+                refdes = key.split("-", 3)
+                ctd_subsite = refdes[0]
+                ctd_node = refdes[1]
+                ctd_sensor = refdes[2] + "-" + refdes[3]
+                ctd_method = primary_key.method
+                ctd_stream = value
+                ctd_sk = StreamKey(ctd_subsite, ctd_node, ctd_sensor, ctd_method, ctd_stream)
+                self.depth_stream_key = ctd_sk
+                self.stream_keys.append(ctd_sk)
+                # UFrame CTD service is capable of sending a list but only one is expected/needed
+                #pressure_depth_map = {19:909, 153:1959, 454:2, 455:2,
+                #                      469:2820, 470:2820, 477:2840, 
+                #                      684:2, 685:2, 700:2, 701:2, 704:4}
+
+                press_param_map = {}
+                press_param_map.update({153:1959})
+                press_param_map.update({171:1527})
+                press_param_map.update({310:2926})
+                press_param_map.update({454:2})
+                press_param_map.update({482:2})
+                press_param_map.update({483:2})
+                press_param_map.update({510:2926})
+                press_param_map.update({514:2})
+                press_param_map.update({684:2})
+                press_param_map.update({700:2})
+                press_param_map.update({724:2})
+                press_param_map.update({311:2926})
+                press_param_map.update({376:1527})
+                press_param_map.update({386:1959})
+                press_param_map.update({455:2})
+                press_param_map.update({469:2820})
+                press_param_map.update({470:2820})
+                press_param_map.update({480:2926})
+                press_param_map.update({484:2})
+                press_param_map.update({515:2})
+                press_param_map.update({685:2})
+                press_param_map.update({701:2})
+                press_param_map.update({704:2820})
+                press_param_map.update({725:2})
+
+                depth_param = press_param_map[self.depth_stream_key.stream.depth_stream.id]
+                 
+                dstream = self.depth_stream_key.stream.depth_stream
+
+                dstream.depth_param_id = depth_param
+                for parm in self.depth_stream_key.stream.depth_stream.parameters:
+                    print parm.id
+                break
+
         needs_cc = set()
         for sk in self.stream_keys:
             needs_cc = needs_cc.union(sk.needs_cc)
@@ -1274,6 +1346,20 @@ class StreamRequest(object):
 
         if len(self.needs_cc) > 0:
             log.error('Missing calibration coefficients: %s', self.needs_cc)
+
+    # maps primary stream to CTD {refdes : stream-name)
+    def query_for_ctdstream(self, stream_key):
+        url = app.config['CDT_SVC_URL'] + 'sensor/cdt/{:s}/{:s}?method={:s}'.format(
+              stream_key.subsite, stream_key.node, stream_key.method)
+        self._ctd_source[stream_key] = get_pool().apply_async(send_query_for_instrument, (url,))
+        
+ 
+    def get_ctdStream_info(self):
+        vals = defaultdict(dict)
+        for key, value in self._ctd_source.iteritems():
+            vals[key.as_three_part_refdes()].update(value.get())
+        return vals
+
 
     @log_timing(log)
     def _fit_time_range(self):

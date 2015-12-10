@@ -220,12 +220,15 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
             # To comply with cf 1.6 giving long name the same as parameter name
             array_attrs['long_name'] = param_name
             # depth,lat,lon are not in Preload, so set units to expected values
-            if param_name == 'loc_water_pressure':
+            if param_name == 'pressure_depth':
                 # All pressure-depth values are expected to come from CTD instruments
                 # 1527 = sci_water_pressure
-                pressure_param = CachedParameter.from_id(1527)
-                if pressure_param:
-                    array_attrs['units'] = pressure_param.unit
+                # 1959 = for CTD water_pressure
+                # if it param_id can be determined ...
+                #    pressure_param = CachedParameter.from_id(param_pid)
+                #    if pressure_param:
+                #        array_attrs['units'] = pressure_param.unit
+                array_attrs['units'] = "pressure in Bars"
             elif param_name in ['lat', 'lon']:
                 array_attrs['units'] = "degrees"
 

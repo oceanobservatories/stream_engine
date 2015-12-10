@@ -283,7 +283,11 @@ class CachedStream(object):
 
             s.lat_param_id = stream.lat_param_id
             s.lon_param_id = stream.lon_param_id
-            s.depth_param_id = stream.depth_param_id
+            # Default depth to CTD water pressure (1959)
+            if stream.depth_param_id is None:
+                s.depth_param_id = 1959
+            else:
+                s.depth_param_id = stream.depth_param_id
             
             s.lat_stream_id = stream.lat_stream_id
             s.lon_stream_id = stream.lon_stream_id
