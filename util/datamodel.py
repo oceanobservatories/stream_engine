@@ -220,12 +220,8 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
             # To comply with cf 1.6 giving long name the same as parameter name
             array_attrs['long_name'] = param_name
             # depth,lat,lon are not in Preload, so set units to expected values
-            if param_name == 'loc_water_pressure':
-                # All pressure-depth values are expected to come from CTD instruments
-                # 1527 = sci_water_pressure
-                pressure_param = CachedParameter.from_id(1527)
-                if pressure_param:
-                    array_attrs['units'] = pressure_param.unit
+            if param_name == 'pressure_depth':
+                array_attrs['units'] = CachedParameter.from_id(stream_key.stream.depth_param_id).unit
             elif param_name in ['lat', 'lon']:
                 array_attrs['units'] = "degrees"
 
@@ -280,8 +276,8 @@ def fix_lat_lon_depth(ds, stream_key, deployment, location_information):
         ds['lon'].attrs['axis'] = 'X'
         ds['lon'].standard_name = 'longitude'
 
-    if 'loc_water_pressure' not in ds.variables:
-        depth = location_vals.get('loc_water_pressure')
+    if 'pressure_depth' not in ds.variables:
+        depth = location_vals.get('pressure_depth')
         if depth is None:
             log.warn("No depth!! Using fill value")
             depth = 0.0
@@ -289,7 +285,7 @@ def fix_lat_lon_depth(ds, stream_key, deployment, location_information):
         deptharr.fill(depth)
         attrs = {'standard_name': app.config["Z_STANDARD_NAME"], 'long_name': app.config["Z_LONG_NAME"], 'units': 'm',
                  'positive': app.config['Z_POSITIVE'], 'axis': 'Z'}
-        ds['loc_water_pressure'] = ('obs', deptharr, attrs)
+        ds['pressure_depth'] = ('obs', deptharr, attrs)
 
 
 def _add_dynamic_attributes(ds, stream_key, location_information, deployment):

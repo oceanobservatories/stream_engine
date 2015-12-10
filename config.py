@@ -12,6 +12,7 @@ SAN_BASE_DIRECTORY = '/opt/ooi/SAN/'
 SAN_CASS_OVERWRITE = True # When loading data back into cassandra should we allow writing to an already present databin.
 ANNOTATION_URL = 'http://localhost:12580/annotations/find/'
 ASSET_URL = 'http://localhost:12573/'
+CTD_SVC_URL = 'http://localhost:12576/'
 
 UNBOUND_QUERY_START  = 3471292800 # Where to start unbound queries 2010-01-01T00:00:00.000Z
 
@@ -122,3 +123,6 @@ DATA_TO_ATTRIBUTE_PARTS = {'ADCP': ['bin_1_distance', 'num_cells', 'cell_length'
 
 # Turn netcdf aggregation on or off
 AGGREGATE = True
+
+POSSIBLE_PRESSURE_PARAMETERS = [1527, 1959, 2, 2820, 2926, 3647, 909, ]
+

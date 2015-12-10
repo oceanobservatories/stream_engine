@@ -537,6 +537,8 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
                     _qc_check(stream_request, param, pd_data, primary_key)
                 except Exception as e:
                     log.exception("Unexpected error while running qc functions: {}".format(e.message))
+
+        set_pressure_depth(pd_data, stream_request)
         stream_data[dep_num] = pd_data
 
     sd = StreamData(stream_request, stream_data, provenance_metadata, annotation_store)
@@ -575,7 +577,17 @@ def set_geospatial(pd_data, stream_request):
             'source': lon_sk.as_dashed_refdes()
         }
 
+
+@log_timing(log)
+def set_pressure_depth(pd_data, stream_request):
+    primary_stream = stream_request.stream_keys[0].stream
+    primary_key = stream_request.stream_keys[0]
+
+    # find location data
+    primary_stream_len = pd_data[primary_stream.time_parameter][primary_key.as_refdes()]['data']
+
     depth_sk = stream_request.depth_stream_key
+
     if primary_stream.depth_param_id is not None:
         interped_data = interpolate_list(primary_stream_len,
                                         pd_data[depth_sk.stream.time_parameter][depth_sk.as_refdes()]['data'],
@@ -1260,6 +1272,33 @@ class StreamRequest(object):
         else:
             log.error("Couldn't find stream to provide depth(pressure) data")
 
+        if primary_key.stream.uses_ctd:
+            depth_parameters = [CachedParameter.from_id(id) for id in app.config['POSSIBLE_PRESSURE_PARAMETERS']]
+
+            found_pressure_stream_key = None
+            found_pressure_param = None
+            matching_stream_keys = []
+            for param in depth_parameters:
+                possible_stream = find_stream(primary_key, [CachedStream.from_id(s) for s in param.streams], distinct_sensors)
+                if possible_stream is not None:
+                    matching_stream_keys.append(possible_stream)
+            
+            for stream_key in matching_stream_keys:
+                # if matching stream is colocated
+                if stream_key.node == primary_key.node:
+                    found_pressure_stream_key = stream_key
+
+            intersection_of_params = set(found_pressure_stream_key.stream.parameters).intersection(set(depth_parameters))
+            if len(intersection_of_params) > 0:
+                found_pressure_param = list(intersection_of_params)[0]
+
+            if found_pressure_stream_key is not None and found_pressure_param is not None:
+                primary_key.stream.depth_stream_id = found_pressure_stream_key.stream.id
+                primary_key.stream.depth_param_id = found_pressure_param.id
+                self.stream_keys.append(found_pressure_stream_key) 
+            else:
+                log.error("Could not find stream key that defines a valid pressure parameter")
+
         needs_cc = set()
         for sk in self.stream_keys:
             needs_cc = needs_cc.union(sk.needs_cc)
@@ -1274,6 +1313,7 @@ class StreamRequest(object):
 
         if len(self.needs_cc) > 0:
             log.error('Missing calibration coefficients: %s', self.needs_cc)
+
 
     @log_timing(log)
     def _fit_time_range(self):
