@@ -227,8 +227,9 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
                 # if it param_id can be determined ...
                 #    pressure_param = CachedParameter.from_id(param_pid)
                 #    if pressure_param:
-                #        array_attrs['units'] = pressure_param.unit
-                array_attrs['units'] = "pressure in Bars"
+                #        array_attrs['u"pressure in Bars"nits'] = pressure_param.unit
+                import IPython;IPython.embed()
+                array_attrs['units'] = CachedParameter.from_id(stream_key.stream.depth_param_id).unit
             elif param_name in ['lat', 'lon']:
                 array_attrs['units'] = "degrees"
 
@@ -292,7 +293,7 @@ def fix_lat_lon_depth(ds, stream_key, deployment, location_information):
         deptharr.fill(depth)
         attrs = {'standard_name': app.config["Z_STANDARD_NAME"], 'long_name': app.config["Z_LONG_NAME"], 'units': 'm',
                  'positive': app.config['Z_POSITIVE'], 'axis': 'Z'}
-        ds['loc_water_pressure'] = ('obs', deptharr, attrs)
+        ds['pressure_depth'] = ('obs', deptharr, attrs)
 
 
 def _add_dynamic_attributes(ds, stream_key, location_information, deployment):

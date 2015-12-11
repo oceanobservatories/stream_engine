@@ -123,3 +123,6 @@ DATA_TO_ATTRIBUTE_PARTS = {'ADCP': ['bin_1_distance', 'num_cells', 'cell_length'
 
 # Turn netcdf aggregation on or off
 AGGREGATE = True
+
+POSSIBLE_PRESSURE_PARAMETERS = [1527, 1959, 2, 2820, 2926, 3647, 909, ]
+

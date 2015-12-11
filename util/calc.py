@@ -538,9 +538,6 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
                 except Exception as e:
                     log.exception("Unexpected error while running qc functions: {}".format(e.message))
 
-        print "99999999999999999999999999999999999999999999999999"
-        print set_pressure_depth
-        print "99999999999999999999999999999999999999999999999999"
         set_pressure_depth(pd_data, stream_request)
         stream_data[dep_num] = pd_data
 
@@ -583,14 +580,8 @@ def set_geospatial(pd_data, stream_request):
 
 @log_timing(log)
 def set_pressure_depth(pd_data, stream_request):
-
     primary_stream = stream_request.stream_keys[0].stream
     primary_key = stream_request.stream_keys[0]
-
-    print primary_key.stream.depth_stream.depth_stream_id
-    print primary_key.stream.depth_stream.depth_param_id
-    print stream_request.depth_stream_key
-    print primary_key.as_refdes()
 
     # find location data
     primary_stream_len = pd_data[primary_stream.time_parameter][primary_key.as_refdes()]['data']
@@ -1286,82 +1277,92 @@ class StreamRequest(object):
         else:
             log.error("Couldn't find stream to provide depth(pressure) data")
 
+        # 
+        if primary_key.stream.uses_ctd:
+            depth_parameters = [CachedParameter.from_id(id) for id in app.config['POSSIBLE_PRESSURE_PARAMETERS']]
+
+            found_pressure_stream_key = None
+            found_pressure_param = None
+            matching_stream_keys = []
+            for param in depth_parameters:
+                possible_stream = find_stream(primary_key, [CachedStream.from_id(s) for s in param.streams], distinct_sensors)
+                if possible_stream is not None:
+                    matching_stream_keys.append(possible_stream)
+            
+            for stream_key in matching_stream_keys:
+                # if matching stream is colocated
+                if stream_key.node == primary_key.node:
+                    found_pressure_stream_key = stream_key
+
+            intersection_of_params = set(found_pressure_stream_key.stream.parameters).intersection(set(depth_parameters))
+            if len(intersection_of_params) > 0:
+                found_pressure_param = list(intersection_of_params)[0]
+
+            if found_pressure_stream_key is not None and found_pressure_param is not None:
+                primary_key.stream.depth_stream_id = found_pressure_stream_key.stream.id
+                primary_key.stream.depth_param_id = found_pressure_param.id
+                self.stream_keys.append(found_pressure_stream_key) 
+            else:
+                log.error("Could not find stream key that defines a valid pressure parameter")
+
         #primary_key = self.stream_keys[0]
         # Only look for CTD pressure_depth if depth_param_id == NULL
         #if primary_key.stream.depth_stream.depth_param_id is not None and primary_key.stream.depth_stream.id == primary_key.stream.id:
 
-        print "----------------00000000000000000000000000"
-        print primary_key.stream.depth_stream.id
-        print primary_key.stream.id #(155)
-        print self.depth_stream_key.stream.depth_param_id
-        print "----------------00000000000000000000000000"
 
         #if self.depth_stream_key.stream.id == primary_key.stream.depth_stream.id:
         # the depth stream is set to the primary stream ID by default
 
-        if primary_key.stream.depth_stream_id == primary_key.stream.id: # and primary_key.stream.depth_param_id is None:
-            print "----------------HERE"
-
-            ctdinfo = self.get_ctdStream_info() 
-            ctdstream = ctdinfo[primary_key.as_three_part_refdes()]
-            for key, value in ctdstream.iteritems():
-                refdes = key.split("-", 3)
-                ctd_subsite = refdes[0]
-                ctd_node = refdes[1]
-                ctd_sensor = refdes[2] + "-" + refdes[3]
-                ctd_method = primary_key.method
-                ctd_stream = value
-                ctd_sk = StreamKey(ctd_subsite, ctd_node, ctd_sensor, ctd_method, ctd_stream)
-
-                self.depth_stream_key = ctd_sk
-                self.stream_keys.append(ctd_sk)
-
-                press_param_map = {}
-                press_param_map.update({153:1959})
-                press_param_map.update({171:1527})
-                press_param_map.update({310:2926})
-                press_param_map.update({454:2})
-                press_param_map.update({482:2})
-                press_param_map.update({483:2})
-                press_param_map.update({510:2926})
-                press_param_map.update({514:2})
-                press_param_map.update({684:2})
-                press_param_map.update({700:2})
-                press_param_map.update({724:2})
-                press_param_map.update({311:2926})
-                press_param_map.update({376:1527})
-                press_param_map.update({386:1959})
-                press_param_map.update({455:2})
-                press_param_map.update({469:2820})
-                press_param_map.update({470:2820})
-                press_param_map.update({480:2926})
-                press_param_map.update({484:2})
-                press_param_map.update({515:2})
-                press_param_map.update({685:2})
-                press_param_map.update({701:2})
-                press_param_map.update({704:2820})
-                press_param_map.update({725:2})
-
-                print "========================================="
-                #print self.strdepth_stream_key.depth_stream.id
-                print "========================================="
-
-                if self.depth_stream_key.stream.id in press_param_map:
-                    depth_param = press_param_map[self.depth_stream_key.stream.depth_stream.id]
-
-                    primary_key.stream.depth_param_id = depth_param
-
-            log.info("depth_stream = %s, depth_parameter = %s", 
-                      primary_key.stream.depth_stream.id, primary_key.stream.depth_stream.depth_param_id)
-
-        print "000000000000000000000000000000000000000000000000000"
-        print self.depth_stream_key.stream.id
-        print self.depth_stream_key.stream.depth_stream.id
-        print self.depth_stream_key.stream.depth_param_id
-        print "-----------------------------------------------"
-        print primary_key.stream.depth_stream.depth_stream_id
-        print primary_key.stream.depth_stream.depth_param_id
-        print "000000000000000000000000000000000000000000000000000"
+#        if primary_key.stream.depth_stream_id == primary_key.stream.id: # and primary_key.stream.depth_param_id is None:
+#
+#            ctdinfo = self.get_ctdStream_info() 
+#            ctdstream = ctdinfo[primary_key.as_three_part_refdes()]
+#            for key, value in ctdstream.iteritems():
+#                refdes = key.split("-", 3)
+#                ctd_subsite = refdes[0]
+#                ctd_node = refdes[1]
+#                ctd_sensor = refdes[2] + "-" + refdes[3]
+#                ctd_method = primary_key.method
+#                ctd_stream = value
+#                ctd_sk = StreamKey(ctd_subsite, ctd_node, ctd_sensor, ctd_method, ctd_stream)
+#
+#                self.depth_stream_key = ctd_sk
+#                self.stream_keys.append(ctd_sk)
+#
+#                press_param_map = {}
+#                press_param_map.update({153:1959})
+#                press_param_map.update({171:1527})
+#                press_param_map.update({310:2926})
+#                press_param_map.update({454:2})
+#                press_param_map.update({482:2})
+#                press_param_map.update({483:2})
+#                press_param_map.update({510:2926})
+#                press_param_map.update({514:2})
+#                press_param_map.update({684:2})
+#                press_param_map.update({700:2})
+#                press_param_map.update({724:2})
+#                press_param_map.update({311:2926})
+#                press_param_map.update({376:1527})
+#                press_param_map.update({386:1959})
+#                press_param_map.update({455:2})
+#                press_param_map.update({469:2820})
+#                press_param_map.update({470:2820})
+#                press_param_map.update({480:2926})
+#                press_param_map.update({484:2})
+#                press_param_map.update({515:2})
+#                press_param_map.update({685:2})
+#                press_param_map.update({701:2})
+#                press_param_map.update({704:2820})
+#                press_param_map.update({725:2})
+#
+#
+#                if self.depth_stream_key.stream.id in press_param_map:
+#                    depth_param = press_param_map[self.depth_stream_key.stream.depth_stream.id]
+#
+#                    primary_key.stream.depth_param_id = depth_param
+#
+#            log.info("depth_stream = %s, depth_parameter = %s", 
+#                      primary_key.stream.depth_stream.id, primary_key.stream.depth_stream.depth_param_id)
 
         needs_cc = set()
         for sk in self.stream_keys:
