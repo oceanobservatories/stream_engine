@@ -283,8 +283,8 @@ def fix_lat_lon_depth(ds, stream_key, deployment, location_information):
         ds['lon'].attrs['axis'] = 'X'
         ds['lon'].standard_name = 'longitude'
 
-    if 'loc_water_pressure' not in ds.variables:
-        depth = location_vals.get('loc_water_pressure')
+    if 'pressure_depth' not in ds.variables:
+        depth = location_vals.get('pressure_depth')
         if depth is None:
             log.warn("No depth!! Using fill value")
             depth = 0.0
