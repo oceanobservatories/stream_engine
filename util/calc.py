@@ -589,16 +589,18 @@ def set_pressure_depth(pd_data, stream_request):
 
     depth_sk = stream_request.depth_stream_key
 
-    if primary_stream.depth_param_id is not None:
-        interped_data = interpolate_list(primary_stream_len,
-                                        pd_data[depth_sk.stream.time_parameter][depth_sk.as_refdes()]['data'],
-                                        pd_data[primary_stream.depth_param_id][depth_sk.as_refdes()]['data'])
-        if 'pressure_depth' not in pd_data:
-            pd_data['pressure_depth'] = {}
-        pd_data['pressure_depth'][primary_key.as_refdes()] = {
-            'data': interped_data,
-            'source': depth_sk.as_dashed_refdes()
-        }
+    if pd_data.get(primary_stream.depth_param_id, {}).has_key(depth_sk.as_refdes()):
+
+        if primary_stream.depth_param_id is not None:
+            interped_data = interpolate_list(primary_stream_len,
+                                            pd_data[depth_sk.stream.time_parameter][depth_sk.as_refdes()]['data'],
+                                            pd_data[primary_stream.depth_param_id][depth_sk.as_refdes()]['data'])
+            if 'pressure_depth' not in pd_data:
+                pd_data['pressure_depth'] = {}
+            pd_data['pressure_depth'][primary_key.as_refdes()] = {
+                'data': interped_data,
+                'source': depth_sk.as_dashed_refdes()
+            }
 
 
 
@@ -1298,6 +1300,18 @@ class StreamRequest(object):
                 primary_key.stream.depth_stream_id = found_pressure_stream_key.stream.id
                 primary_key.stream.depth_param_id = found_pressure_param.id
                 self.stream_keys.append(found_pressure_stream_key) 
+
+            if found_pressure_stream_key is not None:
+                intersection_of_params = set(found_pressure_stream_key.stream.parameters).intersection(set(depth_parameters))
+                if len(intersection_of_params) > 0:
+                    found_pressure_param = list(intersection_of_params)[0]
+
+                if found_pressure_stream_key is not None and found_pressure_param is not None:
+                    primary_key.stream.depth_stream_id = found_pressure_stream_key.stream.id
+                    primary_key.stream.depth_param_id = found_pressure_param.id
+                    self.stream_keys.append(found_pressure_stream_key) 
+                else:
+                    log.error("Could not find stream key that defines a valid pressure parameter")
             else:
                 log.error("Could not find stream key that defines a valid pressure parameter")
 
