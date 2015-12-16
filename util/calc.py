@@ -538,7 +538,7 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
                 except Exception as e:
                     log.exception("Unexpected error while running qc functions: {}".format(e.message))
 
-        set_pressure_depth(pd_data, stream_request)
+        set_loc_pressure(pd_data, stream_request)
         stream_data[dep_num] = pd_data
 
     sd = StreamData(stream_request, stream_data, provenance_metadata, annotation_store)
@@ -584,7 +584,7 @@ def set_geospatial(pd_data, stream_request):
 
 
 @log_timing(log)
-def set_pressure_depth(pd_data, stream_request):
+def set_loc_pressure(pd_data, stream_request):
 
     primary_stream = stream_request.stream_keys[0].stream
     primary_key = stream_request.stream_keys[0]
@@ -601,9 +601,9 @@ def set_pressure_depth(pd_data, stream_request):
             interped_data = interpolate_list(primary_stream_len,
                                             pd_data[depth_sk.stream.time_parameter][depth_sk.as_refdes()]['data'],
                                             pd_data[primary_stream.depth_param_id][depth_sk.as_refdes()]['data'])
-            if 'pressure_depth' not in pd_data:
-                pd_data['pressure_depth'] = {}
-            pd_data['pressure_depth'][primary_key.as_refdes()] = {
+            if 'loc_pressure' not in pd_data:
+                pd_data['loc_pressure'] = {}
+            pd_data['loc_pressure'][primary_key.as_refdes()] = {
                 'data': interped_data,
                 'source': depth_sk.as_dashed_refdes()
             }
@@ -1023,8 +1023,8 @@ def get_framed_CCs(stream_request, coefficients, pd_data, base_key, name):
 
         elif name == "CC_depth":
             # what do derived parameters need for depth, pressure (bar) or depth in m?
-            if 'pressure_depth' in pd_data and base_key.as_refdes() in pd_data['pressure_depth']:
-                loc_val = pd_data['pressure_depth'][base_key.as_refdes()]
+            if 'loc_pressure' in pd_data and base_key.as_refdes() in pd_data['loc_pressure']:
+                loc_val = pd_data['loc_pressure'][base_key.as_refdes()]
             else:
                 loc_val = dep_loc[0].get("depth")
 

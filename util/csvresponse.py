@@ -97,7 +97,7 @@ class CSVGenerator(object):
                         name = "{:s}_dim_{:d}".format(p.name, index)
                         dims.append(name)
                 ds.update({p.name : xray.DataArray(arr, dims=dims, attrs={'long_name' : p.name})})
-        req = ['time', 'lat', 'lon', 'loc_water_pressure', 'deployment']
+        req = ['time', 'lat', 'lon', 'loc_pressure', 'deployment']
         to_use = [p.name for p in params if p.name  not in req]
         req.extend(to_use)
         return ds[req], req
@@ -105,7 +105,7 @@ class CSVGenerator(object):
     def _get_async_parameters(self, ds):
         to_exclude = set(['bin','id', 'l0_provenance_keys', 'l0_provenance_data','streaming_provenance', 'computed_provenance', 'query_parameter_provenance',
                           'provenance_messages', 'annotations'])
-        to_use = ['time', 'lat', 'lon', 'loc_water_pressure', 'subsite', 'node', 'sensor', 'stream', 'deployment']
+        to_use = ['time', 'lat', 'lon', 'loc_pressure', 'subsite', 'node', 'sensor', 'stream', 'deployment']
         not_time_based = []
         # variables gotten from dataset attributes
         attrs = set(['subsite', 'node', 'sensor', 'stream'])
