@@ -82,12 +82,13 @@ LOOKBACK_QUERY_LIMIT = 100 # Number of cassandra rows used to the correct deploy
 DPA_VERSION_VARIABLE = "version" # The name of the variable that contains the version string for the ion_functions at the package level.
 
 INTERNAL_OUTPUT_EXCLUDE_LIST = ['bin', ]
+
 INTERNAL_OUTPUT_MAPPING = {
     'deployment' : 'int32',
     'id' : 'str',
     'lat': 'float64',
     'lon': 'float64',
-    'pressure_depth': 'float64'
+    'int_ctd_pressure': 'float64'
 }
 
 REQUEST_TIMEOUT_SECONDS = 600 # 10 minutes
