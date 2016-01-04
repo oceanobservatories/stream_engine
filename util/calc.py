@@ -442,6 +442,7 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
         if first_time is None:
             first_time = ds['time'].values
 
+
         deployments = ds.groupby('deployment')
         for dep_num, data_set in deployments:
             pd_data = stream_data.get(dep_num, {})
@@ -500,6 +501,7 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
                 'data': data_set.bin.values,
                 'source': key.as_dashed_refdes()
             }
+            #set_pd_data_from_deployment(stream_request, pd_data, 'lat', 'lat', "9999")
 
             stream_data[dep_num] = pd_data
    
@@ -507,7 +509,13 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
     for dep_num in primary_deployments:
         pd_data = stream_data[dep_num]
 
+        # Check location preload for location
         set_geospatial(pd_data, stream_request)
+        # if not set, use mooring
+        if 'lat' not in pd_data and 'lon' not in pd_data:
+            log.info("Location not set, using lat-lon location at mooring")
+            set_pd_data_from_deployment(stream_request, pd_data, 'lat', 'lat', "-90.0")
+            set_pd_data_from_deployment(stream_request, pd_data, 'lon', 'lon', "-180.0")
 
         # exec dpa for stream
         log.info("Computing DPA for deployment %d", dep_num)
@@ -543,6 +551,66 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
 
     sd = StreamData(stream_request, stream_data, provenance_metadata, annotation_store)
     return sd
+
+
+def set_pd_data_from_deployment(stream_request, pd_data, depl_name, pd_name, default_val):
+
+    base_key = stream_request.stream_keys[0]
+
+    # get value from the deployment data field, depl_name -- e.g., 'lat', 'lon'
+    # "value" is a single value from deployment info
+    value = get_deployment_datum(stream_request, base_key, depl_name, default_val)
+
+    # virtual data size of metbk_hourly differs from source stream size
+    # but this check is left for now.
+    if base_key.stream.is_virtual:
+        time_stream = base_key.stream.source_streams[0]
+        time_stream_key = get_stream_key_with_param(pd_data, time_stream, time_stream.time_parameter)
+    else:
+        time_stream_key = base_key
+
+    time_stream_refdes = time_stream_key.as_refdes()
+    # Spread the values across all particles in pd_data
+    time_stream_refdes = time_stream_key.as_refdes()
+    if time_stream_key.stream.time_parameter in pd_data:
+        main_times = pd_data[time_stream_key.stream.time_parameter][time_stream_refdes]['data']
+        np_array = make_nparray(value, main_times)
+
+        log.info("Inserting deployment parameter, \'%s\', into %s as %s", depl_name, base_key.as_refdes(), pd_name)
+
+        if pd_name not in pd_data:
+            pd_data[pd_name] = {}
+
+        pd_data[pd_name][base_key.as_refdes()] = {
+            'data': np_array,
+            'source': base_key.as_dashed_refdes()
+        }
+    else:
+        log.warn("Failed to set time parameter-id for %s: %s not in pd_data",
+                  base_key.as_refdes(), base_key.stream.time_parameter)
+
+def get_deployment_datum(stream_request, base_key, depl_name, default_value=None):
+    refdes_key = base_key.as_three_part_refdes()
+    dep_loc = stream_request.location_information.get(refdes_key)
+
+    if dep_loc is not None and len(dep_loc) > 0 and depl_name in dep_loc[0]:
+        value = dep_loc[0].get(depl_name)
+    else:
+        value = default_value
+
+    return value
+
+def make_nparray(value, main_times):
+    # Replicate geo values across all particles in pd_data
+    a = numpy.zeros(shape=(len(main_times)))
+    count = 0
+    for time in main_times:
+        a[count] = value
+        count = count + 1
+
+    return a
+
+
 
 @log_timing(log)
 def set_geospatial(pd_data, stream_request):
@@ -1275,6 +1343,10 @@ class StreamRequest(object):
             log.error("Couldn't find stream to provide lon data")
 
         #depth
+        print "================================================"
+        print primary_key
+        print primary_key.stream.depth_stream
+        print "================================================"
         found_stream_key = find_stream(primary_key, primary_key.stream.depth_stream, distinct_sensors)
         if found_stream_key is not None:
             self.depth_stream_key = found_stream_key
