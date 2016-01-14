@@ -787,6 +787,8 @@ def sample_n_bins(stream_key, time_range, num_points, metadata_bins, cols=None):
 @log_timing(log)
 def sample_n_points(stream_key, time_range, num_points, metadata_bins, bin_information, cols=None):
     results = []
+
+    # SPW: Fetch column names and row (values), and add rows to results
     # get the first point
     cols, rows = fetch_with_func(query_first_after, stream_key, [(metadata_bins[0], time_range.start)], cols=cols )
     results.extend(rows)
@@ -794,15 +796,19 @@ def sample_n_points(stream_key, time_range, num_points, metadata_bins, bin_infor
     # create a set to keep track of queries and avoid duplicates
     queries = set()
     # We want to know start and stop time of each bin that has data
+    # SPW: x = list of one or more bins bins 
+    # SPW: match bin with start and end times
     metadata_bins = [(x, bin_information[x][1], bin_information[x][2]) for x in metadata_bins]
     metadata_bins.sort()
     bin_queue = deque(metadata_bins)
+    # SPW: make limit=? equally spaced times 
     # Create our time array of sampling times
     times = numpy.linspace(time_range.start, time_range.stop, num_points)
     # Get the first bin that has data within the range
     current = bin_queue.popleft()
     for t in times:
         # Are we currently within the range of data in the bin if so add a sampling point
+        # if start-time <= t and end-time > t
         if current[1] <= t < current[2]:
             queries.add((current[0], t, 1))
         else:

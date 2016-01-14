@@ -189,14 +189,10 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
                 name = '%s_dim_%d' % (param_name, index)
                 dims.append(name)
 
-        if param_name in ['lat', 'lon', 'int_ctd_pressure']:
+        if param_name in ['lat', 'lon', 'depth']:
             array_attrs = {}
         else:
-            array_attrs = {'coordinates' : 'time lat lon int_ctd_pressure'}
-
-        
-        if param_name in ['int_ctd_pressure']:
-            array_attrs = {'comments' : 'Interpolated pressure from co-located CTD'}
+            array_attrs = {'coordinates' : 'time lat lon depth'}
 
         if param:
             if param.unit is not None:
@@ -225,13 +221,8 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
         else:
             # To comply with cf 1.6 giving long name the same as parameter name
             array_attrs['long_name'] = param_name
-            # depth,lat,lon are not in Preload, so set units to expected values
-            if param_name == 'int_ctd_pressure':
-                long_name = "Interpolated CTD Pressure, " + CachedParameter.from_id(stream_key.stream.depth_param_id).unit
-                array_attrs['long_name'] = long_name
-                array_attrs['standard_name'] = "sea_water_pressure"
-                array_attrs['units'] = CachedParameter.from_id(stream_key.stream.depth_param_id).unit
-            elif param_name in ['lat', 'lon']:
+
+            if param_name in ['lat', 'lon']:
                 array_attrs['units'] = "degrees"
 
         ds[param_name] = (dims, data, array_attrs)
@@ -284,18 +275,6 @@ def fix_lat_lon_depth(ds, stream_key, deployment, location_information):
     else:
         ds['lon'].attrs['axis'] = 'X'
         ds['lon'].standard_name = 'longitude'
-
-    if 'int_ctd_pressure' not in ds.variables:
-        depth = location_vals.get('int_ctd_pressure')
-        if depth is None:
-            log.warn("No depth!! Using fill value")
-            depth = 0.0
-        deptharr = np.empty(ds.time.size)
-        deptharr.fill(depth)
-        attrs = {'standard_name': app.config["Z_STANDARD_NAME"], 'long_name': app.config["Z_LONG_NAME"], 'units': 'm',
-                 'positive': app.config['Z_POSITIVE'], 'axis': 'Z'}
-        ds['int_ctd_pressure'] = ('obs', deptharr, attrs)
-
 
 def _add_dynamic_attributes(ds, stream_key, location_information, deployment):
     if len(ds.keys()) == 0:

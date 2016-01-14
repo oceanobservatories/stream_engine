@@ -544,7 +544,6 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
                 except Exception as e:
                     log.exception("Unexpected error while running qc functions: {}".format(e.message))
 
-        set_int_ctd_pressure(pd_data, stream_request)
         stream_data[dep_num] = pd_data
 
     sd = StreamData(stream_request, stream_data, provenance_metadata, annotation_store)
@@ -663,33 +662,6 @@ def set_geospatial(pd_data, stream_request):
                 'data': interped_data,
                 'source': lon_sk.as_dashed_refdes()
             }
-
-
-@log_timing(log)
-def set_int_ctd_pressure(pd_data, stream_request):
-
-    primary_stream = stream_request.stream_keys[0].stream
-    primary_key = stream_request.stream_keys[0]
-
-    # find location data
-    primary_stream_len = pd_data[primary_stream.time_parameter][primary_key.as_refdes()]['data']
-
-    depth_sk = stream_request.depth_stream_key
-
-    if pd_data.get(primary_stream.depth_param_id, {}).has_key(depth_sk.as_refdes()) and \
-       pd_data.get(depth_sk.stream.time_parameter, {}).has_key(depth_sk.as_refdes()):
-
-        if primary_stream.depth_param_id is not None:
-            interped_data = interpolate_list(primary_stream_len,
-                                            pd_data[depth_sk.stream.time_parameter][depth_sk.as_refdes()]['data'],
-                                            pd_data[primary_stream.depth_param_id][depth_sk.as_refdes()]['data'])
-            if 'int_ctd_pressure' not in pd_data:
-                pd_data['int_ctd_pressure'] = {}
-            pd_data['int_ctd_pressure'][primary_key.as_refdes()] = {
-                'data': interped_data,
-                'source': depth_sk.as_dashed_refdes()
-            }
-
 
 
 @log_timing(log)
@@ -1036,7 +1008,7 @@ def build_func_map(parameter, coefficients, pd_data, base_key, deployment, strea
         elif CCArgument.is_cc(val):
             name = val
             if name in coefficients:
-                framed_CCs = get_framed_CCs(stream_request, coefficients, pd_data, base_key, name)
+                framed_CCs = get_framed_2CCs(stream_request, coefficients, pd_data, base_key, name)
                 # Need to catch exceptions from the call to build the CC argument.
                 try:
                     CC_argument, CC_meta = build_CC_argument(framed_CCs, main_times, deployment)
@@ -1080,6 +1052,9 @@ def build_func_map(parameter, coefficients, pd_data, base_key, deployment, strea
                                         (func_map[key], parameter.id, parameter.name), payload=to_attach)
     return args, arg_metadata, messages
 
+def get_framed_2CCs(stream_request, coefficients, pd_data, base_key, name):
+    framed_CCs = coefficients[name] 
+    return framed_CCs
 
 def get_framed_CCs(stream_request, coefficients, pd_data, base_key, name):
     if name != "CC_latitude" and name != "CC_longitude" and name != "CC_depth":
@@ -1102,13 +1077,6 @@ def get_framed_CCs(stream_request, coefficients, pd_data, base_key, name):
                 loc_val = pd_data['lon'][base_key.as_refdes()]
             else:
                 loc_val = dep_loc[0].get("lon")
-
-        elif name == "CC_depth":
-            # what do derived parameters need for depth, pressure (bar) or depth in m?
-            if 'int_ctd_pressure' in pd_data and base_key.as_refdes() in pd_data['int_ctd_pressure']:
-                loc_val = pd_data['int_ctd_pressure'][base_key.as_refdes()]
-            else:
-                loc_val = dep_loc[0].get("depth")
 
         loc_data = {
             'start': stream_request.time_range.start,
