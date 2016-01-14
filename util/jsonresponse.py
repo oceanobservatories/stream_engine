@@ -81,7 +81,6 @@ class JsonResponse(object):
                 # Add location information
                 particle['latitude'] = ds['lat'].values[index] if 'lat' in ds else LAT_FILL
                 particle['longitude'] = ds['lon'].values[index] if 'lon' in ds else LON_FILL
-                particle['int_ctd_pressure'] = ds['int_ctd_pressure'].values[index] if 'int_ctd_pressure' in ds else DEPTH_FILL
 
             # Add any QC if it exists
             for param in params:

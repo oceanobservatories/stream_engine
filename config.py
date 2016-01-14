@@ -87,8 +87,7 @@ INTERNAL_OUTPUT_MAPPING = {
     'deployment' : 'int32',
     'id' : 'str',
     'lat': 'float64',
-    'lon': 'float64',
-    'int_ctd_pressure': 'float64'
+    'lon': 'float64'
 }
 
 REQUEST_TIMEOUT_SECONDS = 600 # 10 minutes
