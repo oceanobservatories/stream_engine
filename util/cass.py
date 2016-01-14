@@ -787,6 +787,7 @@ def sample_n_bins(stream_key, time_range, num_points, metadata_bins, cols=None):
 @log_timing(log)
 def sample_n_points(stream_key, time_range, num_points, metadata_bins, bin_information, cols=None):
     results = []
+
     # get the first point
     cols, rows = fetch_with_func(query_first_after, stream_key, [(metadata_bins[0], time_range.start)], cols=cols )
     results.extend(rows)
