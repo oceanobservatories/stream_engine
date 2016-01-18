@@ -235,7 +235,10 @@ class StreamKey(object):
                     self.node == other.node,
                     self.sensor == other.sensor,
                     self.method == other.method,
-                    self.stream == other.stream])
+                    self.stream_name == other.stream_name])
+
+    def __hash__(self):
+        return hash((self.subsite, self.node, self.sensor, self.method, self.stream_name))
 
     def as_dict(self):
         return {
@@ -288,7 +291,7 @@ class CachedStream(object):
                 s.depth_param_id = 1959
             else:
                 s.depth_param_id = stream.depth_param_id
-            
+
             s.lat_stream_id = stream.lat_stream_id
             s.lon_stream_id = stream.lon_stream_id
             s.depth_stream_id = stream.depth_stream_id
