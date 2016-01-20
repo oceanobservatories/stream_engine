@@ -16,7 +16,7 @@ from cassandra.concurrent import execute_concurrent_with_args
 from cassandra.query import _clean_column_name, tuple_factory, SimpleStatement, BatchStatement
 
 import engine
-from util.common import log_timing, TimeRange, FUNCTION, to_xray_dataset
+from util.common import log_timing, TimeRange, FUNCTION, to_xray_dataset, timed_cache
 
 logging.getLogger('cassandra').setLevel(logging.WARNING)
 log = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ execution_pool = None
 
 STREAM_EXISTS_PS = 'stream_exists'
 METADATA_FOR_REFDES_PS = 'metadata_for_refdes'
-DISTINCT_PS = 'distinct'
+STREAM_MD = 'stream_metadata'
 L0_PROV_POS = 'l0_provenance'
 L0_STREAM_ONE_POS = 'l0_stream_1'
 L0_STREAM_RANGE_POS = 'l0_stream_range'
@@ -59,9 +59,9 @@ SELECT stream, count FROM STREAM_METADATA
 where SUBSITE=? and NODE=? and SENSOR=? and METHOD=?
 '''
 
-DISTINCT_RAW = \
+STREAM_MD_RAW = \
     '''
-SELECT DISTINCT subsite, node, sensor FROM stream_metadata
+SELECT subsite, node, sensor, method FROM stream_metadata
 '''
 
 L0_RAW = \
@@ -119,8 +119,8 @@ def get_session():
             prep[STREAM_EXISTS_PS].consistency_level = query_consistency
             prep[METADATA_FOR_REFDES_PS] = session.prepare(METADATA_FOR_REFDES_RAW)
             prep[METADATA_FOR_REFDES_PS].consistency_level = query_consistency
-            prep[DISTINCT_PS] = session.prepare(DISTINCT_RAW)
-            prep[DISTINCT_PS].consistency_level = query_consistency
+            prep[STREAM_MD] = session.prepare(STREAM_MD_RAW)
+            prep[STREAM_MD].consistency_level = query_consistency
             prep[L0_PROV_POS] = session.prepare(L0_RAW)
             prep[L0_PROV_POS].consistency_level = query_consistency
             prep[L0_STREAM_ONE_POS] = session.prepare(L0_STREAM_ONE_RAW)
@@ -252,16 +252,17 @@ class ConcurrentBatchFuture(ResponseFuture):
 
 @log_timing(log)
 @cassandra_session
-def get_distinct_sensors(session=None, prepared=None, query_consistency=None):
-    rows = session.execute(prepared.get(DISTINCT_PS))
+def _get_stream_metadata(session=None, prepared=None, query_consistency=None):
+    rows = session.execute(prepared.get(STREAM_MD))
     return rows
 
 
-@log_timing(log)
-@cassandra_session
-def get_streams(subsite, node, sensor, method, session=None, prepared=None, query_consistency=None):
-    rows = session.execute(prepared[METADATA_FOR_REFDES_PS], (subsite, node, sensor, method))
-    return [row[0] for row in rows]  # return streams with count>0
+@timed_cache(engine.app.config['METADATA_CACHE_SECONDS'])
+def build_stream_dictionary():
+    d = {}
+    for subsite, node, sensor, method, stream in _get_stream_metadata():
+        d.setdefault(stream, {}).setdefault(method, {}).setdefault(subsite, {}).setdefault(node, []).append(sensor)
+    return d
 
 
 @log_timing(log)
@@ -1158,14 +1159,6 @@ def store_qc_results(qc_results_values, pk, particle_ids, particle_bins, particl
     else:
         log.info("Configured storage system '{}' not recognized, qc results not stored.".format(
                 engine.app.config['QC_RESULTS_STORAGE_SYSTEM']))
-
-
-@log_timing(log)
-@cassandra_session
-def stream_exists(subsite, node, sensor, method, stream, session=None, prepared=None, query_consistency=None):
-    ps = prepared.get(STREAM_EXISTS_PS)
-    rows = session.execute(ps, (subsite, node, sensor, method, stream))
-    return len(rows) == 1
 
 
 def initialize_worker():

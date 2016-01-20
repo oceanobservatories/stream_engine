@@ -19,10 +19,11 @@ from datamodel import StreamData
 from engine.routes import app
 from jsonresponse import JsonResponse
 from parameter_util import PDArgument, FQNArgument, DPIArgument, CCArgument, NumericArgument, FunctionArgument
-from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, fetch_annotations, \
+from util.cass import fetch_nth_data, fetch_annotations, \
     get_available_time_range, fetch_l0_provenance, store_qc_results, get_location_metadata, \
     get_first_before_metadata, get_cass_lookback_dataset, get_full_cass_dataset, get_streaming_provenance, \
-    CASS_LOCATION_NAME, SAN_LOCATION_NAME, get_pool
+    CASS_LOCATION_NAME, SAN_LOCATION_NAME, get_pool, \
+    build_stream_dictionary
 from util.common import log_timing, ntp_to_datestring, ntp_to_ISO_date, StreamKey, TimeRange, CachedParameter, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, Annotation, \
@@ -1220,8 +1221,6 @@ class StreamRequest(object):
             [provided_pd.add(p.id) for p in stream_key.stream.parameters]
             [provided_fqn.add((p.id, stream_key.stream_name)) for p in stream_key.stream.parameters]
 
-        distinct_sensors = get_distinct_sensors()
-
         # remove already provided params
         provided_by_main = set()
         for arg in needs:
@@ -1264,7 +1263,7 @@ class StreamRequest(object):
                 raise StreamEngineException("Found invalid argument type: {}".format(type(arg)), status_code=500)
 
             possible_streams = [CachedStream.from_id(s) for s in possible_streams]
-            found_stream_key = find_stream(self.stream_keys[0], possible_streams, distinct_sensors)
+            found_stream_key = find_stream(self.stream_keys[0], possible_streams)
 
             if found_stream_key is not None and found_stream_key not in self.stream_keys:
                 self.stream_keys.append(found_stream_key)
@@ -1278,7 +1277,7 @@ class StreamRequest(object):
                 # if we couldn't find a providing stream key, the arg might be provided by a virtual stream
                 for s in possible_streams:
                     if s.is_virtual:
-                        found_stream_key = find_stream(primary_key, s.source_streams, distinct_sensors)
+                        found_stream_key = find_stream(primary_key, s.source_streams)
 
                         if found_stream_key is not None:
                             for product_stream in found_stream_key.stream.product_streams:
@@ -1305,7 +1304,7 @@ class StreamRequest(object):
 
         # Find streams that provide location data
         # lat
-        found_stream_key = find_stream(primary_key, primary_key.stream.lat_stream, distinct_sensors)
+        found_stream_key = find_stream(primary_key, primary_key.stream.lat_stream)
         if found_stream_key is not None:
             self.lat_stream_key = found_stream_key
             self.stream_keys.append(found_stream_key)
@@ -1313,7 +1312,7 @@ class StreamRequest(object):
             log.error("Couldn't find stream to provide lat data")
 
         # lon
-        found_stream_key = find_stream(primary_key, primary_key.stream.lon_stream, distinct_sensors)
+        found_stream_key = find_stream(primary_key, primary_key.stream.lon_stream)
         if found_stream_key is not None:
             self.lon_stream_key = found_stream_key
             self.stream_keys.append(found_stream_key)
@@ -1321,7 +1320,7 @@ class StreamRequest(object):
             log.error("Couldn't find stream to provide lon data")
 
         # depth
-        found_stream_key = find_stream(primary_key, primary_key.stream.depth_stream, distinct_sensors)
+        found_stream_key = find_stream(primary_key, primary_key.stream.depth_stream)
         if found_stream_key is not None:
             self.depth_stream_key = found_stream_key
             self.stream_keys.append(found_stream_key)
@@ -1335,8 +1334,7 @@ class StreamRequest(object):
             found_pressure_param = None
             matching_stream_keys = []
             for param in depth_parameters:
-                possible_stream = find_stream(primary_key, [CachedStream.from_id(s) for s in param.streams],
-                                              distinct_sensors)
+                possible_stream = find_stream(primary_key, [CachedStream.from_id(s) for s in param.streams])
                 if possible_stream is not None:
                     matching_stream_keys.append(possible_stream)
 
@@ -1643,49 +1641,56 @@ class NetCDF_Generator(object):
 
 
 @log_timing(log)
-def find_stream(stream_key, streams, distinct_sensors):
+def find_stream(stream_key, streams):
     """
-    Attempt to find a "related" sensor which provides one of these streams
-    :param stream_key
-    :return:
+    Given a primary source, attempt to find one of the supplied streams from the same instrument,
+    same node or same subsite
+    :param stream_key: StreamKey - defines the source of the primary stream
+    :param streams: List - list of target streams
+    :return: StreamKey if found, otherwise None
     """
-    if not isinstance(streams, list):
+    if not isinstance(streams, (list, tuple)):
         streams = [streams]
-    stream_map = {s.name: s for s in streams}
-    # check our specific reference designator first
-    for stream in get_streams(stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method):
-        if stream in stream_map:
+
+    stream_dictionary = build_stream_dictionary()
+    method = stream_key.method
+    subsite = stream_key.subsite
+    node = stream_key.node
+    sensor = stream_key.sensor
+
+    # Search the same reference designator
+    for stream in streams:
+        sensors = stream_dictionary.get(stream.name, {}).get(method, {}).get(subsite, {}).get(node, [])
+        if sensor in sensors:
             return StreamKey.from_dict({
-                "subsite": stream_key.subsite,
-                "node": stream_key.node,
-                "sensor": stream_key.sensor,
+                "subsite": subsite,
+                "node": node,
+                "sensor": sensor,
                 "method": stream_key.method,
-                "stream": stream
+                "stream": stream.name
             })
 
-    # check other reference designators in the same subsite-node
-    for subsite1, node1, sensor in distinct_sensors:
-        if subsite1 == stream_key.subsite and node1 == stream_key.node:
-            for stream in get_streams(stream_key.subsite, stream_key.node, sensor, stream_key.method):
-                if stream in stream_map:
-                    return StreamKey.from_dict({
-                        "subsite": stream_key.subsite,
-                        "node": stream_key.node,
-                        "sensor": sensor,
-                        "method": stream_key.method,
-                        "stream": stream
-                    })
+    # No streams from our target set exist on the same instrument. Check the same node
+    for stream in streams:
+        sensors = stream_dictionary.get(stream.name, {}).get(method, {}).get(subsite, {}).get(node, [])
+        if sensors:
+            return StreamKey.from_dict({
+                "subsite": subsite,
+                "node": node,
+                "sensor": sensors[0],
+                "method": stream_key.method,
+                "stream": stream.name
+            })
 
-    # check other reference designators in the same subsite
-    for subsite1, node, sensor in distinct_sensors:
-        if subsite1 == stream_key.subsite:
-            for stream in get_streams(stream_key.subsite, node, sensor, stream_key.method):
-                if stream in stream_map:
-                    return StreamKey.from_dict({
-                        "subsite": stream_key.subsite,
-                        "node": node,
-                        "sensor": sensor,
-                        "method": stream_key.method,
-                        "stream": stream
-                    })
-    return None
+    # No streams from our target set exist on the same node. Check the same subsite
+    for stream in streams:
+        subsite_dict = stream_dictionary.get(stream.name, {}).get(method, {}).get(subsite, {})
+        for node in subsite_dict:
+            if subsite_dict[node]:
+                return StreamKey.from_dict({
+                    "subsite": subsite,
+                    "node": node,
+                    "sensor": subsite_dict[node][0],
+                    "method": stream_key.method,
+                    "stream": stream.name
+                })

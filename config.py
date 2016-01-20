@@ -7,6 +7,7 @@ CASSANDRA_CONNECT_TIMEOUT = 60
 CASSANDRA_FETCH_SIZE = 1000
 CASSANDRA_DEFAULT_TIMEOUT = 60
 CASSANDRA_QUERY_CONSISTENCY = 'QUORUM'
+METADATA_CACHE_SECONDS = 600
 
 SAN_BASE_DIRECTORY = '/opt/ooi/SAN/'
 SAN_CASS_OVERWRITE = True # When loading data back into cassandra should we allow writing to an already present databin.

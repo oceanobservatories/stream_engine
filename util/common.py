@@ -781,3 +781,27 @@ def compile_datasets(datasets):
 
 def get_params_with_dpi(dpi):
     return Parameter.query.filter(Parameter.data_product_identifier == dpi)
+
+
+def timed_cache(expire_seconds):
+    """
+    Simple time-based cache. Only valid for functions which have no arguments
+    :param expire_seconds: time in seconds before cached result expires
+    :return:
+    """
+    cache = {'cache_time': 0, 'cache_value': None}
+
+    def expired():
+        return cache['cache_time'] + expire_seconds < time.time()
+
+    def wrapper(func):
+        @wraps(func)
+        def inner():
+            if expired():
+                cache['cache_value'] = func()
+                cache['cache_time'] = time.time()
+            return cache['cache_value']
+
+        return inner
+
+    return wrapper
