@@ -1,60 +1,48 @@
 import importlib
 import logging
-import tempfile
-import zipfile
-import uuid
 import os
-from collections import OrderedDict, defaultdict
-
-import requests
-
+import tempfile
+import uuid
+import zipfile
+import json
 import numexpr
 import numpy
-import xray
+import requests
+import ion_functions
 import scipy as sp
 
-from util.cass import get_streams, get_distinct_sensors, fetch_nth_data, fetch_all_data, fetch_annotations, \
-    get_available_time_range, fetch_l0_provenance, time_to_bin, bin_to_time, store_qc_results, get_location_metadata, \
-    get_first_before_metadata, get_cass_lookback_dataset, get_full_cass_dataset, get_san_location_metadata, \
-    get_full_cass_dataset, insert_dataset, get_streaming_provenance, CASS_LOCATION_NAME, SAN_LOCATION_NAME, get_pool
+from collections import OrderedDict, defaultdict
+from datetime import datetime
 
-from util.common import log_timing, ntp_to_datestring,ntp_to_ISO_date, StreamKey, TimeRange, CachedParameter, \
+from csvresponse import CSVGenerator
+from datamodel import StreamData
+from engine.routes import app
+from jsonresponse import JsonResponse
+from parameter_util import PDArgument, FQNArgument, DPIArgument, CCArgument, NumericArgument, FunctionArgument
+from util.cass import fetch_nth_data, fetch_annotations, \
+    get_available_time_range, fetch_l0_provenance, store_qc_results, get_location_metadata, \
+    get_first_before_metadata, get_cass_lookback_dataset, get_full_cass_dataset, get_streaming_provenance, \
+    CASS_LOCATION_NAME, SAN_LOCATION_NAME, get_pool, \
+    build_stream_dictionary
+from util.common import log_timing, ntp_to_datestring, ntp_to_ISO_date, StreamKey, TimeRange, CachedParameter, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, Annotation, \
     MissingTimeException, MissingDataException, MissingStreamMetadataException, get_stream_key_with_param, \
-    isfillvalue, InvalidInterpolationException, to_xray_dataset, get_params_with_dpi, ParamUnavailableException, compile_datasets
-
-from parameter_util import PDArgument, FQNArgument, DPIArgument, CCArgument, NumericArgument, FunctionArgument
-
-from csvresponse import CSVGenerator
-
-from engine.routes import app
+    isfillvalue, InvalidInterpolationException, get_params_with_dpi, ParamUnavailableException, compile_datasets
 from util.san import fetch_nsan_data, fetch_full_san_data, get_san_lookback_dataset
 
-
-import datamodel
-from datamodel import StreamData
-from jsonresponse import JsonResponse
-from datetime import datetime
-import time
-
-import ion_functions
 if hasattr(ion_functions, '__version__'):
     ION_VERSION = ion_functions.__version__
 else:
     ION_VERSION = 'unversioned'
-
-try:
-    import simplejson as json
-except ImportError:
-    import json
 
 log = logging.getLogger(__name__)
 
 
 @log_timing(log)
 def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
-                  include_provenance=False, include_annotations=False, strict_range=False, location_information={}, request_uuid=''):
+                  include_provenance=False, include_annotations=False, strict_range=False, location_information={},
+                  request_uuid=''):
     """
     Returns a list of particles from the given streams, limits and times
     """
@@ -72,12 +60,14 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
     annotation_store = AnnotationStore()
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range,
                                    qc_parameters=qc_stream_parameters, limit=limit,
-                                   include_provenance=include_provenance,include_annotations=include_annotations,
-                                   strict_range=strict_range, location_information=location_information, request_id=request_uuid)
+                                   include_provenance=include_provenance, include_annotations=include_annotations,
+                                   strict_range=strict_range, location_information=location_information,
+                                   request_id=request_uuid)
 
     # Create the medata store
     provenance_metadata.add_query_metadata(stream_request, request_uuid, 'JSON')
-    stream_data = fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
+    stream_data = fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata,
+                                    annotation_store)
 
     do_qc_stuff(stream_keys[0], stream_data, stream_request.parameters, qc_stream_parameters)
 
@@ -91,6 +81,7 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
         stream_to_params[sk] = [p for p in stream_request.parameters if sk.stream.id in p.streams]
 
     return JsonResponse(stream_data).json(stream_to_params)
+
 
 @log_timing(log)
 def prepare_qc_stuff(qc_parameters):
@@ -118,22 +109,23 @@ def prepare_qc_stuff(qc_parameters):
                     parameter_dict[current_parameter_name] = int(qc_parameter_value)
                 except ValueError:
                     log.error(
-                        "For parameter '%s' in qc function '%s' being run against '%s', the value '%s' is not an integer number.",
-                        current_parameter_name, current_qc_id, current_stream_parameter, qc_parameter_value)
+                            "For parameter '%s' in qc function '%s' being run against '%s', the value '%s' is not an integer number.",
+                            current_parameter_name, current_qc_id, current_stream_parameter, qc_parameter_value)
                     parameter_dict[current_parameter_name] = float('nan')
             elif qc_parameter['valueType'].encode('ascii', 'ignore') == 'FLOAT':
                 try:
                     parameter_dict[current_parameter_name] = float(qc_parameter_value)
                 except ValueError:
                     log.error(
-                        "For parameter '%s' in qc function '%s' being run against '%s', the value '%s' is not a number.",
-                        current_parameter_name, current_qc_id, current_stream_parameter, qc_parameter_value)
+                            "For parameter '%s' in qc function '%s' being run against '%s', the value '%s' is not a number.",
+                            current_parameter_name, current_qc_id, current_stream_parameter, qc_parameter_value)
                     parameter_dict[current_parameter_name] = float('nan')
             elif qc_parameter['valueType'].encode('ascii', 'ignore') == 'LIST':
                 parameter_dict[current_parameter_name] = [float(x) for x in qc_parameter_value[1:-1].split()]
             else:
                 parameter_dict[current_parameter_name] = qc_parameter_value
     return qc_stream_parameters
+
 
 @log_timing(log)
 def do_qc_stuff(primary_key, stream_data, parameters, qc_stream_parameters):
@@ -194,14 +186,16 @@ def do_qc_stuff(primary_key, stream_data, parameters, qc_stream_parameters):
             for qc_function_name in qc_stream_parameters.get(param.name, []):
                 qc_function_results = '%s_%s' % (param.name, qc_function_name)
 
-                if qc_function_results in pd_data\
-                        and pd_data.get(qc_function_results, {}).get(primary_key.as_refdes(), {}).get('data') is not None:
+                if qc_function_results in pd_data \
+                        and pd_data.get(qc_function_results, {}).get(primary_key.as_refdes(), {}).get(
+                                'data') is not None:
                     has_qc = True
                     qc_function_results_entry = pd_data.pop(qc_function_results)
                     values = qc_function_results_entry[primary_key.as_refdes()]['data']
                     qc_cached_function = CachedFunction.from_qc_function(qc_function_name)
                     qc_results_mask = numpy.full_like(time_data, int(qc_cached_function.qc_flag, 2), dtype=numpy.int8)
-                    qc_results_values = numpy.where(values == 0, ~qc_results_mask & qc_results_values, qc_results_mask ^ qc_results_values)
+                    qc_results_values = numpy.where(values == 0, ~qc_results_mask & qc_results_values,
+                                                    qc_results_mask ^ qc_results_values)
                     qc_ran_values = qc_results_mask | qc_ran_values
 
             if has_qc:
@@ -213,10 +207,10 @@ def do_qc_stuff(primary_key, stream_data, parameters, qc_stream_parameters):
 
 @log_timing(log)
 def get_csv(streams, start, stop, coefficients, limit=None,
-               include_provenance=False, include_annotations=False, strict_range=False, location_information={},
-               request_uuid='', disk_path=None, delimiter=','):
+            include_provenance=False, include_annotations=False, strict_range=False, location_information={},
+            request_uuid='', disk_path=None, delimiter=','):
     if len(streams) > 1 and disk_path is None:
-        msg ="Syncronous delimited data not currently permitted for multiple streams"
+        msg = "Syncronous delimited data not currently permitted for multiple streams"
         log.error(msg)
         raise StreamEngineException(msg, status_code=400)
     stream_keys = [StreamKey.from_dict(d) for d in streams]
@@ -230,10 +224,12 @@ def get_csv(streams, start, stop, coefficients, limit=None,
     provenance_metadata = ProvenanceMetadataStore(request_uuid)
     annotation_store = AnnotationStore()
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit,
-                                   include_provenance=include_provenance,include_annotations=include_annotations,
-                                   strict_range=strict_range, location_information=location_information, request_id=request_uuid)
+                                   include_provenance=include_provenance, include_annotations=include_annotations,
+                                   strict_range=strict_range, location_information=location_information,
+                                   request_id=request_uuid)
     provenance_metadata.add_query_metadata(stream_request, request_uuid, "delimited({:s})".format(delimiter))
-    stream_data = fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
+    stream_data = fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata,
+                                    annotation_store)
     # create StreamKey to CachedParameter mapping for the requested streams
     stream_to_params = {StreamKey.from_dict(s): [] for s in streams}
     for sk in stream_to_params:
@@ -262,11 +258,13 @@ def get_netcdf(streams, start, stop, coefficients, qc_parameters, limit=None,
     annotation_store = AnnotationStore()
     stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range,
                                    qc_parameters=qc_stream_parameters, limit=limit,
-                                   include_provenance=include_provenance,include_annotations=include_annotations,
-                                   strict_range=strict_range, location_information=location_information, request_id=request_uuid)
+                                   include_provenance=include_provenance, include_annotations=include_annotations,
+                                   strict_range=strict_range, location_information=location_information,
+                                   request_id=request_uuid)
     provenance_metadata.add_query_metadata(stream_request, request_uuid, "netCDF")
 
-    stream_data = fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata, annotation_store)
+    stream_data = fetch_stream_data(stream_request, streams, start, stop, coefficients, limit, provenance_metadata,
+                                    annotation_store)
 
     do_qc_stuff(stream_keys[0], stream_data, stream_request.parameters, qc_stream_parameters)
 
@@ -307,7 +305,8 @@ def get_lookback_dataset(key, time_range, provenance_metadata, deployments):
         return get_cass_lookback_dataset(key, time_range.start, locations.bin_list[0], deployments)
     elif SAN_LOCATION_NAME in first_metadata:
         locations = first_metadata[SAN_LOCATION_NAME]
-        return get_san_lookback_dataset(key, TimeRange(locations.start_time,time_range.start), locations.bin_list[0], deployments)
+        return get_san_lookback_dataset(key, TimeRange(locations.start_time, time_range.start), locations.bin_list[0],
+                                        deployments)
     else:
         return None
 
@@ -318,7 +317,7 @@ def get_dataset(key, time_range, limit, provenance_metadata, pad_forward, deploy
     provenance_metadata.add_messages(messages)
     # check for no data
     datasets = []
-    if cass_locations.total + san_locations.total  != 0:
+    if cass_locations.total + san_locations.total != 0:
         san_percent = san_locations.total / float(san_locations.total + cass_locations.total)
         cass_percent = cass_locations.total / float(san_locations.total + cass_locations.total)
     else:
@@ -350,7 +349,7 @@ def get_dataset(key, time_range, limit, provenance_metadata, pad_forward, deploy
         cass_times = TimeRange(t1, t2)
         if limit:
             datasets.append(fetch_nth_data(key, cass_times, num_points=int(limit * cass_percent),
-                                       location_metadata=cass_locations))
+                                           location_metadata=cass_locations))
         else:
             datasets.append(get_full_cass_dataset(key, cass_times, location_metadata=cass_locations))
     return compile_datasets(datasets)
@@ -396,7 +395,8 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
         log.warn('Collapsed to : ' + ntp_to_datestring(time_range.start) +
                  "  -- " + ntp_to_datestring(time_range.stop) + '\n')
 
-    log.info("Fetching data from {} stream(s): {}".format(len(stream_request.stream_keys), [x.as_refdes() for x in stream_request.stream_keys]))
+    log.info("Fetching data from {} stream(s): {}".format(len(stream_request.stream_keys),
+                                                          [x.as_refdes() for x in stream_request.stream_keys]))
 
     # Find source stream if primary_stream is virtual
     primary_stream = stream_request.stream_keys[0].stream
@@ -419,7 +419,7 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
             annotations = query_annotations(key, time_range)
             annotation_store.add_annotations(annotations)
         if stream_request.include_provenance:
-            provenance_metadata.add_instrument_provenance(key,time_range.start, time_range.stop)
+            provenance_metadata.add_instrument_provenance(key, time_range.start, time_range.stop)
 
         if key.stream.is_virtual:
             log.info("Skipping fetch of virtual stream: {}".format(key.stream.name))
@@ -442,7 +442,6 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
         if first_time is None:
             first_time = ds['time'].values
 
-
         deployments = ds.groupby('deployment')
         for dep_num, data_set in deployments:
             pd_data = stream_data.get(dep_num, {})
@@ -450,7 +449,8 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
                 primary_deployments.append(dep_num)
             for param in parameters:
                 if param.name not in data_set:
-                    log.error("%s (PD%s) not in cassandra dataset, cassandra and preload may be out of sync", param.name, param.id)
+                    log.error("%s (PD%s) not in cassandra dataset, cassandra and preload may be out of sync",
+                              param.name, param.id)
                     continue
                 data_slice = data_set[param.name].values
 
@@ -464,21 +464,22 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
             if 'provenance' not in pd_data:
                 pd_data['provenance'] = {}
             # Add additonal delivery methods here to generate provenance for cabled streams.
-            if key.method not in ['streamed',] or not stream_request.include_provenance:
+            if key.method not in ['streamed', ] or not stream_request.include_provenance:
                 # Add non-param data to particle
                 pd_data['provenance'][key.as_refdes()] = {
                     'data': data_set.provenance.values.astype('str'),
                     'source': key.as_dashed_refdes()
                 }
                 if stream_request.include_provenance:
-                    provenance_metadata.update_provenance(fetch_l0_provenance(key, data_set.provenance.values.astype('str'), dep_num))
+                    provenance_metadata.update_provenance(
+                        fetch_l0_provenance(key, data_set.provenance.values.astype('str'), dep_num))
             else:
                 # Get the ids for times and get the provenance information
                 prov_ids, prov_dict = get_streaming_provenance(key, data_set['time'].values)
                 provenance_metadata.update_streaming_provenance(prov_dict)
                 pd_data['provenance'][key.as_refdes()] = {
-                    'data' : prov_ids,
-                    'source' : key.as_dashed_refdes()
+                    'data': prov_ids,
+                    'source': key.as_dashed_refdes()
                 }
 
             if 'deployment' not in pd_data:
@@ -503,8 +504,8 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
             }
 
             stream_data[dep_num] = pd_data
-   
-    refdes_lengths = {} # used for checking that all data returned from a refdes is the same length
+
+    refdes_lengths = {}  # used for checking that all data returned from a refdes is the same length
     for dep_num in primary_deployments:
         pd_data = stream_data[dep_num]
 
@@ -523,7 +524,8 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
         for pd_arg in stream_request.found_args:
             time_param = CachedParameter.from_id(pd_arg.stream_key.stream.time_parameter)
             if time_param.parameter_type == FUNCTION and time_param.id not in found_time_params:
-                calculate_derived_product(time_param, stream_request.coefficients, pd_data, primary_key, provenance_metadata, stream_request, dep_num, refdes_lengths)
+                calculate_derived_product(time_param, stream_request.coefficients, pd_data, primary_key,
+                                          provenance_metadata, stream_request, dep_num, refdes_lengths)
 
                 if time_param.id not in pd_data or pd_arg.stream_key.as_refdes() not in pd_data[time_param.id]:
                     raise MissingTimeException("Time param (PD%s) is missing for PD%s" % (time_param.id, pd_arg.pdid))
@@ -534,7 +536,8 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
             if param.id not in pd_data:
                 if param.parameter_type == FUNCTION:
                     # calculate inserts derived products directly into pd_data
-                    calculate_derived_product(param, stream_request.coefficients, pd_data, primary_key, provenance_metadata, stream_request, dep_num, refdes_lengths)
+                    calculate_derived_product(param, stream_request.coefficients, pd_data, primary_key,
+                                              provenance_metadata, stream_request, dep_num, refdes_lengths)
                 else:
                     log.warning("Required parameter not present: {}".format(param.name))
             if stream_request.qc_parameters.get(param.name) is not None \
@@ -549,6 +552,7 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
     sd = StreamData(stream_request, stream_data, provenance_metadata, annotation_store)
     return sd
 
+
 def set_dep_location_pd_data(stream_request, pd_data, depl_num):
     set_pd_data_from_deployment(stream_request, pd_data, depl_num, 'lat', 'lat')
     set_pd_data_from_deployment(stream_request, pd_data, depl_num, 'lon', 'lon')
@@ -557,9 +561,7 @@ def set_dep_location_pd_data(stream_request, pd_data, depl_num):
         set_geospatial(pd_data, stream_request)
 
 
-
 def set_pd_data_from_deployment(stream_request, pd_data, depl_num, depl_name, pd_name):
-
     base_key = stream_request.stream_keys[0]
 
     # get value from the deployment data field, depl_name -- e.g., 'lat', 'lon'
@@ -585,7 +587,8 @@ def set_pd_data_from_deployment(stream_request, pd_data, depl_num, depl_name, pd
         main_times = pd_data[time_stream_key.stream.time_parameter][time_stream_refdes]['data']
         np_array = make_nparray(value, main_times)
 
-        log.info("Inserting deployment parameter, \'%s\', into %s as %s: %s", depl_name, base_key.as_refdes(), pd_name, value)
+        log.info("Inserting deployment parameter, \'%s\', into %s as %s: %s", depl_name, base_key.as_refdes(), pd_name,
+                 value)
 
         if pd_name not in pd_data:
             pd_data[pd_name] = {}
@@ -596,7 +599,8 @@ def set_pd_data_from_deployment(stream_request, pd_data, depl_num, depl_name, pd
         }
     else:
         log.warn("Failed to set time parameter-id for %s: %s not in pd_data",
-                  base_key.as_refdes(), base_key.stream.time_parameter)
+                 base_key.as_refdes(), base_key.stream.time_parameter)
+
 
 def get_deployment_datum(stream_request, base_key, depl_num, depl_name, default_value=None):
     refdes_key = base_key.as_three_part_refdes()
@@ -613,6 +617,7 @@ def get_deployment_datum(stream_request, base_key, depl_num, depl_name, default_
 
     return value
 
+
 def make_nparray(value, main_times):
     # Replicate geo values across all particles in pd_data
     a = numpy.zeros(shape=(len(main_times)))
@@ -624,10 +629,8 @@ def make_nparray(value, main_times):
     return a
 
 
-
 @log_timing(log)
 def set_geospatial(pd_data, stream_request):
-
     primary_stream = stream_request.stream_keys[0].stream
     primary_key = stream_request.stream_keys[0]
 
@@ -636,12 +639,12 @@ def set_geospatial(pd_data, stream_request):
 
     lat_sk = stream_request.lat_stream_key
     if pd_data.get(lat_sk.stream.time_parameter, {}).has_key(lat_sk.as_refdes()) and \
-       pd_data.get(primary_stream.lat_param_id, {}).has_key(lat_sk.as_refdes()):
-       
+            pd_data.get(primary_stream.lat_param_id, {}).has_key(lat_sk.as_refdes()):
+
         if primary_stream.lat_param_id is not None:
             interped_data = interpolate_list(primary_stream_len,
-                                           pd_data[lat_sk.stream.time_parameter][lat_sk.as_refdes()]['data'],
-                                           pd_data[primary_stream.lat_param_id][lat_sk.as_refdes()]['data'])
+                                             pd_data[lat_sk.stream.time_parameter][lat_sk.as_refdes()]['data'],
+                                             pd_data[primary_stream.lat_param_id][lat_sk.as_refdes()]['data'])
             if 'lat' not in pd_data:
                 pd_data['lat'] = {}
             pd_data['lat'][primary_key.as_refdes()] = {
@@ -651,11 +654,11 @@ def set_geospatial(pd_data, stream_request):
 
     lon_sk = stream_request.lon_stream_key
     if pd_data.get(lat_sk.stream.time_parameter, {}).has_key(lat_sk.as_refdes()) and \
-       pd_data.get(primary_stream.lon_param_id, {}).has_key(lon_sk.as_refdes()):
+            pd_data.get(primary_stream.lon_param_id, {}).has_key(lon_sk.as_refdes()):
         if primary_stream.lat_param_id is not None:
             interped_data = interpolate_list(primary_stream_len,
-                                        pd_data[lon_sk.stream.time_parameter][lon_sk.as_refdes()]['data'],
-                                        pd_data[primary_stream.lon_param_id][lon_sk.as_refdes()]['data'])
+                                             pd_data[lon_sk.stream.time_parameter][lon_sk.as_refdes()]['data'],
+                                             pd_data[primary_stream.lon_param_id][lon_sk.as_refdes()]['data'])
             if 'lon' not in pd_data:
                 pd_data['lon'] = {}
             pd_data['lon'][primary_key.as_refdes()] = {
@@ -669,14 +672,17 @@ def _qc_check(stream_request, parameter, pd_data, primary_key):
     qcs = stream_request.qc_parameters.get(parameter.name)
     local_qc_args = defaultdict(dict)
     for function_name in qcs:
-        for qcp in qcs[function_name].keys(): #vector qc parameters are the only ones with string values and need populating
-            if qcs[function_name][qcp] == 'time': #populate time vectors with particle times
-                local_qc_args[function_name][qcp] =  pd_data[primary_key.stream.time_parameter][primary_key.as_refdes()]['data'][:]
-            elif qcs[function_name][qcp] == 'data': #populate data vectors with particle data
+        for qcp in qcs[
+            function_name].keys():  # vector qc parameters are the only ones with string values and need populating
+            if qcs[function_name][qcp] == 'time':  # populate time vectors with particle times
+                local_qc_args[function_name][qcp] = pd_data[primary_key.stream.time_parameter][primary_key.as_refdes()][
+                                                        'data'][:]
+            elif qcs[function_name][qcp] == 'data':  # populate data vectors with particle data
                 local_qc_args[function_name][qcp] = pd_data[parameter.id][primary_key.as_refdes()]['data']
             elif isinstance(qcs[function_name][qcp], basestring):
-                for p in stream_request.parameters: #populate stream parameter vectors with data from that stream
-                    if p.name.encode('ascii', 'ignore') == qcs[function_name][qcp] and pd_data.get(p.id, {}).get(primary_key.as_refdes(), {}).get('data') is not None:
+                for p in stream_request.parameters:  # populate stream parameter vectors with data from that stream
+                    if p.name.encode('ascii', 'ignore') == qcs[function_name][qcp] and pd_data.get(p.id, {}).get(
+                            primary_key.as_refdes(), {}).get('data') is not None:
                         local_qc_args[function_name][qcp] = pd_data[p.id][primary_key.as_refdes()]['data']
                         break
             else:
@@ -699,26 +705,31 @@ def _qc_check(stream_request, parameter, pd_data, primary_key):
 @log_timing(log)
 def interpolate_list(desired_time, data_time, data):
     if len(data) == 0:
-        raise InvalidInterpolationException("Can't perform interpolation, data is empty".format(len(data_time), len(data)))
+        raise InvalidInterpolationException(
+            "Can't perform interpolation, data is empty".format(len(data_time), len(data)))
 
     if len(data_time) != len(data):
-        raise InvalidInterpolationException("Can't perform interpolation, time len ({}) does not equal data len ({})".format(len(data_time), len(data)))
+        raise InvalidInterpolationException(
+            "Can't perform interpolation, time len ({}) does not equal data len ({})".format(len(data_time), len(data)))
 
     try:
         float(data[0])  # check that data can be interpolated
     except (ValueError, TypeError):
-        raise InvalidInterpolationException("Can't perform interpolation, type ({}) cannot be interpolated".format(type(data[0])))
+        raise InvalidInterpolationException(
+            "Can't perform interpolation, type ({}) cannot be interpolated".format(type(data[0])))
     else:
         mask = numpy.logical_not(isfillvalue(data))
         data_time = numpy.asarray(data_time)[mask]
         data = numpy.asarray(data)[mask]
         if len(data) == 0:
-            raise InvalidInterpolationException("Can't perform interpolation, data is empty".format(len(data_time), len(data)))
+            raise InvalidInterpolationException(
+                "Can't perform interpolation, data is empty".format(len(data_time), len(data)))
         return sp.interp(desired_time, data_time, data)
 
 
 @log_timing(log)
-def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_metadata, stream_request, deployment, refdes_lengths, level=1):
+def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_metadata, stream_request, deployment,
+                              refdes_lengths, level=1):
     """
     Calculates a derived product by (recursively) calulating its derived products.
 
@@ -733,7 +744,7 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
     log.info("{}Running dpa for {} (PD{}){{".format(spaces[:-4], param.name, param.id))
 
     func_map = param.parameter_function_map
-    rev_func_map = {v : k for k,v in func_map.iteritems()}
+    rev_func_map = {v: k for k, v in func_map.iteritems()}
     ref_to_name = {}
     for i in rev_func_map:
         if PDArgument.is_pd(i):
@@ -806,7 +817,8 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
 
     calc_id = None
     try:
-        args, arg_meta, messages = build_func_map(param, coeffs, pd_data, parameter_key, deployment, stream_request, spaces)
+        args, arg_meta, messages = build_func_map(param, coeffs, pd_data, parameter_key, deployment, stream_request,
+                                                  spaces)
         provenance_metadata.add_messages(messages)
         data, version = execute_dpa(param, args)
 
@@ -817,8 +829,8 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
         if parameter_key in refdes_lengths:
             if len(data) != refdes_lengths[parameter_key]:
                 raise StreamEngineException(
-                    "length of data returned does not match other params in refdes, refdes len: {}, data len: {}"
-                    .format( refdes_lengths[parameter_key], len(data)))
+                        "length of data returned does not match other params in refdes, refdes len: {}, data len: {}"
+                            .format(refdes_lengths[parameter_key], len(data)))
         else:
             refdes_lengths[parameter_key] = len(data)
 
@@ -838,7 +850,7 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
             else:
                 calc_meta['arguments'][k] = v
     except StreamEngineException as e:
-        #build an error dictonary to pass to computed provenance.
+        # build an error dictonary to pass to computed provenance.
         error_info = e.payload
         if error_info is None:
             provenance_metadata.calculated_metatdata.errors.append(e.message)
@@ -853,13 +865,14 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
                 error_info['missing_id'] = error_parameter.id
                 error_info['missing_name'] = error_parameter.name
                 error_info['missing_display_name'] = error_parameter.display_name
-                error_info['missing_possible_stream_names'] = [CachedStream.from_id(s).name for s in error_parameter.streams]
+                error_info['missing_possible_stream_names'] = [CachedStream.from_id(s).name for s in
+                                                               error_parameter.streams]
                 error_info['missing_possible_stream_ids'] = [s for s in error_parameter.streams]
 
             error_info['message'] = e.message
             provenance_metadata.calculated_metatdata.errors.append(error_info)
 
-        #To support netcdf aggregation we need to fill all missing values across all files in case it is defined in all other locations.
+        # To support netcdf aggregation we need to fill all missing values across all files in case it is defined in all other locations.
         shp = get_shape(param, parameter_key, pd_data)
         data = numpy.empty(shape=shp, dtype=param.value_encoding)
         data.fill(param.fill_value)
@@ -878,14 +891,16 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
 
     return calc_id
 
+
 def get_shape(param, base_key, pd_data):
     tp = base_key.stream.time_parameter
     try:
         main_times = pd_data[tp][base_key.as_refdes()]['data']
     except KeyError:
-        raise MissingTimeException("Could not find time parameter %s for %s" % (tp, stream_key))
-    # TODO Populate preload with shape information so we can return the shape values for now only filling with no dimension
-    return (len(main_times),)
+        raise MissingTimeException("Could not find time parameter %s for %s" % (tp, base_key))
+    # TODO Populate preload with shape information so we can
+    # return the shape values for now only filling with no dimension
+    return len(main_times),
 
 
 @log_timing(log)
@@ -906,16 +921,18 @@ def execute_dpa(parameter, kwargs):
                 dpa_function = getattr(module, func.function)
                 result = getattr(module, func.function)(**kwargs)
             except Exception as e:
-                to_attach= {'type' : 'FunctionError', "parameter" : parameter, 'function' : str(func.id) + " " + str(func.description)}
+                to_attach = {'type': 'FunctionError', "parameter": parameter,
+                             'function': str(func.id) + " " + str(func.description)}
                 raise StreamEngineException('DPA threw exception: %s' % e, payload=to_attach)
         elif func.function_type == 'NumexprFunction':
             try:
                 result = numexpr.evaluate(func.function, kwargs)
             except Exception as e:
-                to_attach= {'type' : 'FunctionError', "parameter" : parameter, 'function' : str(func.id) + " " + str(func.description)}
+                to_attach = {'type': 'FunctionError', "parameter": parameter,
+                             'function': str(func.id) + " " + str(func.description)}
                 raise StreamEngineException('Numexpr function threw exception: %s' % e, payload=to_attach)
         else:
-            to_attach= {'type' : 'UnkownFunctionError', "parameter" : parameter, 'function' : str(func.function_type)}
+            to_attach = {'type': 'UnkownFunctionError', "parameter": parameter, 'function': str(func.function_type)}
             raise UnknownFunctionTypeException(func.function_type, payload=to_attach)
 
         return result, version
@@ -944,11 +961,12 @@ def build_func_map(parameter, coefficients, pd_data, base_key, deployment, strea
         time_stream_key = base_key
 
     if time_stream_key is None:
-        to_attach = {'type' : 'TimeMissingError', 'parameter' : parameter}
+        to_attach = {'type': 'TimeMissingError', 'parameter': parameter}
         raise MissingTimeException("Could not find time parameter for dpa", payload=to_attach)
 
     time_stream_refdes = time_stream_key.as_refdes()
-    if time_stream_key.stream.time_parameter in pd_data and time_stream_refdes in pd_data[time_stream_key.stream.time_parameter]:
+    if time_stream_key.stream.time_parameter in pd_data and time_stream_refdes in pd_data[
+        time_stream_key.stream.time_parameter]:
         main_times = pd_data[time_stream_key.stream.time_parameter][time_stream_refdes]['data']
         time_meta['type'] = 'time_source'
         time_meta['source'] = pd_data[time_stream_key.stream.time_parameter][time_stream_refdes]['source']
@@ -957,7 +975,7 @@ def build_func_map(parameter, coefficients, pd_data, base_key, deployment, strea
         time_meta['type'] = 'time_source'
         time_meta['source'] = pd_data[7][time_stream_refdes]['source']
     else:
-        to_attach = {'type' : 'TimeMissingError', 'parameter' : parameter}
+        to_attach = {'type': 'TimeMissingError', 'parameter': parameter}
         raise MissingTimeException("Could not find time parameter for dpa", payload=to_attach)
     time_meta['begin'] = main_times[0]
     time_meta['end'] = main_times[-1]
@@ -997,10 +1015,10 @@ def build_func_map(parameter, coefficients, pd_data, base_key, deployment, strea
             param_meta['iterpolated'] = True
             param_meta['time_start'] = data_time[0]
             param_meta['time_startDT'] = ntp_to_datestring(data_time[0])
-            param_meta['time_end'] =  data_time[-1]
+            param_meta['time_end'] = data_time[-1]
             param_meta['time_endDT'] = ntp_to_datestring(data_time[-1])
             try:
-                param_meta['deployments'] = list(set(pd_data['deployment'][data_stream_refdes]['data']))
+                param_meta['deployments'] = list(set(pd_data['deployment'][main_stream_refdes]['data']))
             except:
                 pass
             #############
@@ -1014,46 +1032,48 @@ def build_func_map(parameter, coefficients, pd_data, base_key, deployment, strea
                     CC_argument, CC_meta = build_CC_argument(framed_CCs, main_times, deployment)
                 except StreamEngineException as e:
                     to_attach = {
-                        'type' : 'CCTimeError', 'parameter' : parameter, 'begin' : main_times[0], 'end' : main_times[-1],
-                        'beginDT' : ntp_to_datestring(main_times[0]), 'endDT' : ntp_to_datestring(main_times[-1]),
-                        'CC_present' : coefficients.keys(), 'missing_argument_name' : key
+                        'type': 'CCTimeError', 'parameter': parameter, 'begin': main_times[0], 'end': main_times[-1],
+                        'beginDT': ntp_to_datestring(main_times[0]), 'endDT': ntp_to_datestring(main_times[-1]),
+                        'CC_present': coefficients.keys(), 'missing_argument_name': key
                     }
                     raise CoefficientUnavailableException(e.message, payload=to_attach)
                 nan_locs = numpy.isnan(CC_argument)
                 if numpy.all(nan_locs):
                     to_attach = {
-                        'type' : 'CCTimeError', 'parameter' : parameter, 'begin' : main_times[0], 'end' : main_times[-1],
-                        'beginDT' : ntp_to_datestring(main_times[0]), 'endDT' : ntp_to_datestring(main_times[-1]),
-                        'CC_present' : coefficients.keys(), 'missing_argument_name' : key
-                                 }
-                    raise CoefficientUnavailableException('Coefficient %s missing for all times in range (%s, %s)' % (name, ntp_to_datestring(main_times[0]), ntp_to_datestring(main_times[-1])), payload=to_attach)
+                        'type': 'CCTimeError', 'parameter': parameter, 'begin': main_times[0], 'end': main_times[-1],
+                        'beginDT': ntp_to_datestring(main_times[0]), 'endDT': ntp_to_datestring(main_times[-1]),
+                        'CC_present': coefficients.keys(), 'missing_argument_name': key
+                    }
+                    raise CoefficientUnavailableException('Coefficient %s missing for all times in range (%s, %s)' % (
+                    name, ntp_to_datestring(main_times[0]), ntp_to_datestring(main_times[-1])), payload=to_attach)
                 if numpy.any(nan_locs):
                     msg = "There was not Coefficeient data for {:s} all times in deployment {:d} in range ({:s} {:s})".format(
-                        name, deployment,
-                        ntp_to_datestring(main_times[0]), ntp_to_datestring(main_times[-1]))
-                    log.warn(spaces[:-3]+msg)
+                            name, deployment,
+                            ntp_to_datestring(main_times[0]), ntp_to_datestring(main_times[-1]))
+                    log.warn(spaces[:-3] + msg)
                     messages.append(msg)
                 args[key] = CC_argument
                 arg_metadata[key] = CC_meta
             else:
                 to_attach = {
-                    'type' : 'CCMissingError', 'parameter' : parameter, 'begin' : main_times[0], 'end' : main_times[-1],
-                    'beginDT' : ntp_to_datestring(main_times[0]), 'endDT' : ntp_to_datestring(main_times[-1]),
-                    'CC_present' : coefficients.keys(), 'missing_argument_name' : key
+                    'type': 'CCMissingError', 'parameter': parameter, 'begin': main_times[0], 'end': main_times[-1],
+                    'beginDT': ntp_to_datestring(main_times[0]), 'endDT': ntp_to_datestring(main_times[-1]),
+                    'CC_present': coefficients.keys(), 'missing_argument_name': key
                 }
                 raise CoefficientUnavailableException('Coefficient %s not provided' % name, payload=to_attach)
         elif NumericArgument.is_num(val):
             args[key] = [func_map[key]] * len(main_times)
-            arg_metadata[key] = {'type' : 'constant', 'value' : val}
+            arg_metadata[key] = {'type': 'constant', 'value': val}
         else:
-            to_attach = {'type' : 'UnknownParameter', 'parameter' : parameter, 'value' : str(func_map[key]),
-                         'missing_argument_name' : key}
+            to_attach = {'type': 'UnknownParameter', 'parameter': parameter, 'value': str(func_map[key]),
+                         'missing_argument_name': key}
             raise StreamEngineException('Unable to resolve parameter \'%s\' in PD%s %s' %
                                         (func_map[key], parameter.id, parameter.name), payload=to_attach)
     return args, arg_metadata, messages
 
+
 def get_framed_CCs(stream_request, coefficients, pd_data, base_key, name):
-    framed_CCs = coefficients[name] 
+    framed_CCs = coefficients[name]
     return framed_CCs
 
 
@@ -1100,7 +1120,8 @@ def build_CC_argument(frames, times, deployment):
         frames = [f for f in frames if any(in_range(f, times)) and f[3] == deployment]
 
     if len(frames) == 0:
-        raise StreamEngineException('Unable to build cc arguments for algorithm: no cc exists that matches times and deployment')
+        raise StreamEngineException(
+            'Unable to build cc arguments for algorithm: no cc exists that matches times and deployment')
 
     try:
         sample_value = frames[0][2]
@@ -1116,20 +1137,20 @@ def build_CC_argument(frames, times, deployment):
     values = []
     try:
         for frame in frames:
-            values.append({'CC_begin' : frame[0], 'CC_stop' : frame[1], 'value' : frame[2], 'deployment' : frame[3],
-                       'CC_beginDT' : ntp_to_datestring(frame[0]), 'CC_stopDT' : ntp_to_datestring(frame[1])})
+            values.append({'CC_begin': frame[0], 'CC_stop': frame[1], 'value': frame[2], 'deployment': frame[3],
+                           'CC_beginDT': ntp_to_datestring(frame[0]), 'CC_stopDT': ntp_to_datestring(frame[1])})
             mask = in_range(frame, times)
             cc[mask] = frame[2]
     except ValueError, e:
         raise StreamEngineException('Unable to build cc arguments for algorithm: {}'.format(e))
     cc_meta = {
-        'sources' : values,
-        'data_begin' :  st,
-        'data_end' : et,
-        'beginDT' : startDt,
-        'endDT' : endDt,
-        'type' : 'CC',
-        }
+        'sources': values,
+        'data_begin': st,
+        'data_end': et,
+        'beginDT': startDt,
+        'endDT': endDt,
+        'type': 'CC',
+    }
     return cc, cc_meta
 
 
@@ -1138,6 +1159,7 @@ class StreamRequest(object):
     Stores the information from a request, and calculates the required
     parameters and their streams
     """
+
     def __init__(self, stream_keys, parameters, coefficients, time_range, qc_parameters={}, needs_only=False,
                  limit=None, include_provenance=False, include_annotations=False, strict_range=False,
                  location_information={}, request_id=''):
@@ -1199,8 +1221,6 @@ class StreamRequest(object):
             [provided_pd.add(p.id) for p in stream_key.stream.parameters]
             [provided_fqn.add((p.id, stream_key.stream_name)) for p in stream_key.stream.parameters]
 
-        distinct_sensors = get_distinct_sensors()
-
         # remove already provided params
         provided_by_main = set()
         for arg in needs:
@@ -1243,57 +1263,64 @@ class StreamRequest(object):
                 raise StreamEngineException("Found invalid argument type: {}".format(type(arg)), status_code=500)
 
             possible_streams = [CachedStream.from_id(s) for s in possible_streams]
-            found_stream_key = find_stream(self.stream_keys[0], possible_streams, distinct_sensors)
+            found_stream_key = find_stream(self.stream_keys[0], possible_streams)
 
             if found_stream_key is not None and found_stream_key not in self.stream_keys:
                 self.stream_keys.append(found_stream_key)
                 fsk = found_stream_key
                 found_args = found_args.union(PDArgument(p.id, fsk) for p in fsk.stream.parameters)
-                found_args = found_args.union(DPIArgument(p.data_product_identifier, p.id, fsk) for p in fsk.stream.parameters)
-                found_args = found_args.union(FQNArgument(p.id, found_stream_key.stream.name, fsk) for p in fsk.stream.parameters)
+                found_args = found_args.union(
+                        DPIArgument(p.data_product_identifier, p.id, fsk) for p in fsk.stream.parameters)
+                found_args = found_args.union(
+                        FQNArgument(p.id, found_stream_key.stream.name, fsk) for p in fsk.stream.parameters)
             else:
                 # if we couldn't find a providing stream key, the arg might be provided by a virtual stream
                 for s in possible_streams:
                     if s.is_virtual:
-                        found_stream_key = find_stream(primary_key, s.source_streams, distinct_sensors)
+                        found_stream_key = find_stream(primary_key, s.source_streams)
 
                         if found_stream_key is not None:
                             for product_stream in found_stream_key.stream.product_streams:
                                 new_sk = StreamKey(found_stream_key.subsite,
-                                        found_stream_key.node,
-                                        found_stream_key.sensor,
-                                        found_stream_key.method,
-                                        product_stream.name)
+                                                   found_stream_key.node,
+                                                   found_stream_key.sensor,
+                                                   found_stream_key.method,
+                                                   product_stream.name)
 
-                                found_args = found_args.union(PDArgument(p.id, new_sk) for p in product_stream.parameters)
-                                found_args = found_args.union(DPIArgument(p.data_product_identifier, p.id, new_sk) for p in product_stream.parameters)
-                                found_args = found_args.union(FQNArgument(p.id, found_stream_key.stream.name, new_sk) for p in product_stream.parameters)
+                                found_args = found_args.union(
+                                        PDArgument(p.id, new_sk) for p in product_stream.parameters)
+                                found_args = found_args.union(
+                                        DPIArgument(p.data_product_identifier, p.id, new_sk) for p in
+                                        product_stream.parameters)
+                                found_args = found_args.union(
+                                        FQNArgument(p.id, found_stream_key.stream.name, new_sk) for p in
+                                        product_stream.parameters)
 
                                 if new_sk not in self.stream_keys:
                                     self.stream_keys.append(new_sk)
 
-        self.found_args = {arg:arg for arg in found_args}
+        self.found_args = {arg: arg for arg in found_args}
         self.needs_params = needs.difference(x for x in needs if x in found_args)
 
         # Find streams that provide location data
-        #lat
-        found_stream_key = find_stream(primary_key, primary_key.stream.lat_stream, distinct_sensors)
+        # lat
+        found_stream_key = find_stream(primary_key, primary_key.stream.lat_stream)
         if found_stream_key is not None:
             self.lat_stream_key = found_stream_key
             self.stream_keys.append(found_stream_key)
         else:
             log.error("Couldn't find stream to provide lat data")
 
-        #lon
-        found_stream_key = find_stream(primary_key, primary_key.stream.lon_stream, distinct_sensors)
+        # lon
+        found_stream_key = find_stream(primary_key, primary_key.stream.lon_stream)
         if found_stream_key is not None:
             self.lon_stream_key = found_stream_key
             self.stream_keys.append(found_stream_key)
         else:
             log.error("Couldn't find stream to provide lon data")
 
-        #depth
-        found_stream_key = find_stream(primary_key, primary_key.stream.depth_stream, distinct_sensors)
+        # depth
+        found_stream_key = find_stream(primary_key, primary_key.stream.depth_stream)
         if found_stream_key is not None:
             self.depth_stream_key = found_stream_key
             self.stream_keys.append(found_stream_key)
@@ -1307,24 +1334,25 @@ class StreamRequest(object):
             found_pressure_param = None
             matching_stream_keys = []
             for param in depth_parameters:
-                possible_stream = find_stream(primary_key, [CachedStream.from_id(s) for s in param.streams], distinct_sensors)
+                possible_stream = find_stream(primary_key, [CachedStream.from_id(s) for s in param.streams])
                 if possible_stream is not None:
                     matching_stream_keys.append(possible_stream)
-            
+
             for stream_key in matching_stream_keys:
                 # if matching stream is colocated
                 if stream_key.node == primary_key.node:
                     found_pressure_stream_key = stream_key
 
             if found_pressure_stream_key is not None:
-                intersection_of_params = set(found_pressure_stream_key.stream.parameters).intersection(set(depth_parameters))
+                intersection_of_params = set(found_pressure_stream_key.stream.parameters).intersection(
+                    set(depth_parameters))
                 if len(intersection_of_params) > 0:
                     found_pressure_param = list(intersection_of_params)[0]
 
                 if found_pressure_stream_key is not None and found_pressure_param is not None:
                     primary_key.stream.depth_stream_id = found_pressure_stream_key.stream.id
                     primary_key.stream.depth_param_id = found_pressure_param.id
-                    self.stream_keys.append(found_pressure_stream_key) 
+                    self.stream_keys.append(found_pressure_stream_key)
                 else:
                     log.error("Could not find stream key that defines a valid pressure parameter")
             else:
@@ -1366,10 +1394,12 @@ class StreamRequest(object):
                       self.stream_keys[0])
             self.time_range = TimeRange(start, stop)
 
+
 def send_query_for_instrument(url):
     results = requests.get(url)
     jres = results.json()
     return jres
+
 
 class ProvenanceMetadataStore(object):
     def __init__(self, request_uuid):
@@ -1401,17 +1431,16 @@ class ProvenanceMetadataStore(object):
     def get_provenance_dict(self):
         return self._prov_dict
 
-    def add_instrument_provenance(self, stream_key, st, et ):
+    def add_instrument_provenance(self, stream_key, st, et):
         url = app.config['ASSET_URL'] + 'assets/byReferenceDesignator/{:s}/{:s}/{:s}?startDT={:s}?endDT={:s}'.format(
-            stream_key.subsite, stream_key.node, stream_key.sensor,ntp_to_ISO_date(st), ntp_to_ISO_date(et))
-        self._instrument_provenance[stream_key] =  get_pool().apply_async(send_query_for_instrument, (url,))
+                stream_key.subsite, stream_key.node, stream_key.sensor, ntp_to_ISO_date(st), ntp_to_ISO_date(et))
+        self._instrument_provenance[stream_key] = get_pool().apply_async(send_query_for_instrument, (url,))
 
     def get_instrument_provenance(self):
         vals = defaultdict(list)
         for key, value in self._instrument_provenance.iteritems():
             vals[key.as_three_part_refdes()].extend(value.get())
         return vals
-
 
     def add_query_metadata(self, stream_request, query_uuid, query_type):
         self._query_metadata = OrderedDict()
@@ -1440,7 +1469,7 @@ class CalculatedProvenanceMetadataStore(object):
         self.ref_map = defaultdict(list)
         self.errors = []
 
-    def insert_metadata(self, parameter, ref,  to_insert):
+    def insert_metadata(self, parameter, ref, to_insert):
         # check to see if we have a matching metadata call
         # if we do return that id otherwise store it.
         for call in self.params[parameter]:
@@ -1456,7 +1485,7 @@ class CalculatedProvenanceMetadataStore(object):
     def get_dict(self):
         """return dictonary representation"""
         res = {}
-        res['parameters'] = {parameter.name : v  for parameter, v in self.params.iteritems()}
+        res['parameters'] = {parameter.name: v for parameter, v in self.params.iteritems()}
         res['calculations'] = self.calls
         res['errors'] = self.errors
         return res
@@ -1476,7 +1505,7 @@ def dict_equal(d1, d2):
         if len(sd) > 0:
             return False
 
-        #otherwise loop through all the keys and check if the dicts and items are equal
+        # otherwise loop through all the keys and check if the dicts and items are equal
         for key, value in d1.iteritems():
             if key in d2:
                 if not dict_equal(d1[key], d2[key]):
@@ -1486,6 +1515,7 @@ def dict_equal(d1, d2):
     # check equality on other objects
     else:
         return d1 == d2
+
 
 class AnnotationStore(object):
     """
@@ -1511,13 +1541,13 @@ class AnnotationStore(object):
 
 
 def query_annotations(key, time_range):
-    '''
+    """
     Query edex for annotations on a stream request.
     :param stream_request: Stream request
     :param key: "Key from fetch pd data"
     :param time_range: Time range to use  (float, float)
     :return:
-    '''
+    """
 
     # Query Cassandra annotations table
     result = fetch_annotations(key, time_range)
@@ -1528,11 +1558,11 @@ def query_annotations(key, time_range):
 
     for r in result:
         # Annotations columns in order defined in cass.py
-        subsite,node,sensor,time1,time2,parameters,provenance,annotation,method,deployment,myid = r
+        subsite, node, sensor, time1, time2, parameters, provenance, annotation, method, deployment, myid = r
 
-        ref_des = '-'.join([subsite,node,sensor])
+        ref_des = '-'.join([subsite, node, sensor])
         startt = datetime.utcfromtimestamp(time1 - NTP_OFFSET_SECS).isoformat() + "Z"
-        endt = datetime.utcfromtimestamp(time2 - NTP_OFFSET_SECS).isoformat()+ "Z"
+        endt = datetime.utcfromtimestamp(time2 - NTP_OFFSET_SECS).isoformat() + "Z"
 
         # Add to JSON document
         anno = Annotation(ref_des, startt, endt, parameters, provenance, annotation, method, deployment, str(myid))
@@ -1542,7 +1572,6 @@ def query_annotations(key, time_range):
 
 
 class NetCDF_Generator(object):
-
     def __init__(self, stream_data, classic):
         self.stream_data = stream_data
         self.classic = classic
@@ -1562,16 +1591,16 @@ class NetCDF_Generator(object):
     @log_timing(log)
     def create_raw_files(self, path):
         file_paths = list()
-        base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],path)
+        base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], path)
         # ensure the directory structure is there
         if not os.path.isdir(base_path):
             os.makedirs(base_path)
         for stream_key, deployment, ds in self.stream_data.groups():
-                file_path = '%s/deployment%04d_%s.nc' % (base_path, deployment, stream_key.as_dashed_refdes())
-                self.to_netcdf(ds, file_path)
-                file_paths.append(file_path)
+            file_path = '%s/deployment%04d_%s.nc' % (base_path, deployment, stream_key.as_dashed_refdes())
+            self.to_netcdf(ds, file_path)
+            file_paths.append(file_path)
         # build json return
-        return json.dumps({'code' : 200, 'message' : str(file_paths) }, indent=2, separators=(',',': '))
+        return json.dumps({'code': 200, 'message': str(file_paths)}, indent=2, separators=(',', ': '))
 
     @log_timing(log)
     def create_zip(self):
@@ -1610,50 +1639,58 @@ class NetCDF_Generator(object):
         new_data_array.name = data_array.name
         return new_data_array
 
+
 @log_timing(log)
-def find_stream(stream_key, streams, distinct_sensors):
+def find_stream(stream_key, streams):
     """
-    Attempt to find a "related" sensor which provides one of these streams
-    :param stream_key
-    :return:
+    Given a primary source, attempt to find one of the supplied streams from the same instrument,
+    same node or same subsite
+    :param stream_key: StreamKey - defines the source of the primary stream
+    :param streams: List - list of target streams
+    :return: StreamKey if found, otherwise None
     """
-    if not isinstance(streams, list):
+    if not isinstance(streams, (list, tuple)):
         streams = [streams]
-    stream_map = {s.name: s for s in streams}
-    # check our specific reference designator first
-    for stream in get_streams(stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method):
-        if stream in stream_map:
+
+    stream_dictionary = build_stream_dictionary()
+    method = stream_key.method
+    subsite = stream_key.subsite
+    node = stream_key.node
+    sensor = stream_key.sensor
+
+    # Search the same reference designator
+    for stream in streams:
+        sensors = stream_dictionary.get(stream.name, {}).get(method, {}).get(subsite, {}).get(node, [])
+        if sensor in sensors:
             return StreamKey.from_dict({
-                "subsite": stream_key.subsite,
-                "node": stream_key.node,
-                "sensor": stream_key.sensor,
+                "subsite": subsite,
+                "node": node,
+                "sensor": sensor,
                 "method": stream_key.method,
-                "stream": stream
+                "stream": stream.name
             })
 
-    # check other reference designators in the same subsite-node
-    for subsite1, node1, sensor in distinct_sensors:
-        if subsite1 == stream_key.subsite and node1 == stream_key.node:
-            for stream in get_streams(stream_key.subsite, stream_key.node, sensor, stream_key.method):
-                if stream in stream_map:
-                    return StreamKey.from_dict({
-                        "subsite": stream_key.subsite,
-                        "node": stream_key.node,
-                        "sensor": sensor,
-                        "method": stream_key.method,
-                        "stream": stream
-                    })
+    # No streams from our target set exist on the same instrument. Check the same node
+    for stream in streams:
+        sensors = stream_dictionary.get(stream.name, {}).get(method, {}).get(subsite, {}).get(node, [])
+        if sensors:
+            return StreamKey.from_dict({
+                "subsite": subsite,
+                "node": node,
+                "sensor": sensors[0],
+                "method": stream_key.method,
+                "stream": stream.name
+            })
 
-    # check other reference designators in the same subsite
-    for subsite1, node, sensor in distinct_sensors:
-        if subsite1 == stream_key.subsite:
-            for stream in get_streams(stream_key.subsite, node, sensor, stream_key.method):
-                if stream in stream_map:
-                    return StreamKey.from_dict({
-                        "subsite": stream_key.subsite,
-                        "node": node,
-                        "sensor": sensor,
-                        "method": stream_key.method,
-                        "stream": stream
-                    })
-    return None
+    # No streams from our target set exist on the same node. Check the same subsite
+    for stream in streams:
+        subsite_dict = stream_dictionary.get(stream.name, {}).get(method, {}).get(subsite, {})
+        for node in subsite_dict:
+            if subsite_dict[node]:
+                return StreamKey.from_dict({
+                    "subsite": subsite,
+                    "node": node,
+                    "sensor": subsite_dict[node][0],
+                    "method": stream_key.method,
+                    "stream": stream.name
+                })

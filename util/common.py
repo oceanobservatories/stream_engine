@@ -77,7 +77,7 @@ def interpolate(times, data, interp_times):
     if numpy.array_equal(times, interp_times):
         return times, data
     try:
-        #data = data.astype('f64')
+        # data = data.astype('f64')
         data = griddata(times, data, interp_times, method='linear')
     except ValueError:
         data = last_seen(times, data, interp_times)
@@ -119,6 +119,7 @@ def log_timing(logger):
                 return func(*args, **kwargs)
 
         return inner
+
     return _log_timing
 
 
@@ -129,10 +130,11 @@ def parse_pdid(pdid_string):
         app.logger.warn('Unable to parse PDID: %s', pdid_string)
         return None
 
+
 def ntp_to_datestring(ntp_time):
     try:
         ntp_time = float(ntp_time)
-        return datetime.datetime.utcfromtimestamp( ntplib.ntp_to_system_time(ntp_time) ).strftime("%Y-%m-%d %H:%M:%S")
+        return datetime.datetime.utcfromtimestamp(ntplib.ntp_to_system_time(ntp_time)).strftime("%Y-%m-%d %H:%M:%S")
     except:
         return str(ntp_time)
 
@@ -144,7 +146,7 @@ def ISO_to_ntp(ds):
     Assuming it is in the form YYYY-MM-DDTHH-MM-SS.sssZ NO VALIDATION
     """
     dt_time = dateutil.parser.parse(ds)
-    diff = (dt_time - datetime.datetime(1900, 1,1)).total_seconds()
+    diff = (dt_time - datetime.datetime(1900, 1, 1)).total_seconds()
     return diff
 
 
@@ -156,6 +158,7 @@ def ntp_to_ISO_date(ntp_time):
     except Exception as e:
         return str(ntp_time)
 
+
 class TimeRange(object):
     def __init__(self, start, stop):
         self.start = start
@@ -166,6 +169,7 @@ class TimeRange(object):
 
     def __str__(self):
         return "{} - {}".format(self.start, self.stop)
+
 
 class Annotation(object):
     def __init__(self, refdes, start, end, parameters, provenance, annotation, method, deployment, ident):
@@ -181,15 +185,15 @@ class Annotation(object):
 
     def as_dict(self):
         return {
-        'referenceDesignator' : self.referenceDesignator,
-        'beginDT' : self.beginDT,
-        'endDT' : self.endDT,
-        'parameters' : self.parameters,
-        'provenance' : self.provenance,
-        'annotation' : self.annotation,
-        'method' : self.method,
-        'deployment' : self.deployment,
-        'id' : self.ident,
+            'referenceDesignator': self.referenceDesignator,
+            'beginDT': self.beginDT,
+            'endDT': self.endDT,
+            'parameters': self.parameters,
+            'provenance': self.provenance,
+            'annotation': self.annotation,
+            'method': self.method,
+            'deployment': self.deployment,
+            'id': self.ident,
         }
 
     def __eq__(self, other):
@@ -203,7 +207,8 @@ class Annotation(object):
     @staticmethod
     def from_dict(d):
         return Annotation(d["referenceDesignator"], d["beginDT"], d["endDT"], d["parameters"], d["provenance"],
-                            d["annotation"], d["method"], d["deployment"], d["id"])
+                          d["annotation"], d["method"], d["deployment"], d["id"])
+
 
 class StreamKey(object):
     def __init__(self, subsite, node, sensor, method, stream):
@@ -216,7 +221,8 @@ class StreamKey(object):
             stream_cache[stream] = CachedStream.from_stream(Stream.query.filter(Stream.name == stream).first())
         self.stream = stream_cache[stream]
         # convenience property
-        self.needs_cc = set().union(*[param.needs_cc for param in self.stream.parameters if param.parameter_type == FUNCTION])
+        self.needs_cc = set().union(
+            *[param.needs_cc for param in self.stream.parameters if param.parameter_type == FUNCTION])
 
     @staticmethod
     def from_dict(d):
@@ -269,6 +275,7 @@ class CachedStream(object):
     """
     Object to hold a cached version of the Stream DB object
     """
+
     @staticmethod
     def from_stream(stream):
         if stream.id not in stream_cache:
@@ -385,7 +392,7 @@ class CachedParameter(object):
             'unit': self.unit,
             'fill_value': self.fill_value,
             'display_name': self.display_name,
-            'standard_name' : self.standard_name,
+            'standard_name': self.standard_name,
             'precision': self.precision,
             'parameter_function_map': self.parameter_function_map,
             'data_product_identifier': self.data_product_identifier,
@@ -427,7 +434,7 @@ class CachedFunction(object):
         for function_id in function_cache:
             if function_cache.get(function_id).function.encode('ascii', 'ignore') == qc_function_name:
                 return function_cache.get(function_id)
-        ret = CachedFunction.from_function(ParameterFunction.query.filter_by(function = qc_function_name).first())
+        ret = CachedFunction.from_function(ParameterFunction.query.filter_by(function=qc_function_name).first())
         if ret is None:
             app.logger.warn('Unable to find QC function: %s', qc_function_name)
         return ret
@@ -483,6 +490,7 @@ class CoefficientUnavailableException(StreamEngineException):
     """
     status_code = 400
 
+
 class ParamUnavailableException(StreamEngineException):
     """
     Missing a required parameter
@@ -510,11 +518,13 @@ class AlgorithmException(StreamEngineException):
     """
     status_code = 500
 
+
 class MissingTimeException(StreamEngineException):
     """
     Internal error. A stream is missing its time parameter
     """
     status_code = 500
+
 
 class MissingDataException(StreamEngineException):
     """
@@ -522,11 +532,13 @@ class MissingDataException(StreamEngineException):
     """
     status_code = 400
 
+
 class MissingStreamMetadataException(StreamEngineException):
     """
     Internal error. Cassandra contains no metadata for the requested stream
     """
     status_code = 400
+
 
 class InvalidInterpolationException(StreamEngineException):
     """
@@ -534,11 +546,13 @@ class InvalidInterpolationException(StreamEngineException):
     """
     status_code = 500
 
+
 class UIHardLimitExceededException(StreamEngineException):
     """
     The limit on UI queries size was exceeded
     """
     status_code = 413
+
 
 class TimedOutException(Exception):
     pass
@@ -576,30 +590,32 @@ def fix_data_arrays(data, unpacked):
             for data_sub, unpacked_sub in zip(data, unpacked):
                 fix_data_arrays(data_sub, unpacked_sub)
 
+
 def to_xray_dataset(cols, data, stream_key, san=False):
     """
     Make an xray dataset from the raw cassandra data
     """
     if len(data) == 0:
         return None
-    params = {p.name : p for p in stream_key.stream.parameters if p.parameter_type != FUNCTION }
+    params = {p.name: p for p in stream_key.stream.parameters if p.parameter_type != FUNCTION}
     attrs = {
         'subsite': stream_key.subsite,
         'node': stream_key.node,
         'sensor': stream_key.sensor,
         'collection_method': stream_key.method,
         'stream': stream_key.stream.name,
-        'institution' : '{:s}'.format(app.config['NETCDF_INSTITUTION']),
-        'source' : '{:s}'.format(stream_key.as_dashed_refdes()),
-        'references' : '{:s}'.format(app.config['NETCDF_REFERENCE']),
-        'comment' : '{:s}'.format(app.config['NETCDF_COMMENT']),
+        'institution': '{:s}'.format(app.config['NETCDF_INSTITUTION']),
+        'source': '{:s}'.format(stream_key.as_dashed_refdes()),
+        'references': '{:s}'.format(app.config['NETCDF_REFERENCE']),
+        'comment': '{:s}'.format(app.config['NETCDF_COMMENT']),
     }
     if san:
         attrs['title'] = '{:s} for {:s}'.format("SAN offloaded netCDF", stream_key.as_dashed_refdes())
         attrs['history'] = '{:s} {:s}'.format(datetime.datetime.utcnow().isoformat(), 'generated netcdf for SAN')
     else:
         attrs['title'] = '{:s} for {:s}'.format(app.config['NETCDF_TITLE'], stream_key.as_dashed_refdes())
-        attrs['history'] = '{:s} {:s}'.format(datetime.datetime.utcnow().isoformat(), app.config['NETCDF_HISTORY_COMMENT'])
+        attrs['history'] = '{:s} {:s}'.format(datetime.datetime.utcnow().isoformat(),
+                                              app.config['NETCDF_HISTORY_COMMENT'])
     dataset = xray.Dataset(attrs=attrs)
     dataframe = pd.DataFrame(data=data, columns=cols)
     for column in dataframe.columns:
@@ -615,7 +631,7 @@ def to_xray_dataset(cols, data, stream_key, san=False):
 
         # Fix up the dimensions for possible multi-d objects
         dims = ['index']
-        coords = {'index' : dataframe.index}
+        coords = {'index': dataframe.index}
         if len(data.shape) > 1:
             for index, dim in enumerate(data.shape[1:]):
                 name = "{:s}_dim_{:d}".format(column, index)
@@ -644,7 +660,7 @@ def to_xray_dataset(cols, data, stream_key, san=False):
         else:
             array_attrs['long_name'] = column
 
-        dataset.update({column : xray.DataArray(data, dims=dims, attrs=array_attrs)})
+        dataset.update({column: xray.DataArray(data, dims=dims, attrs=array_attrs)})
 
     return dataset
 
@@ -677,7 +693,7 @@ def replace_values(data_slice, value_encoding, fill_value, is_array, name):
             shapes = filter(lambda x: len(x) == max_len, shapes)
             max_shape = max(shapes)
             shp = tuple([len(unpacked)] + list(max_shape))
-            data_slice= numpy.empty(shp, dtype=value_encoding)
+            data_slice = numpy.empty(shp, dtype=value_encoding)
             data_slice.fill(fill_value)
             try:
                 fix_data_arrays(data_slice, unpacked)
@@ -732,6 +748,7 @@ def replace_values(data_slice, value_encoding, fill_value, is_array, name):
                       name, value_encoding, e)
     return data_slice
 
+
 def compile_datasets(datasets):
     """
     Given a list of datasets. Possibly containing None. Return a single
@@ -758,8 +775,33 @@ def compile_datasets(datasets):
         idx = new_index[-1] + 1
     dataset = xray.concat(datasets, dim='index')
     sorted_idx = dataset.time.argsort()
-    dataset = dataset.reindex({'index' : sorted_idx})
+    dataset = dataset.reindex({'index': sorted_idx})
     return dataset
+
 
 def get_params_with_dpi(dpi):
     return Parameter.query.filter(Parameter.data_product_identifier == dpi)
+
+
+def timed_cache(expire_seconds):
+    """
+    Simple time-based cache. Only valid for functions which have no arguments
+    :param expire_seconds: time in seconds before cached result expires
+    :return:
+    """
+    cache = {'cache_time': 0, 'cache_value': None}
+
+    def expired():
+        return cache['cache_time'] + expire_seconds < time.time()
+
+    def wrapper(func):
+        @wraps(func)
+        def inner():
+            if expired():
+                cache['cache_value'] = func()
+                cache['cache_time'] = time.time()
+            return cache['cache_value']
+
+        return inner
+
+    return wrapper

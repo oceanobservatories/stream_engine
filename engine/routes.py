@@ -13,9 +13,9 @@ from engine import app
 from preload_database.model.preload import Stream
 import util.calc
 import util.aggregation
-from util.cass import stream_exists, time_to_bin, bin_to_time
+from util.cass import time_to_bin, bin_to_time
 from util.common import CachedParameter, StreamEngineException, MalformedRequestException, \
-    InvalidStreamException, StreamUnavailableException, InvalidParameterException, ISO_to_ntp, ntp_to_ISO_date, \
+    InvalidStreamException, InvalidParameterException, ISO_to_ntp, ntp_to_ISO_date, \
     StreamKey, MissingDataException, MissingTimeException, UIHardLimitExceededException, TimedOutException
 from util.san import onload_netCDF, SAN_netcdf
 
