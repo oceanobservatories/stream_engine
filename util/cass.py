@@ -61,7 +61,7 @@ where SUBSITE=? and NODE=? and SENSOR=? and METHOD=?
 
 STREAM_MD_RAW = \
     '''
-SELECT subsite, node, sensor, method FROM stream_metadata
+SELECT subsite, node, sensor, method, stream FROM stream_metadata
 '''
 
 L0_RAW = \
