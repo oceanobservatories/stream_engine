@@ -1,15 +1,16 @@
+import msgpack
 import logging
+import numpy
 import time
 import uuid
+
 from collections import deque, namedtuple
 from functools import wraps
 from itertools import izip
 from multiprocessing import BoundedSemaphore
 from multiprocessing.pool import Pool
-from threading import Lock, Thread
+from threading import Thread
 
-import msgpack
-import numpy
 from cassandra import ConsistencyLevel
 from cassandra.cluster import Cluster, QueryExhausted, ResponseFuture, PagedResult
 from cassandra.concurrent import execute_concurrent_with_args
@@ -102,10 +103,10 @@ def get_session():
         with multiprocess_lock:
             log.debug('Creating cassandra session')
             global_cassandra_state['cluster'] = Cluster(
-                    engine.app.config['CASSANDRA_CONTACT_POINTS'],
-                    control_connection_timeout=engine.app.config['CASSANDRA_CONNECT_TIMEOUT'],
-                    compression=True,
-                    protocol_version=3)
+                engine.app.config['CASSANDRA_CONTACT_POINTS'],
+                control_connection_timeout=engine.app.config['CASSANDRA_CONNECT_TIMEOUT'],
+                compression=True,
+                protocol_version=3)
 
     if global_cassandra_state.get('session') is None:
         with multiprocess_lock:
@@ -148,19 +149,6 @@ def cassandra_session(func):
         return func(*args, **kwargs)
 
     return inner
-
-
-class FakeFuture(ResponseFuture):
-    """
-    Class to utilize the ResponseFuture interface for a query already completed
-    """
-
-    def __init__(self, rows):
-        self._callback_lock = Lock()
-        self._errors = {}
-        self._callbacks = []
-        self._errbacks = []
-        self._final_result = rows
 
 
 class ConcurrentBatchFuture(ResponseFuture):
@@ -280,13 +268,13 @@ def get_query_columns(stream_key, session=None, prepared=None, query_consistency
 @log_timing(log)
 @cassandra_session
 def query_partition_metadata_before(stream_key, time_start, session=None, prepared=None, query_consistency=None):
-    '''
-    Return the last 4 bins before the the given time range.  Need to return 4 to account for some possibilites:
+    """
+    Return the last 4 bins before the the given time range.  Need to return 4 to account for some possibilities:
         Data is present in both SAN and CASS. Need 2 bins to choose location
         Data in current bin is all after the start of the time range:
             Need to check to make sure start time is before current time so need bins for fallback.
     :param stream_key:
-    :param time_range:
+    :param time_start:
     :return: Return a list of named tuples which contain the following information about metadata bins
     [
         [
@@ -297,17 +285,19 @@ def query_partition_metadata_before(stream_key, time_start, session=None, prepar
             last : last ntp time of data in the bin
         ],
     ]
-    '''
+    """
     query_name = "bin_meta_first_{:s}_{:s}_{:s}_{:s}_{:s}".format(stream_key.subsite, stream_key.node,
                                                                   stream_key.sensor,
                                                                   stream_key.method, stream_key.stream.name)
     start_bin = time_in_bin_units(time_start, stream_key.stream.name)
     if query_name not in prepared:
         base = (
-            "SELECT {:s} FROM partition_metadata WHERE stream = '{:s}' AND  refdes = '{:s}' AND method = '{:s}' AND bin <= ? ORDER BY method DESC, bin DESC LIMIT 4").format(
-                ','.join(PARTITION_COLUMNS), stream_key.stream.name,
-                '{:s}-{:s}-{:s}'.format(stream_key.subsite, stream_key.node, stream_key.sensor),
-                stream_key.method)
+            "SELECT {:s} FROM partition_metadata " +
+            "WHERE stream='{:s}' AND refdes='{:s}' AND method='{:s}' AND bin <= ? " +
+            "ORDER BY method DESC, bin DESC LIMIT 4").format(
+            ','.join(PARTITION_COLUMNS), stream_key.stream.name,
+            '{:s}-{:s}-{:s}'.format(stream_key.subsite, stream_key.node, stream_key.sensor),
+            stream_key.method)
         query = session.prepare(base)
         query.consistency_level = query_consistency
         prepared[query_name] = query
@@ -319,7 +309,7 @@ def query_partition_metadata_before(stream_key, time_start, session=None, prepar
 @log_timing(log)
 @cassandra_session
 def query_partition_metadata(stream_key, time_range, session=None, prepared=None, query_consistency=None):
-    '''
+    """
     Get the metadata entries for partitions that contain data within the time range.
     :param stream_key:
     :param time_range:
@@ -333,16 +323,17 @@ def query_partition_metadata(stream_key, time_range, session=None, prepared=None
             last : last ntp time of data in the bin
         ],
     ]
-    '''
+    """
     query_name = "bin_meta_{:s}_{:s}_{:s}_{:s}_{:s}".format(stream_key.subsite, stream_key.node, stream_key.sensor,
                                                             stream_key.method, stream_key.stream.name)
     start_bin = get_first_possible_bin(time_range.start, stream_key.stream.name)
     end_bin = time_in_bin_units(time_range.stop, stream_key.stream.name)
     if query_name not in prepared:
         base = (
-            "SELECT bin, store, count, first, last FROM partition_metadata WHERE stream = '{:s}' AND  refdes = '{:s}' AND method = '{:s}' AND bin >= ? and bin <= ?").format(
-                stream_key.stream.name, stream_key.as_three_part_refdes(),
-                stream_key.method)
+            "SELECT bin, store, count, first, last FROM partition_metadata " +
+            "WHERE stream = '{:s}' AND  refdes = '{:s}' AND method = '{:s}' AND bin >= ? and bin <= ?").format(
+            stream_key.stream.name, stream_key.as_three_part_refdes(),
+            stream_key.method)
         query = session.prepare(base)
         query.consistency_level = query_consistency
         prepared[query_name] = query
@@ -414,7 +405,7 @@ def get_first_before_metadata(stream_key, start_time):
      Cass metadata, San metadata, messages
 
     :param stream_key:
-    :param time_range:
+    :param start_time:
     :return:
     """
     res = query_partition_metadata_before(stream_key, start_time)
@@ -466,8 +457,8 @@ def get_location_metadata(stream_key, time_range):
                 if cass_count != san_count:
                     log.warn("Metadata count does not match for bin %d - SAN: %d  CASS: %d", key, san_count, cass_count)
                     messages.append(
-                            "Metadata count does not match for bin {:d} - SAN: {:d}  CASS: {:d} Took location with highest data count.".format(
-                                    key, san_count, cass_count))
+                        "Metadata count does not match for bin {:d} - SAN: {:d} " +
+                        "CASS: {:d} Took location with highest data count.".format(key, san_count, cass_count))
                     if cass_count > san_count:
                         san_bins.pop(key)
                         san_total -= san_count
@@ -485,8 +476,8 @@ def get_location_metadata(stream_key, time_range):
                 if cass_count != san_count:
                     log.warn("Metadata count does not match for bin %d - SAN: %d  CASS: %d", key, san_count, cass_count)
                     messages.append(
-                            "Metadata count does not match for bin {:d} - SAN: {:d}  CASS: {:d} Took location with highest data count.".format(
-                                    key, san_count, cass_count))
+                        "Metadata count does not match for bin {:d} - SAN: {:d} " +
+                        "CASS: {:d} Took location with highest data count.".format(key, san_count, cass_count))
                     if cass_count > san_count:
                         san_bins.pop(key)
                         san_total -= san_count
@@ -633,14 +624,14 @@ def fetch_data_sync(stream_key, time_range, strict_range=False, session=None, pr
     # attempt to find one data point beyond the requested start/stop times
     if not strict_range:
         first_statment = SimpleStatement(
-                base % (
+            base % (
                 'time', time_to_bin(start, stream_key.stream.name)) + ' and time<%s order by method desc limit 1',
-                (start,),
-                consistency_level=query_consistency)
+            (start,),
+            consistency_level=query_consistency)
         first = session.execute(first_statment)
         second_statement = SimpleStatement(
-                base % ('time', time_to_bin(stop, stream_key.stream.name)) + ' and time>%s limit 1', (stop,),
-                consistency_level=query_consistency
+            base % ('time', time_to_bin(stop, stream_key.stream.name)) + ' and time>%s limit 1', (stop,),
+            consistency_level=query_consistency
         )
         last = session.execute(second_statement)
         if first:
@@ -694,8 +685,9 @@ def fetch_l0_provenance(stream_key, provenance_values, deployment, session=None,
     if len(provenance_arguments) != len(records):
         log.warn("Could not find %d provenance entries", len(provenance_arguments) - len(records))
     prov_dict = {
-    str(row.id): {'file_name': row.file_name, 'parser_name': row.parser_name, 'parser_version': row.parser_version} for
-    row in records}
+        str(row.id): {'file_name': row.file_name, 'parser_name': row.parser_name, 'parser_version': row.parser_version}
+        for
+        row in records}
     return prov_dict
 
 
@@ -794,7 +786,7 @@ def sample_full_bins(stream_key, time_range, num_points, metadata_bins, cols=Non
     if len(all_data) < num_points * 4:
         results = all_data
     else:
-        indexes = numpy.floor(numpy.linspace(0, len(all_data) - 1, num_points)).astype(int)
+        indexes = numpy.linspace(0, len(all_data) - 1, num_points).astype(int)
         selected_data = numpy.array(all_data)[indexes].tolist()
         results = selected_data
     return cols, results
@@ -807,7 +799,7 @@ def sample_n_bins(stream_key, time_range, num_points, metadata_bins, cols=None):
     lb = metadata_bins[-1]
     # Get the first data point for all of the bins in the middle
     metadata_bins = metadata_bins[1:-1]
-    indexes = numpy.floor(numpy.linspace(0, len(metadata_bins) - 1, num_points - 2)).astype(int)
+    indexes = numpy.linspace(0, len(metadata_bins) - 1, num_points - 2).astype(int)
     bins_to_use = numpy.array(metadata_bins)[indexes].tolist()
     cols, rows = fetch_with_func(query_first_after, stream_key, [(sb, time_range.start)], cols=cols)
     results.extend(rows)
@@ -957,8 +949,8 @@ def insert_dataset(stream_key, dataset, session=None, prepared=None, query_consi
             break
     if bin_meta is not None and not engine.app.config['SAN_CASS_OVERWRITE']:
         # If there is already data and we do not want overwriting return an error
-        error_message = "Data present in Cassandra bin {:d} for {:s}. Aborting operation!".format(data_bin,
-                                                                                                  stream_key.as_refdes())
+        error_message = "Data present in Cassandra bin {:d} for {:s}. " +\
+                        "Aborting operation!".format(data_bin, stream_key.as_refdes())
         log.error(error_message)
         return error_message
 
@@ -1035,7 +1027,7 @@ def insert_dataset(stream_key, dataset, session=None, prepared=None, query_consi
         st = dataset['time'].min()
         et = dataset['time'].max()
         session.execute(partion_insert_query, (
-        stream_key.stream.name, ref_des, stream_key.method, data_bin, CASS_LOCATION_NAME, count, st, et))
+            stream_key.stream.name, ref_des, stream_key.method, data_bin, CASS_LOCATION_NAME, count, st, et))
         ret_val = 'Inserted {:d} particles into Cassandra bin {:d} for {:s}.'.format(count, dataset['bin'].values[0],
                                                                                      stream_key.as_refdes())
         return ret_val
@@ -1048,13 +1040,15 @@ def insert_dataset(stream_key, dataset, session=None, prepared=None, query_consi
         count_query = prepared.get(query_key)
         # get the new count, check times, and update metadata
         new_count = session.execute(count_query, (
-        stream_key.subsite, stream_key.node, stream_key.sensor, data_bin, stream_key.method))[0][0]
+            stream_key.subsite, stream_key.node, stream_key.sensor, data_bin, stream_key.method))[0][0]
         ref_des = stream_key.as_three_part_refdes()
         st = min(dataset['time'].values.min(), bin_meta[3])
         et = max(dataset['time'].values.max(), bin_meta[4])
         meta_query = "INSERT INTO partition_metadata (stream, refdes, method, bin, store, count, first, last)" + \
-                     "values ('{:s}', '{:s}', '{:s}', {:d}, '{:s}', {:d}, {:f}, {:f})" \
-            .format(stream_key.stream.name, ref_des, stream_key.method, data_bin, CASS_LOCATION_NAME, new_count, st, et)
+                     "values ('{:s}','{:s}','{:s}',{:d},'{:s}',{:d},{:f},{:f})".format(stream_key.stream.name, ref_des,
+                                                                                       stream_key.method, data_bin,
+                                                                                       CASS_LOCATION_NAME, new_count,
+                                                                                       st, et)
         meta_query = SimpleStatement(meta_query)
         meta_query.consistency_level = query_consistency
         session.execute(meta_query)
@@ -1069,8 +1063,8 @@ def insert_dataset(stream_key, dataset, session=None, prepared=None, query_consi
 @log_timing(log)
 def fetch_annotations(stream_key, time_range, session=None, prepared=None, query_consistency=None, with_mooring=True):
     # ------- Query 1 -------
-    # query where annotation effectivity is whithin the query time range
-    # or stadles the end points
+    # query where annotation effectivity is within the query time range
+    # or straddles the end points
     select_columns = "subsite, node, sensor, time, time2, parameters, provenance, annotation, method, deployment, id "
     select_clause = "select " + select_columns + "from annotations "
     where_clause = "where subsite=? and node=? and sensor=?"
@@ -1082,12 +1076,12 @@ def fetch_annotations(stream_key, time_range, session=None, prepared=None, query
     query1.consistency_level = query_consistency
 
     # ------- Query 2 --------
-    # Where annoation effectivity straddles the entire query time range
+    # Where annotation effectivity straddles the entire query time range
     # -- This is necessary because of the way the Cassandra uses the
-    #    start-time in the primary key
+    # start-time in the primary key
     time_constraint_wide = " and time<=%s"
     query_base_wide = select_clause + where_clause + time_constraint_wide
-    query_string_wide = query_base_wide % (time_range.start)
+    query_string_wide = query_base_wide % time_range.start
 
     query2 = session.prepare(query_string_wide)
     query2.consistency_level = query_consistency
@@ -1099,15 +1093,14 @@ def fetch_annotations(stream_key, time_range, session=None, prepared=None, query
     tup1 = (stream_key.subsite, stream_key.node, stream_key.sensor)
     tup2 = (stream_key.subsite, stream_key.node, '')
     tup3 = (stream_key.subsite, '', '')
-    args = []
-    args.append(tup1)
+    args = [tup1]
     if with_mooring:
         args.append(tup2)
         args.append(tup3)
 
     result = []
-    # query where annotation effectivity is whithin the query time range
-    # or stadles the end points
+    # query where annotation effectivity is within the query time range
+    # or straddles the end points
     for success, rows in execute_concurrent_with_args(session, query1, args, concurrency=3):
         if success:
             result.extend(list(rows))
@@ -1158,7 +1151,7 @@ def store_qc_results(qc_results_values, pk, particle_ids, particle_bins, particl
         log.info("QC results stored in {} seconds.".format(time.clock() - start_time))
     else:
         log.info("Configured storage system '{}' not recognized, qc results not stored.".format(
-                engine.app.config['QC_RESULTS_STORAGE_SYSTEM']))
+            engine.app.config['QC_RESULTS_STORAGE_SYSTEM']))
 
 
 def initialize_worker():
@@ -1188,7 +1181,7 @@ def get_pool():
 
 
 def get_first_possible_bin(t, stream):
-    t = t - (engine.app.config['MAX_BIN_SIZE_MIN'] * 60)
+    t -= engine.app.config['MAX_BIN_SIZE_MIN'] * 60
     return long(t)
 
 
