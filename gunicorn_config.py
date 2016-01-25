@@ -8,7 +8,6 @@ sys.path.append(os.getcwd())
 
 import preload_database.database
 
-
 worker_lock = Lock()
 
 #
@@ -175,6 +174,7 @@ accesslog = '-'
 
 proc_name = 'stream_engine'
 
+
 #
 # Server hooks
 #
@@ -195,19 +195,17 @@ proc_name = 'stream_engine'
 
 def post_fork(server, worker):
     server.log.info("Worker spawned (pid: %s)", worker.pid)
-    from util.cass import get_session, create_execution_pool
+    from util.cass import _init
     with worker_lock:
         worker.log.debug('Connecting worker to cassandra')
-        get_session()
+        _init()
         worker.log.debug('Connected worker to cassandra')
-        worker.log.debug('Worker creating execution pool')
-        create_execution_pool()
-        worker.log.debug('Worker created execution pool')
-    preload_database.database.open_connection()
+        preload_database.database.initialize_connection(preload_database.database.PreloadDatabaseMode.POPULATED_FILE)
+        preload_database.database.open_connection()
 
 
 def pre_fork(server, worker):
-    preload_database.database.initialize_connection(preload_database.database.PreloadDatabaseMode.POPULATED_FILE)
+    pass
 
 
 def pre_exec(server):
@@ -228,11 +226,11 @@ def worker_int(worker):
     id2name = dict([(th.ident, th.name) for th in threading.enumerate()])
     code = []
     for threadId, stack in sys._current_frames().items():
-        code.append("\n# Thread: %s(%d)" % (id2name.get(threadId,""),
-            threadId))
+        code.append("\n# Thread: %s(%d)" % (id2name.get(threadId, ""),
+                                            threadId))
         for filename, lineno, name, line in traceback.extract_stack(stack):
             code.append('File: "%s", line %d, in %s' % (filename,
-                lineno, name))
+                                                        lineno, name))
             if line:
                 code.append("  %s" % (line.strip()))
     worker.log.debug("\n".join(code))
