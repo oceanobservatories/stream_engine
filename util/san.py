@@ -5,13 +5,14 @@ import numpy
 import xray
 
 from engine import app
-from util.cass import insert_dataset, get_san_location_metadata, fetch_bin, execution_pool
+from util.cass import insert_dataset, get_san_location_metadata, fetch_bin, SessionManager
 from util.common import StreamKey, to_xray_dataset, compile_datasets, log_timing
 
 log = logging.getLogger(__name__)
 
 DEPLOYMENT_FORMAT = 'deployment_{:04d}'
 NETCDF_ENDING_NAME = '_{:04d}.nc'
+
 
 def onload_netCDF(file_name):
     """
@@ -90,7 +91,7 @@ def SAN_netcdf(streams, bins):
 
 
 def offload_bin(stream, data_bin, san_dir_string):
-    #get the data and drop duplicates
+    # get the data and drop duplicates
     cols, data = fetch_bin(stream, data_bin)
     dataset = to_xray_dataset(cols, data, stream, san=True)
     nc_directory = san_dir_string.format(data_bin)
@@ -115,10 +116,11 @@ def get_SAN_directories(stream_key, split=False):
     :param split: Return the reference designator directory along with the format string for the netcdf file
     :return: format string (or reference_designator directory and format string)
     """
-    ref_des_dir = os.path.join(app.config['SAN_BASE_DIRECTORY'] , stream_key.stream_name ,  stream_key.subsite + '-' + stream_key.node+ '-' + stream_key.sensor)
+    ref_des_dir = os.path.join(app.config['SAN_BASE_DIRECTORY'], stream_key.stream_name,
+                               stream_key.subsite + '-' + stream_key.node + '-' + stream_key.sensor)
     if ref_des_dir[-1] != os.sep:
-        ref_des_dir = ref_des_dir  + os.sep
-    dir_string = os.path.join(ref_des_dir + '{:d}',  stream_key.method)
+        ref_des_dir = ref_des_dir + os.sep
+    dir_string = os.path.join(ref_des_dir + '{:d}', stream_key.method)
     if split:
         return ref_des_dir, dir_string
     else:
@@ -136,16 +138,16 @@ def get_nc_filename(stream, nc_directory, deployment):
     directory = os.path.join(nc_directory, DEPLOYMENT_FORMAT.format(deployment))
     if not os.path.exists(directory):
         os.makedirs(directory)
-    base =  os.path.join(directory, stream.stream_name + NETCDF_ENDING_NAME)
+    base = os.path.join(directory, stream.stream_name + NETCDF_ENDING_NAME)
     index = 0
     while os.path.exists(base.format(index)):
-            index += 1
+        index += 1
     return base.format(index)
 
 
 def get_SAN_samples(num_points, location_metadata):
     data_ratio = float(location_metadata.total) / float(num_points)
-    if data_ratio < app.config['UI_FULL_RETURN_RATIO'] :
+    if data_ratio < app.config['UI_FULL_RETURN_RATIO']:
         log.info("SAN: Number of points (%d) / requested  points (%d) is less than %f. Returning all data",
                  location_metadata.total, num_points, app.config['UI_FULL_RETURN_RATIO'])
         to_sample = []
@@ -154,11 +156,11 @@ def get_SAN_samples(num_points, location_metadata):
     elif len(location_metadata.bin_list) > num_points:
         log.info("SAN: Number of bins (%d) greater than number of points (%d). Sampling 1 value from %d bins.",
                  len(location_metadata.bin_list), num_points, len(location_metadata.bin_list))
-        selection = numpy.floor(numpy.linspace(0, len(location_metadata.bin_list)-1, num_points)).astype(int)
+        selection = numpy.floor(numpy.linspace(0, len(location_metadata.bin_list) - 1, num_points)).astype(int)
         bins_to_use = numpy.array(location_metadata.bin_list)[selection]
-        to_sample = [(x,1) for x in bins_to_use]
+        to_sample = [(x, 1) for x in bins_to_use]
     else:
-        log.info("SAN: Sampling %d points from %d bins", num_points, len(location_metadata.bin_list)  )
+        log.info("SAN: Sampling %d points from %d bins", num_points, len(location_metadata.bin_list))
         bin_counts = get_sample_numbers(len(location_metadata.bin_list), num_points)
         to_sample = []
         for idx, count in enumerate(bin_counts):
@@ -199,9 +201,10 @@ def fetch_nsan_data(stream_key, time_range, num_points=1000, location_metadata=N
                 full_path = os.path.join(direct, deployment)
                 if os.path.isdir(full_path):
                     futures.append(
-                        execution_pool.apply_async(get_deployment_data,
-                                                   (full_path, stream_key.stream_name, num_data_points, time_range),
-                                                   kwds={'index_start': next_index}))
+                        SessionManager.pool().apply_async(get_deployment_data,
+                                                          (full_path, stream_key.stream_name, num_data_points,
+                                                           time_range),
+                                                          kwds={'index_start': next_index}))
         else:
             missed += num_data_points
 
@@ -218,6 +221,7 @@ def fetch_nsan_data(stream_key, time_range, num_points=1000, location_metadata=N
 
     log.warn("SAN: Failed to produce {:d} points due to nature of sampling".format(missed))
     return compile_datasets(data)
+
 
 def fetch_full_san_data(stream_key, time_range, location_metadata=None):
     """
@@ -244,7 +248,8 @@ def fetch_full_san_data(stream_key, time_range, location_metadata=None):
             for deployment in deployments:
                 full_path = os.path.join(direct, deployment)
                 if os.path.isdir(full_path):
-                    new_data = get_deployment_data(full_path, stream_key.stream_name, -1, time_range, index_start=next_index)
+                    new_data = get_deployment_data(full_path, stream_key.stream_name, -1, time_range,
+                                                   index_start=next_index)
                     if new_data is not None:
                         data.append(new_data)
                         # Keep track of indexes so they are unique in the final dataset
@@ -288,9 +293,9 @@ def get_deployment_data(direct, stream_name, num_data_points, time_range, index_
                     else:
                         # do a linear sampling of the data points
                         if forward_slice:
-                            selection = numpy.floor(numpy.linspace(0, len(indexes)-1, num_data_points)).astype(int)
+                            selection = numpy.floor(numpy.linspace(0, len(indexes) - 1, num_data_points)).astype(int)
                         else:
-                            selection = numpy.floor(numpy.linspace(len(indexes)-1, 0, num_data_points)).astype(int)
+                            selection = numpy.floor(numpy.linspace(len(indexes) - 1, 0, num_data_points)).astype(int)
                         selection = indexes[selection]
                         selection = sorted(selection)
                     idx = [x for x in range(index_start, index_start + len(selection))]
@@ -298,7 +303,7 @@ def get_deployment_data(direct, stream_name, num_data_points, time_range, index_
                         if var_name in dataset.coords:
                             continue
                         var = dataset[var_name][selection]
-                        out_ds.update({var_name : var})
+                        out_ds.update({var_name: var})
                     # set the index here
                     out_ds['index'] = idx
                     out_ds.load()
@@ -307,11 +312,11 @@ def get_deployment_data(direct, stream_name, num_data_points, time_range, index_
 
 
 def get_sample_numbers(bins, points):
-    num = points /bins
+    num = points / bins
     total = bins * num
     remainder = points - total
     vals = [num for _ in range(bins)]
-    increment = numpy.floor(numpy.linspace(0, bins-1, remainder)).astype(int)
+    increment = numpy.floor(numpy.linspace(0, bins - 1, remainder)).astype(int)
     for i in increment:
         vals[i] += 1
     return vals
@@ -339,7 +344,8 @@ def get_san_lookback_dataset(stream_key, time_range, data_bin, deployments):
         dep_direct = DEPLOYMENT_FORMAT.format(deployment)
         if dep_direct in deployment_dirs:
             dep_direct = os.path.join(direct, dep_direct)
-            datasets.append(get_deployment_data(dep_direct, stream_key.stream.name, 1, time_range, forward_slice=False, index_start=0))
+            datasets.append(get_deployment_data(dep_direct, stream_key.stream.name, 1, time_range, forward_slice=False,
+                                                index_start=0))
         else:
             log.warn("Could not find deployment for lookback dataset.")
             datasets.append(None)
