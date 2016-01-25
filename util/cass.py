@@ -5,7 +5,6 @@ import time
 import uuid
 
 from collections import deque, namedtuple
-from functools import wraps
 from itertools import izip
 from multiprocessing import BoundedSemaphore
 from multiprocessing.pool import Pool
@@ -19,7 +18,7 @@ from cassandra.query import _clean_column_name, tuple_factory, SimpleStatement, 
 import engine
 from util.common import log_timing, TimeRange, FUNCTION, to_xray_dataset, timed_cache
 
-logging.getLogger('cassandra').setLevel(logging.WARNING)
+logging.getLogger('cassandra').setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 PARTITION_COLUMNS = ['bin', 'store', 'count', 'first', 'last']
@@ -32,122 +31,103 @@ StreamProvTuple = namedtuple('stream_provenance_tuple', l0_stream_columns)
 
 BinInfo = namedtuple('BinInfo', 'bin count first last')
 
-# cassandra database handle
-global_cassandra_state = {}
-multiprocess_lock = BoundedSemaphore(2)
-execution_pool = None
-
-STREAM_EXISTS_PS = 'stream_exists'
-METADATA_FOR_REFDES_PS = 'metadata_for_refdes'
-STREAM_MD = 'stream_metadata'
-L0_PROV_POS = 'l0_provenance'
-L0_STREAM_ONE_POS = 'l0_stream_1'
-L0_STREAM_RANGE_POS = 'l0_stream_range'
-PARTITION_INSERT_QUERY = 'partition_insert'
-
 SAN_LOCATION_NAME = 'san'
 CASS_LOCATION_NAME = 'cass'
 
-STREAM_EXISTS_RAW = \
-    '''
-select stream, count, first, last from STREAM_METADATA
+STREAM_METADATA = '''select stream, count, first, last from STREAM_METADATA
 where SUBSITE=? and NODE=? and SENSOR=? and METHOD=? and STREAM=?
 '''
 
-METADATA_FOR_REFDES_RAW = \
-    '''
-SELECT stream, count FROM STREAM_METADATA
-where SUBSITE=? and NODE=? and SENSOR=? and METHOD=?
-'''
+ALL_STREAM_METADATA = 'SELECT subsite, node, sensor, method, stream FROM stream_metadata'
 
-STREAM_MD_RAW = \
-    '''
-SELECT subsite, node, sensor, method, stream FROM stream_metadata
-'''
+L0_DATASET = """select * from dataset_l0_provenance
+where subsite=? and node=? and sensor=? and method=? and deployment=? and id=?"""
 
-L0_RAW = \
-    """select * from dataset_l0_provenance
-    where subsite=? and node=? and sensor=? and method=? and deployment=? and id=?"""
-
-L0_STREAM_ONE_RAW = """SELECT {:s} FROM streaming_l0_provenance
+L0_STREAM_ONE = """SELECT {:s} FROM streaming_l0_provenance
 WHERE refdes = ? AND method = ? and time <= ? ORDER BY time DESC LIMIT 1""""".format(', '.join(l0_stream_columns))
 
-L0_STREAM_RANGE_RAW = """SELECT {:s} FROM streaming_l0_provenance
+L0_STREAM_RANGE = """SELECT {:s} FROM streaming_l0_provenance
 WHERE refdes = ? AND method = ? and time >= ? and time <= ?""".format(', '.join(l0_stream_columns))
 
-PARTITION_INSERT_RAW = """INSERT INTO partition_metadata (stream, refdes, method, bin, store, count, first, last)
+PARTITION_INSERT = """INSERT INTO partition_metadata (stream, refdes, method, bin, store, count, first, last)
 values (?, ?, ?, ?, ?, ?, ?, ?)"""
 
-COUNT_QUERY_RAW = """SELECT COUNT(*) from {:s}
+COUNT_QUERY = """SELECT COUNT(*) from {:s}
 WHERE subsite = ? and node = ? and sensor = ? and bin = ? and method = ?"""
 
 
-def get_session():
-    """
-    Connect to the cassandra cluster and prepare all statements if not already connected.
-    Otherwise, return the cached session and statements
-    This is necessary to avoid connecting to cassandra prior to forking!
-    :return: session and dictionary of prepared statements
-    """
-    if global_cassandra_state.get('query_consistency') is None:
-        consistency = engine.app.config['CASSANDRA_QUERY_CONSISTENCY']
-        log.info("Setting query consistency level to %s", consistency)
-        const_level = ConsistencyLevel.name_to_value.get(consistency)
-        if const_level is None:
-            log.warn("Unknown Consistency Level %s setting to QUORUM", consistency)
-            const_level = ConsistencyLevel.QUORUM
-        global_cassandra_state['query_consistency'] = const_level
+# noinspection PyUnresolvedReferences
+class SessionManager(object):
+    _prepared_statement_cache = {}
+    _multiprocess_lock = BoundedSemaphore(4)
 
-    if global_cassandra_state.get('cluster') is None:
-        with multiprocess_lock:
-            log.debug('Creating cassandra session')
-            global_cassandra_state['cluster'] = Cluster(
-                engine.app.config['CASSANDRA_CONTACT_POINTS'],
-                control_connection_timeout=engine.app.config['CASSANDRA_CONNECT_TIMEOUT'],
-                compression=True,
-                protocol_version=3)
+    @classmethod
+    def create_pool(cls, cluster, keyspace, consistency_level=ConsistencyLevel.QUORUM, fetch_size=5000,
+                    default_timeout=10, process_count=None):
+        cls.__pool = Pool(processes=process_count, initializer=cls._setup,
+                          initargs=(cluster, keyspace, consistency_level, fetch_size, default_timeout))
+        cls._setup(cluster, keyspace, consistency_level, fetch_size, default_timeout)
 
-    if global_cassandra_state.get('session') is None:
-        with multiprocess_lock:
-            session = global_cassandra_state['cluster'].connect(engine.app.config['CASSANDRA_KEYSPACE'])
-            session.row_factory = tuple_factory
-            session.default_timeout = engine.app.config['CASSANDRA_DEFAULT_TIMEOUT']
-            global_cassandra_state['session'] = session
-            query_consistency = global_cassandra_state.get('query_consistency')
-            prep = global_cassandra_state['prepared_statements'] = {}
-            prep[STREAM_EXISTS_PS] = session.prepare(STREAM_EXISTS_RAW)
-            prep[STREAM_EXISTS_PS].consistency_level = query_consistency
-            prep[METADATA_FOR_REFDES_PS] = session.prepare(METADATA_FOR_REFDES_RAW)
-            prep[METADATA_FOR_REFDES_PS].consistency_level = query_consistency
-            prep[STREAM_MD] = session.prepare(STREAM_MD_RAW)
-            prep[STREAM_MD].consistency_level = query_consistency
-            prep[L0_PROV_POS] = session.prepare(L0_RAW)
-            prep[L0_PROV_POS].consistency_level = query_consistency
-            prep[L0_STREAM_ONE_POS] = session.prepare(L0_STREAM_ONE_RAW)
-            prep[L0_STREAM_ONE_POS].consistency_level = query_consistency
-            prep[L0_STREAM_RANGE_POS] = session.prepare(L0_STREAM_RANGE_RAW)
-            prep[L0_STREAM_RANGE_POS].consistency_level = query_consistency
+    @classmethod
+    def _setup(cls, cluster, keyspace, consistency_level, fetch_size, default_timeout):
+        cls.cluster = cluster
+        with cls._multiprocess_lock:
+            cls.__session = cls.cluster.connect(keyspace)
+        cls.__session.row_factory = tuple_factory
+        cls.__session.default_consistency_level = consistency_level
+        cls.__session.default_fetch_size = fetch_size
+        cls.__session.default_timeout = default_timeout
+        cls._prepared_statement_cache = {}
 
-    return global_cassandra_state['session'], global_cassandra_state['prepared_statements'], global_cassandra_state[
-        'query_consistency']
+    @classmethod
+    def prepare(cls, statement):
+        if statement not in cls._prepared_statement_cache:
+            cls._prepared_statement_cache[statement] = cls.__session.prepare(statement)
+        return cls._prepared_statement_cache[statement]
+
+    def close_pool(self):
+        self.pool.close()
+        self.pool.join()
+
+    @classmethod
+    def get_query_columns(cls, table):
+        # grab the column names from our metadata
+        cols = cls.cluster.metadata.keyspaces[cls.__session.keyspace].tables[table].columns.keys()
+        cols = map(_clean_column_name, cols)
+        unneeded = ['subsite', 'node', 'sensor', 'method']
+        cols = [c for c in cols if c not in unneeded]
+        return cols
+
+    @classmethod
+    def execute(cls, *args, **kwargs):
+        return cls.__session.execute(*args, **kwargs)
+
+    @classmethod
+    def session(cls):
+        return cls.__session
+
+    @classmethod
+    def pool(cls):
+        return cls.__pool
 
 
-def cassandra_session(func):
-    """
-    Wrap a function to automatically add the session and prepared arguments retrieved from get_session
-    :param func:
-    :return:
-    """
-
-    @wraps(func)
-    def inner(*args, **kwargs):
-        session, preps, query_consistency = get_session()
-        kwargs['session'] = session
-        kwargs['prepared'] = preps
-        kwargs['query_consistency'] = query_consistency
-        return func(*args, **kwargs)
-
-    return inner
+def _init():
+    consistency_str = engine.app.config['CASSANDRA_QUERY_CONSISTENCY']
+    consistency = ConsistencyLevel.name_to_value.get(consistency_str)
+    if consistency is None:
+        log.warn('Unable to find consistency: %s defaulting to LOCAL_ONE', consistency_str)
+        consistency = ConsistencyLevel.LOCAL_ONE
+    cluster = Cluster(
+        engine.app.config['CASSANDRA_CONTACT_POINTS'],
+        control_connection_timeout=engine.app.config['CASSANDRA_CONNECT_TIMEOUT'],
+        compression=True,
+        protocol_version=3)
+    SessionManager.create_pool(cluster,
+                               engine.app.config['CASSANDRA_KEYSPACE'],
+                               consistency_level=consistency,
+                               fetch_size=engine.app.config['CASSANDRA_FETCH_SIZE'],
+                               default_timeout=engine.app.config['CASSANDRA_DEFAULT_TIMEOUT'],
+                               process_count=engine.app.config['POOL_SIZE'])
 
 
 class ConcurrentBatchFuture(ResponseFuture):
@@ -226,7 +206,7 @@ class ConcurrentBatchFuture(ResponseFuture):
         for i in xrange(0, len(times), self.q_per_proc):
             args = (self.stream_key, self.cols, times[i:i + self.q_per_proc])
             kwargs = {'concurrency': self.c_per_proc}
-            future = execution_pool.apply_async(fetch_concurrent, args, kwargs)
+            future = SessionManager.pool().apply_async(fetch_concurrent, args, kwargs)
             futures.append(future)
 
         rows = []
@@ -238,9 +218,9 @@ class ConcurrentBatchFuture(ResponseFuture):
 
 
 @log_timing(log)
-@cassandra_session
-def _get_stream_metadata(session=None, prepared=None, query_consistency=None):
-    rows = session.execute(prepared.get(STREAM_MD))
+def _get_stream_metadata():
+    ps = SessionManager.prepare(ALL_STREAM_METADATA)
+    rows = SessionManager.execute(ps)
     return rows
 
 
@@ -253,20 +233,7 @@ def build_stream_dictionary():
 
 
 @log_timing(log)
-@cassandra_session
-def get_query_columns(stream_key, session=None, prepared=None, query_consistency=None):
-    # grab the column names from our metadata
-    cols = global_cassandra_state['cluster'].metadata.keyspaces[engine.app.config['CASSANDRA_KEYSPACE']]. \
-        tables[stream_key.stream.name].columns.keys()
-    cols = map(_clean_column_name, cols)
-    unneeded = ['subsite', 'node', 'sensor', 'method']
-    cols = [c for c in cols if c not in unneeded]
-    return cols
-
-
-@log_timing(log)
-@cassandra_session
-def query_partition_metadata_before(stream_key, time_start, session=None, prepared=None, query_consistency=None):
+def query_partition_metadata_before(stream_key, time_start):
     """
     Return the last 4 bins before the the given time range.  Need to return 4 to account for some possibilities:
         Data is present in both SAN and CASS. Need 2 bins to choose location
@@ -285,29 +252,21 @@ def query_partition_metadata_before(stream_key, time_start, session=None, prepar
         ],
     ]
     """
-    query_name = "bin_meta_first_{:s}_{:s}_{:s}_{:s}_{:s}".format(stream_key.subsite, stream_key.node,
-                                                                  stream_key.sensor,
-                                                                  stream_key.method, stream_key.stream.name)
     start_bin = time_in_bin_units(time_start, stream_key.stream.name)
-    if query_name not in prepared:
-        base = (
-            "SELECT {:s} FROM partition_metadata " +
-            "WHERE stream='{:s}' AND refdes='{:s}' AND method='{:s}' AND bin <= ? " +
-            "ORDER BY method DESC, bin DESC LIMIT 4").format(
-            ','.join(PARTITION_COLUMNS), stream_key.stream.name,
-            '{:s}-{:s}-{:s}'.format(stream_key.subsite, stream_key.node, stream_key.sensor),
-            stream_key.method)
-        query = session.prepare(base)
-        query.consistency_level = query_consistency
-        prepared[query_name] = query
-    query = prepared[query_name]
-    res = session.execute(query, [start_bin])
+    query = (
+        "SELECT {:s} FROM partition_metadata " +
+        "WHERE stream='{:s}' AND refdes='{:s}' AND method='{:s}' AND bin <= ? " +
+        "ORDER BY method DESC, bin DESC LIMIT 4").format(
+        ','.join(PARTITION_COLUMNS), stream_key.stream.name,
+        '{:s}-{:s}-{:s}'.format(stream_key.subsite, stream_key.node, stream_key.sensor),
+        stream_key.method)
+    query = SessionManager.prepare(query)
+    res = SessionManager.execute(query, [start_bin])
     return [Row(*row) for row in res]
 
 
 @log_timing(log)
-@cassandra_session
-def query_partition_metadata(stream_key, time_range, session=None, prepared=None, query_consistency=None):
+def query_partition_metadata(stream_key, time_range):
     """
     Get the metadata entries for partitions that contain data within the time range.
     :param stream_key:
@@ -323,21 +282,15 @@ def query_partition_metadata(stream_key, time_range, session=None, prepared=None
         ],
     ]
     """
-    query_name = "bin_meta_{:s}_{:s}_{:s}_{:s}_{:s}".format(stream_key.subsite, stream_key.node, stream_key.sensor,
-                                                            stream_key.method, stream_key.stream.name)
     start_bin = get_first_possible_bin(time_range.start, stream_key.stream.name)
     end_bin = time_in_bin_units(time_range.stop, stream_key.stream.name)
-    if query_name not in prepared:
-        base = (
-            "SELECT bin, store, count, first, last FROM partition_metadata " +
-            "WHERE stream = '{:s}' AND  refdes = '{:s}' AND method = '{:s}' AND bin >= ? and bin <= ?").format(
-            stream_key.stream.name, stream_key.as_three_part_refdes(),
-            stream_key.method)
-        query = session.prepare(base)
-        query.consistency_level = query_consistency
-        prepared[query_name] = query
-    query = prepared[query_name]
-    return session.execute(query, [start_bin, end_bin])
+    query = (
+        "SELECT bin, store, count, first, last FROM partition_metadata " +
+        "WHERE stream = '{:s}' AND  refdes = '{:s}' AND method = '{:s}' AND bin >= ? and bin <= ?").format(
+        stream_key.stream.name, stream_key.as_three_part_refdes(),
+        stream_key.method)
+    query = SessionManager.prepare(query)
+    return SessionManager.execute(query, [start_bin, end_bin])
 
 
 @log_timing(log)
@@ -527,92 +480,63 @@ class LocationMetadata(object):
 
 
 @log_timing(log)
-@cassandra_session
-def query_bin_first(stream_key, bins, cols=None, session=None, prepared=None, query_consistency=None):
-    query_name = 'bin_first_%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite, stream_key.node,
-                                               stream_key.sensor, stream_key.method)
+def query_bin_first(stream_key, bins, cols=None):
     # attempt to find one data point beyond the requested start/stop times
-    if query_name not in prepared:
-        base = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s'" % \
-               (', '.join(cols), stream_key.stream.name, stream_key.subsite, stream_key.node,
-                stream_key.sensor, stream_key.method)
-        query = session.prepare(base + 'ORDER BY method, time LIMIT 1')
-        query.consistency_level = query_consistency
-        prepared[query_name] = query
-    query = prepared[query_name]
+    query = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s' order by method, time limit 1" % \
+            (', '.join(cols), stream_key.stream.name, stream_key.subsite, stream_key.node,
+             stream_key.sensor, stream_key.method)
+    query = SessionManager.prepare(query)
     result = []
     # prepare the arguments for cassandra. Each need to be in their own list
     bins = [[x] for x in bins]
-    for success, rows in execute_concurrent_with_args(session, query, bins, concurrency=50):
+    for success, rows in execute_concurrent_with_args(SessionManager.session(), query, bins, concurrency=50):
         if success:
             result.extend(list(rows))
     return result
 
 
 @log_timing(log)
-@cassandra_session
-def query_first_after(stream_key, times_and_bins, cols, session=None, prepared=None, query_consistency=None):
-    query_name = 'first_after_%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite, stream_key.node,
-                                                 stream_key.sensor, stream_key.method)
-    if query_name not in prepared:
-        base = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s' and time >= ?" % \
-               (', '.join(cols), stream_key.stream.name, stream_key.subsite, stream_key.node,
-                stream_key.sensor, stream_key.method)
-        query = session.prepare(base + 'ORDER BY method ASC, time ASC LIMIT 1')
-        query.consistency_level = query_consistency
-        prepared[query_name] = query
+def query_first_after(stream_key, times_and_bins, cols):
+    query = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s' and time >= ? ORDER BY method ASC, time ASC LIMIT 1" % \
+            (', '.join(cols), stream_key.stream.name, stream_key.subsite, stream_key.node, stream_key.sensor,
+             stream_key.method)
+    query = SessionManager.prepare(query)
     result = []
-    query = prepared[query_name]
-    for success, rows in execute_concurrent_with_args(session, query, times_and_bins, concurrency=50):
+    for success, rows in execute_concurrent_with_args(SessionManager.session(), query, times_and_bins, concurrency=50):
         if success:
             result.extend(list(rows))
     return result
 
 
 @log_timing(log)
-@cassandra_session
-def query_n_before(stream_key, query_arguments, cols, session=None, prepared=None, query_consistency=None):
-    query_name = 'first_before_%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite, stream_key.node,
-                                                  stream_key.sensor, stream_key.method)
-    if query_name not in prepared:
-        base = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s' and time <= ?" % \
-               (', '.join(cols), stream_key.stream.name, stream_key.subsite, stream_key.node,
-                stream_key.sensor, stream_key.method)
-        query = session.prepare(base + 'ORDER BY method DESC, time DESC LIMIT ?')
-        query.consistency_level = query_consistency
-        prepared[query_name] = query
+def query_n_before(stream_key, query_arguments, cols):
+    query = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s' and time <= ? ORDER BY method DESC, time DESC LIMIT ?" % \
+            (', '.join(cols), stream_key.stream.name, stream_key.subsite, stream_key.node,
+             stream_key.sensor, stream_key.method)
+    query = SessionManager.prepare(query)
     result = []
-    query = prepared[query_name]
-    for success, rows in execute_concurrent_with_args(session, query, query_arguments, concurrency=50):
+    for success, rows in execute_concurrent_with_args(SessionManager.session(), query, query_arguments, concurrency=50):
         if success:
             result.extend(list(rows))
     return result
 
 
 @log_timing(log)
-@cassandra_session
-def query_full_bin(stream_key, bins_and_limit, cols, session=None, prepared=None, query_consistency=None):
-    query_name = 'full_bin_%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite, stream_key.node,
-                                              stream_key.sensor, stream_key.method)
-    if query_name not in prepared:
-        base = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s' and time >= ? and time <= ?" % \
-               (', '.join(cols), stream_key.stream.name, stream_key.subsite, stream_key.node,
-                stream_key.sensor, stream_key.method)
-        query = session.prepare(base)
-        query.consistency_level = query_consistency
-        prepared[query_name] = query
+def query_full_bin(stream_key, bins_and_limit, cols):
+    query = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s' and time >= ? and time <= ?" % \
+            (', '.join(cols), stream_key.stream.name, stream_key.subsite, stream_key.node,
+             stream_key.sensor, stream_key.method)
+    query = SessionManager.prepare(query)
     result = []
-    query = prepared[query_name]
-    for success, rows in execute_concurrent_with_args(session, query, bins_and_limit, concurrency=50):
+    for success, rows in execute_concurrent_with_args(SessionManager.session(), query, bins_and_limit, concurrency=50):
         if success:
             result.extend(list(rows))
     return result
 
 
 @log_timing(log)
-@cassandra_session
 def fetch_data_sync(stream_key, time_range, strict_range=False, session=None, prepared=None, query_consistency=None):
-    cols = get_query_columns(stream_key)
+    cols = SessionManager.get_query_columns(stream_key.stream.name)
 
     # attempt to find one data point beyond the requested start/stop times
     start = time_range.start
@@ -647,27 +571,18 @@ def fetch_data_sync(stream_key, time_range, strict_range=False, session=None, pr
 
 
 @log_timing(log)
-@cassandra_session
-def fetch_concurrent(stream_key, cols, times, concurrency=50, session=None, prepared=None, query_consistency=None):
-    query_name = 'fetch_data_%s_%s_%s_%s_%s' % (stream_key.stream.name, stream_key.subsite,
-                                                stream_key.node, stream_key.sensor, stream_key.method)
-    if query_name not in prepared:
-        base = "select %%s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s'" % \
-               (stream_key.stream.name, stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method)
-        query = session.prepare(base % ','.join(cols) + ' and time>=? and time<=?')
-        query.consistency_level = query_consistency
-        query.fetch_size = engine.app.config['CASSANDRA_FETCH_SIZE']
-        prepared[query_name] = query
-    query = prepared[query_name]
-    results = execute_concurrent_with_args(session, query, times, concurrency=concurrency)
+def fetch_concurrent(stream_key, cols, times, concurrency=50):
+    query = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s' and time>=? and time<=?" % \
+            (','.join(cols), stream_key.stream.name, stream_key.subsite, stream_key.node, stream_key.sensor,
+             stream_key.method)
+    query = SessionManager.prepare(query)
+    results = execute_concurrent_with_args(SessionManager.session(), query, times, concurrency=concurrency)
     results = [list(r[1]) if type(r[1]) == PagedResult else r[1] for r in results if r[0]]
     return results
 
 
 @log_timing(log)
-@cassandra_session
-def fetch_l0_provenance(stream_key, provenance_values, deployment, session=None, prepared=None,
-                        query_consistency=None):
+def fetch_l0_provenance(stream_key, provenance_values, deployment):
     """
     Fetch the l0_provenance entry for the passed information.
     All of the necessary information should be stored as a tuple in the
@@ -678,8 +593,8 @@ def fetch_l0_provenance(stream_key, provenance_values, deployment, session=None,
     provenance_arguments = [
         (stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method, deployment, uuid.UUID(prov_id)) for
         prov_id in prov_ids]
-    query = prepared[L0_PROV_POS]
-    results = execute_concurrent_with_args(session, query, provenance_arguments)
+    query = SessionManager.prepare(L0_DATASET)
+    results = execute_concurrent_with_args(SessionManager.session(), query, provenance_arguments)
     records = [ProvTuple(*rows[0]) for success, rows in results if success and len(rows) > 0]
     if len(provenance_arguments) != len(records):
         log.warn("Could not find %d provenance entries", len(provenance_arguments) - len(records))
@@ -691,16 +606,15 @@ def fetch_l0_provenance(stream_key, provenance_values, deployment, session=None,
 
 
 @log_timing(log)
-@cassandra_session
-def get_streaming_provenance(stream_key, times, session=None, prepared=None, query_consistency=None):
+def get_streaming_provenance(stream_key, times):
     # Get the first entry before the current
-    q1 = prepared[L0_STREAM_ONE_POS]
-    q2 = prepared[L0_STREAM_RANGE_POS]
+    q1 = SessionManager.prepare(L0_STREAM_ONE)
+    q2 = SessionManager.prepare(L0_STREAM_RANGE)
     args = [stream_key.as_three_part_refdes(), stream_key.method, times[0]]
-    res = session.execute(q1, args)
+    res = SessionManager.execute(q1, args)
     # get the provenance results within the time range
     args.append(times[-1])
-    res.extend(session.execute(q2, args))
+    res.extend(SessionManager.execute(q2, args))
     prov_results = []
     prov_dict = {}
     # create tuples for all of the objects and insert time values into the provenance
@@ -729,7 +643,7 @@ def fetch_nth_data(stream_key, time_range, num_points=1000, location_metadata=No
     :param num_points:
     :return:
     """
-    cols = get_query_columns(stream_key)
+    cols = SessionManager.get_query_columns(stream_key.stream.name)
 
     if location_metadata is None:
         location_metadata, _, _ = get_location_metadata(stream_key, time_range)
@@ -853,27 +767,25 @@ def sample_n_points(stream_key, time_range, num_points, metadata_bins, bin_infor
 
 def fetch_with_func(f, stream_key, args, cols=None):
     if cols is None:
-        cols = get_query_columns(stream_key)
+        cols = SessionManager.get_query_columns(stream_key.stream.name)
     return cols, f(stream_key, args, cols)
 
 
 @log_timing(log)
-@cassandra_session
-def fetch_bin(stream_key, time_bin, session=None, prepared=None, query_consistency=None):
+def fetch_bin(stream_key, time_bin):
     """
     Fetch an entire bin
     """
-    cols = get_query_columns(stream_key)
+    cols = SessionManager.get_query_columns(stream_key.stream.name)
 
     base = ("select %s from %s where subsite=%%s and node=%%s and sensor=%%s and bin=%%s " +
             "and method=%%s") % (','.join(cols), stream_key.stream.name)
-    query = SimpleStatement(base)
-    query.consistency_level = query_consistency
-    return cols, list(session.execute(query, (stream_key.subsite,
-                                              stream_key.node,
-                                              stream_key.sensor,
-                                              time_bin,
-                                              stream_key.method)))
+    query = SessionManager.prepare(base)
+    return cols, list(SessionManager.execute(query, (stream_key.subsite,
+                                                     stream_key.node,
+                                                     stream_key.sensor,
+                                                     time_bin,
+                                                     stream_key.method)))
 
 
 # Fetch all records in the time_range by querying for every time bin in the time_range
@@ -887,11 +799,12 @@ def fetch_all_data(stream_key, time_range, location_metadata=None):
     """
     if location_metadata is None:
         location_metadata = get_cass_location_metadata(stream_key, time_range)
-    cols = get_query_columns(stream_key)
+    cols = SessionManager.get_query_columns(stream_key.stream.name)
 
     futures = []
     for bin_num in location_metadata.bin_list:
-        futures.append(execution_pool.apply_async(execute_unlimited_query, (stream_key, cols, bin_num, time_range)))
+        futures.append(
+            SessionManager.pool().apply_async(execute_unlimited_query, (stream_key, cols, bin_num, time_range)))
 
     rows = []
     for future in futures:
@@ -906,26 +819,22 @@ def get_full_cass_dataset(stream_key, time_range, location_metadata=None):
     return to_xray_dataset(cols, rows, stream_key)
 
 
-@cassandra_session
 @log_timing(log)
-def execute_unlimited_query(stream_key, cols, time_bin, time_range, session=None, prepared=None,
-                            query_consistency=None):
+def execute_unlimited_query(stream_key, cols, time_bin, time_range):
     base = ("select %s from %s where subsite=%%s and node=%%s and sensor=%%s and bin=%%s " +
             "and method=%%s and time>=%%s and time<=%%s") % (','.join(cols), stream_key.stream.name)
-    query = SimpleStatement(base)
-    query.consistency_level = query_consistency
-    return list(session.execute(query, (stream_key.subsite,
-                                        stream_key.node,
-                                        stream_key.sensor,
-                                        time_bin,
-                                        stream_key.method,
-                                        time_range.start,
-                                        time_range.stop)))
+    query = SessionManager.prepare(base)
+    return list(SessionManager.execute(query, (stream_key.subsite,
+                                               stream_key.node,
+                                               stream_key.sensor,
+                                               time_bin,
+                                               stream_key.method,
+                                               time_range.start,
+                                               time_range.stop)))
 
 
-@cassandra_session
 @log_timing(log)
-def insert_dataset(stream_key, dataset, session=None, prepared=None, query_consistency=None):
+def insert_dataset(stream_key, dataset):
     """
     Insert an xray dataset back into CASSANDRA.
     First we check to see if there is data in the bin, if there is we either overwrite and update
@@ -948,13 +857,13 @@ def insert_dataset(stream_key, dataset, session=None, prepared=None, query_consi
             break
     if bin_meta is not None and not engine.app.config['SAN_CASS_OVERWRITE']:
         # If there is already data and we do not want overwriting return an error
-        error_message = "Data present in Cassandra bin {:d} for {:s}. " +\
+        error_message = "Data present in Cassandra bin {:d} for {:s}. " + \
                         "Aborting operation!".format(data_bin, stream_key.as_refdes())
         log.error(error_message)
         return error_message
 
     # get the data in the correct format
-    cols = get_query_columns(stream_key)
+    cols = SessionManager.get_query_columns(stream_key.stream.name)
     dynamic_cols = cols[1:]
     key_cols = ['subsite', 'node', 'sensor', 'bin', 'method']
     cols = key_cols + dynamic_cols
@@ -982,21 +891,16 @@ def insert_dataset(stream_key, dataset, session=None, prepared=None, query_consi
                  stream_key.as_refdes())
 
     # get the query to insert information
-    query_name = 'load_{:s}_{:s}_{:s}_{:s}_{:s}'.format(stream_key.stream_name, stream_key.subsite, stream_key.node,
-                                                        stream_key.sensor, stream_key.method)
-    if query_name not in prepared:
-        col_names = ', '.join(cols)
-        # Take subsite, node, sensor, ?, and method
-        key_str = "'{:s}', '{:s}', '{:s}', ?, '{:s}'".format(stream_key.subsite, stream_key.sensor, stream_key.node,
-                                                             stream_key.method)
-        # and the rest as ? for thingskey_cols[:3] +['?'] + key_cols[4:] + ['?' for _ in cols]
-        data_str = ', '.join(['?' for _ in dynamic_cols])
-        full_str = '{:s}, {:s}'.format(key_str, data_str)
-        query = 'INSERT INTO {:s} ({:s}) values ({:s})'.format(stream_key.stream.name, col_names, full_str)
-        query = session.prepare(query)
-        query.consistency_level = query_consistency
-        prepared[query_name] = query
-    query = prepared[query_name]
+    col_names = ', '.join(cols)
+    # Take subsite, node, sensor, ?, and method
+    key_str = "'{:s}', '{:s}', '{:s}', ?, '{:s}'".format(stream_key.subsite, stream_key.sensor, stream_key.node,
+                                                         stream_key.method)
+    # and the rest as ? for thingskey_cols[:3] +['?'] + key_cols[4:] + ['?' for _ in cols]
+    data_str = ', '.join(['?' for _ in dynamic_cols])
+    full_str = '{:s}, {:s}'.format(key_str, data_str)
+    query = 'INSERT INTO {:s} ({:s}) values ({:s})'.format(stream_key.stream.name, col_names, full_str)
+    query = SessionManager.prepare(query)
+
     # make the data list
     to_insert = []
     data_names = ['bin'] + dynamic_cols
@@ -1006,7 +910,7 @@ def insert_dataset(stream_key, dataset, session=None, prepared=None, query_consi
 
     # insert data
     fails = 0
-    for good, x in execute_concurrent_with_args(session, query, to_insert, concurrency=50):
+    for good, x in execute_concurrent_with_args(SessionManager.session(), query, to_insert, concurrency=50):
         if not good:
             fails += 1
         else:
@@ -1014,31 +918,23 @@ def insert_dataset(stream_key, dataset, session=None, prepared=None, query_consi
     if fails > 0:
         log.warn("Failed to insert %s particles into Cassandra bin %d for %s!", fails, data_bin, stream_key.as_refdes())
 
-    if PARTITION_INSERT_QUERY not in prepared:
-        partion_insert_query = session.prepare(PARTITION_INSERT_RAW)
-        partion_insert_query.consistency_level = query_consistency
-        prepared[PARTITION_INSERT_QUERY] = partion_insert_query
-    partion_insert_query = prepared.get(PARTITION_INSERT_QUERY)
+    partition_insert_query = SessionManager.prepare(PARTITION_INSERT)
+
     # Update the metadata
     if bin_meta is None:
         # Create metadata entry for the new bin
         ref_des = stream_key.as_three_part_refdes()
         st = dataset['time'].min()
         et = dataset['time'].max()
-        session.execute(partion_insert_query, (
+        SessionManager.execute(partition_insert_query, (
             stream_key.stream.name, ref_des, stream_key.method, data_bin, CASS_LOCATION_NAME, count, st, et))
         ret_val = 'Inserted {:d} particles into Cassandra bin {:d} for {:s}.'.format(count, dataset['bin'].values[0],
                                                                                      stream_key.as_refdes())
         return ret_val
     else:
-        query_key = "{:s}_count_bin_particles".format(stream_key.stream.name)
-        if query_key not in prepared:
-            count_query = session.prepare(COUNT_QUERY_RAW.format(stream_key.stream.name))
-            count_query.consistency_level = query_consistency
-            prepared[query_key] = count_query
-        count_query = prepared.get(query_key)
+        count_query = SessionManager.prepare(COUNT_QUERY.format(stream_key.stream.name))
         # get the new count, check times, and update metadata
-        new_count = session.execute(count_query, (
+        new_count = SessionManager.execute(count_query, (
             stream_key.subsite, stream_key.node, stream_key.sensor, data_bin, stream_key.method))[0][0]
         ref_des = stream_key.as_three_part_refdes()
         st = min(dataset['time'].values.min(), bin_meta[3])
@@ -1048,9 +944,8 @@ def insert_dataset(stream_key, dataset, session=None, prepared=None, query_consi
                                                                                        stream_key.method, data_bin,
                                                                                        CASS_LOCATION_NAME, new_count,
                                                                                        st, et)
-        meta_query = SimpleStatement(meta_query)
-        meta_query.consistency_level = query_consistency
-        session.execute(meta_query)
+        meta_query = SessionManager.prepare(meta_query)
+        SessionManager.execute(meta_query)
         ret_val = 'After updating Cassandra bin {:d} for {:s} there are {:d} particles.'.format(data_bin,
                                                                                                 stream_key.as_refdes(),
                                                                                                 new_count)
@@ -1058,9 +953,8 @@ def insert_dataset(stream_key, dataset, session=None, prepared=None, query_consi
         return ret_val
 
 
-@cassandra_session
 @log_timing(log)
-def fetch_annotations(stream_key, time_range, session=None, prepared=None, query_consistency=None, with_mooring=True):
+def fetch_annotations(stream_key, time_range, with_mooring=True):
     # ------- Query 1 -------
     # query where annotation effectivity is within the query time range
     # or straddles the end points
@@ -1071,8 +965,7 @@ def fetch_annotations(stream_key, time_range, session=None, prepared=None, query
     query_base = select_clause + where_clause + time_constraint
     query_string = query_base % (time_range.start, time_range.stop)
 
-    query1 = session.prepare(query_string)
-    query1.consistency_level = query_consistency
+    query1 = SessionManager.prepare(query_string)
 
     # ------- Query 2 --------
     # Where annotation effectivity straddles the entire query time range
@@ -1082,8 +975,7 @@ def fetch_annotations(stream_key, time_range, session=None, prepared=None, query
     query_base_wide = select_clause + where_clause + time_constraint_wide
     query_string_wide = query_base_wide % time_range.start
 
-    query2 = session.prepare(query_string_wide)
-    query2.consistency_level = query_consistency
+    query2 = SessionManager.prepare(query_string_wide)
 
     # ----------------------------------------------------------------------
     # Prepare arguments for both query1 and query2
@@ -1100,12 +992,12 @@ def fetch_annotations(stream_key, time_range, session=None, prepared=None, query
     result = []
     # query where annotation effectivity is within the query time range
     # or straddles the end points
-    for success, rows in execute_concurrent_with_args(session, query1, args, concurrency=3):
+    for success, rows in execute_concurrent_with_args(SessionManager.session(), query1, args, concurrency=3):
         if success:
             result.extend(list(rows))
 
     temp = []
-    for success, rows in execute_concurrent_with_args(session, query2, args, concurrency=3):
+    for success, rows in execute_concurrent_with_args(SessionManager.session(), query2, args, concurrency=3):
         if success:
             temp.extend(list(rows))
 
@@ -1117,25 +1009,24 @@ def fetch_annotations(stream_key, time_range, session=None, prepared=None, query
     return result
 
 
-@cassandra_session
 @log_timing(log)
-def store_qc_results(qc_results_values, pk, particle_ids, particle_bins, particle_deploys, param_name, session=None,
-                     strict_range=False, prepared=None, query_consistency=None):
+def store_qc_results(qc_results_values, pk, particle_ids, particle_bins, particle_deploys,
+                     param_name, strict_range=False):
     start_time = time.clock()
     if engine.app.config['QC_RESULTS_STORAGE_SYSTEM'] == 'cass':
         log.info('Storing QC results in Cassandra.')
-        insert_results = session.prepare("insert into ooi.qc_results "
-                                         "(subsite, node, sensor, bin, deployment, stream, id, parameter, results) "
-                                         "values (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        insert_results = SessionManager.prepare(
+            "insert into ooi.qc_results "
+            "(subsite, node, sensor, bin, deployment, stream, id, parameter, results) "
+            "values (?, ?, ?, ?, ?, ?, ?, ?, ?)")
 
-        batch = BatchStatement(
-            consistency_level=ConsistencyLevel.name_to_value.get(engine.app.config['CASSANDRA_QUERY_CONSISTENCY']))
+        batch = BatchStatement()
         for (qc_results, particle_id, particle_bin, particle_deploy) in izip(qc_results_values, particle_ids,
                                                                              particle_bins, particle_deploys):
             batch.add(insert_results, (pk.get('subsite'), pk.get('node'), pk.get('sensor'),
                                        particle_bin, particle_deploy, pk.get('stream'),
                                        uuid.UUID(particle_id), param_name, str(qc_results)))
-        session.execute_async(batch)
+        SessionManager.session().execute_async(batch)
         log.info("QC results stored in {} seconds.".format(time.clock() - start_time))
     elif engine.app.config['QC_RESULTS_STORAGE_SYSTEM'] == 'log':
         log.info('Writing QC results to log file.')
@@ -1154,29 +1045,7 @@ def store_qc_results(qc_results_values, pk, particle_ids, particle_bins, particl
 
 
 def initialize_worker():
-    global global_cassandra_state
-    global_cassandra_state = {}
-
-
-def connect_worker():
-    get_session()
-
-
-@log_timing(log)
-def create_execution_pool():
-    global execution_pool
-    pool_size = engine.app.config['POOL_SIZE']
-    execution_pool = Pool(pool_size, initializer=initialize_worker)
-
-    futures = []
-    for i in xrange(pool_size * 2):
-        futures.append(execution_pool.apply_async(connect_worker))
-
-    [f.get() for f in futures]
-
-
-def get_pool():
-    return execution_pool
+    _init()
 
 
 def get_first_possible_bin(t, stream):
@@ -1197,11 +1066,11 @@ def bin_to_time(b):
     return float(b)
 
 
-@cassandra_session
 @log_timing(log)
-def get_available_time_range(stream_key, session=None, prepared=None, query_consistency=None):
-    rows = session.execute(prepared[STREAM_EXISTS_PS], (stream_key.subsite, stream_key.node,
-                                                        stream_key.sensor, stream_key.method,
-                                                        stream_key.stream.name))
+def get_available_time_range(stream_key):
+    ps = SessionManager.prepare(STREAM_METADATA)
+    rows = SessionManager.execute(ps, (stream_key.subsite, stream_key.node,
+                                       stream_key.sensor, stream_key.method,
+                                       stream_key.stream.name))
     stream, count, first, last = rows[0]
     return TimeRange(first, last + 1)

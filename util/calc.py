@@ -22,8 +22,7 @@ from parameter_util import PDArgument, FQNArgument, DPIArgument, CCArgument, Num
 from util.cass import fetch_nth_data, fetch_annotations, \
     get_available_time_range, fetch_l0_provenance, store_qc_results, get_location_metadata, \
     get_first_before_metadata, get_cass_lookback_dataset, get_full_cass_dataset, get_streaming_provenance, \
-    CASS_LOCATION_NAME, SAN_LOCATION_NAME, get_pool, \
-    build_stream_dictionary
+    CASS_LOCATION_NAME, SAN_LOCATION_NAME, build_stream_dictionary, SessionManager
 from util.common import log_timing, ntp_to_datestring, ntp_to_ISO_date, StreamKey, TimeRange, CachedParameter, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     CachedStream, StreamEngineException, CachedFunction, Annotation, \
@@ -109,16 +108,16 @@ def prepare_qc_stuff(qc_parameters):
                     parameter_dict[current_parameter_name] = int(qc_parameter_value)
                 except ValueError:
                     log.error(
-                            "For parameter '%s' in qc function '%s' being run against '%s', the value '%s' is not an integer number.",
-                            current_parameter_name, current_qc_id, current_stream_parameter, qc_parameter_value)
+                        "For parameter '%s' in qc function '%s' being run against '%s', the value '%s' is not an integer number.",
+                        current_parameter_name, current_qc_id, current_stream_parameter, qc_parameter_value)
                     parameter_dict[current_parameter_name] = float('nan')
             elif qc_parameter['valueType'].encode('ascii', 'ignore') == 'FLOAT':
                 try:
                     parameter_dict[current_parameter_name] = float(qc_parameter_value)
                 except ValueError:
                     log.error(
-                            "For parameter '%s' in qc function '%s' being run against '%s', the value '%s' is not a number.",
-                            current_parameter_name, current_qc_id, current_stream_parameter, qc_parameter_value)
+                        "For parameter '%s' in qc function '%s' being run against '%s', the value '%s' is not a number.",
+                        current_parameter_name, current_qc_id, current_stream_parameter, qc_parameter_value)
                     parameter_dict[current_parameter_name] = float('nan')
             elif qc_parameter['valueType'].encode('ascii', 'ignore') == 'LIST':
                 parameter_dict[current_parameter_name] = [float(x) for x in qc_parameter_value[1:-1].split()]
@@ -829,8 +828,8 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
         if parameter_key in refdes_lengths:
             if len(data) != refdes_lengths[parameter_key]:
                 raise StreamEngineException(
-                        "length of data returned does not match other params in refdes, refdes len: {}, data len: {}"
-                            .format(refdes_lengths[parameter_key], len(data)))
+                    "length of data returned does not match other params in refdes, refdes len: {}, data len: {}"
+                    .format(refdes_lengths[parameter_key], len(data)))
         else:
             refdes_lengths[parameter_key] = len(data)
 
@@ -1045,11 +1044,11 @@ def build_func_map(parameter, coefficients, pd_data, base_key, deployment, strea
                         'CC_present': coefficients.keys(), 'missing_argument_name': key
                     }
                     raise CoefficientUnavailableException('Coefficient %s missing for all times in range (%s, %s)' % (
-                    name, ntp_to_datestring(main_times[0]), ntp_to_datestring(main_times[-1])), payload=to_attach)
+                        name, ntp_to_datestring(main_times[0]), ntp_to_datestring(main_times[-1])), payload=to_attach)
                 if numpy.any(nan_locs):
                     msg = "There was not Coefficeient data for {:s} all times in deployment {:d} in range ({:s} {:s})".format(
-                            name, deployment,
-                            ntp_to_datestring(main_times[0]), ntp_to_datestring(main_times[-1]))
+                        name, deployment,
+                        ntp_to_datestring(main_times[0]), ntp_to_datestring(main_times[-1]))
                     log.warn(spaces[:-3] + msg)
                     messages.append(msg)
                 args[key] = CC_argument
@@ -1270,9 +1269,9 @@ class StreamRequest(object):
                 fsk = found_stream_key
                 found_args = found_args.union(PDArgument(p.id, fsk) for p in fsk.stream.parameters)
                 found_args = found_args.union(
-                        DPIArgument(p.data_product_identifier, p.id, fsk) for p in fsk.stream.parameters)
+                    DPIArgument(p.data_product_identifier, p.id, fsk) for p in fsk.stream.parameters)
                 found_args = found_args.union(
-                        FQNArgument(p.id, found_stream_key.stream.name, fsk) for p in fsk.stream.parameters)
+                    FQNArgument(p.id, found_stream_key.stream.name, fsk) for p in fsk.stream.parameters)
             else:
                 # if we couldn't find a providing stream key, the arg might be provided by a virtual stream
                 for s in possible_streams:
@@ -1288,13 +1287,13 @@ class StreamRequest(object):
                                                    product_stream.name)
 
                                 found_args = found_args.union(
-                                        PDArgument(p.id, new_sk) for p in product_stream.parameters)
+                                    PDArgument(p.id, new_sk) for p in product_stream.parameters)
                                 found_args = found_args.union(
-                                        DPIArgument(p.data_product_identifier, p.id, new_sk) for p in
-                                        product_stream.parameters)
+                                    DPIArgument(p.data_product_identifier, p.id, new_sk) for p in
+                                    product_stream.parameters)
                                 found_args = found_args.union(
-                                        FQNArgument(p.id, found_stream_key.stream.name, new_sk) for p in
-                                        product_stream.parameters)
+                                    FQNArgument(p.id, found_stream_key.stream.name, new_sk) for p in
+                                    product_stream.parameters)
 
                                 if new_sk not in self.stream_keys:
                                     self.stream_keys.append(new_sk)
@@ -1433,8 +1432,8 @@ class ProvenanceMetadataStore(object):
 
     def add_instrument_provenance(self, stream_key, st, et):
         url = app.config['ASSET_URL'] + 'assets/byReferenceDesignator/{:s}/{:s}/{:s}?startDT={:s}?endDT={:s}'.format(
-                stream_key.subsite, stream_key.node, stream_key.sensor, ntp_to_ISO_date(st), ntp_to_ISO_date(et))
-        self._instrument_provenance[stream_key] = get_pool().apply_async(send_query_for_instrument, (url,))
+            stream_key.subsite, stream_key.node, stream_key.sensor, ntp_to_ISO_date(st), ntp_to_ISO_date(et))
+        self._instrument_provenance[stream_key] = SessionManager.pool().apply_async(send_query_for_instrument, (url,))
 
     def get_instrument_provenance(self):
         vals = defaultdict(list)
