@@ -9,6 +9,7 @@ CASSANDRA_DEFAULT_TIMEOUT = 60
 CASSANDRA_QUERY_CONSISTENCY = 'QUORUM'
 METADATA_CACHE_SECONDS = 600
 
+PARAMETER_LOGGING = '/opendap_export/stream_engine'
 SAN_BASE_DIRECTORY = '/opt/ooi/SAN/'
 SAN_CASS_OVERWRITE = True # When loading data back into cassandra should we allow writing to an already present databin.
 ANNOTATION_URL = 'http://localhost:12580/annotations/find/'
