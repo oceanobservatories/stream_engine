@@ -22,6 +22,13 @@ from util.san import onload_netCDF, SAN_netcdf
 
 log = logging.getLogger(__name__)
 
+
+def get_userflags(input_data):
+    keys = ['userName', 'advancedStreamEngineLogging']
+    uflags = { k: input_data.get(k) for k in keys }
+    return uflags
+
+
 @app.errorhandler(Exception)
 def handleException(error):
     reqID = request.get_json().get('requestUUID', None)
@@ -99,6 +106,8 @@ def particles():
     input_data = request.get_json()
     validate(input_data)
 
+    uflags = get_userflags(input_data)
+
     request_start_time = time.time()
     log.info("Handling request to {} - {}".format(request.url, input_data.get('streams', "")))
 
@@ -111,7 +120,7 @@ def particles():
         prov = input_data.get('include_provenance', False)
         annotate = input_data.get('include_annotations', False)
 
-        resp = Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
+        resp = Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}), uflags,
                         input_data.get('qcParameters', {}), limit=limit,
                          include_provenance=prov, include_annotations=annotate ,
                         strict_range=input_data.get('strict_range', False), request_uuid=input_data.get('requestUUID',''), location_information=input_data.get('locations', {})),
@@ -266,6 +275,8 @@ def particles_save_to_filesystem():
     input_data = request.get_json()
     validate(input_data)
 
+    uflags = get_userflags(input_data)
+
     request_start_time = time.time()
     log.info("Handling request to {} - {}".format(request.url, input_data.get('streams', "")))
 
@@ -287,7 +298,7 @@ def particles_save_to_filesystem():
     file_path = os.path.join(base_path, fn)
     message = str([file_path])
     try:
-        json_output = util.calc.get_particles(streams, start, stop, input_data.get('coefficients', {}),
+        json_output = util.calc.get_particles(streams, start, stop, input_data.get('coefficients', {}), uflags,
                         input_data.get('qcParameters', {}), limit=limit, include_provenance=prov, include_annotations=annotate,
                         strict_range=input_data.get('strict_range', False), request_uuid=input_data.get('requestUUID',''),
                         location_information=input_data.get('locations', {}))
@@ -518,6 +529,8 @@ def netcdf():
     input_data = request.get_json()
     validate(input_data)
 
+    uflags = get_userflags(input_data)
+
     request_start_time = time.time()
     log.info("Handling request to {} - {}".format(request.url, input_data.get('streams', "")))
 
@@ -530,7 +543,7 @@ def netcdf():
         prov = input_data.get('include_provenance', True)
         annotate = input_data.get('include_annotations', False)
         resp = Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
-                                         input_data.get('qcParameters', {}), limit=limit, include_provenance=prov,
+                                         input_data.get('qcParameters', {}), uflags, limit=limit, include_provenance=prov,
                                          include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
                                          location_information=input_data.get('locations', {}),
                                          classic=input_data.get('classic', False)),
@@ -575,6 +588,8 @@ def netcdf_save_to_filesystem():
     input_data = request.get_json()
     validate(input_data)
 
+    uflags = get_userflags(input_data)
+
     request_start_time = time.time()
     log.info("Handling request to {} - {}".format(request.url, input_data.get('streams', "")))
 
@@ -589,7 +604,7 @@ def netcdf_save_to_filesystem():
     base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],input_data.get('directory','unknown'))
     try:
         json_str = util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
-                                         input_data.get('qcParameters', {}),
+                                         input_data.get('qcParameters', {}), uflags,
                                          limit=limit,
                                          include_provenance=prov,
                                          include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),

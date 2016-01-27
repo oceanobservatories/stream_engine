@@ -30,6 +30,8 @@ from util.common import log_timing, ntp_to_datestring, ntp_to_ISO_date, StreamKe
     isfillvalue, InvalidInterpolationException, get_params_with_dpi, ParamUnavailableException, compile_datasets
 from util.san import fetch_nsan_data, fetch_full_san_data, get_san_lookback_dataset
 
+from util.advlogging import ParameterReport
+
 if hasattr(ion_functions, '__version__'):
     ION_VERSION = ion_functions.__version__
 else:
@@ -39,7 +41,7 @@ log = logging.getLogger(__name__)
 
 
 @log_timing(log)
-def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
+def get_particles(streams, start, stop, coefficients, uflags, qc_parameters, limit=None,
                   include_provenance=False, include_annotations=False, strict_range=False, location_information={},
                   request_uuid=''):
     """
@@ -57,7 +59,7 @@ def get_particles(streams, start, stop, coefficients, qc_parameters, limit=None,
     # create the store that will keep track of provenance for all streams/datasources
     provenance_metadata = ProvenanceMetadataStore(request_uuid)
     annotation_store = AnnotationStore()
-    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range,
+    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, uflags,
                                    qc_parameters=qc_stream_parameters, limit=limit,
                                    include_provenance=include_provenance, include_annotations=include_annotations,
                                    strict_range=strict_range, location_information=location_information,
@@ -237,7 +239,7 @@ def get_csv(streams, start, stop, coefficients, limit=None,
 
 
 @log_timing(log)
-def get_netcdf(streams, start, stop, coefficients, qc_parameters, limit=None,
+def get_netcdf(streams, start, stop, coefficients, qc_parameters, uflags, limit=None,
                include_provenance=False, include_annotations=False, strict_range=False, location_information={},
                request_uuid='', disk_path=None, classic=False):
     """
@@ -255,7 +257,7 @@ def get_netcdf(streams, start, stop, coefficients, qc_parameters, limit=None,
     # Create the provenance metadata store to keep track of all files that are used
     provenance_metadata = ProvenanceMetadataStore(request_uuid)
     annotation_store = AnnotationStore()
-    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range,
+    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, uflags,
                                    qc_parameters=qc_stream_parameters, limit=limit,
                                    include_provenance=include_provenance, include_annotations=include_annotations,
                                    strict_range=strict_range, location_information=location_information,
@@ -819,6 +821,18 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
         args, arg_meta, messages = build_func_map(param, coeffs, pd_data, parameter_key, deployment, stream_request,
                                                   spaces)
         provenance_metadata.add_messages(messages)
+
+        flag = stream_request.uflags['advancedStreamEngineLogging']
+        user = stream_request.uflags['userName']
+
+        if flag and user:
+            logname = primary_key.as_three_part_refdes() + "-" + stream_request.request_id
+            report = ParameterReport(user, logname)
+            report.set_calculated_parameter(param.id, param.name, param.parameter_function.function)
+            for key, value in args.iteritems():
+                report.add_parameter_argument(param.id, key, value.tolist())
+            report.write()
+
         data, version = execute_dpa(param, args)
 
         if not isinstance(data, (list, tuple, numpy.ndarray)):
@@ -1159,7 +1173,7 @@ class StreamRequest(object):
     parameters and their streams
     """
 
-    def __init__(self, stream_keys, parameters, coefficients, time_range, qc_parameters={}, needs_only=False,
+    def __init__(self, stream_keys, parameters, coefficients, time_range, uflags, qc_parameters={}, needs_only=False,
                  limit=None, include_provenance=False, include_annotations=False, strict_range=False,
                  location_information={}, request_id=''):
         self.stream_keys = stream_keys
@@ -1176,6 +1190,7 @@ class StreamRequest(object):
         self.strict_range = strict_range
         self.request_id = request_id
         self._ctd_source = {}
+        self.uflags = uflags
 
         self._initialize(needs_only)
 
