@@ -639,7 +639,7 @@ def set_geospatial(pd_data, stream_request):
     primary_stream_len = pd_data[primary_stream.time_parameter][primary_key.as_refdes()]['data']
 
     lat_sk = stream_request.lat_stream_key
-    if pd_data.get(lat_sk.stream.time_parameter, {}).has_key(lat_sk.as_refdes()) and \
+    if lat_sk is not None and  pd_data.get(lat_sk.stream.time_parameter, {}).has_key(lat_sk.as_refdes()) and \
             pd_data.get(primary_stream.lat_param_id, {}).has_key(lat_sk.as_refdes()):
 
         if primary_stream.lat_param_id is not None:
@@ -654,7 +654,7 @@ def set_geospatial(pd_data, stream_request):
             }
 
     lon_sk = stream_request.lon_stream_key
-    if pd_data.get(lat_sk.stream.time_parameter, {}).has_key(lat_sk.as_refdes()) and \
+    if lon_sk is not None and pd_data.get(lat_sk.stream.time_parameter, {}).has_key(lat_sk.as_refdes()) and \
             pd_data.get(primary_stream.lon_param_id, {}).has_key(lon_sk.as_refdes()):
         if primary_stream.lat_param_id is not None:
             interped_data = interpolate_list(primary_stream_len,
@@ -1319,24 +1319,24 @@ class StreamRequest(object):
         # Find streams that provide location data
         # lat
         found_stream_key = find_stream(primary_key, primary_key.stream.lat_stream)
+        self.lat_stream_key = found_stream_key
         if found_stream_key is not None:
-            self.lat_stream_key = found_stream_key
             self.stream_keys.append(found_stream_key)
         else:
             log.error("Couldn't find stream to provide lat data")
 
         # lon
         found_stream_key = find_stream(primary_key, primary_key.stream.lon_stream)
+        self.lon_stream_key = found_stream_key
         if found_stream_key is not None:
-            self.lon_stream_key = found_stream_key
             self.stream_keys.append(found_stream_key)
         else:
             log.error("Couldn't find stream to provide lon data")
 
         # depth
         found_stream_key = find_stream(primary_key, primary_key.stream.depth_stream)
+        self.depth_stream_key = found_stream_key
         if found_stream_key is not None:
-            self.depth_stream_key = found_stream_key
             self.stream_keys.append(found_stream_key)
         else:
             log.error("Couldn't find stream to provide depth(pressure) data")
