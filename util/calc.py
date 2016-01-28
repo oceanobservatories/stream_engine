@@ -224,7 +224,7 @@ def get_csv(streams, start, stop, coefficients, limit=None,
     # Create the provenance metadata store to keep track of all files that are used
     provenance_metadata = ProvenanceMetadataStore(request_uuid)
     annotation_store = AnnotationStore()
-    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, limit=limit,
+    stream_request = StreamRequest(stream_keys, parameters, coefficients, time_range, None, limit=limit,
                                    include_provenance=include_provenance, include_annotations=include_annotations,
                                    strict_range=strict_range, location_information=location_information,
                                    request_id=request_uuid)
@@ -286,7 +286,7 @@ def get_needs(streams):
     for s in streams:
         for p in s.get('parameters', []):
             parameters.append(CachedParameter.from_id(p))
-    stream_request = StreamRequest(stream_keys, parameters, {}, None, needs_only=True, include_provenance=False,
+    stream_request = StreamRequest(stream_keys, parameters, {}, None, None, needs_only=True, include_provenance=False,
                                    include_annotations=False)
 
     stream_list = []
