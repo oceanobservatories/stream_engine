@@ -639,7 +639,7 @@ def set_geospatial(pd_data, stream_request):
     primary_stream_len = pd_data[primary_stream.time_parameter][primary_key.as_refdes()]['data']
 
     lat_sk = stream_request.lat_stream_key
-    if pd_data.get(lat_sk.stream.time_parameter, {}).has_key(lat_sk.as_refdes()) and \
+    if lat_sk is not None and pd_data.get(lat_sk.stream.time_parameter, {}).has_key(lat_sk.as_refdes()) and \
             pd_data.get(primary_stream.lat_param_id, {}).has_key(lat_sk.as_refdes()):
 
         if primary_stream.lat_param_id is not None:
@@ -654,9 +654,9 @@ def set_geospatial(pd_data, stream_request):
             }
 
     lon_sk = stream_request.lon_stream_key
-    if pd_data.get(lat_sk.stream.time_parameter, {}).has_key(lat_sk.as_refdes()) and \
+    if lon_sk is not None and pd_data.get(lon_sk.stream.time_parameter, {}).has_key(lon_sk.as_refdes()) and \
             pd_data.get(primary_stream.lon_param_id, {}).has_key(lon_sk.as_refdes()):
-        if primary_stream.lat_param_id is not None:
+        if primary_stream.lon_param_id is not None:
             interped_data = interpolate_list(primary_stream_len,
                                              pd_data[lon_sk.stream.time_parameter][lon_sk.as_refdes()]['data'],
                                              pd_data[primary_stream.lon_param_id][lon_sk.as_refdes()]['data'])
@@ -1191,6 +1191,10 @@ class StreamRequest(object):
         self.request_id = request_id
         self._ctd_source = {}
         self.uflags = uflags
+
+        self.lat_stream_key = None
+        self.lon_stream_key = None
+        self.depth_stream_key = None
 
         self._initialize(needs_only)
 
