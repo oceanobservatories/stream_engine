@@ -286,7 +286,7 @@ def get_needs(streams):
     for s in streams:
         for p in s.get('parameters', []):
             parameters.append(CachedParameter.from_id(p))
-    stream_request = StreamRequest(stream_keys, parameters, {}, None, needs_only=True, include_provenance=False,
+    stream_request = StreamRequest(stream_keys, parameters, {}, None, None, needs_only=True, include_provenance=False,
                                    include_annotations=False)
 
     stream_list = []
