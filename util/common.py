@@ -217,9 +217,7 @@ class StreamKey(object):
         self.sensor = sensor
         self.method = method
         self.stream_name = stream
-        if stream not in stream_cache:
-            stream_cache[stream] = CachedStream.from_stream(Stream.query.filter(Stream.name == stream).first())
-        self.stream = stream_cache[stream]
+        self.stream = Stream.query.filter(Stream.name == stream).first()
         # convenience property
         self.needs_cc = set().union(
             *[param.needs_cc for param in self.stream.parameters if param.parameter_type == FUNCTION])
@@ -269,175 +267,6 @@ class StreamKey(object):
 
     def __str__(self):
         return str(self.as_dict())
-
-
-class CachedStream(object):
-    """
-    Object to hold a cached version of the Stream DB object
-    """
-
-    @staticmethod
-    def from_stream(stream):
-        if stream.id not in stream_cache:
-            s = CachedStream()
-            s.id = stream.id
-            s.name = stream.name
-            s.time_parameter = stream.time_parameter
-            s.parameters = []
-            for p in stream.parameters:
-                s.parameters.append(CachedParameter.from_parameter(p))
-
-            s.source_streams = stream.source_streams
-            s.product_streams = stream.product_streams
-            s.is_virtual = len(stream.source_streams) > 0
-
-            s.lat_param_id = stream.lat_param_id
-            s.lon_param_id = stream.lon_param_id
-            # Default depth to CTD water pressure (1959)
-            if stream.depth_param_id is None:
-                s.depth_param_id = 1959
-            else:
-                s.depth_param_id = stream.depth_param_id
-
-            s.lat_stream_id = stream.lat_stream_id
-            s.lon_stream_id = stream.lon_stream_id
-            s.depth_stream_id = stream.depth_stream_id
-
-            s.uses_ctd = stream.uses_ctd
-
-            stream_cache[stream.id] = s
-        return stream_cache[stream.id]
-
-    @staticmethod
-    def from_id(stream_id):
-        if stream_id not in stream_cache:
-            stream_cache[stream_id] = CachedStream.from_stream(Stream.query.get(stream_id))
-        return stream_cache[stream_id]
-
-    def as_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'parameters': self.parameters
-        }
-
-    @property
-    def lat_stream(self):
-        return CachedStream.from_id(self.lat_stream_id)
-
-    @property
-    def lon_stream(self):
-        return CachedStream.from_id(self.lon_stream_id)
-
-    @property
-    def depth_stream(self):
-        return CachedStream.from_id(self.depth_stream_id)
-
-    def __eq__(self, other):
-        return self.id == other.id
-
-    def __str__(self):
-        return str(self.as_dict())
-
-
-class CachedParameter(object):
-    @staticmethod
-    def from_parameter(parameter):
-        if parameter is None:
-            return None
-        if parameter.id not in parameter_cache:
-            cp = CachedParameter()
-            cp.id = parameter.id
-            cp.name = parameter.name
-            cp.parameter_type = parameter.parameter_type.value if parameter.parameter_type is not None else None
-            cp.value_encoding = parameter.value_encoding.value if parameter.value_encoding is not None else None
-            cp.code_set = parameter.code_set.value if parameter.code_set is not None else None
-            cp.unit = parameter.unit.value if parameter.unit is not None else None
-            if parameter.fill_value is not None:
-                cp.fill_value = parameter.fill_value.value
-            elif parameter.value_encoding is not None and parameter.value_encoding in app.config['FILL_VALUES']:
-                cp.fill_value = app.config['FILL_VALUES'][parameter.value_encoding]
-            else:
-                cp.fill_value = None
-            cp.display_name = parameter.display_name
-            cp.standard_name = parameter.standard_name
-            cp.precision = parameter.precision
-            cp.parameter_function_map = parameter.parameter_function_map
-            cp.data_product_identifier = parameter.data_product_identifier
-            cp.description = parameter.description
-            cp.parameter_function = CachedFunction.from_function(parameter.parameter_function)
-            cp.streams = [stream.id for stream in parameter.streams]
-            cp.needs = parameter_util.needs(parameter)
-            cp.needs_cc = parameter_util.needs_cc(parameter)
-            parameter_cache[parameter.id] = cp
-        return parameter_cache[parameter.id]
-
-    @property
-    def is_array(self):
-        return self.parameter_type == 'array<quantity>'
-
-    @staticmethod
-    def from_id(pdid):
-        if pdid not in parameter_cache:
-            parameter_cache[pdid] = CachedParameter.from_parameter(Parameter.query.get(pdid))
-        return parameter_cache[pdid]
-
-    def as_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'parameter_type': self.parameter_type,
-            'value_encoding': self.value_encoding,
-            'code_set': self.code_set,
-            'unit': self.unit,
-            'fill_value': self.fill_value,
-            'display_name': self.display_name,
-            'standard_name': self.standard_name,
-            'precision': self.precision,
-            'parameter_function_map': self.parameter_function_map,
-            'data_product_identifier': self.data_product_identifier,
-            'description': self.description,
-            'parameter_function': self.parameter_function,
-            'streams': self.streams,
-            'needs': self.needs,
-            'needs_cc': self.needs_cc
-        }
-
-    def __str__(self):
-        return str(self.as_dict())
-
-    def __eq__(self, other):
-        return self.id == other.id
-
-    def __hash__(self):
-        return hash(self.id)
-
-
-class CachedFunction(object):
-    @staticmethod
-    def from_function(function):
-        if function is None:
-            return None
-        if function.id not in function_cache:
-            f = CachedFunction()
-            f.id = function.id
-            f.function_type = function.function_type.value if function.function_type is not None else None
-            f.function = function.function
-            f.owner = function.owner
-            f.description = function.description
-            f.qc_flag = function.qc_flag
-            function_cache[function.id] = f
-        return function_cache[function.id]
-
-    @staticmethod
-    def from_qc_function(qc_function_name):
-        for function_id in function_cache:
-            if function_cache.get(function_id).function.encode('ascii', 'ignore') == qc_function_name:
-                return function_cache.get(function_id)
-        ret = CachedFunction.from_function(ParameterFunction.query.filter_by(function=qc_function_name).first())
-        if ret is None:
-            app.logger.warn('Unable to find QC function: %s', qc_function_name)
-        return ret
 
 
 class StreamEngineException(Exception):
@@ -597,7 +426,7 @@ def to_xray_dataset(cols, data, stream_key, san=False):
     """
     if len(data) == 0:
         return None
-    params = {p.name: p for p in stream_key.stream.parameters if p.parameter_type != FUNCTION}
+    params = {p.name: p for p in stream_key.stream.parameters if p.parameter_type.value != FUNCTION}
     attrs = {
         'subsite': stream_key.subsite,
         'node': stream_key.node,
@@ -622,9 +451,9 @@ def to_xray_dataset(cols, data, stream_key, san=False):
         # unpack any arrays
         if column in params:
             data = replace_values(dataframe[column].values,
-                                  params[column].value_encoding,
-                                  params[column].fill_value,
-                                  params[column].is_array,
+                                  params[column].value_encoding.value,
+                                  params[column].fill_value.value,
+                                  params[column].parameter_type.value == 'array<quantity>',
                                   params[column].name)
         else:
             data = replace_values(dataframe[column].values, str, '', False, column)
@@ -642,9 +471,9 @@ def to_xray_dataset(cols, data, stream_key, san=False):
         if column in params:
             param = params[column]
             if param.unit is not None:
-                array_attrs['units'] = param.unit
+                array_attrs['units'] = param.unit.value
             if param.fill_value is not None:
-                array_attrs['_FillValue'] = param.fill_value
+                array_attrs['_FillValue'] = param.fill_value.value
             if param.display_name is not None:
                 array_attrs['long_name'] = param.display_name
             elif param.name is not None:

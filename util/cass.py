@@ -834,7 +834,8 @@ def insert_dataset(stream_key, dataset):
     dynamic_cols = cols[1:]
     key_cols = ['subsite', 'node', 'sensor', 'bin', 'method']
     cols = key_cols + dynamic_cols
-    arrays = set([p.name for p in stream_key.stream.parameters if p.parameter_type != FUNCTION and p.is_array])
+    arrays = set([p.name for p in stream_key.stream.parameters
+                  if p.parameter_type.value != FUNCTION and p.parameter_type.value == 'array<quantity>'])
     data_lists['bin'] = [data_bin] * size
     # id and provenance are expected to be UUIDs so convert them to uuids
     data_lists['id'] = [uuid.UUID(x) for x in dataset['id'].values]

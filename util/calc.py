@@ -14,18 +14,20 @@ import scipy as sp
 from collections import OrderedDict, defaultdict
 from datetime import datetime
 
+import parameter_util
 from csvresponse import CSVGenerator
 from datamodel import StreamData
 from engine.routes import app
 from jsonresponse import JsonResponse
 from parameter_util import PDArgument, FQNArgument, DPIArgument, CCArgument, NumericArgument, FunctionArgument
+from preload_database.model.preload import ParameterFunction, Parameter, Stream
 from util.cass import fetch_nth_data, fetch_annotations, \
     get_available_time_range, fetch_l0_provenance, store_qc_results, get_location_metadata, \
     get_first_before_metadata, get_cass_lookback_dataset, get_full_cass_dataset, get_streaming_provenance, \
     CASS_LOCATION_NAME, SAN_LOCATION_NAME, build_stream_dictionary, SessionManager
-from util.common import log_timing, ntp_to_datestring, ntp_to_ISO_date, StreamKey, TimeRange, CachedParameter, \
+from util.common import log_timing, ntp_to_datestring, ntp_to_ISO_date, StreamKey, TimeRange, \
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
-    CachedStream, StreamEngineException, CachedFunction, Annotation, \
+    StreamEngineException, Annotation, \
     MissingTimeException, MissingDataException, MissingStreamMetadataException, get_stream_key_with_param, \
     isfillvalue, InvalidInterpolationException, get_params_with_dpi, ParamUnavailableException, compile_datasets
 from util.san import fetch_nsan_data, fetch_full_san_data, get_san_lookback_dataset
@@ -51,7 +53,7 @@ def get_particles(streams, start, stop, coefficients, uflags, qc_parameters, lim
     parameters = []
     for s in streams:
         for p in s.get('parameters', []):
-            parameters.append(CachedParameter.from_id(p))
+            parameters.append(Parameter.query.get(p))
     time_range = TimeRange(start, stop)
 
     qc_stream_parameters = prepare_qc_stuff(qc_parameters)
@@ -79,7 +81,9 @@ def get_particles(streams, start, stop, coefficients, uflags, qc_parameters, lim
     # create StreamKey to CachedParameter mapping for the requested streams
     stream_to_params = {StreamKey.from_dict(s): [] for s in streams}
     for sk in stream_to_params:
-        stream_to_params[sk] = [p for p in stream_request.parameters if sk.stream.id in p.streams]
+        for p in sk.stream.parameters:
+            if p in stream_request.parameters:
+                stream_to_params[sk].append(p)
 
     return JsonResponse(stream_data).json(stream_to_params)
 
@@ -144,7 +148,7 @@ def do_qc_stuff(primary_key, stream_data, parameters, qc_stream_parameters):
         particle_ids = None
         particle_bins = None
         particle_deploys = None
-        if not primary_key.stream.is_virtual:
+        if not primary_key.stream.source_streams:
             particle_ids = pd_data['id'][primary_key.as_refdes()]['data']
             particle_bins = pd_data['bin'][primary_key.as_refdes()]['data']
             particle_deploys = pd_data['deployment'][primary_key.as_refdes()]['data']
@@ -193,7 +197,7 @@ def do_qc_stuff(primary_key, stream_data, parameters, qc_stream_parameters):
                     has_qc = True
                     qc_function_results_entry = pd_data.pop(qc_function_results)
                     values = qc_function_results_entry[primary_key.as_refdes()]['data']
-                    qc_cached_function = CachedFunction.from_qc_function(qc_function_name)
+                    qc_cached_function = ParameterFunction.query.filter_by(function=qc_function_name).first()
                     qc_results_mask = numpy.full_like(time_data, int(qc_cached_function.qc_flag, 2), dtype=numpy.int8)
                     qc_results_values = numpy.where(values == 0, ~qc_results_mask & qc_results_values,
                                                     qc_results_mask ^ qc_results_values)
@@ -218,7 +222,7 @@ def get_csv(streams, start, stop, coefficients, limit=None,
     parameters = []
     for s in streams:
         for p in s.get('parameters', []):
-            parameters.append(CachedParameter.from_id(p))
+            parameters.append(Parameter.query.get(p))
     time_range = TimeRange(start, stop)
 
     # Create the provenance metadata store to keep track of all files that are used
@@ -249,7 +253,7 @@ def get_netcdf(streams, start, stop, coefficients, qc_parameters, uflags, limit=
     parameters = []
     for s in streams:
         for p in s.get('parameters', []):
-            parameters.append(CachedParameter.from_id(p))
+            parameters.append(Parameter.query.get(p))
     time_range = TimeRange(start, stop)
 
     qc_stream_parameters = prepare_qc_stuff(qc_parameters)
@@ -285,7 +289,7 @@ def get_needs(streams):
     parameters = []
     for s in streams:
         for p in s.get('parameters', []):
-            parameters.append(CachedParameter.from_id(p))
+            parameters.append(Parameter.query.get(p))
     stream_request = StreamRequest(stream_keys, parameters, {}, None, None, needs_only=True, include_provenance=False,
                                    include_annotations=False)
 
@@ -376,7 +380,7 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
     primary_key = stream_request.stream_keys[0]
     time_range = TimeRange(start, stop)
     primary_deployments = []
-    virtual_request = primary_key.stream.is_virtual
+    virtual_request = primary_key.stream.source_streams
     # fit time ranges to metadata if we can.
     if app.config['COLLAPSE_TIMES']:
         log.warn('Collapsing time range primary stream time: ' + ntp_to_datestring(time_range.start) +
@@ -389,7 +393,7 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
         else:
             # for virtual streams collapse all of the times
             for sk in stream_request.stream_keys:
-                if not sk.stream.is_virtual:
+                if not sk.stream.source_streams:
                     data_range = get_available_time_range(sk)
                     time_range.start = max(time_range.start, data_range.start)
                     time_range.stop = min(time_range.stop, data_range.stop)
@@ -402,13 +406,13 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
     # Find source stream if primary_stream is virtual
     primary_stream = stream_request.stream_keys[0].stream
     source_stream_key = None
-    if primary_stream.is_virtual:
+    if primary_stream.source_streams:
         for sk in stream_request.stream_keys:
             if sk.stream in primary_stream.source_streams:
                 source_stream_key = sk
                 break
 
-    if primary_stream.is_virtual and source_stream_key is None:
+    if primary_stream.source_streams and source_stream_key is None:
         raise StreamEngineException("Can't find deployment for virtual stream")
 
     stream_data = {}
@@ -422,7 +426,7 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
         if stream_request.include_provenance:
             provenance_metadata.add_instrument_provenance(key, time_range.start, time_range.stop)
 
-        if key.stream.is_virtual:
+        if key.stream.source_streams:
             log.info("Skipping fetch of virtual stream: {}".format(key.stream.name))
             continue
 
@@ -432,12 +436,12 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
         if ds is None:
             if key == primary_key:
                 raise MissingDataException("Query returned no results for primary stream")
-            elif primary_key.stream.is_virtual and key.stream in primary_key.stream.source_streams:
+            elif primary_key.stream.source_streams and key.stream in primary_key.stream.source_streams:
                 raise MissingDataException("Query returned no results for source stream")
             else:
                 continue
         # transform data from cass and put it into pd_data
-        parameters = [p for p in key.stream.parameters if p.parameter_type != FUNCTION]
+        parameters = [p for p in key.stream.parameters if p.parameter_type.value != FUNCTION]
 
         # save first time for interpolation later
         if first_time is None:
@@ -446,7 +450,7 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
         deployments = ds.groupby('deployment')
         for dep_num, data_set in deployments:
             pd_data = stream_data.get(dep_num, {})
-            if is_main_query or (primary_stream.is_virtual and key == source_stream_key):
+            if is_main_query or (primary_stream.source_streams and key == source_stream_key):
                 primary_deployments.append(dep_num)
             for param in parameters:
                 if param.name not in data_set:
@@ -523,8 +527,8 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
         # calculate all time params first if they are derived products
         found_time_params = {}
         for pd_arg in stream_request.found_args:
-            time_param = CachedParameter.from_id(pd_arg.stream_key.stream.time_parameter)
-            if time_param.parameter_type == FUNCTION and time_param.id not in found_time_params:
+            time_param = Parameter.query.get(pd_arg.stream_key.stream.time_parameter)
+            if time_param.parameter_type.value == FUNCTION and time_param.id not in found_time_params:
                 calculate_derived_product(time_param, stream_request.coefficients, pd_data, primary_key,
                                           provenance_metadata, stream_request, dep_num, refdes_lengths)
 
@@ -535,7 +539,7 @@ def fetch_stream_data(stream_request, streams, start, stop, coefficients, limit,
 
         for param in primary_key.stream.parameters:
             if param.id not in pd_data:
-                if param.parameter_type == FUNCTION:
+                if param.parameter_type.value == FUNCTION:
                     # calculate inserts derived products directly into pd_data
                     calculate_derived_product(param, stream_request.coefficients, pd_data, primary_key,
                                               provenance_metadata, stream_request, dep_num, refdes_lengths)
@@ -575,7 +579,7 @@ def set_pd_data_from_deployment(stream_request, pd_data, depl_num, depl_name, pd
 
     # virtual data size of metbk_hourly differs from source stream size
     # but this check is left for now.
-    if base_key.stream.is_virtual:
+    if base_key.stream.source_streams:
         time_stream = base_key.stream.source_streams[0]
         time_stream_key = get_stream_key_with_param(pd_data, time_stream, time_stream.time_parameter)
     else:
@@ -692,7 +696,7 @@ def _qc_check(stream_request, parameter, pd_data, primary_key):
         if 'strict_validation' not in qcs[function_name]:
             local_qc_args[function_name]['strict_validation'] = False
 
-        module = importlib.import_module(CachedFunction.from_qc_function(function_name).owner)
+        module = importlib.import_module(ParameterFunction.query.filter_by(function=function_name).first().owner)
 
         qc_name = '%s_%s' % (parameter.name.encode('ascii', 'ignore'), function_name)
         if qc_name not in pd_data:
@@ -754,7 +758,8 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
             ref_to_name[FQNArgument.from_preload(i)] = rev_func_map[i]
 
     this_ref = PDArgument(param.id)
-    needs = [arg for arg in param.needs if arg.pdid not in pd_data.keys()]
+    param_needs = parameter_util.needs(param)
+    needs = [arg for arg in param_needs if arg.pdid not in pd_data.keys()]
 
     calc_meta = OrderedDict()
     subs = []
@@ -762,7 +767,7 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
     functions = {}
 
     # prevent loops since they are only warned against
-    other = set([arg for arg in param.needs if arg != this_ref]) - set(needs)
+    other = set([arg for arg in param_needs if arg != this_ref]) - set(needs)
     if this_ref in needs:
         needs.remove(this_ref)
 
@@ -770,8 +775,8 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
         found_arg = stream_request.found_args.get(arg)
         if found_arg is None:
             continue
-        needed_parameter = CachedParameter.from_id(found_arg.pdid)
-        if needed_parameter.parameter_type == FUNCTION:
+        needed_parameter = Parameter.query.get(found_arg.pdid)
+        if needed_parameter.parameter_type.value == FUNCTION:
             sub_id = calculate_derived_product(needed_parameter,
                                                coeffs,
                                                pd_data,
@@ -794,8 +799,8 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
 
     # Gather information about all other things that we already have.
     for i in other:
-        local_param = CachedParameter.from_id(i.pdid)
-        if local_param.parameter_type == FUNCTION:
+        local_param = Parameter.query.get(i.pdid)
+        if local_param.parameter_type.value == FUNCTION:
             # the function has already been calculated so we need to get the subcalculation from metadata..
             sub_calcs = provenance_metadata.calculated_metatdata.get_keys_for_calculated(i)
             # only include sub_functions if it is in the function map. Otherwise it is calculated in the sub function
@@ -849,7 +854,7 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
             refdes_lengths[length_key] = len(data)
 
         calc_meta['function_name'] = param.parameter_function.function
-        calc_meta['function_type'] = param.parameter_function.function_type
+        calc_meta['function_type'] = param.parameter_function.function_type.value
         calc_meta['function_version'] = version
         calc_meta['function_id'] = param.parameter_function.id
         calc_meta['function_owner'] = param.parameter_function.owner
@@ -875,21 +880,21 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
             error_info['derived_display_name'] = target_param.display_name
             if 'pdRef' in error_info:
                 pdRef = error_info.pop('pdRef')
-                error_parameter = CachedParameter.from_id(pdRef.pdid)
+                error_parameter = Parameter.query.get(pdRef.pdid)
                 error_info['missing_id'] = error_parameter.id
                 error_info['missing_name'] = error_parameter.name
                 error_info['missing_display_name'] = error_parameter.display_name
-                error_info['missing_possible_stream_names'] = [CachedStream.from_id(s).name for s in
+                error_info['missing_possible_stream_names'] = [s.name for s in
                                                                error_parameter.streams]
-                error_info['missing_possible_stream_ids'] = [s for s in error_parameter.streams]
+                error_info['missing_possible_stream_ids'] = [s.id for s in error_parameter.streams]
 
             error_info['message'] = e.message
             provenance_metadata.calculated_metatdata.errors.append(error_info)
 
         # To support netcdf aggregation we need to fill all missing values across all files in case it is defined in all other locations.
         shp = get_shape(param, parameter_key, pd_data)
-        data = numpy.empty(shape=shp, dtype=param.value_encoding)
-        data.fill(param.fill_value)
+        data = numpy.empty(shape=shp, dtype=param.value_encoding.value)
+        data.fill(param.fill_value.value)
         if param.id not in pd_data:
             pd_data[param.id] = {}
         pd_data[param.id][parameter_key.as_refdes()] = {'data': data, 'source': 'filled'}
@@ -927,7 +932,7 @@ def execute_dpa(parameter, kwargs):
 
     version = 'unversioned'
     if len(kwargs) == len(func_map):
-        if func.function_type == 'PythonFunction':
+        if func.function_type.value == 'PythonFunction':
             module = importlib.import_module(func.owner)
             version = ION_VERSION
             result = None
@@ -938,7 +943,7 @@ def execute_dpa(parameter, kwargs):
                 to_attach = {'type': 'FunctionError', "parameter": parameter,
                              'function': str(func.id) + " " + str(func.description)}
                 raise StreamEngineException('DPA threw exception: %s' % e, payload=to_attach)
-        elif func.function_type == 'NumexprFunction':
+        elif func.function_type.value == 'NumexprFunction':
             try:
                 result = numexpr.evaluate(func.function, kwargs)
             except Exception as e:
@@ -947,7 +952,7 @@ def execute_dpa(parameter, kwargs):
                 raise StreamEngineException('Numexpr function threw exception: %s' % e, payload=to_attach)
         else:
             to_attach = {'type': 'UnkownFunctionError', "parameter": parameter, 'function': str(func.function_type)}
-            raise UnknownFunctionTypeException(func.function_type, payload=to_attach)
+            raise UnknownFunctionTypeException(func.function_type.value, payload=to_attach)
 
         return result, version
     else:
@@ -967,7 +972,7 @@ def build_func_map(parameter, coefficients, pd_data, base_key, deployment, strea
     # find correct time parameter for the main stream
     time_meta = {}
     main_stream_refdes = base_key.as_refdes()
-    if base_key.stream.is_virtual:
+    if base_key.stream.source_streams:
         # use source stream for time
         time_stream = base_key.stream.source_streams[0]
         time_stream_key = get_stream_key_with_param(pd_data, time_stream, time_stream.time_parameter)
@@ -1020,7 +1025,7 @@ def build_func_map(parameter, coefficients, pd_data, base_key, deployment, strea
             # Provenance
             #############
             param_meta = {}
-            param = CachedParameter.from_id(pd_arg.pdid)
+            param = Parameter.query.get(pd_arg.pdid)
             param_meta['type'] = "parameter"
             param_meta['source'] = pd_data[pd_arg.pdid][pd_arg.stream_key.as_refdes()]['source']
             param_meta['parameter_id'] = param.id
@@ -1207,7 +1212,7 @@ class StreamRequest(object):
         primary_key = self.stream_keys[0]
 
         # virtual streams are not in cassandra, so we can't fit the time range
-        if not needs_only and not self.stream_keys[0].stream.is_virtual:
+        if not needs_only and not self.stream_keys[0].stream.source_streams:
             self._fit_time_range()
 
         # no duplicates allowed
@@ -1228,8 +1233,8 @@ class StreamRequest(object):
 
         needs = set()
         for parameter in self.parameters:
-            if parameter.parameter_type == FUNCTION:
-                needs = needs.union([pdref for pdref in parameter.needs])
+            if parameter.parameter_type.value == FUNCTION:
+                needs = needs.union([pdref for pdref in parameter_util.needs(parameter)])
 
         # get provided params
         provided_dpi = set()
@@ -1268,20 +1273,19 @@ class StreamRequest(object):
 
         for arg in needs:
             if isinstance(arg, PDArgument):
-                possible_streams = CachedParameter.from_id(arg.pdid).streams
+                possible_streams = Parameter.query.get(arg.pdid).streams
             elif isinstance(arg, FQNArgument):
-                streams_that_provide_need = CachedParameter.from_id(arg.pdid).streams
+                streams_that_provide_need = Parameter.query.get(arg.pdid).streams
                 possible_streams = [s for s in streams_that_provide_need if s.name == arg.stream_name]
             elif isinstance(arg, DPIArgument):
                 possible_params = get_params_with_dpi(arg.dpi)
                 possible_streams = []
                 for param in possible_params:
                     for stream in param.streams:
-                        possible_streams.append(stream.id)
+                        possible_streams.append(stream)
             else:
                 raise StreamEngineException("Found invalid argument type: {}".format(type(arg)), status_code=500)
 
-            possible_streams = [CachedStream.from_id(s) for s in possible_streams]
             found_stream_key = find_stream(self.stream_keys[0], possible_streams)
 
             if found_stream_key is not None and found_stream_key not in self.stream_keys:
@@ -1295,7 +1299,7 @@ class StreamRequest(object):
             else:
                 # if we couldn't find a providing stream key, the arg might be provided by a virtual stream
                 for s in possible_streams:
-                    if s.is_virtual:
+                    if s.source_streams:
                         found_stream_key = find_stream(primary_key, s.source_streams)
 
                         if found_stream_key is not None:
@@ -1323,7 +1327,7 @@ class StreamRequest(object):
 
         # Find streams that provide location data
         # lat
-        found_stream_key = find_stream(primary_key, primary_key.stream.lat_stream)
+        found_stream_key = find_stream(primary_key, Stream.query.get(primary_key.stream.lat_stream_id))
         if found_stream_key is not None:
             self.lat_stream_key = found_stream_key
             self.stream_keys.append(found_stream_key)
@@ -1331,7 +1335,7 @@ class StreamRequest(object):
             log.error("Couldn't find stream to provide lat data")
 
         # lon
-        found_stream_key = find_stream(primary_key, primary_key.stream.lon_stream)
+        found_stream_key = find_stream(primary_key, Stream.query.get(primary_key.stream.lon_stream_id))
         if found_stream_key is not None:
             self.lon_stream_key = found_stream_key
             self.stream_keys.append(found_stream_key)
@@ -1339,7 +1343,7 @@ class StreamRequest(object):
             log.error("Couldn't find stream to provide lon data")
 
         # depth
-        found_stream_key = find_stream(primary_key, primary_key.stream.depth_stream)
+        found_stream_key = find_stream(primary_key, Stream.query.get(primary_key.stream.depth_stream_id))
         if found_stream_key is not None:
             self.depth_stream_key = found_stream_key
             self.stream_keys.append(found_stream_key)
@@ -1347,13 +1351,13 @@ class StreamRequest(object):
             log.error("Couldn't find stream to provide depth(pressure) data")
 
         if primary_key.stream.uses_ctd:
-            depth_parameters = [CachedParameter.from_id(id) for id in app.config['POSSIBLE_PRESSURE_PARAMETERS']]
+            depth_parameters = [Parameter.query.get(id) for id in app.config['POSSIBLE_PRESSURE_PARAMETERS']]
 
             found_pressure_stream_key = None
             found_pressure_param = None
             matching_stream_keys = []
             for param in depth_parameters:
-                possible_stream = find_stream(primary_key, [CachedStream.from_id(s) for s in param.streams])
+                possible_stream = find_stream(primary_key, [Stream.query.get(s) for s in param.streams])
                 if possible_stream is not None:
                     matching_stream_keys.append(possible_stream)
 

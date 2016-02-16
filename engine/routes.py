@@ -10,22 +10,21 @@ import ntplib
 from flask import request, Response, jsonify
 
 from engine import app
-from preload_database.model.preload import Stream
+from preload_database.model.preload import Stream, Parameter
 import util.calc
 import util.aggregation
 from util.cass import time_to_bin, bin_to_time
-from util.common import CachedParameter, StreamEngineException, MalformedRequestException, \
+from util.common import StreamEngineException, MalformedRequestException, \
     InvalidStreamException, InvalidParameterException, ISO_to_ntp, ntp_to_ISO_date, \
     StreamKey, MissingDataException, MissingTimeException, UIHardLimitExceededException, TimedOutException
 from util.san import onload_netCDF, SAN_netcdf
-
 
 log = logging.getLogger(__name__)
 
 
 def get_userflags(input_data):
     keys = ['userName', 'advancedStreamEngineLogging']
-    uflags = { k: input_data.get(k) for k in keys }
+    uflags = {k: input_data.get(k) for k in keys}
     return uflags
 
 
@@ -39,7 +38,7 @@ def handleException(error):
     else:
         log.exception('error during request')
         msg = "Unexpected internal error during request"
-        errd = {'message' :msg, 'requestUUID': reqID}
+        errd = {'message': msg, 'requestUUID': reqID}
         status_code = 500
     response = jsonify(errd)
     response.status_code = status_code
@@ -52,8 +51,10 @@ def log_request():
     log.info('Incoming request (%s) url=%s data=%s', request.get_json().get('requestUUID'), request.url,
              request.data)
 
+
 def signal_handler(signum, frame):
     raise TimedOutException()
+
 
 def set_timeout(func):
     @wraps(func)
@@ -65,11 +66,12 @@ def set_timeout(func):
             result = func(*args, **kwargs)
         except TimedOutException:
             raise StreamEngineException("Data processing timed out after %s seconds" % \
-                                         app.config['REQUEST_TIMEOUT_SECONDS'], status_code=408)
+                                        app.config['REQUEST_TIMEOUT_SECONDS'], status_code=408)
         finally:
             signal.alarm(0)
 
         return result
+
     return decorated_function
 
 
@@ -120,17 +122,22 @@ def particles():
         prov = input_data.get('include_provenance', False)
         annotate = input_data.get('include_annotations', False)
 
-        resp = Response(util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}), uflags,
-                        input_data.get('qcParameters', {}), limit=limit,
-                         include_provenance=prov, include_annotations=annotate ,
-                        strict_range=input_data.get('strict_range', False), request_uuid=input_data.get('requestUUID',''), location_information=input_data.get('locations', {})),
-                    mimetype='application/json')
+        resp = Response(
+            util.calc.get_particles(input_data.get('streams'), start, stop, input_data.get('coefficients', {}), uflags,
+                                    input_data.get('qcParameters', {}), limit=limit,
+                                    include_provenance=prov, include_annotations=annotate,
+                                    strict_range=input_data.get('strict_range', False),
+                                    request_uuid=input_data.get('requestUUID', ''),
+                                    location_information=input_data.get('locations', {})),
+            mimetype='application/json')
 
         log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
         return resp
     else:
-        message = 'Requested number of particles ({:,d}) larger than maximum allowed limit ({:,d})'.format(limit, app.config['UI_HARD_LIMIT'])
-        raise(UIHardLimitExceededException(message=message))
+        message = 'Requested number of particles ({:,d}) larger than maximum allowed limit ({:,d})'.format(limit,
+                                                                                                           app.config[
+                                                                                                               'UI_HARD_LIMIT'])
+        raise (UIHardLimitExceededException(message=message))
 
 
 @app.route('/csv', methods=['POST'])
@@ -167,6 +174,7 @@ def csv():
     validate(input_data)
     return Response(delimited_data(input_data, delimiter=','), mimetype='application/csv')
 
+
 @app.route('/tab', methods=['POST'])
 @set_timeout
 def tab():
@@ -201,6 +209,7 @@ def tab():
     validate(input_data)
     return Response(delimited_data(input_data, delimiter='\t'), mimetype='application/tab-separated-values')
 
+
 def delimited_data(input_data, delimiter=','):
     request_start_time = time.time()
     log.info("Handling request to {} - {}".format(request.url, input_data.get('streams', "")))
@@ -213,15 +222,17 @@ def delimited_data(input_data, delimiter=','):
     if limit <= app.config["UI_HARD_LIMIT"]:
         prov = input_data.get('include_provenance', True)
         annotate = input_data.get('include_annotations', False)
-        value =  util.calc.get_csv(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
-                                             limit=limit, include_provenance=prov,
-                                             include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
-                                             location_information=input_data.get('locations', {}), delimiter=delimiter)
+        value = util.calc.get_csv(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
+                                  limit=limit, include_provenance=prov,
+                                  include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
+                                  location_information=input_data.get('locations', {}), delimiter=delimiter)
         log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
         return value
     else:
-        message = 'Requested number of particles ({:,d}) larger than maximum allowed limit ({:,d})'.format(limit, app.config['UI_HARD_LIMIT'])
-        raise(UIHardLimitExceededException(message=message))
+        message = 'Requested number of particles ({:,d}) larger than maximum allowed limit ({:,d})'.format(limit,
+                                                                                                           app.config[
+                                                                                                               'UI_HARD_LIMIT'])
+        raise (UIHardLimitExceededException(message=message))
 
 
 def write_file_with_content(base_path, file_path, content):
@@ -236,11 +247,13 @@ def write_file_with_content(base_path, file_path, content):
     else:
         return False
 
+
 def write_status(path, status="complete"):
     if not os.path.exists(path):
         os.makedirs(path)
     with open(os.path.join(path, "status.txt"), 'w') as s:
         s.write(status)
+
 
 @app.route('/particles-fs', methods=['POST'])
 @set_timeout
@@ -291,7 +304,8 @@ def particles_save_to_filesystem():
     # output is sent to filesystem, the directory will be supplied via endpoint, in case it is not, use a backup
     # NOTE(uFrame): If a backup is being used, there's likely a bug in uFrame, so best to track that down as soon as possible
     base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],
-                             input_data.get('directory','unknown/%0f-%s' % (start, input_data.get('requestUUID', 'unknown'))))
+                             input_data.get('directory',
+                                            'unknown/%0f-%s' % (start, input_data.get('requestUUID', 'unknown'))))
     streams = input_data.get('streams')
     fn = '%s.json' % (StreamKey.from_dict(streams[0]).stream_name)
     code = 200
@@ -299,10 +313,12 @@ def particles_save_to_filesystem():
     message = str([file_path])
     try:
         json_output = util.calc.get_particles(streams, start, stop, input_data.get('coefficients', {}), uflags,
-                        input_data.get('qcParameters', {}), limit=limit, include_provenance=prov, include_annotations=annotate,
-                        strict_range=input_data.get('strict_range', False), request_uuid=input_data.get('requestUUID',''),
-                        location_information=input_data.get('locations', {}))
-    except (MissingDataException,MissingTimeException) as e:
+                                              input_data.get('qcParameters', {}), limit=limit, include_provenance=prov,
+                                              include_annotations=annotate,
+                                              strict_range=input_data.get('strict_range', False),
+                                              request_uuid=input_data.get('requestUUID', ''),
+                                              location_information=input_data.get('locations', {}))
+    except (MissingDataException, MissingTimeException) as e:
         # treat as empty
         log.warning(e)
         # set contents of stream.json to empty
@@ -313,7 +329,7 @@ def particles_save_to_filesystem():
         # make message be the error code
         message = "Request for particles failed for the following reason: " + e.message
         # set the contents of failure.json
-        json_output = json.dumps({ 'code': 500, 'message': message, 'requestUUID': input_data.get('requestUUID', '')})
+        json_output = json.dumps({'code': 500, 'message': message, 'requestUUID': input_data.get('requestUUID', '')})
         file_path = os.path.join(base_path, 'failure.json')
         log.exception(json_output)
     # try to write file, if it does not succeed then return an error
@@ -327,8 +343,9 @@ def particles_save_to_filesystem():
     write_status(base_path)
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
-    return Response(json.dumps({'code': code, 'message' : message},indent=2, separators=(',',': ')),
+    return Response(json.dumps({'code': code, 'message': message}, indent=2, separators=(',', ': ')),
                     mimetype='application/json')
+
 
 @app.route('/csv-fs', methods=['POST'])
 @set_timeout
@@ -399,6 +416,7 @@ def tab_save_to_filesystem():
     validate(input_data)
     return delimited_to_filesystem(input_data, '\t')
 
+
 @app.route('/aggregate', methods=['POST'])
 @set_timeout
 def aggregate_async():
@@ -408,8 +426,9 @@ def aggregate_async():
     st = time.time()
     util.aggregation.aggregate(async_job)
     et = time.time()
-    log.warn("Done performing aggregation on asynchronous job %s took %s seconds", async_job, et-st)
+    log.warn("Done performing aggregation on asynchronous job %s took %s seconds", async_job, et - st)
     return "done"
+
 
 def delimited_to_filesystem(input_data, delimiter=','):
     request_start_time = time.time()
@@ -423,14 +442,14 @@ def delimited_to_filesystem(input_data, delimiter=','):
 
     prov = input_data.get('include_provenance', True)
     annotate = input_data.get('include_annotations', False)
-    base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],input_data.get('directory','unknown'))
+    base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], input_data.get('directory', 'unknown'))
     try:
         json_str = util.calc.get_csv(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
-                                         limit=limit,
-                                         include_provenance=prov,
-                                         include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
-                                         location_information=input_data.get('locations', {}),
-                                         disk_path=input_data.get('directory','unknown'), delimiter=delimiter)
+                                     limit=limit,
+                                     include_provenance=prov,
+                                     include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
+                                     location_information=input_data.get('locations', {}),
+                                     disk_path=input_data.get('directory', 'unknown'), delimiter=delimiter)
     except Exception as e:
         json_str = output_async_error(input_data, e)
     write_status(base_path)
@@ -475,7 +494,7 @@ def full_netcdf():
     log.info("Handling request to offload stream: %s bins: %s", input_data.get('streams', ""), bins)
     results, message = SAN_netcdf(input_data.get('streams'), bins)
     resp = {'results': results, 'message': message}
-    response = Response(json.dumps(resp),  mimetype='application/json')
+    response = Response(json.dumps(resp), mimetype='application/json')
     return response
 
 
@@ -543,16 +562,21 @@ def netcdf():
         prov = input_data.get('include_provenance', True)
         annotate = input_data.get('include_annotations', False)
         resp = Response(util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
-                                         input_data.get('qcParameters', {}), uflags, limit=limit, include_provenance=prov,
-                                         include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
-                                         location_information=input_data.get('locations', {}),
-                                         classic=input_data.get('classic', False)),
-                    mimetype='application/netcdf')
+                                             input_data.get('qcParameters', {}), uflags, limit=limit,
+                                             include_provenance=prov,
+                                             include_annotations=annotate,
+                                             request_uuid=input_data.get('requestUUID', ''),
+                                             location_information=input_data.get('locations', {}),
+                                             classic=input_data.get('classic', False)),
+                        mimetype='application/netcdf')
         log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
         return resp
     else:
-        message = 'Requested number of particles ({:,d}) larger than maximum allowed limit ({:,d})'.format(limit, app.config['UI_HARD_LIMIT'])
-        raise(UIHardLimitExceededException(message=message))
+        message = 'Requested number of particles ({:,d}) larger than maximum allowed limit ({:,d})'.format(limit,
+                                                                                                           app.config[
+                                                                                                               'UI_HARD_LIMIT'])
+        raise (UIHardLimitExceededException(message=message))
+
 
 @app.route('/netcdf-fs', methods=['POST'])
 @set_timeout
@@ -601,16 +625,16 @@ def netcdf_save_to_filesystem():
 
     prov = input_data.get('include_provenance', True)
     annotate = input_data.get('include_annotations', False)
-    base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],input_data.get('directory','unknown'))
+    base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], input_data.get('directory', 'unknown'))
     try:
         json_str = util.calc.get_netcdf(input_data.get('streams'), start, stop, input_data.get('coefficients', {}),
-                                         input_data.get('qcParameters', {}), uflags,
-                                         limit=limit,
-                                         include_provenance=prov,
-                                         include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
-                                         location_information=input_data.get('locations', {}),
-                                         disk_path=input_data.get('directory','unknown'),
-                                         classic=input_data.get('classic', False))
+                                        input_data.get('qcParameters', {}), uflags,
+                                        limit=limit,
+                                        include_provenance=prov,
+                                        include_annotations=annotate, request_uuid=input_data.get('requestUUID', ''),
+                                        location_information=input_data.get('locations', {}),
+                                        disk_path=input_data.get('directory', 'unknown'),
+                                        classic=input_data.get('classic', False))
     except Exception as e:
         json_str = output_async_error(input_data, e)
 
@@ -618,6 +642,7 @@ def netcdf_save_to_filesystem():
 
     log.info("Request took {:.2f}s to complete".format(time.time() - request_start_time))
     return Response(json_str, mimetype='application/json')
+
 
 @app.route('/needs', methods=['POST'])
 @set_timeout
@@ -700,7 +725,8 @@ def get_bins():
         et = ISO_to_ntp(et)
         start_bin = time_to_bin(st, stream)
         end_bin = time_to_bin(et, stream)
-    return Response(json.dumps({'start_bin' : start_bin, 'stop_bin' : end_bin}), mimetype='application/json')
+    return Response(json.dumps({'start_bin': start_bin, 'stop_bin': end_bin}), mimetype='application/json')
+
 
 @app.route("/get_times", methods=['GET'])
 @set_timeout
@@ -713,10 +739,10 @@ def get_times():
     sb = int(sb)
     eb = int(eb)
     ret = {
-        'startDT' : ntp_to_ISO_date(bin_to_time(sb)),
-        'start' : bin_to_time(sb),
-        'stopDT' : ntp_to_ISO_date(bin_to_time(eb + 1)),
-        'stop' : bin_to_time(eb + 1)
+        'startDT': ntp_to_ISO_date(bin_to_time(sb)),
+        'start': bin_to_time(sb),
+        'stopDT': ntp_to_ISO_date(bin_to_time(eb + 1)),
+        'stop': bin_to_time(eb + 1)
     }
     return Response(json.dumps(ret), mimetype='application/json')
 
@@ -749,19 +775,19 @@ def validate(input_data):
         if stream is None:
             raise InvalidStreamException('The requested stream does not exist in preload', payload={'stream': each})
 
-        # this check will disallow virtual streams to be accessed, so it's commented out for now
-        #if not stream_exists(each['subsite'],
-                             #each['node'],
-                             #each['sensor'],
-                             #each['method'],
-                             #each['stream']):
-            #raise StreamUnavailableException('The requested stream does not exist in cassandra',
-                                             #payload={'stream' :each})
+            # this check will disallow virtual streams to be accessed, so it's commented out for now
+            # if not stream_exists(each['subsite'],
+            # each['node'],
+            # each['sensor'],
+            # each['method'],
+            # each['stream']):
+            # raise StreamUnavailableException('The requested stream does not exist in cassandra',
+            # payload={'stream' :each})
 
         parameters = each.get('parameters', [])
         stream_parameters = [p.id for p in stream.parameters]
         for pid in parameters:
-            p = CachedParameter.from_id(pid)
+            p = Parameter.query.get(pid)
             if p is None:
                 raise InvalidParameterException('The requested parameter does not exist in preload',
                                                 payload={'id': pid})
@@ -774,19 +800,20 @@ def validate(input_data):
         raise MalformedRequestException('Received invalid coefficient data, must be a map',
                                         payload={'coefficients': input_data.get('coefficients')})
 
+
 def output_async_error(input_data, e):
     output = {
-        "code" : 500,
-        "message" : "Request for particles failed for the following reason: %s" % (e.message),
-        'requestUUID' : input_data.get('requestUUID', '')
+        "code": 500,
+        "message": "Request for particles failed for the following reason: %s" % (e.message),
+        'requestUUID': input_data.get('requestUUID', '')
     }
-    base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],input_data.get('directory','unknown'))
+    base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], input_data.get('directory', 'unknown'))
     # try to write file, if it does not succeed then return an additional error
-    json_str = json.dumps(output, indent=2, separators=(',',': '))
+    json_str = json.dumps(output, indent=2, separators=(',', ': '))
     if not write_file_with_content(base_path, os.path.join(base_path, "failure.json"), json_str):
         msg = "%s. Supplied directory '%s' is invalid. Path specified exists but is not a directory." % (
             output['message'], base_path)
         output['message'] = msg
-    json_str = json.dumps(output, indent=2, separators=(',',': '))
+    json_str = json.dumps(output, indent=2, separators=(',', ': '))
     log.exception(json_str)
     return json_str

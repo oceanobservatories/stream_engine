@@ -1,5 +1,6 @@
+from preload_database.model.preload import Parameter
 from util.calc import StreamRequest
-from util.common import CachedParameter, StreamKey
+from util.common import StreamKey
 from util.jsonresponse import JsonResponse
 import json
 import numpy as np
@@ -25,12 +26,12 @@ def test_JsonResponse():
         'stream': 'ctdpf_ckl_wfp_instrument_recovered'
     }) ]
 
-    parameters = [CachedParameter.from_id(7),
-                  CachedParameter.from_id(193),
-                  CachedParameter.from_id(195),
+    parameters = [Parameter.query.get(7),
+                  Parameter.query.get(193),
+                  Parameter.query.get(195),
                   # not on first stream
-                  # CachedParameter.from_id(196),
-                  CachedParameter.from_id(1963)]
+                  # Parameter.query.get(196),
+                  Parameter.query.get(1963)]
     request = StreamRequest(stream_keys, parameters, {}, None, needs_only=True)
     # Test:
     # * two streams
