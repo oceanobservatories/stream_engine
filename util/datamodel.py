@@ -9,7 +9,7 @@ import uuid
 __author__ = 'Stephen Zakrewsky'
 
 
-from common import CachedParameter, get_stream_key_with_param, MissingTimeException, ntp_to_ISO_date, MissingDataException
+from common import MissingTimeException, ntp_to_ISO_date, MissingDataException
 from preload_database.model.preload import Parameter
 import datetime
 from engine import app
@@ -159,7 +159,7 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
             stream_key.as_refdes() not in pd_data[param_id]
            ):
             continue
-        param = CachedParameter.from_id(param_id)
+        param = Parameter.query.get(param_id)
         # param can be None if this is not a real parameter,
         # like deployment for deployment number
         param_name = param_id if param is None else param.name
@@ -174,7 +174,7 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
             data = np.array(data)
         data = data[mask]
         if param is not None:
-            data = data.astype(param.value_encoding)
+            data = data.astype(param.value_encoding.value)
         else:
             if param_name in app.config['INTERNAL_OUTPUT_MAPPING']:
                 data = data.astype(app.config['INTERNAL_OUTPUT_MAPPING'][param_name])
@@ -196,11 +196,11 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
 
         if param:
             if param.unit is not None:
-                array_attrs['units'] = param.unit
-                if param.unit.startswith('seconds since'):
+                array_attrs['units'] = param.unit.value
+                if param.unit.value.startswith('seconds since'):
                     array_attrs['calendar'] =  app.config["NETCDF_CALENDAR_TYPE"]
             if param.fill_value is not None:
-                array_attrs['_FillValue'] = param.fill_value
+                array_attrs['_FillValue'] = param.fill_value.value
             # Long name needs to be display name to comply with cf 1.6.
             # http://cfconventions.org/Data/cf-conventions/cf-conventions-1.6/build/cf-conventions.html#long-name
 

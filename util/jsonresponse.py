@@ -69,7 +69,7 @@ class JsonResponse(object):
             particle = {p: data[p][index] for p in params if p not in missing}
 
             # Add primary key, deployment, provenance
-            if not stream_key.stream.is_virtual:
+            if not stream_key.stream.source_streams:
                 particle['pk'] = stream_key.as_dict()
                 # Add non-param data to particle
                 particle['pk']['deployment'] = data['deployment'][index]

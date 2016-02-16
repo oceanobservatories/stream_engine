@@ -1,7 +1,7 @@
+from preload_database.model.preload import Parameter
 from util.calc import NetCDF_Generator, StreamRequest
-from util.common import CachedParameter, StreamKey
+from util.common import StreamKey
 import numpy as np
-import numpy.ma as ma
 import os
 import preload_database.database
 import netCDF4
@@ -28,11 +28,11 @@ def test_NetCDF_Generator():
         'stream': 'ctdpf_ckl_wfp_instrument_recovered'
     }) ]
 
-    parameters = [CachedParameter.from_id(7),
-                  CachedParameter.from_id(193),
-                  CachedParameter.from_id(195),
-                  CachedParameter.from_id(196),
-                  CachedParameter.from_id(1963)]
+    parameters = [Parameter.query.get(7),
+                  Parameter.query.get(193),
+                  Parameter.query.get(195),
+                  Parameter.query.get(196),
+                  Parameter.query.get(1963)]
 
     request = StreamRequest(stream_keys, parameters, {}, None, needs_only=True)
 
