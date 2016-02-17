@@ -4,10 +4,9 @@ import os
 import tempfile
 import csv
 import numpy
-import time
 import xray
 
-from engine.routes import app
+from engine import app
 from util.common import StreamEngineException
 
 log = logging.getLogger(__name__)

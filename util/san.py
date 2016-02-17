@@ -7,7 +7,8 @@ from multiprocessing.pool import ThreadPool
 
 from engine import app
 from util.cass import insert_dataset, get_san_location_metadata, fetch_bin
-from util.common import StreamKey, to_xray_dataset, compile_datasets, log_timing
+from util.common import StreamKey, log_timing
+from util.datamodel import to_xray_dataset, compile_datasets
 
 log = logging.getLogger(__name__)
 san_threadpool = ThreadPool(10)
