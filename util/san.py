@@ -2,12 +2,13 @@ import os
 import logging
 
 import numpy
-import xray
+import xray as xr
 from multiprocessing.pool import ThreadPool
 
 from engine import app
 from util.cass import insert_dataset, get_san_location_metadata, fetch_bin
-from util.common import StreamKey, to_xray_dataset, compile_datasets, log_timing
+from util.common import StreamKey, log_timing
+from util.datamodel import to_xray_dataset, compile_datasets
 
 log = logging.getLogger(__name__)
 san_threadpool = ThreadPool(10)
@@ -28,7 +29,7 @@ def onload_netCDF(file_name):
         return "File {:s} does not exist".format(file_name)
     # Validate that it has the information that we need and read in the data
     try:
-        with xray.open_dataset(file_name, decode_times=False, mask_and_scale=False) as dataset:
+        with xr.open_dataset(file_name, decode_times=False, mask_and_scale=False) as dataset:
             stream_key, errors = validate_dataset(dataset)
             if stream_key is None:
                 return errors
@@ -42,34 +43,23 @@ def onload_netCDF(file_name):
 
 def validate_dataset(dataset):
     # Validate netcdf file Check to make sure we have the subsite, node, sensor, stream, and collection_method
-    errors = ''
-    if 'subsite' not in dataset.attrs:
-        errors += 'No subsite in netCDF files attributes'
-    else:
-        subsite = dataset.attrs['subsite']
-    if 'node' not in dataset.attrs:
-        errors += 'No node in netCDF files attributes'
-    else:
-        node = dataset.attrs['node']
-    if 'sensor' not in dataset.attrs:
-        errors += 'No sensor in netCDF files attributes'
-    else:
-        sensor = dataset.attrs['sensor']
-    if 'stream' not in dataset.attrs:
-        errors += 'No stream in netCDF files attributes'
-    else:
-        stream = dataset.attrs['stream']
-    if 'collection_method' not in dataset.attrs:
-        errors += 'No collection_method in netCDF files attributes'
-    else:
-        method = dataset.attrs['collection_method']
-    if len(errors) > 0:
-        return None, errors
-    stream_key = StreamKey(subsite, node, sensor, method, stream)
+    stream_key_dict = {}
+    errors = []
+    for each in ['subsite', 'node', 'sensor', 'collection_method', 'stream']:
+        value = dataset.attrs.get(each)
+        stream_key_dict[each] = value
+        if value is None:
+            errors.append('No %s in netCDF file attributes' % each)
+
+    if errors:
+        return None, ', '.join(errors)
+
+    stream_key_dict['method'] = stream_key_dict['collection_method']
+    stream_key = StreamKey.from_dict(stream_key_dict)
     return stream_key, errors
 
 
-def SAN_netcdf(streams, bins):
+def SAN_netcdf(streams, bins, request_id):
     """
     Dump netcdfs for the stream and bins to the SAN.
     Will return success or list of bins that failed.
@@ -82,7 +72,7 @@ def SAN_netcdf(streams, bins):
     message = ''
     for data_bin in bins:
         try:
-            res, msg = offload_bin(stream, data_bin, san_dir_string)
+            res, msg = offload_bin(stream, data_bin, san_dir_string, request_id)
             results.append(res)
             message += msg
         except Exception as e:
@@ -92,10 +82,10 @@ def SAN_netcdf(streams, bins):
     return results, message
 
 
-def offload_bin(stream, data_bin, san_dir_string):
+def offload_bin(stream, data_bin, san_dir_string, request_id):
     # get the data and drop duplicates
     cols, data = fetch_bin(stream, data_bin)
-    dataset = to_xray_dataset(cols, data, stream, san=True)
+    dataset = to_xray_dataset(cols, data, stream, request_id, san=True)
     nc_directory = san_dir_string.format(data_bin)
     if not os.path.exists(nc_directory):
         os.makedirs(nc_directory)
@@ -255,9 +245,9 @@ def fetch_full_san_data(stream_key, time_range, location_metadata=None):
                         data.append(new_data)
                         # Keep track of indexes so they are unique in the final dataset
                         next_index += len(new_data['index'])
-    if len(data) == 0:
+    if not data:
         return None
-    return xray.concat(data, dim='index')
+    return xr.concat(data, dim='index')
 
 
 @log_timing(log)
@@ -279,13 +269,13 @@ def get_deployment_data(direct, stream_name, num_data_points, time_range, index_
         # only netcdf files
         if stream_name in f and os.path.splitext(f)[-1] == '.nc':
             f = os.path.join(direct, f)
-            with xray.open_dataset(f, decode_times=False) as dataset:
-                out_ds = xray.Dataset(attrs=dataset.attrs)
+            with xr.open_dataset(f, decode_times=False) as dataset:
+                out_ds = xr.Dataset(attrs=dataset.attrs)
                 t = dataset.time
                 t.load()
                 # get the indexes to pull out of the data
                 indexes = numpy.where(numpy.logical_and(time_range.start <= t, t <= time_range.stop))[0]
-                if len(indexes) != 0:
+                if indexes:
                     # less indexes than data or request for all data ->  get everything
                     if num_data_points < 0:
                         selection = indexes

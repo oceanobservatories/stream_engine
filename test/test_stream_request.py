@@ -1,4 +1,3 @@
-import csv
 import json
 import os
 import unittest
@@ -215,7 +214,6 @@ class StreamRequestTest(unittest.TestCase):
 
         hourly_sk = StreamKey('CP01CNSM', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_hourly')
         source_sk = StreamKey('CP01CNSM', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_a_dcl_instrument_recovered')
-        # TODO - there is a VELPT on SBD11, determine why there is no data
         vel_sk = StreamKey('CP01CNSM', 'MFD35', '04-VELPTA000',	'recovered_host', 'velpt_ab_dcl_instrument_recovered')
 
         tr = TimeRange(metbk_ds.time.values[0], metbk_ds.time.values[-1])
@@ -230,3 +228,96 @@ class StreamRequestTest(unittest.TestCase):
 
         expected_params = [p.name for p in hourly_sk.stream.parameters] + ['obs', 'time']
         self.assertListEqual(sorted(expected_params), sorted(hourly_ds))
+
+    def test_function_map_scalar(self):
+        echo_fn = 'echo_sounding.nc'
+        echo_ds = xr.open_dataset(os.path.join(DATA_DIR, echo_fn), decode_times=False)
+        echo_sk = StreamKey('RS01SLBS', 'LJ01A', '05-HPIESA101', 'streamed', 'echo_sounding')
+        tr = TimeRange(0, 99999999)
+        sr = StreamRequest(echo_sk, [], {}, tr, {}, request_id='UNIT')
+        sr.datasets[echo_sk] = echo_ds
+        sr.calculate_derived_products()
+        sr._add_location()
+
+        expected = {'hpies_travel_time1_L1', 'hpies_travel_time2_L1', 'hpies_travel_time3_L1', 'hpies_travel_time4_L1',
+                    'hpies_bliley_temperature_L1', 'hpies_pressure_L1'}
+        missing = expected.difference(echo_ds)
+        self.assertSetEqual(missing, set())
+
+    def test_add_location(self):
+        echo_fn = 'echo_sounding.nc'
+        echo_ds = xr.open_dataset(os.path.join(DATA_DIR, echo_fn), decode_times=False)
+        echo_ds.deployment.values[:20] = 1
+        echo_ds.deployment.values[20:] = 2
+        echo_sk = StreamKey('RS01SLBS', 'LJ01A', '05-HPIESA101', 'streamed', 'echo_sounding')
+        location_info = {echo_sk.as_three_part_refdes(): [{'deployment': 1, 'lat': 1, 'lon': 5},
+                                                          {'deployment': 2, 'lat': 2, 'lon': 6}]}
+        tr = TimeRange(0, 99999999)
+        sr = StreamRequest(echo_sk, [], {}, tr, {}, location_information=location_info, request_id='UNIT')
+        sr.datasets[echo_sk] = echo_ds
+        sr.calculate_derived_products()
+        sr._add_location()
+
+        ds = sr.datasets[echo_sk]
+        lats = set(np.unique(ds.lat.values))
+        lons = set(np.unique(ds.lon.values))
+
+        self.assertSetEqual(lats, {1.0, 2.0})
+        self.assertSetEqual(lons, {5.0, 6.0})
+
+    def test_add_externals(self):
+        nutnr_sk = StreamKey('CE04OSPS', 'SF01B', '4A-NUTNRA102', 'streamed', 'nutnr_a_sample')
+        ctdpf_sk = StreamKey('CE04OSPS', 'SF01B', '2A-CTDPFA107', 'streamed', 'ctdpf_sbe43_sample')
+        nutnr_fn = 'nutnr_a_sample.nc'
+        ctdpf_fn = 'ctdpf_sbe43_sample.nc'
+
+        cals = json.load(open(os.path.join(DATA_DIR, 'cals.json')))
+
+        tr = TimeRange(3.65342400e+09, 3.65351040e+09)
+        coefficients = {k: [{'start': tr.start-1, 'stop': tr.stop+1, 'value': cals[k], 'deployment': 1}] for k in cals}
+        sr = StreamRequest(nutnr_sk, [2443], coefficients, tr, {}, request_id='UNIT')
+        nutnr_ds = xr.open_dataset(os.path.join(DATA_DIR, nutnr_fn), decode_times=False)
+        ctdpf_ds = xr.open_dataset(os.path.join(DATA_DIR, ctdpf_fn), decode_times=False)
+
+        sr.datasets[ctdpf_sk] = ctdpf_ds[self.base_params + [p.name for p in sr.stream_parameters[ctdpf_sk]]]
+        sr.datasets[nutnr_sk] = nutnr_ds[self.base_params + [p.name for p in sr.stream_parameters[nutnr_sk]]]
+        sr.calculate_derived_products()
+        sr.import_extra_externals()
+
+        self.assertIn('ctdpf_sbe43_sample-seawater_pressure', sr.datasets[nutnr_sk])
+        self.assertNotIn('ctdpf_sbe43_sample-seawater_pressure', sr.datasets[ctdpf_sk])
+
+        data = json.loads(JsonResponse(sr).json())
+        for each in data:
+            self.assertIn('int_ctd_pressure', each)
+
+    def test_add_externals_glider(self):
+        gps_fn = 'deployment0003_CE05MOAS-GL319-00-ENG000000-recovered_host-glider_gps_position.nc'
+        par_fn = 'deployment0003_CE05MOAS-GL319-01-PARADM000-recovered_host-parad_m_glider_recovered.nc'
+        ctd_fn = 'deployment0003_CE05MOAS-GL319-05-CTDGVM000-recovered_host-ctdgv_m_glider_instrument_recovered.nc'
+
+        gps_sk = StreamKey('CE05MOAS', 'GL319', '00-ENG000000', 'recovered_host', 'glider_gps_position')
+        par_sk = StreamKey('CE05MOAS', 'GL319', '01-PARADM000', 'recovered_host', 'parad_m_glider_recovered')
+        ctd_sk = StreamKey('CE05MOAS', 'GL319', '05-CTDGVM000', 'recovered_host', 'ctdgv_m_glider_instrument_recovered')
+
+        gps_ds = xr.open_dataset(os.path.join(DATA_DIR, gps_fn), decode_times=False)
+        par_ds = xr.open_dataset(os.path.join(DATA_DIR, par_fn), decode_times=False)
+        ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, ctd_fn), decode_times=False)
+
+        tr = TimeRange(par_ds.time.values[0], par_ds.time.values[-1])
+        sr = StreamRequest(par_sk, [], {}, tr, {}, request_id='UNIT')
+        sr.datasets[gps_sk] = gps_ds[self.base_params + [p.name for p in sr.stream_parameters[gps_sk]]]
+        sr.datasets[par_sk] = par_ds[self.base_params + [p.name for p in sr.stream_parameters[par_sk]]]
+        sr.datasets[ctd_sk] = ctd_ds[self.base_params + [p.name for p in sr.stream_parameters[ctd_sk]]]
+
+        sr.calculate_derived_products()
+        sr.import_extra_externals()
+
+        self.assertIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[par_sk])
+        self.assertNotIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[ctd_sk])
+
+        data = json.loads(JsonResponse(sr).json())
+        for each in data:
+            self.assertIn('int_ctd_pressure', each)
+            self.assertIn('lat', each)
+            self.assertIn('lon', each)

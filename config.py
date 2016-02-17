@@ -1,5 +1,5 @@
 DEBUG = False
-STREAM_ENGINE_VERSION = "0.8.5"
+STREAM_ENGINE_VERSION = "1.0.0"
 
 CASSANDRA_CONTACT_POINTS = ['127.0.0.1']
 CASSANDRA_KEYSPACE = 'ooi'
@@ -11,15 +11,17 @@ METADATA_CACHE_SECONDS = 600
 
 PARAMETER_LOGGING = '/opendap_export/stream_engine'
 SAN_BASE_DIRECTORY = '/opt/ooi/SAN/'
-SAN_CASS_OVERWRITE = True # When loading data back into cassandra should we allow writing to an already present databin.
+# When loading data back into cassandra should we allow writing to an already present databin.
+SAN_CASS_OVERWRITE = True
 ANNOTATION_URL = 'http://localhost:12580/annotations/find/'
 ASSET_URL = 'http://localhost:12573/'
 
-UNBOUND_QUERY_START  = 3471292800 # Where to start unbound queries 2010-01-01T00:00:00.000Z
+# Where to start unbound queries 2010-01-01T00:00:00.000Z
+UNBOUND_QUERY_START = 3471292800
 
 POOL_SIZE = 4
 
-LOGGING_CONFIG='logging.conf'
+LOGGING_CONFIG = 'logging.conf'
 
 NETCDF_TITLE = "Data produced by Stream Engine version {:s}".format(STREAM_ENGINE_VERSION)
 NETCDF_INSTITUTION = "Ocean Observatories Initiative"
@@ -43,13 +45,13 @@ NETCDF_KEYWORDS_VOCABULARY = ""
 NETCDF_KEYWORDS = ""
 NETCDF_ACKNOWLEDGEMENT = ""
 NETCDF_CONTRIBUTOR_NAME = ""
-NETCDF_CONTRIBUTOR_ROLE= ""
+NETCDF_CONTRIBUTOR_ROLE = ""
 NETCDF_PUBLISHER_NAME = "Ocean Observatories Initiative"
 NETCDF_PUBLISHER_URL = "http://oceanobservatories.org/"
 NETCDF_INFO_URL = "http://oceanobservatories.org/"
 NETCDF_SOURCE_URL = "http://oceanobservatories.org/"
 NETCDF_PUBLISHER_EMAIL = ""
-NETCDF_LICENSE= ""
+NETCDF_LICENSE = ""
 NETCDF_CALENDAR_TYPE = "gregorian"
 
 Z_AXIS_NAME = "depth"
@@ -64,49 +66,59 @@ MAX_BIN_SIZE_MIN = 20160
 
 COLLAPSE_TIMES = True
 
-UI_FULL_RETURN_RATIO = 2.0 # If the ratio of total data to requested points is less than this value all of the data is returned
-UI_FULL_SAMPLE_RATIO= 5.0 # If the ratio of total data to requested points is less than this value all and the total data in
-                        # Cassandra is less than the full sample limit a linear sample from all of the data is returned
-UI_FULL_SAMPLE_LIMIT= 5000 # If the ratio of total data to requested points is less than the UI_FULL_SAMPLE_RATIO and
-                            # the total number of data points is less than this value a linear sampling of all of the data is returned
-                            # Otherwise a sampling method is used pre query.
-UI_HARD_LIMIT = 20000     # set a hard limit for the maximum size a limited query can be.  All data can be accessed using an async query.
+# If the ratio of total data to requested points is less than this value all of the data is returned
+UI_FULL_RETURN_RATIO = 2.0
+# If the ratio of total data to requested points is less than this value all and the total data in
+# Cassandra is less than the full sample limit a linear sample from all of the data is returned
+UI_FULL_SAMPLE_RATIO = 5.0
+# If the ratio of total data to requested points is less than the UI_FULL_SAMPLE_RATIO and
+# the total number of data points is less than this value a linear sampling of all of the data is returned
+# Otherwise a sampling method is used pre query.
+UI_FULL_SAMPLE_LIMIT = 5000
+# set a hard limit for the maximum size a limited query can be.  All data can be accessed using an async query.
+UI_HARD_LIMIT = 20000
 
-ASYNC_DOWNLOAD_BASE_DIR='/opt/ooi/async'
+ASYNC_DOWNLOAD_BASE_DIR = '/opt/ooi/async'
 
-PREFERRED_DATA_LOCATION = 'san' # 'san' or 'cass': If data is present in a time bin on both the SAN and Cassandra this option chooses
-                                # which value to take if the number of entries match.  Otherwise the location with the most data is chosen.
+# 'san' or 'cass': If data is present in a time bin on both the SAN and Cassandra this option chooses
+# which value to take if the number of entries match.  Otherwise the location with the most data is chosen.
+PREFERRED_DATA_LOCATION = 'san'
 
-QC_RESULTS_STORAGE_SYSTEM = 'none' # 'log' to write qc results to a file, 'cass' to write qc results to a database
+QC_RESULTS_STORAGE_SYSTEM = 'none'  # 'log' to write qc results to a file, 'cass' to write qc results to a database
 
-LOOKBACK_QUERY_LIMIT = 100 # Number of cassandra rows used to the correct deployment for padding of streams which provide cal coefficients and other needed data
+# Number of cassandra rows used to the correct deployment for padding of streams which provide
+# cal coefficients and other needed data
+LOOKBACK_QUERY_LIMIT = 100
 
-DPA_VERSION_VARIABLE = "version" # The name of the variable that contains the version string for the ion_functions at the package level.
+# The name of the variable that contains the version string for the ion_functions at the package level.
+DPA_VERSION_VARIABLE = "version"
 
 INTERNAL_OUTPUT_EXCLUDE_LIST = ['bin', ]
 
 INTERNAL_OUTPUT_MAPPING = {
-    'deployment' : 'int32',
-    'id' : 'str',
+    'deployment': 'int32',
+    'id': 'str',
     'lat': 'float64',
     'lon': 'float64'
 }
 
-REQUEST_TIMEOUT_SECONDS = 600 # 10 minutes
+REQUEST_TIMEOUT_SECONDS = 600  # 10 minutes
 
-#Added these for netcdf outputs because the values in preload are not as reliable as they should be and we would like to filter purley based on data type.
+# Added these for netcdf outputs because the values in preload are not as reliable
+# as they should be and we would like to filter purely based on data type.
 FILL_VALUES = {
-    "float32": -9999999,
-    "float64": -9999999,
-    "int":  -9999999,
+    "float16": float('nan'),
+    "float32": float('nan'),
+    "float64": float('nan'),
+    "int": -9999999,
     "int8": -9,
     "int16": -9999,
-    "int32":  -9999999,
+    "int32": -9999999,
     "int64": -9999999,
-    "uint8": 256,
-    "uint16": 65536,
-    "uint32": 4294967296,
-    "uint64": 18446744073709551616,
+    "uint8": 0xff,
+    "uint16": 0xffff,
+    "uint32": 0xffffffff,
+    "uint64": 0xffffffffffffffff,
     "string": "",
     "boolean": -9
 }
@@ -120,10 +132,14 @@ DEPTH_FILL = 0.0
 # into the attributes of a netcdf file.
 # In this map the sensor will contain a list of all variables that should be placed in the header if they
 # are in the data.
-DATA_TO_ATTRIBUTE_PARTS = {'ADCP': ['bin_1_distance', 'num_cells', 'cell_length', 'deployment_depth', ' height_above_bottom']}
+DATA_TO_ATTRIBUTE_PARTS = {
+    'ADCP': ['bin_1_distance', 'num_cells', 'cell_length', 'deployment_depth', ' height_above_bottom']}
 
 # Turn netcdf aggregation on or off
 AGGREGATE = True
 
-POSSIBLE_PRESSURE_PARAMETERS = [1527, 1959, 2, 2820, 2926, 3647, 909, ]
-
+PRESSURE_DPI = 'PRESWAT_L1'
+GPS_STREAM_ID = 761
+LATITUDE_PARAM_ID = 1335
+LONGITUDE_PARAM_ID = 1336
+INT_PRESSURE_NAME = 'int_ctd_pressure'

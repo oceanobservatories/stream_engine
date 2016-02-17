@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.interpolate as interpolate
-import xray
+import xray as xr
 
 
 def _fit(x, y, new_x, axis):
@@ -28,7 +28,7 @@ def _numeric_interpolation(x, y, new_x, axis=0, fill=None):
     return f(new_x)
 
 
-def interp1d_DataArray(old_index, data, method=None, **indexers):
+def interp1d_data_array(old_index, data, method=None, **indexers):
     """
     Conform this object onto a new set of indexes, interpolating missing values.
     Note that that returned dtype will be float if numberic data is linearly
@@ -52,7 +52,7 @@ def interp1d_DataArray(old_index, data, method=None, **indexers):
     :see xray.DataArray.reindex
 
     Example
-    >>> xinterp.interp1d_DataArray(da, time=[2,4,6])
+    xinterp.interp1d_DataArray(da, time=[2,4,6])
     """
     dim_name = indexers.iterkeys().next()
     axis = data.dims.index('obs')
@@ -64,23 +64,23 @@ def interp1d_DataArray(old_index, data, method=None, **indexers):
     x = old_index
     y = data.values
 
-    x,y = _fit(x, y, new_x, axis)
+    x, y = _fit(x, y, new_x, axis)
 
-    interpattrs = dict(data.attrs)
-    new_fill_value = None
-    if method != 'lastseen' and y.dtype.kind in ['i','u','f','c']:
-        fill_value = interpattrs.get('_FillValue')
-        interpdata = _numeric_interpolation(x, y, new_x, axis, fill_value)
-        if interpattrs.has_key('_FillValue'):
-            interpattrs['_FillValue'] = np.NaN
+    interp_attrs = dict(data.attrs)
+    if method != 'lastseen' and y.dtype.kind in ['i', 'u', 'f', 'c']:
+        fill_value = interp_attrs.get('_FillValue')
+        interp_data = _numeric_interpolation(x, y, new_x, axis, fill_value)
+        if '_FillValue' in interp_attrs:
+            interp_attrs['_FillValue'] = np.NaN
     else:
         if method == 'linear':
             raise ValueError('Non-numeric data can\'t be linearly interpolated')
-        interpdata = _last_seen(x, y, new_x, axis)
+        interp_data = _last_seen(x, y, new_x, axis)
 
-    return data.dims, interpdata, interpattrs
+    return data.dims, interp_data, interp_attrs
 
-def interp1d_Dataset(data, method=None, **kw_indexers):
+
+def interp1d_dataset(data, method=None, **kw_indexers):
     """
     Conform this object onto a new set of indexes, interpolating missing values.
     Note that that returned dtype will be float if numberic data is linearly
@@ -104,19 +104,20 @@ def interp1d_Dataset(data, method=None, **kw_indexers):
     :see xray.Dataset.reindex
 
     Example
-    >>> xinterp.interp1d_Dataset(ds, time=[2,4,6])
+    xinterp.interp1d_Dataset(ds, time=[2,4,6])
     """
     if 'time' not in kw_indexers:
         raise ValueError('Only support interpolation along time')
     old_index = data.time.values
     old_index_attrs = data.time.attrs
     # create a new dataset
-    ds = xray.Dataset(attrs=data.attrs)
+    ds = xr.Dataset(attrs=data.attrs)
     for i in data:
-        #Since we are now indexing the netcdf by observation it only makes sense to interpolate along the observation dimension with new times
+        # Since we are now indexing the netcdf by observation it only makes sense
+        # to interpolate along the observation dimension with new times
         if i != 'time' and 'obs' in data[i].dims:
-            m = method.get(i) if(isinstance(method, dict)) else method
-            ds[i] = interp1d_DataArray(old_index, data[i], method=m, **kw_indexers)
+            m = method.get(i) if (isinstance(method, dict)) else method
+            ds[i] = interp1d_data_array(old_index, data[i], method=m, **kw_indexers)
     # Add in the new index that we are interpolating by
-    ds['time'] = ('obs', kw_indexers['time'],old_index_attrs)
+    ds['time'] = ('obs', kw_indexers['time'], old_index_attrs)
     return ds
