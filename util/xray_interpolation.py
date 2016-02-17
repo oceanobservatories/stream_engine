@@ -55,7 +55,7 @@ def interp1d_DataArray(old_index, data, method=None, **indexers):
     >>> xinterp.interp1d_DataArray(da, time=[2,4,6])
     """
     dim_name = indexers.iterkeys().next()
-    axis = data.dims.index('obs')
+    axis = data.dims.index('index')
     new_x = indexers[dim_name]
 
     if method and method not in ['lastseen', 'linear']:
@@ -114,9 +114,9 @@ def interp1d_Dataset(data, method=None, **kw_indexers):
     ds = xray.Dataset(attrs=data.attrs)
     for i in data:
         #Since we are now indexing the netcdf by observation it only makes sense to interpolate along the observation dimension with new times
-        if i != 'time' and 'obs' in data[i].dims:
+        if i != 'time' and 'index' in data[i].dims:
             m = method.get(i) if(isinstance(method, dict)) else method
             ds[i] = interp1d_DataArray(old_index, data[i], method=m, **kw_indexers)
     # Add in the new index that we are interpolating by
-    ds['time'] = ('obs', kw_indexers['time'],old_index_attrs)
+    ds['time'] = ('index', kw_indexers['time'],old_index_attrs)
     return ds

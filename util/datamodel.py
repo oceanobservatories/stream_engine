@@ -4,22 +4,19 @@ stream_engine uses to model science data.  Data is currently being backed by a
 dictionary representation boiling down to raw numpy ndarrays, but in the future
 data will be in xray Datasets.
 """
-import uuid
-
-__author__ = 'Stephen Zakrewsky'
-
-
-from common import MissingTimeException, ntp_to_ISO_date, MissingDataException, get_fill_value
-from preload_database.model.preload import Parameter
 import datetime
-from engine import app
 import json
 import logging
-import numpy as np
-import traceback
 import xray
-import xray_interpolation as xinterp
+import numpy as np
 
+from engine import app
+import xray_interpolation as xinterp
+from common import MissingTimeException, ntp_to_datestring, MissingDataException, get_fill_value
+from preload_database.model.preload import Parameter
+
+
+__author__ = 'Stephen Zakrewsky'
 
 log = logging.getLogger(__name__)
 
@@ -32,43 +29,43 @@ def _open_new_ds(stream_key, deployment, request_uuid, provenance_metadata=None,
         'sensor': stream_key.sensor,
         'collection_method': stream_key.method,
         'stream': stream_key.stream.name,
-        'deployment' : deployment,
-        'title' : '{:s} for {:s}'.format(app.config['NETCDF_TITLE'], stream_key.as_dashed_refdes()),
-        'institution' : '{:s}'.format(app.config['NETCDF_INSTITUTION']),
-        'source' : '{:s}'.format(stream_key.as_dashed_refdes()),
-        'history' : '{:s} {:s}'.format(datetime.datetime.utcnow().isoformat(), app.config['NETCDF_HISTORY_COMMENT']),
-        'references' : '{:s}'.format(app.config['NETCDF_REFERENCE']),
-        'comment' : '{:s}'.format(app.config['NETCDF_COMMENT']),
-        'Conventions' : '{:s}'.format(app.config['NETCDF_CONVENTIONS']),
-        'Metadata_Conventions' : '{:s}'.format(app.config['NETCDF_METADATA_CONVENTIONS']),
-        'feature_Type' : '{:s}'.format(app.config['NETCDF_FEATURE_TYPE']),
-        'featureType' : '{:s}'.format(app.config['NETCDF_FEATURE_TYPE']),
-        'cdm_data_type' : '{:s}'.format(app.config['NETCDF_CDM_DATA_TYPE']),
-        'nodc_template_version' : '{:s}'.format(app.config['NETCDF_NODC_TEMPLATE_VERSION']),
-        'standard_name_vocabulary' : '{:s}'.format(app.config['NETCDF_STANDARD_NAME_VOCABULARY']),
-        'summary' : '{:s}'.format(app.config['NETCDF_SUMMARY']),
-        'uuid' : '{:s}'.format(str(request_uuid)),
-        'requestUUID' : '{:s}'.format(str(request_uuid)),
-        'id' : '{:s}'.format(stream_key.as_dashed_refdes()),
-        'naming_authority' : '{:s}'.format(app.config['NETCDF_NAMING_AUTHORITY']),
-        'creator_name' : '{:s}'.format(app.config['NETCDF_CREATOR_NAME']),
-        'creator_url' : '{:s}'.format(app.config['NETCDF_CREATOR_URL']),
-        'infoUrl' : '{:s}'.format(app.config['NETCDF_INFO_URL']),
-        'sourceUrl' : '{:s}'.format(app.config['NETCDF_SOURCE_URL']),
-        'creator_email' : '{:s}'.format(app.config['NETCDF_CREATOR_EMAIL']),
-        'project' : '{:s}'.format(app.config['NETCDF_PROJECT']),
-        'processing_level' : '{:s}'.format(app.config['NETCDF_PROCESSING_LEVEL']),
-        'keywords_vocabulary' : '{:s}'.format(app.config['NETCDF_KEYWORDS_VOCABULARY']),
-        'keywords' : '{:s}'.format(app.config['NETCDF_KEYWORDS']),
-        'acknowledgement' : '{:s}'.format(app.config['NETCDF_ACKNOWLEDGEMENT']),
-        'contributor_name' : '{:s}'.format(app.config['NETCDF_CONTRIBUTOR_NAME']),
-        'contributor_role' : '{:s}'.format(app.config['NETCDF_CONTRIBUTOR_ROLE']),
-        'date_created' : '{:s}'.format(datetime.datetime.utcnow().isoformat()),
-        'date_modified' : '{:s}'.format(datetime.datetime.utcnow().isoformat()),
-        'publisher_name' : '{:s}'.format(app.config['NETCDF_PUBLISHER_NAME']),
-        'publisher_url' : '{:s}'.format(app.config['NETCDF_PUBLISHER_URL']),
-        'publisher_email' : '{:s}'.format(app.config['NETCDF_PUBLISHER_EMAIL']),
-        'license' : '{:s}'.format(app.config['NETCDF_LICENSE']),
+        'deployment': deployment,
+        'title': '{:s} for {:s}'.format(app.config['NETCDF_TITLE'], stream_key.as_dashed_refdes()),
+        'institution': '{:s}'.format(app.config['NETCDF_INSTITUTION']),
+        'source': '{:s}'.format(stream_key.as_dashed_refdes()),
+        'history': '{:s} {:s}'.format(datetime.datetime.utcnow().isoformat(), app.config['NETCDF_HISTORY_COMMENT']),
+        'references': '{:s}'.format(app.config['NETCDF_REFERENCE']),
+        'comment': '{:s}'.format(app.config['NETCDF_COMMENT']),
+        'Conventions': '{:s}'.format(app.config['NETCDF_CONVENTIONS']),
+        'Metadata_Conventions': '{:s}'.format(app.config['NETCDF_METADATA_CONVENTIONS']),
+        'feature_Type': '{:s}'.format(app.config['NETCDF_FEATURE_TYPE']),
+        'featureType': '{:s}'.format(app.config['NETCDF_FEATURE_TYPE']),
+        'cdm_data_type': '{:s}'.format(app.config['NETCDF_CDM_DATA_TYPE']),
+        'nodc_template_version': '{:s}'.format(app.config['NETCDF_NODC_TEMPLATE_VERSION']),
+        'standard_name_vocabulary': '{:s}'.format(app.config['NETCDF_STANDARD_NAME_VOCABULARY']),
+        'summary': '{:s}'.format(app.config['NETCDF_SUMMARY']),
+        'uuid': '{:s}'.format(str(request_uuid)),
+        'requestUUID': '{:s}'.format(str(request_uuid)),
+        'id': '{:s}'.format(stream_key.as_dashed_refdes()),
+        'naming_authority': '{:s}'.format(app.config['NETCDF_NAMING_AUTHORITY']),
+        'creator_name': '{:s}'.format(app.config['NETCDF_CREATOR_NAME']),
+        'creator_url': '{:s}'.format(app.config['NETCDF_CREATOR_URL']),
+        'infoUrl': '{:s}'.format(app.config['NETCDF_INFO_URL']),
+        'sourceUrl': '{:s}'.format(app.config['NETCDF_SOURCE_URL']),
+        'creator_email': '{:s}'.format(app.config['NETCDF_CREATOR_EMAIL']),
+        'project': '{:s}'.format(app.config['NETCDF_PROJECT']),
+        'processing_level': '{:s}'.format(app.config['NETCDF_PROCESSING_LEVEL']),
+        'keywords_vocabulary': '{:s}'.format(app.config['NETCDF_KEYWORDS_VOCABULARY']),
+        'keywords': '{:s}'.format(app.config['NETCDF_KEYWORDS']),
+        'acknowledgement': '{:s}'.format(app.config['NETCDF_ACKNOWLEDGEMENT']),
+        'contributor_name': '{:s}'.format(app.config['NETCDF_CONTRIBUTOR_NAME']),
+        'contributor_role': '{:s}'.format(app.config['NETCDF_CONTRIBUTOR_ROLE']),
+        'date_created': '{:s}'.format(datetime.datetime.utcnow().isoformat()),
+        'date_modified': '{:s}'.format(datetime.datetime.utcnow().isoformat()),
+        'publisher_name': '{:s}'.format(app.config['NETCDF_PUBLISHER_NAME']),
+        'publisher_url': '{:s}'.format(app.config['NETCDF_PUBLISHER_URL']),
+        'publisher_email': '{:s}'.format(app.config['NETCDF_PUBLISHER_EMAIL']),
+        'license': '{:s}'.format(app.config['NETCDF_LICENSE']),
     }
 
     init_data = {}
@@ -76,7 +73,7 @@ def _open_new_ds(stream_key, deployment, request_uuid, provenance_metadata=None,
         prov = provenance_metadata.get_provenance_dict()
         keys = []
         values = []
-        for k,v in prov.iteritems():
+        for k, v in prov.iteritems():
             keys.append(k)
             values.append(v['file_name'] + " " + v['parser_name'] + " " + v['parser_version'])
 
@@ -103,13 +100,13 @@ def _open_new_ds(stream_key, deployment, request_uuid, provenance_metadata=None,
             init_data['query_parameter_provenance'] = xray.DataArray(query_prov,
                                                                      dims=['query_parameter_provenance_dim'],
                                                                      attrs={
-                                                                     'long_name': 'Query Parameter Provenance Information'})
+                                                                         'long_name': 'Query Parameter Provenance Information'})
         instrument_prov = [json.dumps(provenance_metadata.get_instrument_provenance())]
         if len(instrument_prov) > 0:
             init_data['instrument_provenance'] = xray.DataArray(instrument_prov,
-                                                                     dims=['instrument_provenance_dim'],
-                                                                     attrs={
-                                                                     'long_name': 'Instrument Provenance Information'})
+                                                                dims=['instrument_provenance_dim'],
+                                                                attrs={
+                                                                    'long_name': 'Instrument Provenance Information'})
         if len(provenance_metadata.messages) > 0:
             init_data['provenance_messages'] = xray.DataArray(provenance_metadata.messages,
                                                               dims=['provenance_messages'],
@@ -154,7 +151,7 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
     ds['time'] = ('obs', time_data, attrs)
 
     for param_id in pd_data:
- 
+
         # Keep time_parameter for streams with source stream
         # dependency (e.g., Metbk_hourly.met_timeflx)
         virtual_request = stream_key.stream.source_streams
@@ -175,7 +172,8 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
             continue
 
         if not isinstance(data, np.ndarray):
-            log.warn("Expected parameter '%s' (%s) to be in numpy format but was %s.  Converting", param_name, param_id, type(data))
+            log.warn("Expected parameter '%s' (%s) to be in numpy format but was %s.  Converting", param_name, param_id,
+                     type(data))
             data = np.array(data)
         data = data[mask]
         if param is not None:
@@ -187,7 +185,6 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
         if param_name in app.config['INTERNAL_OUTPUT_EXCLUDE_LIST']:
             continue
 
-
         dims = ['obs']
         if len(data.shape) > 1:
             for index, dimension in enumerate(data.shape[1:]):
@@ -197,7 +194,7 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
         if param_name in ['lat', 'lon', 'depth']:
             array_attrs = {}
         else:
-            array_attrs = {'coordinates' : 'time lat lon depth'}
+            array_attrs = {'coordinates': 'time lat lon depth'}
 
         if param:
             if param.unit is not None:
@@ -214,7 +211,8 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
             elif param.name is not None:
                 array_attrs['long_name'] = param.name
             else:
-                log.warn('Could not produce long_name attribute for {:s} defaulting to parameter name'.format(str(param_name)))
+                log.warn('Could not produce long_name attribute for {:s} defaulting to parameter name'.format(
+                    str(param_name)))
                 array_attrs['long_name'] = param_name
             if param.standard_name is not None:
                 array_attrs['standard_name'] = param.standard_name
@@ -233,11 +231,11 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
 
     fix_lat_lon_depth(ds, stream_key, deployment, location_information)
     if 'deployment' not in ds:
-        ds['deployment'] = ('obs', np.array([deployment] * ds.obs.size, dtype=np.int32), {'long_name': 'deployment'} )
+        ds['deployment'] = ('obs', np.array([deployment] * ds.obs.size, dtype=np.int32), {'long_name': 'deployment'})
     if provenance_metadata is not None:
         prov = provenance_metadata.get_provenance_dict()
         prov_values = {}
-        for k,v in prov.iteritems():
+        for k, v in prov.iteritems():
             prov_values[k] = v['file_name'] + " " + v['parser_name'] + " " + v['parser_version']
         prov_array = []
         if 'provenance' in ds:
@@ -247,7 +245,8 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
                 else:
                     prov_array.append('')
             prov_array = np.array(prov_array, dtype=str)
-            ds['l0_provenance_information'] = ('obs', prov_array, {'long_name': 'l0_provenance_data', 'description': 'file name, parser name, and parser version'})
+            ds['l0_provenance_information'] = ('obs', prov_array, {'long_name': 'l0_provenance_data',
+                                                                   'description': 'file name, parser name, and parser version'})
 
 
 def fix_lat_lon_depth(ds, stream_key, deployment, location_information):
@@ -280,17 +279,18 @@ def fix_lat_lon_depth(ds, stream_key, deployment, location_information):
         ds['lon'].attrs['axis'] = 'X'
         ds['lon'].standard_name = 'longitude'
 
+
 def _add_dynamic_attributes(ds, stream_key, location_information, deployment):
     if len(ds.keys()) == 0:
         raise MissingDataException("No data present in dataset")
 
     time_data = ds['time']
     # Do a final update to insert the time_coverages, and geospatial lat and lons
-    ds.attrs['time_coverage_start'] = ntp_to_ISO_date(time_data.values[0])
-    ds.attrs['time_coverage_end'] = ntp_to_ISO_date(time_data.values[-1])
+    ds.attrs['time_coverage_start'] = ntp_to_datestring(time_data.values[0])
+    ds.attrs['time_coverage_end'] = ntp_to_datestring(time_data.values[-1])
     # Take an estimate of the number of seconds between values in the data range.
     if time_data.size > 0:
-        total_time = time_data.values[-1]  - time_data.values[0]
+        total_time = time_data.values[-1] - time_data.values[0]
         hz = total_time / float(len(time_data.values))
         ds.attrs['time_coverage_resolution'] = 'P{:.2f}S'.format(hz)
     else:
@@ -304,22 +304,21 @@ def _add_dynamic_attributes(ds, stream_key, location_information, deployment):
 
     if 'location_name' in location_vals:
         ds.attrs['location_name'] = str(location_vals['location_name'])
-    ds.attrs['geospatial_lat_min']  = min(ds.variables['lat'].values)
-    ds.attrs['geospatial_lat_max']  = max(ds.variables['lat'].values)
-    ds.attrs['geospatial_lon_min']  = min(ds.variables['lon'].values)
-    ds.attrs['geospatial_lon_max']  = max(ds.variables['lon'].values)
-    ds.attrs['geospatial_lat_units']  = 'degrees_north'
-    ds.attrs['geospatial_lat_resolution']  = app.config["GEOSPATIAL_LAT_LON_RES"]
-    ds.attrs['geospatial_lon_units']  = 'degrees_east'
-    ds.attrs['geospatial_lon_resolution']  = app.config["GEOSPATIAL_LAT_LON_RES"]
+    ds.attrs['geospatial_lat_min'] = min(ds.variables['lat'].values)
+    ds.attrs['geospatial_lat_max'] = max(ds.variables['lat'].values)
+    ds.attrs['geospatial_lon_min'] = min(ds.variables['lon'].values)
+    ds.attrs['geospatial_lon_max'] = max(ds.variables['lon'].values)
+    ds.attrs['geospatial_lat_units'] = 'degrees_north'
+    ds.attrs['geospatial_lat_resolution'] = app.config["GEOSPATIAL_LAT_LON_RES"]
+    ds.attrs['geospatial_lon_units'] = 'degrees_east'
+    ds.attrs['geospatial_lon_resolution'] = app.config["GEOSPATIAL_LAT_LON_RES"]
     depth_units = str(location_vals.get('depth_units', app.config["Z_DEFAULT_UNITS"]))
-    ds.attrs['geospatial_vertical_units']  = depth_units
-    ds.attrs['geospatial_vertical_resolution']  = app.config['Z_RESOLUTION']
-    ds.attrs['geospatial_vertical_positive']  = app.config['Z_POSITIVE']
+    ds.attrs['geospatial_vertical_units'] = depth_units
+    ds.attrs['geospatial_vertical_resolution'] = app.config['Z_RESOLUTION']
+    ds.attrs['geospatial_vertical_positive'] = app.config['Z_POSITIVE']
 
 
 class StreamData(object):
-
     def __init__(self, stream_request, data, provenance_metadata, annotation_store):
         self.stream_request = stream_request
         self.stream_keys = stream_request.stream_keys
