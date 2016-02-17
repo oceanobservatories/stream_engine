@@ -1,22 +1,21 @@
-import msgpack
 import logging
-import numpy
 import time
 import uuid
-
 from collections import deque, namedtuple
 from itertools import izip
 from multiprocessing import BoundedSemaphore
-from multiprocessing.pool import Pool
-from threading import Thread
 
+import msgpack
+import numpy
 from cassandra import ConsistencyLevel
-from cassandra.cluster import Cluster, QueryExhausted, ResponseFuture, PagedResult
+from cassandra.cluster import Cluster, PagedResult
 from cassandra.concurrent import execute_concurrent_with_args
-from cassandra.query import _clean_column_name, tuple_factory, SimpleStatement, BatchStatement
+from cassandra.query import _clean_column_name, tuple_factory, BatchStatement
 
 import engine
-from util.common import log_timing, TimeRange, FUNCTION, to_xray_dataset, timed_cache
+from util.common import log_timing, TimeRange, FUNCTION, timed_cache
+from util.datamodel import to_xray_dataset
+from util.location_metadata import LocationMetadata
 
 logging.getLogger('cassandra').setLevel(logging.WARNING)
 log = logging.getLogger(__name__)
@@ -29,7 +28,6 @@ ProvTuple = namedtuple('provenance_tuple',
                         'parser_version'])
 StreamProvTuple = namedtuple('stream_provenance_tuple', l0_stream_columns)
 
-BinInfo = namedtuple('BinInfo', 'bin count first last')
 
 SAN_LOCATION_NAME = 'san'
 CASS_LOCATION_NAME = 'cass'
@@ -251,7 +249,7 @@ def get_san_location_metadata(stream_key, time_range):
 
 
 @log_timing(log)
-def get_cass_lookback_dataset(stream_key, start_time, data_bin, deployments):
+def get_cass_lookback_dataset(stream_key, start_time, data_bin, deployments, request_id):
     # try to fetch the first n times to ensure we get a deployment value in there.
     cols, rows = fetch_with_func(query_n_before, stream_key,
                                  [(data_bin, start_time, engine.app.config['LOOKBACK_QUERY_LIMIT'])])
@@ -262,7 +260,7 @@ def get_cass_lookback_dataset(stream_key, start_time, data_bin, deployments):
         if r[dep_idx] in needed:
             ret_rows.append(r)
             needed.remove(r[dep_idx])
-    return to_xray_dataset(cols, ret_rows, stream_key)
+    return to_xray_dataset(cols, ret_rows, stream_key, request_id)
 
 
 @log_timing(log)
@@ -357,46 +355,6 @@ def get_location_metadata(stream_key, time_range):
     cass_metadata = LocationMetadata(cass_bins)
     san_metadata = LocationMetadata(san_bins)
     return cass_metadata, san_metadata, messages
-
-
-class LocationMetadata(object):
-    def __init__(self, bin_dict):
-        # bin, count, first, last
-        values = [BinInfo(*((i,) + bin_dict[i])) for i in bin_dict]
-        # sort by start time
-        values = sorted(values, key=lambda x: x.first)
-        firsts = [b.first for b in values]
-        lasts = [b.last for b in values]
-        bin_list = [b.bin for b in values]
-        counts = [b.count for b in values]
-        if len(bin_list) > 0:
-            self.total = sum(counts)
-            self.start_time = min(firsts)
-            self.end_time = max(lasts)
-        else:
-            self.total = 0
-            self.start_time = 0
-            self.end_time = 0
-        self.bin_list = bin_list
-        self.bin_information = bin_dict
-
-    def __repr__(self):
-        val = 'total: {:d} Bins -> '.format(self.total) + str(self.bin_list)
-        return val
-
-    def __str__(self):
-        return self.__repr__()
-
-    @property
-    def secs(self):
-        return self.end_time - self.start_time
-
-    def particle_rate(self):
-        if self.total == 0:
-            return 0
-        if self.secs == 0:
-            return 1
-        return float(self.total) / self.secs
 
 
 @log_timing(log)
@@ -518,7 +476,7 @@ def get_streaming_provenance(stream_key, times):
 
 
 @log_timing(log)
-def fetch_nth_data(stream_key, time_range, num_points=1000, location_metadata=None):
+def fetch_nth_data(stream_key, time_range, num_points=1000, location_metadata=None, request_id=None):
     """
     Given a time range, generate evenly spaced times over the specified interval. Fetch a single
     result from either side of each point in time.
@@ -571,7 +529,7 @@ def fetch_nth_data(stream_key, time_range, num_points=1000, location_metadata=No
         to_return.append(row)
     log.info("Removed %d duplicates from data", size - len(to_return))
     log.info("Returning %s rows from %s fetch", len(to_return), stream_key.as_refdes())
-    return to_xray_dataset(cols, to_return, stream_key)
+    return to_xray_dataset(cols, to_return, stream_key, request_id)
 
 
 @log_timing(log)
@@ -693,9 +651,9 @@ def fetch_all_data(stream_key, time_range, location_metadata=None):
 
 
 @log_timing(log)
-def get_full_cass_dataset(stream_key, time_range, location_metadata=None):
+def get_full_cass_dataset(stream_key, time_range, location_metadata=None, request_id=None):
     cols, rows = fetch_all_data(stream_key, time_range, location_metadata)
-    return to_xray_dataset(cols, rows, stream_key)
+    return to_xray_dataset(cols, rows, stream_key, request_id)
 
 
 @log_timing(log)
@@ -946,7 +904,6 @@ def bin_to_time(b):
     return float(b)
 
 
-@log_timing(log)
 def get_available_time_range(stream_key):
     ps = SessionManager.prepare(STREAM_METADATA)
     rows = SessionManager.execute(ps, (stream_key.subsite, stream_key.node,
@@ -954,3 +911,4 @@ def get_available_time_range(stream_key):
                                        stream_key.stream.name))
     stream, count, first, last = rows[0]
     return TimeRange(first, last + 1)
+
