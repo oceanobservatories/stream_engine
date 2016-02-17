@@ -1,36 +1,40 @@
-__author__ = 'Stephen Zakrewsky'
-
 from collections import OrderedDict
 import json
 import logging
+from numbers import Number
+
 import numpy as np
 from common import log_timing
-from config import LAT_FILL, LON_FILL, DEPTH_FILL
+from engine import app
+
+
+__author__ = 'Stephen Zakrewsky'
 
 
 log = logging.getLogger(__name__)
 
 
+LAT_FILL = app.config.get('LAT_FILL')
+LON_FILL = app.config.get('LON_FILL')
+PRESSURE_DPI = app.config.get('PRESSURE_DPI')
+INT_PRESSURE_NAME = app.config.get('INT_PRESSURE_NAME')
+
+
 class JsonResponse(object):
 
-    def __init__(self, stream_data):
-        self.stream_data = stream_data
+    def __init__(self, stream_request):
+        self.stream_request = stream_request
+        self.request_id = stream_request.request_id
 
     @log_timing(log)
-    def json(self, stream_to_params):
-        groups = {}
-        for stream_key in stream_to_params.keys():
-            groups[stream_key.as_dashed_refdes()] = []
-            for sk, dn, ds in self.stream_data.groups(stream_key):
-                groups[stream_key.as_dashed_refdes()].extend(
-                    self._particles(ds, stream_key, stream_to_params[stream_key]))
+    def json(self):
+        stream_key = self.stream_request.stream_key
+        dataset = self.stream_request.datasets[stream_key]
+        parameters = self.stream_request.requested_parameters
+        external_includes = self.stream_request.external_includes
+        data = self._particles(dataset, stream_key, parameters, external_includes)
 
-        if len(groups.keys()) == 1:
-            data = groups.itervalues().next()
-        else:
-            data = groups
-
-        metadata = self._metadata(self.stream_data)
+        metadata = self._metadata(self.stream_request)
         if metadata:
             out = OrderedDict()
             out['data'] = data
@@ -41,7 +45,7 @@ class JsonResponse(object):
         return json.dumps(out, indent=2, cls=NumpyJSONEncoder)
 
     @log_timing(log)
-    def _particles(self, ds, stream_key, parameters):
+    def _particles(self, ds, stream_key, parameters, external_includes):
         """
         Convert an xray Dataset into a list of dictionaries, each representing a single point in time
         """
@@ -52,17 +56,36 @@ class JsonResponse(object):
         for p in ds.data_vars:
             data[p] = ds[p].values
 
-        # Sometimes time is a coordinate, not a data_var, make sure we get it
-        if 'time' not in data:
-            data['time'] = ds.time.values
-
         # Extract the parameter names from the parameter objects
         params = [p.name for p in parameters]
+
+        # check if we should include and have pressure data
+        if stream_key.is_mobile:
+            pressure_params = [(sk, param) for sk in external_includes for param in external_includes[sk]
+                               if param.data_product_identifier == PRESSURE_DPI]
+            if pressure_params:
+                pressure_key, pressure_param = pressure_params.pop()
+                pressure_name = '-'.join((pressure_key.stream.name, pressure_param.name))
+                if pressure_name in ds:
+                    data[INT_PRESSURE_NAME] = ds[pressure_name].values
+                    params.append(INT_PRESSURE_NAME)
+
+        # check if we should include and have positional data
+        if stream_key.is_glider:
+            lat_data = data.get('glider_gps_position-m_gps_lat')
+            lon_data = data.get('glider_gps_position-m_gps_lon')
+            if lat_data is not None and lon_data is not None:
+                data['lat'] = lat_data
+                data['lon'] = lon_data
+                params.extend(('lat', 'lon'))
+
+        if self.stream_request.include_provenance:
+            params.append('provenance')
 
         # Warn for any missing parameters
         missing = [p for p in params if p not in data]
         if missing:
-            log.warn('Failed to get data for %r: Not in Dataset', missing)
+            log.warn('<%s> Failed to get data for %r: Not in Dataset', self.request_id, missing)
 
         for index in xrange(len(ds.time)):
             # Create our particle from the list of parameters
@@ -73,14 +96,7 @@ class JsonResponse(object):
                 particle['pk'] = stream_key.as_dict()
                 # Add non-param data to particle
                 particle['pk']['deployment'] = data['deployment'][index]
-                # TODO: remove, time is already present outside primary key.
-                # TODO: Currently UI uses for stacked timeseries, need to remove dependency
                 particle['pk']['time'] = data['time'][index]
-                particle['provenance'] = str(data['provenance'][index])
-
-                # Add location information
-                particle['latitude'] = ds['lat'].values[index] if 'lat' in ds else LAT_FILL
-                particle['longitude'] = ds['lon'].values[index] if 'lon' in ds else LON_FILL
 
             # Add any QC if it exists
             for param in params:
@@ -92,24 +108,24 @@ class JsonResponse(object):
             particles.append(particle)
         return particles
 
-    @log_timing(log)
-    def _metadata(self, stream_data):
-        if stream_data.provenance_metadata is not None or stream_data.annotation_store is not None:
+    @staticmethod
+    def _metadata(stream_request):
+        if stream_request.include_provenance or stream_request.include_annotations:
             out = OrderedDict()
-            if stream_data.provenance_metadata is not None:
-                out['provenance'] = stream_data.provenance_metadata.get_provenance_dict()
-                out['streaming_provenance'] = stream_data.provenance_metadata.get_streaming_provenance()
-                out['instrument_provenance'] = stream_data.provenance_metadata.get_instrument_provenance()
-                out['computed_provenance'] = stream_data.provenance_metadata.calculated_metatdata.get_dict()
-                out['query_parameter_provenance'] = stream_data.provenance_metadata.get_query_dict()
-                out['provenance_messages'] = stream_data.provenance_metadata.messages
-                out['requestUUID'] = stream_data.provenance_metadata.request_uuid
-            if stream_data.annotation_store is not None:
-                out['annotations'] = stream_data.annotation_store.get_json_representation()
+            if stream_request.provenance_metadata is not None:
+                out['provenance'] = stream_request.provenance_metadata.get_provenance_dict()
+                out['streaming_provenance'] = stream_request.provenance_metadata.get_streaming_provenance()
+                out['instrument_provenance'] = stream_request.provenance_metadata.get_instrument_provenance()
+                out['computed_provenance'] = stream_request.provenance_metadata.calculated_metatdata.get_dict()
+                out['query_parameter_provenance'] = stream_request.provenance_metadata.get_query_dict()
+                out['provenance_messages'] = stream_request.provenance_metadata.messages
+                out['requestUUID'] = stream_request.provenance_metadata.request_uuid
+            if stream_request.annotation_store is not None:
+                out['annotations'] = stream_request.annotation_store.get_json_representation()
             return out
 
-    @log_timing(log)
-    def _reconstruct(self, value):
+    @staticmethod
+    def _reconstruct(value):
         parts = value.split(' ')
         return {
             'file_name': parts[0],
