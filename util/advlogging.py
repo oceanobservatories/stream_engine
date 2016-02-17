@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 import logging
 
-from engine.routes import app
+from engine import app
 
 DEFAULT_LOG_DIR = app.config.get('PARAMETER_LOGGING', '.')
 
@@ -57,9 +57,9 @@ class QueryParameter(object):
 
 class ParameterReport(object):
 
-    def __init__(self, name, query_name, log_dir=DEFAULT_LOG_DIR):
+    def __init__(self, name, request_id, query_name, log_dir=DEFAULT_LOG_DIR):
         self.m_qdata = QueryData(name)
-        self.m_path = os.path.join(log_dir, name, query_name + '.log')
+        self.m_path = os.path.join(log_dir, name, request_id, query_name + '.log')
 
     def add_parameter_argument(self, calc_param_id, param, value):
         arg = QueryParameter(param, value)
@@ -72,15 +72,13 @@ class ParameterReport(object):
         try:
             if not os.path.exists(os.path.dirname(self.m_path)):
                 os.makedirs(os.path.dirname(self.m_path))
-            with open(self.m_path, 'a') as fh:
+            with open(self.m_path, 'w') as fh:
                 json.dump(self.m_qdata, fh, default=jdefault, indent=2, separators=(',', ': '))
         except EnvironmentError as e:
-            log.error('Failed to writed advanced logfile: %s', e)
+            log.error('Failed to write advanced logfile: %s', e)
 
 
 def jdefault(o):
     if isinstance(o, set):
         return list(o)
     return o.__dict__
-
-
