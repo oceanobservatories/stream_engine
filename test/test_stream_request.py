@@ -1,4 +1,3 @@
-import csv
 import json
 import os
 import unittest
@@ -215,7 +214,6 @@ class StreamRequestTest(unittest.TestCase):
 
         hourly_sk = StreamKey('CP01CNSM', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_hourly')
         source_sk = StreamKey('CP01CNSM', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_a_dcl_instrument_recovered')
-        # TODO - there is a VELPT on SBD11, determine why there is no data
         vel_sk = StreamKey('CP01CNSM', 'MFD35', '04-VELPTA000',	'recovered_host', 'velpt_ab_dcl_instrument_recovered')
 
         tr = TimeRange(metbk_ds.time.values[0], metbk_ds.time.values[-1])
