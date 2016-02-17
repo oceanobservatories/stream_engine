@@ -12,4 +12,4 @@ if app.config.get('LOGGING_CONFIG'):
     # Access logger so it is initialized.
     app.logger
     # Then load configuration to overwrite
-    logging.config.fileConfig(app.config.get('LOGGING_CONFIG'))
+    # logging.config.fileConfig(app.config.get('LOGGING_CONFIG'))
