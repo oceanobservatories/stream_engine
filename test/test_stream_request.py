@@ -1,4 +1,3 @@
-import csv
 import json
 import os
 import unittest
@@ -215,7 +214,6 @@ class StreamRequestTest(unittest.TestCase):
 
         hourly_sk = StreamKey('CP01CNSM', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_hourly')
         source_sk = StreamKey('CP01CNSM', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_a_dcl_instrument_recovered')
-        # TODO - there is a VELPT on SBD11, determine why there is no data
         vel_sk = StreamKey('CP01CNSM', 'MFD35', '04-VELPTA000',	'recovered_host', 'velpt_ab_dcl_instrument_recovered')
 
         tr = TimeRange(metbk_ds.time.values[0], metbk_ds.time.values[-1])
@@ -230,3 +228,17 @@ class StreamRequestTest(unittest.TestCase):
 
         expected_params = [p.name for p in hourly_sk.stream.parameters] + ['obs', 'time']
         self.assertListEqual(sorted(expected_params), sorted(hourly_ds))
+
+    def test_function_map_scalar(self):
+        echo_fn = 'echo_sounding.nc'
+        echo_ds = xr.open_dataset(os.path.join(DATA_DIR, echo_fn), decode_times=False)
+        echo_sk = StreamKey('RS01SLBS', 'LJ01A', '05-HPIESA101', 'streamed', 'echo_sounding')
+        tr = TimeRange(0, 99999999)
+        sr = StreamRequest(echo_sk, [], {}, tr, {}, request_id='UNIT')
+        sr.datasets[echo_sk] = echo_ds
+        sr.calculate_derived_products()
+
+        expected = {'hpies_travel_time1_L1', 'hpies_travel_time2_L1', 'hpies_travel_time3_L1', 'hpies_travel_time4_L1',
+                    'hpies_bliley_temperature_L1', 'hpies_pressure_L1'}
+        missing = expected.difference(echo_ds)
+        self.assertSetEqual(missing, set())
