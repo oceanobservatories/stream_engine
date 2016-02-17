@@ -5,7 +5,7 @@ import unittest
 import mock
 
 import preload_database.database
-from engine.routes import app
+from engine import app
 from util.calc import find_stream
 from util.common import StreamKey
 from preload_database.model.preload import Stream
@@ -40,22 +40,9 @@ class StreamUnitTest(unittest.TestCase, StreamUnitTestMixin):
     def setUpClass(cls):
         cls.metadata = list(csv.reader(open(os.path.join(TEST_DIR, 'metadata.csv'))))
 
-    # @classmethod
-    # def setUpClass(cls):
-    #     os.chdir(TEST_DIR)
-    #     if not os.path.exists(TEST_DIR + '/TEST_DATA_LOADED'):
-    #         subprocess.call(['cqlsh', '-f', TEST_DIR + '/load.cql'])
-    #         open(TEST_DIR + '/TEST_DATA_LOADED', 'wb').write('%s\n' % time.ctime())
-    #
-    #     app.config['CASSANDRA_KEYSPACE'] = StreamUnitTest.TEST_KEYSPACE
-    #
-    #     cluster = Cluster(app.config['CASSANDRA_CONTACT_POINTS'],
-    #                       control_connection_timeout=app.config['CASSANDRA_CONNECT_TIMEOUT'])
-    #     global_cassandra_state['cluster'] = cluster
-    #     create_execution_pool()
-
     def setUp(self):
-        app.config['TESTING'] = True
+        app.config['TESTIN' \
+                   'G'] = True
         self.app = app.test_client()
 
     def tearDown(self):

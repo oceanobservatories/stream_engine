@@ -13,7 +13,7 @@ from threading import Thread
 from cassandra import ConsistencyLevel
 from cassandra.cluster import Cluster, QueryExhausted, ResponseFuture, PagedResult
 from cassandra.concurrent import execute_concurrent_with_args
-from cassandra.query import _clean_column_name, tuple_factory, SimpleStatement, BatchStatement
+from cassandra.query import _clean_column_name, tuple_factory, BatchStatement
 
 import engine
 from util.common import log_timing, TimeRange, FUNCTION, to_xray_dataset, timed_cache
@@ -139,6 +139,7 @@ def _get_stream_metadata():
     return rows
 
 
+@log_timing(log)
 @timed_cache(engine.app.config['METADATA_CACHE_SECONDS'])
 def build_stream_dictionary():
     d = {}
@@ -946,7 +947,6 @@ def bin_to_time(b):
     return float(b)
 
 
-@log_timing(log)
 def get_available_time_range(stream_key):
     ps = SessionManager.prepare(STREAM_METADATA)
     rows = SessionManager.execute(ps, (stream_key.subsite, stream_key.node,
@@ -954,3 +954,4 @@ def get_available_time_range(stream_key):
                                        stream_key.stream.name))
     stream, count, first, last = rows[0]
     return TimeRange(first, last + 1)
+
