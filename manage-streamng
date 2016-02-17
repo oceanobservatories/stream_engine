@@ -1,37 +1,32 @@
 #!/bin/bash
 
-HERE=$(dirname $(readlink -f $BASH_SOURCE))
+HERE=$(pwd)
 
-if [ -z ${STREAM_ENGINE_PYTHON:+x} ]
-then
-    #PYTHON_PATH="$HERE/python27"
-    PYTHON_PATH="/home/race/python27"
-else
-    PYTHON_PATH=$STREAM_ENGINE_PYTHON
-fi
-STREAMNG_PID="$HERE/stream_engine.pid"
+PIDFILE="$HERE/stream_engine.pid"
 NAME="Stream Engine"
 timestamp=`date +%F-%H-%M-%S`
 
-source "$PYTHON_PATH/getenv.sh"
-
 start(){
     echo "Starting Stream Engine..."
-    if [ ! -f $STREAMNG_PID ]; then
+    if [ -f $PIDFILE ]; then
+        if [ ! -f /proc/$(cat $PIDFILE)/status ]; then
+            rm $PIDFILE
+        fi
+    fi
+
+    if [ ! -f $PIDFILE ]; then
         export OOI_GUNICORN_LOG_LOC=$HERE
-        gunicorn --pythonpath $HERE --log-config $HERE/logging.conf --daemon -p $STREAMNG_PID --config $HERE/gunicorn_config.py engine.routes:app
-        export OOI_GUNICORN_LOG_LOC=
-        #gunicorn --daemon -p $STREAMNG_PID --config $HERE/gunicorn_config.py engine.routes:app > "/home/race/stream_engine/${timestamp}.log" 2>&1 &
+        gunicorn --pythonpath $HERE --log-config $HERE/logging.conf --daemon -p $PIDFILE --config $HERE/gunicorn_config.py engine.routes:app
     else
         echo "$NAME: Trying to start stream engine, but pid exists"
     fi
-        
+
 }
 
 stop(){
     echo "Stopping Stream Engine..."
-    if [ -f $STREAMNG_PID ]; then
-        kill $(<$STREAMNG_PID)
+    if [ -f $PIDFILE ]; then
+        kill $(<$PIDFILE)
     else
         echo "$NAME: Trying to stop stream engine, but pid does not exist"
     fi
@@ -49,7 +44,7 @@ case $1 in
         start
         ;;
     status)
-        [ -f $STREAMNG_PID ] && echo "$NAME: "$(<$STREAMNG_PID) || echo "Stream Engine:"
+        [ -f $PIDFILE ] && echo "$NAME: "$(<$PIDFILE) || echo "Stream Engine:"
         ;;
     *)
         echo "Usage: manage-streamng (start|stop|restart|status)"
