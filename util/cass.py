@@ -1,22 +1,21 @@
-import msgpack
 import logging
-import numpy
 import time
 import uuid
-
 from collections import deque, namedtuple
 from itertools import izip
 from multiprocessing import BoundedSemaphore
-from multiprocessing.pool import Pool
-from threading import Thread
 
+import msgpack
+import numpy
 from cassandra import ConsistencyLevel
-from cassandra.cluster import Cluster, QueryExhausted, ResponseFuture, PagedResult
+from cassandra.cluster import Cluster, PagedResult
 from cassandra.concurrent import execute_concurrent_with_args
-from cassandra.query import _clean_column_name, tuple_factory, SimpleStatement, BatchStatement
+from cassandra.query import _clean_column_name, tuple_factory, BatchStatement
 
 import engine
-from util.common import log_timing, TimeRange, FUNCTION, to_xray_dataset, timed_cache
+from util.common import log_timing, TimeRange, FUNCTION, timed_cache
+from util.datamodel import to_xray_dataset
+from util.location_metadata import LocationMetadata
 
 logging.getLogger('cassandra').setLevel(logging.WARNING)
 log = logging.getLogger(__name__)
@@ -28,8 +27,6 @@ ProvTuple = namedtuple('provenance_tuple',
                        ['subsite', 'sensor', 'node', 'method', 'deployment', 'id', 'file_name', 'parser_name',
                         'parser_version'])
 StreamProvTuple = namedtuple('stream_provenance_tuple', l0_stream_columns)
-
-BinInfo = namedtuple('BinInfo', 'bin count first last')
 
 SAN_LOCATION_NAME = 'san'
 CASS_LOCATION_NAME = 'cass'
@@ -120,10 +117,10 @@ def _init():
         log.warn('Unable to find consistency: %s defaulting to LOCAL_ONE', consistency_str)
         consistency = ConsistencyLevel.LOCAL_ONE
     cluster = Cluster(
-        engine.app.config['CASSANDRA_CONTACT_POINTS'],
-        control_connection_timeout=engine.app.config['CASSANDRA_CONNECT_TIMEOUT'],
-        compression=True,
-        protocol_version=3)
+            engine.app.config['CASSANDRA_CONTACT_POINTS'],
+            control_connection_timeout=engine.app.config['CASSANDRA_CONNECT_TIMEOUT'],
+            compression=True,
+            protocol_version=3)
     SessionManager.create_pool(cluster,
                                engine.app.config['CASSANDRA_KEYSPACE'],
                                consistency_level=consistency,
@@ -172,9 +169,9 @@ def query_partition_metadata_before(stream_key, time_start):
         "SELECT {:s} FROM partition_metadata " +
         "WHERE stream='{:s}' AND refdes='{:s}' AND method='{:s}' AND bin <= ? " +
         "ORDER BY method DESC, bin DESC LIMIT 4").format(
-        ','.join(PARTITION_COLUMNS), stream_key.stream.name,
-        '{:s}-{:s}-{:s}'.format(stream_key.subsite, stream_key.node, stream_key.sensor),
-        stream_key.method)
+            ','.join(PARTITION_COLUMNS), stream_key.stream.name,
+            '{:s}-{:s}-{:s}'.format(stream_key.subsite, stream_key.node, stream_key.sensor),
+            stream_key.method)
     query = SessionManager.prepare(query)
     res = SessionManager.execute(query, [start_bin])
     return [Row(*row) for row in res]
@@ -202,8 +199,8 @@ def query_partition_metadata(stream_key, time_range):
     query = (
         "SELECT bin, store, count, first, last FROM partition_metadata " +
         "WHERE stream = '{:s}' AND  refdes = '{:s}' AND method = '{:s}' AND bin >= ? and bin <= ?").format(
-        stream_key.stream.name, stream_key.as_three_part_refdes(),
-        stream_key.method)
+            stream_key.stream.name, stream_key.as_three_part_refdes(),
+            stream_key.method)
     query = SessionManager.prepare(query)
     return SessionManager.execute(query, [start_bin, end_bin])
 
@@ -251,7 +248,7 @@ def get_san_location_metadata(stream_key, time_range):
 
 
 @log_timing(log)
-def get_cass_lookback_dataset(stream_key, start_time, data_bin, deployments):
+def get_cass_lookback_dataset(stream_key, start_time, data_bin, deployments, request_id):
     # try to fetch the first n times to ensure we get a deployment value in there.
     cols, rows = fetch_with_func(query_n_before, stream_key,
                                  [(data_bin, start_time, engine.app.config['LOOKBACK_QUERY_LIMIT'])])
@@ -262,7 +259,7 @@ def get_cass_lookback_dataset(stream_key, start_time, data_bin, deployments):
         if r[dep_idx] in needed:
             ret_rows.append(r)
             needed.remove(r[dep_idx])
-    return to_xray_dataset(cols, ret_rows, stream_key)
+    return to_xray_dataset(cols, ret_rows, stream_key, request_id)
 
 
 @log_timing(log)
@@ -278,7 +275,7 @@ def get_first_before_metadata(stream_key, start_time):
     res = query_partition_metadata_before(stream_key, start_time)
     # filter to ensure start time < time_range_start
     res = filter(lambda x: x.first <= start_time, res)
-    if len(res) == 0:
+    if not res:
         return {}
     first_bin = res[0].bin
     res = filter(lambda x: x.bin == first_bin, res)
@@ -324,8 +321,8 @@ def get_location_metadata(stream_key, time_range):
                 if cass_count != san_count:
                     log.warn("Metadata count does not match for bin %d - SAN: %d  CASS: %d", key, san_count, cass_count)
                     messages.append(
-                        "Metadata count does not match for bin {:d} - SAN: {:d} " +
-                        "CASS: {:d} Took location with highest data count.".format(key, san_count, cass_count))
+                            "Metadata count does not match for bin {:d} - SAN: {:d} " +
+                            "CASS: {:d} Took location with highest data count.".format(key, san_count, cass_count))
                     if cass_count > san_count:
                         san_bins.pop(key)
                         san_total -= san_count
@@ -343,8 +340,8 @@ def get_location_metadata(stream_key, time_range):
                 if cass_count != san_count:
                     log.warn("Metadata count does not match for bin %d - SAN: %d  CASS: %d", key, san_count, cass_count)
                     messages.append(
-                        "Metadata count does not match for bin {:d} - SAN: {:d} " +
-                        "CASS: {:d} Took location with highest data count.".format(key, san_count, cass_count))
+                            "Metadata count does not match for bin {:d} - SAN: {:d} " +
+                            "CASS: {:d} Took location with highest data count.".format(key, san_count, cass_count))
                     if cass_count > san_count:
                         san_bins.pop(key)
                         san_total -= san_count
@@ -357,46 +354,6 @@ def get_location_metadata(stream_key, time_range):
     cass_metadata = LocationMetadata(cass_bins)
     san_metadata = LocationMetadata(san_bins)
     return cass_metadata, san_metadata, messages
-
-
-class LocationMetadata(object):
-    def __init__(self, bin_dict):
-        # bin, count, first, last
-        values = [BinInfo(*((i,) + bin_dict[i])) for i in bin_dict]
-        # sort by start time
-        values = sorted(values, key=lambda x: x.first)
-        firsts = [b.first for b in values]
-        lasts = [b.last for b in values]
-        bin_list = [b.bin for b in values]
-        counts = [b.count for b in values]
-        if len(bin_list) > 0:
-            self.total = sum(counts)
-            self.start_time = min(firsts)
-            self.end_time = max(lasts)
-        else:
-            self.total = 0
-            self.start_time = 0
-            self.end_time = 0
-        self.bin_list = bin_list
-        self.bin_information = bin_dict
-
-    def __repr__(self):
-        val = 'total: {:d} Bins -> '.format(self.total) + str(self.bin_list)
-        return val
-
-    def __str__(self):
-        return self.__repr__()
-
-    @property
-    def secs(self):
-        return self.end_time - self.start_time
-
-    def particle_rate(self):
-        if self.total == 0:
-            return 0
-        if self.secs == 0:
-            return 1
-        return float(self.total) / self.secs
 
 
 @log_timing(log)
@@ -511,14 +468,14 @@ def get_streaming_provenance(stream_key, times):
     prov = numpy.array(['None'] * len(times), dtype=object)
     for sp, ep in zip(prov_results[:-1], prov_results[1:]):
         prov[numpy.logical_and(times >= sp.time, times <= ep.time)] = str(sp.id)
-    if len(prov_results) > 0:
+    if prov_results:
         last_prov = prov_results[-1]
         prov[times >= last_prov.time] = str(last_prov.id)
     return prov, prov_dict
 
 
 @log_timing(log)
-def fetch_nth_data(stream_key, time_range, num_points=1000, location_metadata=None):
+def fetch_nth_data(stream_key, time_range, num_points=1000, location_metadata=None, request_id=None):
     """
     Given a time range, generate evenly spaced times over the specified interval. Fetch a single
     result from either side of each point in time.
@@ -540,8 +497,8 @@ def fetch_nth_data(stream_key, time_range, num_points=1000, location_metadata=No
     # Fetch it all if it's gonna be close to the same size
     if data_ratio < engine.app.config['UI_FULL_RETURN_RATIO']:
         log.info(
-            "CASS: Estimated points (%d) / the requested  number (%d) is less than ratio %f.  Returning all points.",
-            estimated_particles, num_points, engine.app.config['UI_FULL_RETURN_RATIO'])
+                "CASS: Estimated points (%d) / the requested  number (%d) is less than ratio %f.  Returning all points.",
+                estimated_particles, num_points, engine.app.config['UI_FULL_RETURN_RATIO'])
         _, results = fetch_all_data(stream_key, time_range, location_metadata)
     # We have a small amount of bins with data so we can read them all
     elif estimated_particles < engine.app.config['UI_FULL_SAMPLE_LIMIT'] \
@@ -571,7 +528,7 @@ def fetch_nth_data(stream_key, time_range, num_points=1000, location_metadata=No
         to_return.append(row)
     log.info("Removed %d duplicates from data", size - len(to_return))
     log.info("Returning %s rows from %s fetch", len(to_return), stream_key.as_refdes())
-    return to_xray_dataset(cols, to_return, stream_key)
+    return to_xray_dataset(cols, to_return, stream_key, request_id)
 
 
 @log_timing(log)
@@ -693,9 +650,9 @@ def fetch_all_data(stream_key, time_range, location_metadata=None):
 
 
 @log_timing(log)
-def get_full_cass_dataset(stream_key, time_range, location_metadata=None):
+def get_full_cass_dataset(stream_key, time_range, location_metadata=None, request_id=None):
     cols, rows = fetch_all_data(stream_key, time_range, location_metadata)
-    return to_xray_dataset(cols, rows, stream_key)
+    return to_xray_dataset(cols, rows, stream_key, request_id)
 
 
 @log_timing(log)
@@ -746,8 +703,8 @@ def insert_dataset(stream_key, dataset):
     dynamic_cols = cols[1:]
     key_cols = ['subsite', 'node', 'sensor', 'bin', 'method']
     cols = key_cols + dynamic_cols
-    arrays = set([p.name for p in stream_key.stream.parameters
-                  if p.parameter_type.value != FUNCTION and p.parameter_type.value == 'array<quantity>'])
+    arrays = {p.name for p in stream_key.stream.parameters
+              if not p.is_function and p.parameter_type.value == 'array<quantity>'}
     data_lists['bin'] = [data_bin] * size
     # id and provenance are expected to be UUIDs so convert them to uuids
     data_lists['id'] = [uuid.UUID(x) for x in dataset['id'].values]
@@ -896,9 +853,9 @@ def store_qc_results(qc_results_values, pk, particle_ids, particle_bins, particl
     if engine.app.config['QC_RESULTS_STORAGE_SYSTEM'] == 'cass':
         log.info('Storing QC results in Cassandra.')
         insert_results = SessionManager.prepare(
-            "insert into ooi.qc_results "
-            "(subsite, node, sensor, bin, deployment, stream, id, parameter, results) "
-            "values (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+                "insert into ooi.qc_results "
+                "(subsite, node, sensor, bin, deployment, stream, id, parameter, results) "
+                "values (?, ?, ?, ?, ?, ?, ?, ?, ?)")
 
         batch = BatchStatement()
         for (qc_results, particle_id, particle_bin, particle_deploy) in izip(qc_results_values, particle_ids,
@@ -921,7 +878,7 @@ def store_qc_results(qc_results_values, pk, particle_ids, particle_bins, particl
         log.info("QC results stored in {} seconds.".format(time.clock() - start_time))
     else:
         log.info("Configured storage system '{}' not recognized, qc results not stored.".format(
-            engine.app.config['QC_RESULTS_STORAGE_SYSTEM']))
+                engine.app.config['QC_RESULTS_STORAGE_SYSTEM']))
 
 
 def initialize_worker():
@@ -937,16 +894,10 @@ def time_in_bin_units(t, stream):
     return long(t)
 
 
-def time_to_bin(t, stream):
-    bin_size_seconds = 24 * 60 * 60
-    return long(t / bin_size_seconds) * bin_size_seconds
-
-
 def bin_to_time(b):
     return float(b)
 
 
-@log_timing(log)
 def get_available_time_range(stream_key):
     ps = SessionManager.prepare(STREAM_METADATA)
     rows = SessionManager.execute(ps, (stream_key.subsite, stream_key.node,
