@@ -5,9 +5,9 @@ import glob
 from itertools import chain
 import os
 import re
-import xray
+import xray as xr
 import logging
-from engine.routes import app
+from engine import app
 import numpy as np
 
 import jinja2
@@ -45,7 +45,7 @@ VARIABLE_CARRYOVER_MAP = {
 
 
 def get_nc_info(file_name):
-    with xray.open_dataset(file_name, decode_times=False) as ds:
+    with xr.open_dataset(file_name, decode_times=False) as ds:
         ret_val = {
             'size': ds.time.size,
         }
@@ -55,7 +55,7 @@ def get_nc_info(file_name):
 
         if 'l0_provenance_keys' in ds.variables and 'l0_provenance_data' in ds.variables:
             ret_val['l0_provenance'] = zip(ds.variables['l0_provenance_keys'].values,
-                                       ds.variables['l0_provenance_data'].values)
+                                           ds.variables['l0_provenance_data'].values)
 
         ret_val['file_start_time'] = ds.time.values[-1]
         for i in VARIABLE_CARRYOVER_MAP:
@@ -66,7 +66,6 @@ def get_nc_info(file_name):
 
 def collect_subjob_info(job_direct):
     """
-    :param root_dir:  Root directory to start walking path
     :return: Return a dictionary of file names and coordinate sizes
     """
     root_dir = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], job_direct)
@@ -75,7 +74,7 @@ def collect_subjob_info(job_direct):
         for i in files:
             if i.endswith('.nc'):
                 idx = direct.index(job_direct)
-                pname = direct[idx+len(job_direct)+1:]
+                pname = direct[idx + len(job_direct) + 1:]
                 fname = os.path.join(pname, i)
                 nc_info = get_nc_info(os.path.join(direct, i))
                 subjob_info[fname] = nc_info
@@ -96,7 +95,7 @@ def do_provenance(param):
     return keys, values
 
 
-def output_ncml(mapping, async_job_dir):
+def output_ncml(mapping):
     loader = jinja2.FileSystemLoader(searchpath='templates')
     env = jinja2.Environment(loader=loader, trim_blocks=True, lstrip_blocks=True)
     ncml_template = env.get_template('ncml.jinja')
@@ -118,12 +117,14 @@ def output_ncml(mapping, async_job_dir):
             variable_dict = {
                 'l0_provenance_keys': {'value': l0keys, 'type': 'string', 'size': len(l0keys), 'separator': '*'},
                 'l0_provenance_data': {'value': l0values, 'type': 'string', 'size': len(l0values), 'separator': '*'},
-                'combined_file_start_time': {'value': file_start_time, 'type': 'float', 'size': len(file_start_time), 'separator': None}
+                'combined_file_start_time': {'value': file_start_time, 'type': 'float', 'size': len(file_start_time),
+                                             'separator': None}
             }
         except KeyError:
-            #no l0_provenance output
+            # no l0_provenance output
             variable_dict = {
-                'combined_file_start_time': {'value': file_start_time, 'type': 'float', 'size': len(file_start_time), 'separator': None}
+                'combined_file_start_time': {'value': file_start_time, 'type': 'float', 'size': len(file_start_time),
+                                             'separator': None}
             }
 
         for i in VARIABLE_CARRYOVER_MAP:
@@ -135,13 +136,14 @@ def output_ncml(mapping, async_job_dir):
                 if len(arr) > 0:
                     vals = VARIABLE_CARRYOVER_MAP[i]['func'](arr)
                     variable_dict[i] = {'value': vals, 'type': VARIABLE_CARRYOVER_MAP[i]['type'], 'size': len(vals),
-                                    'separator': '*'}
+                                        'separator': '*'}
             except KeyError:
                 pass
         with codecs.open(combined_file, 'wb', 'utf-8') as ncml_file:
             ncml_file.write(
-                ncml_template.render(coord_dict=info_dict, attr_dict=attr_dict,
-                                     var_dict=variable_dict))
+                    ncml_template.render(coord_dict=info_dict, attr_dict=attr_dict,
+                                         var_dict=variable_dict))
+
 
 def generate_combination_map(direct, subjob_info):
     mapping = defaultdict(dict)
@@ -152,7 +154,7 @@ def generate_combination_map(direct, subjob_info):
             ncml_name = '{:s}.ncml'.format(file_base)
             ncml_name = os.path.join(direct, ncml_name)
             mapping[ncml_name][fname] = info
-    #sort the map so the time in the file increases along with obs
+    # sort the map so the time in the file increases along with obs
     sorted_map = {}
     for fname, sji in mapping.iteritems():
         sorted_subjobs = OrderedDict()
@@ -167,49 +169,52 @@ def aggregate(async_job_dir):
         subjob_info = collect_subjob_info(async_job_dir)
         direct = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], async_job_dir)
         mapping = generate_combination_map(direct, subjob_info)
-        output_ncml(mapping, async_job_dir)
+        output_ncml(mapping)
         erddap(async_job_dir)
+
 
 def find_representative_nc_file(file_paths, file_base):
     nc_name = file_base + '.nc'
-    agg_nc = os.path.join(file_paths,  nc_name)
+    agg_nc = os.path.join(file_paths, nc_name)
     if os.path.exists(agg_nc):
         # return aggregated file and we want to include it.
         return agg_nc, True
     else:
-        #walk directory and find first include subfile we do not want to include nc file in output
+        # walk directory and find first include subfile we do not want to include nc file in output
         for directory, _, files in os.walk(file_paths):
             for f in files:
                 if f == nc_name:
                     return os.path.join(directory, f), False
 
-def map_erddap_type(dtype):
-        '''
-        Returns the ERDDAP data type for a given dtype
-        '''
-        dtype_map = {
-            np.dtype('float64') : 'double',
-            np.dtype('float32') : 'float',
-            np.dtype('int64')   : 'long',
-            np.dtype('int32')   : 'int',
-            np.dtype('int16')   : 'short',
-            np.dtype('int8')    : 'byte',
-            np.dtype('uint64')  : 'unsignedLong',
-            np.dtype('uint32')  : 'unsignedInt',
-            np.dtype('uint16')  : 'unsignedShort',
-            np.dtype('uint8')   : 'unsignedByte',
-            np.dtype('bool')    : 'boolean',
-            np.dtype('S')       : 'String',
-            np.dtype('O')       : 'String',
-        }
-        if dtype.char == 'S':
-            return 'String'
 
-        return dtype_map[dtype]
+def map_erddap_type(dtype):
+    """
+    Returns the ERDDAP data type for a given dtype
+    """
+    dtype_map = {
+        np.dtype('float64'): 'double',
+        np.dtype('float32'): 'float',
+        np.dtype('int64'): 'long',
+        np.dtype('int32'): 'int',
+        np.dtype('int16'): 'short',
+        np.dtype('int8'): 'byte',
+        np.dtype('uint64'): 'unsignedLong',
+        np.dtype('uint32'): 'unsignedInt',
+        np.dtype('uint16'): 'unsignedShort',
+        np.dtype('uint8'): 'unsignedByte',
+        np.dtype('bool'): 'boolean',
+        np.dtype('S'): 'String',
+        np.dtype('O'): 'String',
+    }
+    if dtype.char == 'S':
+        return 'String'
+
+    return dtype_map[dtype]
+
 
 def get_type_map(nc_file_name, index='obs'):
     data_vars = {}
-    with xray.open_dataset(nc_file_name, decode_times=False) as ds:
+    with xr.open_dataset(nc_file_name, decode_times=False) as ds:
         for nc_var in ds.variables:
             # if multi variables continue to cause problems we can drop them here if dims > 1
             if ds[nc_var].dims[0] == index:
@@ -221,17 +226,18 @@ def get_type_map(nc_file_name, index='obs'):
 
 
 def get_template():
-    '''
+    """
     Returns the XML for the dataset entry in ERDDAP's datasets.xml
-    '''
+    """
     loader = jinja2.FileSystemLoader(searchpath='templates')
     env = jinja2.Environment(loader=loader, trim_blocks=True, lstrip_blocks=True)
     template = env.get_template('erddap_dataset.jinja')
     return template
 
+
 def get_attr_dict(nc_file):
     attrs = {}
-    with xray.open_dataset(nc_file, decode_times=False) as ds:
+    with xr.open_dataset(nc_file, decode_times=False) as ds:
         for i in ds.attrs:
             attrs[i] = ds.attrs[i]
     return attrs
@@ -240,7 +246,7 @@ def get_attr_dict(nc_file):
 def erddap(agg_dir):
     path_to_dataset = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], agg_dir)
     _, async_job_id = os.path.split(path_to_dataset)
-    # get datasets (deployments and nc files) and representative netcdf files and wheter we are doing ncml or just one
+    # get datasets (deployments and nc files) and representative netcdf files and whether we are doing ncml or just one
     for ncml_file in glob.glob(path_to_dataset + '/*.ncml'):
         _, fname = os.path.split(ncml_file)
         file_base, _ = os.path.splitext(fname)
@@ -249,12 +255,12 @@ def erddap(agg_dir):
         attr_dict = get_attr_dict(nc_file)
         template = get_template()
         title = '{:s}_{:s}'.format(async_job_id, file_base)
-        with codecs.open(os.path.join(path_to_dataset, file_base+ '_erddap.xml'), 'wb', 'utf-8') as erddap_file:
+        with codecs.open(os.path.join(path_to_dataset, file_base + '_erddap.xml'), 'wb', 'utf-8') as erddap_file:
             erddap_file.write(template.render(dataset_title=title,
-                           dataset_id=title,
-                           dataset_dir=path_to_dataset,
-                           data_vars=dataset_vars,
-                           attr_dict=attr_dict,
-                           base_file_name=file_base,
-                           recursive=str(not include).lower(),
-                    ))
+                                              dataset_id=title,
+                                              dataset_dir=path_to_dataset,
+                                              data_vars=dataset_vars,
+                                              attr_dict=attr_dict,
+                                              base_file_name=file_base,
+                                              recursive=str(not include).lower(),
+                                              ))

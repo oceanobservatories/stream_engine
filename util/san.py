@@ -2,12 +2,13 @@ import os
 import logging
 
 import numpy
-import xray
+import xray as xr
 from multiprocessing.pool import ThreadPool
 
 from engine import app
 from util.cass import insert_dataset, get_san_location_metadata, fetch_bin
-from util.common import StreamKey, to_xray_dataset, compile_datasets, log_timing
+from util.common import StreamKey, log_timing
+from util.datamodel import to_xray_dataset, compile_datasets
 
 log = logging.getLogger(__name__)
 san_threadpool = ThreadPool(10)
@@ -28,7 +29,7 @@ def onload_netCDF(file_name):
         return "File {:s} does not exist".format(file_name)
     # Validate that it has the information that we need and read in the data
     try:
-        with xray.open_dataset(file_name, decode_times=False, mask_and_scale=False) as dataset:
+        with xr.open_dataset(file_name, decode_times=False, mask_and_scale=False) as dataset:
             stream_key, errors = validate_dataset(dataset)
             if stream_key is None:
                 return errors
@@ -69,7 +70,7 @@ def validate_dataset(dataset):
     return stream_key, errors
 
 
-def SAN_netcdf(streams, bins):
+def SAN_netcdf(streams, bins, request_id):
     """
     Dump netcdfs for the stream and bins to the SAN.
     Will return success or list of bins that failed.
@@ -82,7 +83,7 @@ def SAN_netcdf(streams, bins):
     message = ''
     for data_bin in bins:
         try:
-            res, msg = offload_bin(stream, data_bin, san_dir_string)
+            res, msg = offload_bin(stream, data_bin, san_dir_string, request_id)
             results.append(res)
             message += msg
         except Exception as e:
@@ -92,10 +93,10 @@ def SAN_netcdf(streams, bins):
     return results, message
 
 
-def offload_bin(stream, data_bin, san_dir_string):
+def offload_bin(stream, data_bin, san_dir_string, request_id):
     # get the data and drop duplicates
     cols, data = fetch_bin(stream, data_bin)
-    dataset = to_xray_dataset(cols, data, stream, san=True)
+    dataset = to_xray_dataset(cols, data, stream, request_id, san=True)
     nc_directory = san_dir_string.format(data_bin)
     if not os.path.exists(nc_directory):
         os.makedirs(nc_directory)
@@ -257,7 +258,7 @@ def fetch_full_san_data(stream_key, time_range, location_metadata=None):
                         next_index += len(new_data['index'])
     if len(data) == 0:
         return None
-    return xray.concat(data, dim='index')
+    return xr.concat(data, dim='index')
 
 
 @log_timing(log)
@@ -279,8 +280,8 @@ def get_deployment_data(direct, stream_name, num_data_points, time_range, index_
         # only netcdf files
         if stream_name in f and os.path.splitext(f)[-1] == '.nc':
             f = os.path.join(direct, f)
-            with xray.open_dataset(f, decode_times=False) as dataset:
-                out_ds = xray.Dataset(attrs=dataset.attrs)
+            with xr.open_dataset(f, decode_times=False) as dataset:
+                out_ds = xr.Dataset(attrs=dataset.attrs)
                 t = dataset.time
                 t.load()
                 # get the indexes to pull out of the data
