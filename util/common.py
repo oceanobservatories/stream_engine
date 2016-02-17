@@ -452,7 +452,7 @@ def to_xray_dataset(cols, data, stream_key, san=False):
         if column in params:
             data = replace_values(dataframe[column].values,
                                   params[column].value_encoding.value,
-                                  params[column].fill_value.value,
+                                  get_fill_value(params[column]),
                                   params[column].parameter_type.value == 'array<quantity>',
                                   params[column].name)
         else:
@@ -472,8 +472,8 @@ def to_xray_dataset(cols, data, stream_key, san=False):
             param = params[column]
             if param.unit is not None:
                 array_attrs['units'] = param.unit.value
-            if param.fill_value is not None:
-                array_attrs['_FillValue'] = param.fill_value.value
+            if get_fill_value(param) is not None:
+                array_attrs['_FillValue'] = get_fill_value(param)
             if param.display_name is not None:
                 array_attrs['long_name'] = param.display_name
             elif param.name is not None:
@@ -634,3 +634,12 @@ def timed_cache(expire_seconds):
         return inner
 
     return wrapper
+
+
+def get_fill_value(param):
+    if param.fill_value is not None:
+        return param.fill_value.value
+    elif param.value_encoding is not None and param.value_encoding.value in app.config['FILL_VALUES']:
+        return app.config['FILL_VALUES'][param.value_encoding.value]
+    else:
+        return None

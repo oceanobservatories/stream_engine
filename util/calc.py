@@ -13,6 +13,7 @@ import scipy as sp
 
 from collections import OrderedDict, defaultdict
 from datetime import datetime
+from multiprocessing.pool import ThreadPool
 
 import parameter_util
 from csvresponse import CSVGenerator
@@ -29,7 +30,8 @@ from util.common import log_timing, ntp_to_datestring, ntp_to_ISO_date, StreamKe
     FUNCTION, CoefficientUnavailableException, UnknownFunctionTypeException, \
     StreamEngineException, Annotation, \
     MissingTimeException, MissingDataException, MissingStreamMetadataException, get_stream_key_with_param, \
-    isfillvalue, InvalidInterpolationException, get_params_with_dpi, ParamUnavailableException, compile_datasets
+    isfillvalue, InvalidInterpolationException, get_params_with_dpi, ParamUnavailableException, compile_datasets, \
+    get_fill_value
 from util.san import fetch_nsan_data, fetch_full_san_data, get_san_lookback_dataset
 
 from util.advlogging import ParameterReport
@@ -40,6 +42,7 @@ else:
     ION_VERSION = 'unversioned'
 
 log = logging.getLogger(__name__)
+calc_threadpool = ThreadPool(10)
 
 
 @log_timing(log)
@@ -894,7 +897,7 @@ def calculate_derived_product(param, coeffs, pd_data, primary_key, provenance_me
         # To support netcdf aggregation we need to fill all missing values across all files in case it is defined in all other locations.
         shp = get_shape(param, parameter_key, pd_data)
         data = numpy.empty(shape=shp, dtype=param.value_encoding.value)
-        data.fill(param.fill_value.value)
+        data.fill(get_fill_value(param))
         if param.id not in pd_data:
             pd_data[param.id] = {}
         pd_data[param.id][parameter_key.as_refdes()] = {'data': data, 'source': 'filled'}
@@ -1357,7 +1360,7 @@ class StreamRequest(object):
             found_pressure_param = None
             matching_stream_keys = []
             for param in depth_parameters:
-                possible_stream = find_stream(primary_key, [Stream.query.get(s) for s in param.streams])
+                possible_stream = find_stream(primary_key, param.streams)
                 if possible_stream is not None:
                     matching_stream_keys.append(possible_stream)
 
@@ -1457,7 +1460,7 @@ class ProvenanceMetadataStore(object):
     def add_instrument_provenance(self, stream_key, st, et):
         url = app.config['ASSET_URL'] + 'assets/byReferenceDesignator/{:s}/{:s}/{:s}?startDT={:s}?endDT={:s}'.format(
             stream_key.subsite, stream_key.node, stream_key.sensor, ntp_to_ISO_date(st), ntp_to_ISO_date(et))
-        self._instrument_provenance[stream_key] = SessionManager.pool().apply_async(send_query_for_instrument, (url,))
+        self._instrument_provenance[stream_key] = calc_threadpool.apply_async(send_query_for_instrument, (url,))
 
     def get_instrument_provenance(self):
         vals = defaultdict(list)

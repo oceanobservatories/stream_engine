@@ -3,12 +3,14 @@ import logging
 
 import numpy
 import xray
+from multiprocessing.pool import ThreadPool
 
 from engine import app
-from util.cass import insert_dataset, get_san_location_metadata, fetch_bin, SessionManager
+from util.cass import insert_dataset, get_san_location_metadata, fetch_bin
 from util.common import StreamKey, to_xray_dataset, compile_datasets, log_timing
 
 log = logging.getLogger(__name__)
+san_threadpool = ThreadPool(10)
 
 DEPLOYMENT_FORMAT = 'deployment_{:04d}'
 NETCDF_ENDING_NAME = '_{:04d}.nc'
@@ -201,10 +203,9 @@ def fetch_nsan_data(stream_key, time_range, num_points=1000, location_metadata=N
                 full_path = os.path.join(direct, deployment)
                 if os.path.isdir(full_path):
                     futures.append(
-                        SessionManager.pool().apply_async(get_deployment_data,
-                                                          (full_path, stream_key.stream_name, num_data_points,
-                                                           time_range),
-                                                          kwds={'index_start': next_index}))
+                            san_threadpool.apply_async(get_deployment_data,
+                                                       (full_path, stream_key.stream_name, num_data_points, time_range),
+                                                       kwds={'index_start': next_index}))
         else:
             missed += num_data_points
 

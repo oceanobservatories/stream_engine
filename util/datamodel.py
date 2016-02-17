@@ -9,7 +9,7 @@ import uuid
 __author__ = 'Stephen Zakrewsky'
 
 
-from common import MissingTimeException, ntp_to_ISO_date, MissingDataException
+from common import MissingTimeException, ntp_to_ISO_date, MissingDataException, get_fill_value
 from preload_database.model.preload import Parameter
 import datetime
 from engine import app
@@ -199,11 +199,10 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
                 array_attrs['units'] = param.unit.value
                 if param.unit.value.startswith('seconds since'):
                     array_attrs['calendar'] =  app.config["NETCDF_CALENDAR_TYPE"]
-            if param.fill_value is not None:
-                array_attrs['_FillValue'] = param.fill_value.value
+            if get_fill_value(param) is not None:
+                array_attrs['_FillValue'] = get_fill_value(param)
             # Long name needs to be display name to comply with cf 1.6.
             # http://cfconventions.org/Data/cf-conventions/cf-conventions-1.6/build/cf-conventions.html#long-name
-
 
             if param.display_name is not None:
                 array_attrs['long_name'] = param.display_name

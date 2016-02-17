@@ -35,8 +35,7 @@ SAN_LOCATION_NAME = 'san'
 CASS_LOCATION_NAME = 'cass'
 
 STREAM_METADATA = '''select stream, count, first, last from STREAM_METADATA
-where SUBSITE=? and NODE=? and SENSOR=? and METHOD=? and STREAM=?
-'''
+where SUBSITE=? and NODE=? and SENSOR=? and METHOD=? and STREAM=?'''
 
 ALL_STREAM_METADATA = 'SELECT subsite, node, sensor, method, stream FROM stream_metadata'
 
@@ -44,7 +43,7 @@ L0_DATASET = """select * from dataset_l0_provenance
 where subsite=? and node=? and sensor=? and method=? and deployment=? and id=?"""
 
 L0_STREAM_ONE = """SELECT {:s} FROM streaming_l0_provenance
-WHERE refdes = ? AND method = ? and time <= ? ORDER BY time DESC LIMIT 1""""".format(', '.join(l0_stream_columns))
+WHERE refdes = ? AND method = ? and time <= ? ORDER BY time DESC LIMIT 1""".format(', '.join(l0_stream_columns))
 
 L0_STREAM_RANGE = """SELECT {:s} FROM streaming_l0_provenance
 WHERE refdes = ? AND method = ? and time >= ? and time <= ?""".format(', '.join(l0_stream_columns))
@@ -64,8 +63,8 @@ class SessionManager(object):
     @classmethod
     def create_pool(cls, cluster, keyspace, consistency_level=None, fetch_size=None,
                     default_timeout=None, process_count=None):
-        cls.__pool = Pool(processes=process_count, initializer=cls._setup,
-                          initargs=(cluster, keyspace, consistency_level, fetch_size, default_timeout))
+        # cls.__pool = Pool(processes=process_count, initializer=cls._setup,
+        #                   initargs=(cluster, keyspace, consistency_level, fetch_size, default_timeout))
         cls._setup(cluster, keyspace, consistency_level, fetch_size, default_timeout)
 
     @classmethod
@@ -131,93 +130,6 @@ def _init():
                                fetch_size=engine.app.config['CASSANDRA_FETCH_SIZE'],
                                default_timeout=engine.app.config['CASSANDRA_DEFAULT_TIMEOUT'],
                                process_count=engine.app.config['POOL_SIZE'])
-
-
-class ConcurrentBatchFuture(ResponseFuture):
-    """
-    Combines the apply_async(execute_concurrent) pattern with paging
-
-    There are a number of parameters that can be tuned:
-
-        q_per_page -- number of queries to run per page
-                      if < 1, then everything will be done
-                      in a single page
-
-        q_per_proc -- number of queries to run per process
-
-        c_per_proc -- number of concurrent queries to run per process
-
-        blocking_init -- whether or not to block and fetch results immediately
-                         on construction of an instance of this class.
-                         q_per_page must also be < 1 for this to happen.
-
-    There are also a number of global parameters that are also related:
-
-        engine.app.config['POOL_SIZE'] -- number of processes in the pool
-
-        engine.app.config['CASSANDRA_FETCH_SIZE'] -- number of rows to fetch
-                                                     at a time from the underlying
-                                                     connection
-    """
-
-    def __init__(self, stream_key, cols, times):
-        self.stream_key = stream_key
-        self.cols = cols
-        self.times = times
-        self.q_per_page = 0
-        self.q_per_proc = 10
-        self.c_per_proc = 50
-        self.blocking_init = True
-        self._has_more_pages = False
-        self._final_result = None
-        if self.q_per_page < 1 and self.blocking_init:
-            self.result()
-
-    def add_callback(self, fn, *args, **kwargs):
-        if self._final_result is not None:
-            fn(self._final_result, *args, **kwargs)
-        else:
-            def thread_internals():
-                for i in range(0, len(self.times), self.q_per_page):
-                    rows = self._fetch_data_concurrent(self.times[i:i + self.q_per_page])
-                    self._has_more_pages = i * self.q_per_page < len(self.times)
-                    fn(rows, *args, **kwargs)
-
-            Thread(target=thread_internals).start()
-
-    def add_errback(self, fn, *args, **kwargs):
-        pass
-
-    @property
-    def has_more_pages(self):
-        return self._has_more_pages
-
-    def start_fetching_next_page(self):
-        if self._has_more_pages:
-            return
-        else:
-            raise QueryExhausted
-
-    def result(self):
-        if self._final_result is None:
-            self._final_result = self._fetch_data_concurrent(self.times)
-        return self._final_result
-
-    @log_timing(log)
-    def _fetch_data_concurrent(self, times):
-        futures = []
-        for i in xrange(0, len(times), self.q_per_proc):
-            args = (self.stream_key, self.cols, times[i:i + self.q_per_proc])
-            kwargs = {'concurrency': self.c_per_proc}
-            future = SessionManager.pool().apply_async(fetch_concurrent, args, kwargs)
-            futures.append(future)
-
-        rows = []
-        for future in futures:
-            for data in future.get():
-                rows.extend(data)
-
-        return rows
 
 
 @log_timing(log)
@@ -768,14 +680,9 @@ def fetch_all_data(stream_key, time_range, location_metadata=None):
         location_metadata = get_cass_location_metadata(stream_key, time_range)
     cols = SessionManager.get_query_columns(stream_key.stream.name)
 
-    futures = []
-    for bin_num in location_metadata.bin_list:
-        futures.append(
-            SessionManager.pool().apply_async(execute_unlimited_query, (stream_key, cols, bin_num, time_range)))
-
     rows = []
-    for future in futures:
-        rows.extend(future.get())
+    for bin_num in location_metadata.bin_list:
+        rows.extend(execute_unlimited_query(stream_key, cols, bin_num, time_range))
 
     return cols, rows
 
