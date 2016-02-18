@@ -387,11 +387,16 @@ class LocationMetadata(object):
     def __str__(self):
         return self.__repr__()
 
+    @property
     def secs(self):
         return self.end_time - self.start_time
 
     def particle_rate(self):
-        return float(self.total) / self.secs()
+        if self.total == 0:
+            return 0
+        if self.secs == 0:
+            return 1
+        return float(self.total) / self.secs
 
 
 @log_timing(log)
