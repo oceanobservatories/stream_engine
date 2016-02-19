@@ -643,7 +643,11 @@ def set_geospatial(pd_data, stream_request):
     primary_key = stream_request.stream_keys[0]
 
     # find location data
-    primary_stream_len = pd_data[primary_stream.time_parameter][primary_key.as_refdes()]['data']
+    if pd_data.get(primary_stream.time_parameter, {}).has_key(primary_key.as_refdes()):
+        primary_stream_len = pd_data[primary_stream.time_parameter][primary_key.as_refdes()]['data']
+    else:
+        log.info("Cannot determine time parameter for %s", primary_key.as_refdes())
+        return
 
     lat_sk = stream_request.lat_stream_key
     if lat_sk is not None and pd_data.get(lat_sk.stream.time_parameter, {}).has_key(lat_sk.as_refdes()) and \
