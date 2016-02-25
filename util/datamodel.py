@@ -152,13 +152,18 @@ def _group_by_stream_key(ds, pd_data, stream_key, location_information, deployme
              'axis': 'T',
              'calendar': app.config["NETCDF_CALENDAR_TYPE"]}
     ds['time'] = ('obs', time_data, attrs)
-    # put in lat and lon here
+
     for param_id in pd_data:
+ 
+        # Keep time_parameter for streams with source stream
+        # dependency (e.g., Metbk_hourly.met_timeflx)
+        virtual_request = stream_key.stream.source_streams
         if (
-            param_id == time_parameter or
+            (param_id == time_parameter and not virtual_request) or
             stream_key.as_refdes() not in pd_data[param_id]
            ):
             continue
+
         param = Parameter.query.get(param_id)
         # param can be None if this is not a real parameter,
         # like deployment for deployment number
