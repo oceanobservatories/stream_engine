@@ -1,5 +1,5 @@
 DEBUG = False
-STREAM_ENGINE_VERSION = "1.0.0"
+STREAM_ENGINE_VERSION = "1.0.1"
 
 CASSANDRA_CONTACT_POINTS = ['127.0.0.1']
 CASSANDRA_KEYSPACE = 'ooi'
@@ -143,3 +143,6 @@ GPS_STREAM_ID = 761
 LATITUDE_PARAM_ID = 1335
 LONGITUDE_PARAM_ID = 1336
 INT_PRESSURE_NAME = 'int_ctd_pressure'
+
+# Maximum depth difference between two instruments to be considered "near"
+MAX_DEPTH_VARIANCE = 20
