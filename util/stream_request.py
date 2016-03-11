@@ -6,7 +6,7 @@ import xray as xr
 import numpy as np
 
 from engine import app
-from preload_database.model.preload import Parameter, Stream
+from preload_database.model.preload import Parameter, Stream, NominalDepth
 import util.annotation
 import util.provenance_metadata_store
 from util.advlogging import ParameterReport
@@ -33,6 +33,7 @@ GPS_STREAM_ID = app.config.get('GPS_STREAM_ID')
 LATITUDE_PARAM_ID = app.config.get('LATITUDE_PARAM_ID')
 LONGITUDE_PARAM_ID = app.config.get('LONGITUDE_PARAM_ID')
 INT_PRESSURE_NAME = app.config.get('INT_PRESSURE_NAME')
+MAX_DEPTH_VARIANCE = app.config.get('MAX_DEPTH_VARIANCE')
 
 
 class StreamRequest(object):
@@ -542,37 +543,11 @@ class StreamRequest(object):
             external = external_to_process.pop()
             stream, poss_params = external
             log.debug('<%s> _locate_externals: STREAM: %r POSS_PARAMS: %r', self.request_id, stream, poss_params)
-            # 3 possible cases here.
-            # 1) Stream, 1 Parameter
-            # 2) None, 1 Parameter
-            # 3) None, N Parameters
-            if len(poss_params) == 1:
-                p = poss_params[0]
-                streams = p.streams
-                if stream is not None:
-                    streams = [stream]
-
-                # IF there is only one possible parameter, allow find_stream to ascend the full hierarchy
-                sk = self.find_stream(self.stream_key, streams)
-                if sk:
-                    process_found_stream(sk, p)
-                else:
-                    external_unfulfilled.add(external)
-
+            found_sk, found_param = self.find_stream(self.stream_key, poss_params, stream=stream)
+            if found_sk:
+                process_found_stream(found_sk, found_param)
             else:
-                sk = None
-                for p in poss_params:
-                    if sk:
-                        break
-                    # Since we have multiple possible parameters, search each parameter at successively higher depths
-                    for depth in range(3):
-                        sk = self.find_stream(self.stream_key, p.streams, depth=depth)
-
-                        if sk:
-                            process_found_stream(sk, p)
-                            break
-                if sk is None:
-                    external_unfulfilled.update(external)
+                external_unfulfilled.add(external)
 
         return stream_parameters, found, external_unfulfilled
 
@@ -657,8 +632,98 @@ class StreamRequest(object):
                          self.time_range, new_time_range)
                 self.time_range = new_time_range
 
+    @log_timing(log)
+    def find_stream(self, stream_key, poss_params, stream=None):
+        subsite = stream_key.subsite
+        node = stream_key.node
+        sensor = stream_key.sensor
+        stream_dictionary = build_stream_dictionary()
+
+        # First, try to find the stream on the same sensor
+        for p in poss_params:
+            search_streams = [stream] if stream else p.streams
+            sk = self._find_stream_same_sensor(stream_key, search_streams, stream_dictionary)
+            if sk:
+                return sk, p
+
+        # Attempt to find an instrument at the same depth (if not mobile)
+        if not stream_key.is_mobile:
+            nominal_depth = NominalDepth.get_nominal_depth(subsite, node, sensor)
+            if nominal_depth is not None:
+                co_located = nominal_depth.get_colocated_subsite()
+                for p in poss_params:
+                    search_streams = [stream] if stream else p.streams
+                    sk = self._find_stream_from_list(stream_key, search_streams, co_located, stream_dictionary)
+                    if sk:
+                        return sk, p
+
+        # Attempt to find an instrument on the same node
+        for p in poss_params:
+            search_streams = [stream] if stream else p.streams
+            sk = self._find_stream_same_node(stream_key, search_streams, stream_dictionary)
+            if sk:
+                return sk, p
+
+        # Not found at same depth, attempt to find nearby (if not mobile)
+        if not stream_key.is_mobile:
+            nominal_depth = NominalDepth.get_nominal_depth(subsite, node, sensor)
+            if nominal_depth is not None:
+                nearby = nominal_depth.get_depth_within(MAX_DEPTH_VARIANCE)
+                for p in poss_params:
+                    search_streams = [stream] if stream else p.streams
+                    sk = self._find_stream_from_list(stream_key, search_streams, nearby, stream_dictionary)
+                    if sk:
+                        return sk, p
+
+        return None, None
+
     @staticmethod
-    def find_stream(stream_key, streams, depth=None):
+    def _find_stream_same_sensor(stream_key, streams, stream_dictionary):
+        """
+        Given a primary source, attempt to find one of the supplied streams from the same instrument
+        :param stream_key:
+        :param streams:
+        :return:
+        """
+        method = stream_key.method
+        subsite = stream_key.subsite
+        node = stream_key.node
+        sensor = stream_key.sensor
+
+        # Search the same reference designator
+        for stream in streams:
+            sensors = stream_dictionary.get(stream.name, {}).get(method, {}).get(subsite, {}).get(node, [])
+            if sensor in sensors:
+                return StreamKey.from_dict({
+                    "subsite": subsite,
+                    "node": node,
+                    "sensor": sensor,
+                    "method": method,
+                    "stream": stream.name
+                })
+
+    @staticmethod
+    def _find_stream_from_list(stream_key, streams, sensors, stream_dictionary):
+        method = stream_key.method
+        subsite = stream_key.subsite
+        designators = [(c.subsite, c.node, c.sensor) for c in sensors]
+
+        for stream in streams:
+            subsite_dict = stream_dictionary.get(stream.name, {}).get(method, {}).get(subsite, {})
+            for _node in subsite_dict:
+                for _sensor in subsite_dict[_node]:
+                    des = (subsite, _node, _sensor)
+                    if des in designators:
+                        return StreamKey.from_dict({
+                            "subsite": subsite,
+                            "node": _node,
+                            "sensor": _sensor,
+                            "method": method,
+                            "stream": stream.name
+                        })
+
+    @staticmethod
+    def _find_stream_same_node(stream_key, streams, stream_dictionary):
         """
         Given a primary source, attempt to find one of the supplied streams from the same instrument,
         same node or same subsite
@@ -669,55 +734,20 @@ class StreamRequest(object):
         if not isinstance(streams, (list, tuple)):
             streams = [streams]
 
-        stream_dictionary = build_stream_dictionary()
         method = stream_key.method
         subsite = stream_key.subsite
         node = stream_key.node
-        sensor = stream_key.sensor
 
-        if depth is None or depth == 0:
-            # Search the same reference designator
-            for stream in streams:
-                sensors = stream_dictionary.get(stream.name, {}).get(method, {}).get(subsite, {}).get(node, [])
-                if sensor in sensors:
-                    return StreamKey.from_dict({
-                        "subsite": subsite,
-                        "node": node,
-                        "sensor": sensor,
-                        "method": stream_key.method,
-                        "stream": stream.name
-                    })
-
-        if depth is None or depth == 1:
-            # No streams from our target set exist on the same instrument. Check the same node
-            for stream in streams:
-                sensors = stream_dictionary.get(stream.name, {}).get(method, {}).get(subsite, {}).get(node, [])
-                if sensors:
-                    return StreamKey.from_dict({
-                        "subsite": subsite,
-                        "node": node,
-                        "sensor": sensors[0],
-                        "method": stream_key.method,
-                        "stream": stream.name
-                    })
-
-        # GLIDER should never descend below this point, all streams MUST come from the same glider
-        if stream_key.is_glider:
-            return
-
-        if depth is None or depth == 2:
-            # No streams from our target set exist on the same node. Check the same subsite
-            for stream in streams:
-                subsite_dict = stream_dictionary.get(stream.name, {}).get(method, {}).get(subsite, {})
-                for node in subsite_dict:
-                    if subsite_dict[node]:
-                        return StreamKey.from_dict({
-                            "subsite": subsite,
-                            "node": node,
-                            "sensor": subsite_dict[node][0],
-                            "method": stream_key.method,
-                            "stream": stream.name
-                        })
+        for stream in streams:
+            sensors = stream_dictionary.get(stream.name, {}).get(method, {}).get(subsite, {}).get(node, [])
+            if sensors:
+                return StreamKey.from_dict({
+                    "subsite": subsite,
+                    "node": node,
+                    "sensor": sensors[0],
+                    "method": method,
+                    "stream": stream.name
+                })
 
 
 @log_timing(log)
