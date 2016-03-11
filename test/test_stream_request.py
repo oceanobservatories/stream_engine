@@ -117,9 +117,9 @@ class StreamRequestTest(unittest.TestCase):
         self.assertEqual(set(sr.stream_parameters), {sk, sk2})
 
     def test_virtual(self):
-        sk1 = StreamKey('CP01CNSM', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_hourly')
-        sk2 = StreamKey('CP01CNSM', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_a_dcl_instrument_recovered')
-        sk3 = StreamKey('CP01CNSM', 'MFD35', '04-VELPTA000',	'recovered_host', 'velpt_ab_dcl_instrument_recovered')
+        sk1 = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_hourly')
+        sk2 = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_a_dcl_instrument_recovered')
+        sk3 = StreamKey('GI01SUMO', 'RID16', '04-VELPTA000', 'recovered_host', 'velpt_ab_dcl_instrument_recovered')
         tr = TimeRange(3617736678.149051, 3661524609.0570827)
         sr = StreamRequest(sk1, [], {}, tr, {}, request_id='UNIT')
         self.assertEqual(set(sr.stream_parameters), {sk1, sk2, sk3})
@@ -186,10 +186,9 @@ class StreamRequestTest(unittest.TestCase):
         self.assertEqual(len(response), len(nutnr_ds.time.values))
 
     def test_metbk_hourly_needs(self):
-        hourly_sk = StreamKey('CP01CNSM', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_hourly')
-        met_sk = StreamKey('CP01CNSM', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_a_dcl_instrument_recovered')
-        # TODO - this should be using RID26
-        vel_sk = StreamKey('CP01CNSM', 'MFD35', '04-VELPTA000',	'recovered_host', 'velpt_ab_dcl_instrument_recovered')
+        hourly_sk = StreamKey('CP01CNSM', 'SBD11', '06-METBKA000', 'telemetered', 'metbk_hourly')
+        met_sk = StreamKey('CP01CNSM', 'SBD11', '06-METBKA000', 'telemetered', 'metbk_a_dcl_instrument')
+        vel_sk = StreamKey('CP01CNSM', 'RID26', '04-VELPTA000', 'telemetered', 'velpt_ab_dcl_instrument')
         tr = TimeRange(0, 99999999)
         sr = StreamRequest(hourly_sk, [], {}, tr, {}, request_id='UNIT')
         self.assertEqual(set(sr.stream_parameters), {hourly_sk, met_sk, vel_sk})
@@ -212,9 +211,9 @@ class StreamRequestTest(unittest.TestCase):
         vel_fn = 'velpt_ab_dcl_instrument_recovered.nc'
         vel_ds = xr.open_dataset(os.path.join(DATA_DIR, vel_fn), decode_times=False)
 
-        hourly_sk = StreamKey('CP01CNSM', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_hourly')
-        source_sk = StreamKey('CP01CNSM', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_a_dcl_instrument_recovered')
-        vel_sk = StreamKey('CP01CNSM', 'MFD35', '04-VELPTA000',	'recovered_host', 'velpt_ab_dcl_instrument_recovered')
+        hourly_sk = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_hourly')
+        source_sk = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_a_dcl_instrument_recovered')
+        vel_sk = StreamKey('GI01SUMO', 'RID16', '04-VELPTA000', 'recovered_host', 'velpt_ab_dcl_instrument_recovered')
 
         tr = TimeRange(metbk_ds.time.values[0], metbk_ds.time.values[-1])
         coefficients = {k: [{'start': tr.start-1000, 'stop': tr.stop+1000, 'value': cals[k], 'deployment': 3}] for k in cals}
