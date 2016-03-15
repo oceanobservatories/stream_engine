@@ -22,7 +22,7 @@ class ProvenanceMetadataStore(object):
     def __init__(self, request_uuid):
         self.request_uuid = request_uuid
         self._prov_set = set()
-        self.calculated_metatdata = CalculatedProvenanceMetadataStore()
+        self.calculated_metadata = CalculatedProvenanceMetadataStore()
         self.messages = []
         self._prov_dict = {}
         self._streaming_provenance = {}
@@ -102,7 +102,7 @@ class ProvenanceMetadataStore(object):
                                                       dims=['streaming_provenance_dim'],
                                                       attrs={'long_name': 'Streaming Provenance Information'})
 
-        comp_prov = self.calculated_metatdata.get_dict()
+        comp_prov = self.calculated_metadata.get_dict()
         comp_prov = json.dumps(comp_prov, cls=NumpyJSONEncoder)
         if comp_prov:
             ds['computed_provenance'] = xr.DataArray([comp_prov], dims=['computed_provenance_dim'],
