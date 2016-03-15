@@ -1,17 +1,18 @@
 import json
+import logging
 import os
 import unittest
-import logging
+
 import mock
+import numpy as np
 import pandas as pd
 import xray as xr
-import numpy as np
 from ion_functions.data.ctd_functions import ctd_sbe16plus_tempwat, ctd_pracsal
 
 from preload_database.database import initialize_connection, open_connection, PreloadDatabaseMode
 from util.common import StreamKey, TimeRange, StreamEngineException
-from util.datamodel import create_empty_dataset
 from util.jsonresponse import JsonResponse
+from util.stream_dataset import StreamDataset
 from util.stream_request import StreamRequest
 
 TEST_DIR = os.path.dirname(__file__)
@@ -44,6 +45,11 @@ def get_stream_metadata():
 class StreamRequestTest(unittest.TestCase):
     metadata = []
     base_params = ['time', 'deployment', 'provenance']
+
+    def assert_parameters_in_datasets(self, datasets, parameters):
+        for dataset in datasets.itervalues():
+            for parameter in parameters:
+                self.assertIn(parameter, dataset)
 
     def test_basic_stream_request(self):
         sk = StreamKey('CP05MOAS', 'GL388', '03-CTDGVM000', 'recovered_host', 'ctdgv_m_glider_instrument_recovered')
@@ -138,18 +144,26 @@ class StreamRequestTest(unittest.TestCase):
         nutnr_ds = xr.open_dataset(os.path.join(DATA_DIR, nutnr_fn), decode_times=False)
         ctdpf_ds = xr.open_dataset(os.path.join(DATA_DIR, ctdpf_fn), decode_times=False)
 
-        sr.datasets[ctdpf_sk] = ctdpf_ds[self.base_params + [p.name for p in sr.stream_parameters[ctdpf_sk]]]
-        sr.datasets[nutnr_sk] = nutnr_ds[self.base_params + [p.name for p in sr.stream_parameters[nutnr_sk]]]
+        nutnr_ds = nutnr_ds[self.base_params + [p.name for p in sr.stream_parameters[nutnr_sk]]]
+        ctdpf_ds = ctdpf_ds[self.base_params + [p.name for p in sr.stream_parameters[ctdpf_sk]]]
+
+        sr.datasets[ctdpf_sk] = StreamDataset(ctdpf_sk, sr.coefficients, sr.uflags, [nutnr_sk], sr.request_id)
+        sr.datasets[nutnr_sk] = StreamDataset(nutnr_sk, sr.coefficients, sr.uflags, [ctdpf_sk], sr.request_id)
+        sr.datasets[ctdpf_sk]._insert_dataset(ctdpf_ds)
+        sr.datasets[nutnr_sk]._insert_dataset(nutnr_ds)
+
         sr.calculate_derived_products()
 
         ds = sr.datasets[ctdpf_sk]
-        tempwat = ctd_sbe16plus_tempwat(ds.temperature,
+        tempwat = ctd_sbe16plus_tempwat(ds.datasets[0].temperature,
                                         cals['CC_a0'], cals['CC_a1'],
                                         cals['CC_a2'], cals['CC_a3'])
-        np.testing.assert_array_equal(ds.seawater_temperature, tempwat)
+        np.testing.assert_array_equal(ds.datasets[0].seawater_temperature, tempwat)
 
-        pracsal = ctd_pracsal(ds.seawater_conductivity, ds.seawater_temperature, ds.seawater_pressure)
-        np.testing.assert_array_equal(ds.practical_salinity, pracsal)
+        pracsal = ctd_pracsal(ds.datasets[0].seawater_conductivity,
+                              ds.datasets[0].seawater_temperature,
+                              ds.datasets[0].seawater_pressure)
+        np.testing.assert_array_equal(ds.datasets[0].practical_salinity, pracsal)
 
         response = json.loads(JsonResponse(sr).json())
         self.assertEqual(len(response), len(nutnr_ds.time.values))
@@ -166,24 +180,22 @@ class StreamRequestTest(unittest.TestCase):
         tr = TimeRange(3.65342400e+09, 3.65351040e+09)
         coefficients = {k: [{'start': tr.start-1, 'stop': tr.stop+1, 'value': cals[k], 'deployment': 1}] for k in cals}
         sr = StreamRequest(nutnr_sk, [2443], coefficients, tr, {}, qc_parameters=qc, request_id='UNIT')
+
         nutnr_ds = xr.open_dataset(os.path.join(DATA_DIR, nutnr_fn), decode_times=False)
         ctdpf_ds = xr.open_dataset(os.path.join(DATA_DIR, ctdpf_fn), decode_times=False)
+        ctdpf_ds = ctdpf_ds[self.base_params + [p.name for p in sr.stream_parameters[ctdpf_sk]]]
+        nutnr_ds = nutnr_ds[self.base_params + [p.name for p in sr.stream_parameters[nutnr_sk]]]
 
-        sr.datasets[ctdpf_sk] = ctdpf_ds[self.base_params + [p.name for p in sr.stream_parameters[ctdpf_sk]]]
-        sr.datasets[nutnr_sk] = nutnr_ds[self.base_params + [p.name for p in sr.stream_parameters[nutnr_sk]]]
+        sr.datasets[ctdpf_sk] = StreamDataset(ctdpf_sk, sr.coefficients, sr.uflags, [nutnr_sk], sr.request_id)
+        sr.datasets[nutnr_sk] = StreamDataset(nutnr_sk, sr.coefficients, sr.uflags, [ctdpf_sk], sr.request_id)
+        sr.datasets[ctdpf_sk]._insert_dataset(ctdpf_ds)
+        sr.datasets[nutnr_sk]._insert_dataset(nutnr_ds)
+
         sr.calculate_derived_products()
 
-        ds = sr.datasets[ctdpf_sk]
-        tempwat = ctd_sbe16plus_tempwat(ds.temperature,
-                                        cals['CC_a0'], cals['CC_a1'],
-                                        cals['CC_a2'], cals['CC_a3'])
-        np.testing.assert_array_equal(ds.seawater_temperature, tempwat)
-
-        pracsal = ctd_pracsal(ds.seawater_conductivity, ds.seawater_temperature, ds.seawater_pressure)
-        np.testing.assert_array_equal(ds.practical_salinity, pracsal)
-
-        response = json.loads(JsonResponse(sr).json())
-        self.assertEqual(len(response), len(nutnr_ds.time.values))
+        expected_parameters = ['temp_sal_corrected_nitrate_qc_executed',
+                               'temp_sal_corrected_nitrate_qc_results']
+        self.assert_parameters_in_datasets(sr.datasets[nutnr_sk].datasets, expected_parameters)
 
     def test_metbk_hourly_needs(self):
         hourly_sk = StreamKey('CP01CNSM', 'SBD11', '06-METBKA000', 'telemetered', 'metbk_hourly')
@@ -218,15 +230,21 @@ class StreamRequestTest(unittest.TestCase):
         tr = TimeRange(metbk_ds.time.values[0], metbk_ds.time.values[-1])
         coefficients = {k: [{'start': tr.start-1000, 'stop': tr.stop+1000, 'value': cals[k], 'deployment': 3}] for k in cals}
         sr = StreamRequest(hourly_sk, [], coefficients, tr, {}, request_id='UNIT')
-        hourly_ds = create_empty_dataset(hourly_sk, 'UNIT')
 
-        sr.datasets[source_sk] = metbk_ds[self.base_params + [p.name for p in sr.stream_parameters[source_sk]]]
-        sr.datasets[hourly_sk] = hourly_ds
-        sr.datasets[vel_sk] = vel_ds[self.base_params + [p.name for p in sr.stream_parameters[vel_sk]]]
+        metbk_ds = metbk_ds[self.base_params + [p.name for p in sr.stream_parameters[source_sk]]]
+        vel_ds = vel_ds[self.base_params + [p.name for p in sr.stream_parameters[vel_sk]]]
+
+        sr.datasets[source_sk] = StreamDataset(source_sk, sr.coefficients, sr.uflags, [hourly_sk, vel_sk], sr.request_id)
+        sr.datasets[hourly_sk] = StreamDataset(hourly_sk, sr.coefficients, sr.uflags, [source_sk, vel_sk], sr.request_id)
+        sr.datasets[vel_sk] = StreamDataset(vel_sk, sr.coefficients, sr.uflags, [hourly_sk, vel_sk], sr.request_id)
+
+        sr.datasets[source_sk]._insert_dataset(metbk_ds)
+        sr.datasets[vel_sk]._insert_dataset(vel_ds)
+
         sr.calculate_derived_products()
 
         expected_params = [p.name for p in hourly_sk.stream.parameters] + ['obs', 'time']
-        self.assertListEqual(sorted(expected_params), sorted(hourly_ds))
+        self.assertListEqual(sorted(expected_params), sorted(sr.datasets[hourly_sk].datasets[3]))
 
     def test_function_map_scalar(self):
         echo_fn = 'echo_sounding.nc'
@@ -234,13 +252,14 @@ class StreamRequestTest(unittest.TestCase):
         echo_sk = StreamKey('RS01SLBS', 'LJ01A', '05-HPIESA101', 'streamed', 'echo_sounding')
         tr = TimeRange(0, 99999999)
         sr = StreamRequest(echo_sk, [], {}, tr, {}, request_id='UNIT')
-        sr.datasets[echo_sk] = echo_ds
+        sr.datasets[echo_sk] = StreamDataset(echo_sk, sr.coefficients, sr.uflags, [], sr.request_id)
+        sr.datasets[echo_sk]._insert_dataset(echo_ds)
         sr.calculate_derived_products()
         sr._add_location()
 
         expected = {'hpies_travel_time1_L1', 'hpies_travel_time2_L1', 'hpies_travel_time3_L1', 'hpies_travel_time4_L1',
                     'hpies_bliley_temperature_L1', 'hpies_pressure_L1'}
-        missing = expected.difference(echo_ds)
+        missing = expected.difference(sr.datasets[echo_sk].datasets[0])
         self.assertSetEqual(missing, set())
 
     def test_add_location(self):
@@ -253,16 +272,19 @@ class StreamRequestTest(unittest.TestCase):
                                                           {'deployment': 2, 'lat': 2, 'lon': 6}]}
         tr = TimeRange(0, 99999999)
         sr = StreamRequest(echo_sk, [], {}, tr, {}, location_information=location_info, request_id='UNIT')
-        sr.datasets[echo_sk] = echo_ds
+        sr.datasets[echo_sk] = StreamDataset(echo_sk, sr.coefficients, sr.uflags, [], sr.request_id)
+        sr.datasets[echo_sk]._insert_dataset(echo_ds)
+
         sr.calculate_derived_products()
         sr._add_location()
 
         ds = sr.datasets[echo_sk]
-        lats = set(np.unique(ds.lat.values))
-        lons = set(np.unique(ds.lon.values))
 
-        self.assertSetEqual(lats, {1.0, 2.0})
-        self.assertSetEqual(lons, {5.0, 6.0})
+        for deployment, lat, lon in [(1, 1.0, 5.0), (2, 2.0, 6.0)]:
+            lats = set(np.unique(ds.datasets[deployment].lat.values))
+            lons = set(np.unique(ds.datasets[deployment].lon.values))
+            self.assertSetEqual(lats, {lat})
+            self.assertSetEqual(lons, {lon})
 
     def test_add_externals(self):
         nutnr_sk = StreamKey('CE04OSPS', 'SF01B', '4A-NUTNRA102', 'streamed', 'nutnr_a_sample')
@@ -275,16 +297,22 @@ class StreamRequestTest(unittest.TestCase):
         tr = TimeRange(3.65342400e+09, 3.65351040e+09)
         coefficients = {k: [{'start': tr.start-1, 'stop': tr.stop+1, 'value': cals[k], 'deployment': 1}] for k in cals}
         sr = StreamRequest(nutnr_sk, [2443], coefficients, tr, {}, request_id='UNIT')
+
         nutnr_ds = xr.open_dataset(os.path.join(DATA_DIR, nutnr_fn), decode_times=False)
         ctdpf_ds = xr.open_dataset(os.path.join(DATA_DIR, ctdpf_fn), decode_times=False)
+        ctdpf_ds = ctdpf_ds[self.base_params + [p.name for p in sr.stream_parameters[ctdpf_sk]]]
+        nutnr_ds = nutnr_ds[self.base_params + [p.name for p in sr.stream_parameters[nutnr_sk]]]
 
-        sr.datasets[ctdpf_sk] = ctdpf_ds[self.base_params + [p.name for p in sr.stream_parameters[ctdpf_sk]]]
-        sr.datasets[nutnr_sk] = nutnr_ds[self.base_params + [p.name for p in sr.stream_parameters[nutnr_sk]]]
+        sr.datasets[ctdpf_sk] = StreamDataset(ctdpf_sk, sr.coefficients, sr.uflags, [nutnr_sk], sr.request_id)
+        sr.datasets[nutnr_sk] = StreamDataset(nutnr_sk, sr.coefficients, sr.uflags, [ctdpf_sk], sr.request_id)
+        sr.datasets[ctdpf_sk]._insert_dataset(ctdpf_ds)
+        sr.datasets[nutnr_sk]._insert_dataset(nutnr_ds)
+
         sr.calculate_derived_products()
         sr.import_extra_externals()
 
-        self.assertIn('ctdpf_sbe43_sample-seawater_pressure', sr.datasets[nutnr_sk])
-        self.assertNotIn('ctdpf_sbe43_sample-seawater_pressure', sr.datasets[ctdpf_sk])
+        self.assertIn('ctdpf_sbe43_sample-seawater_pressure', sr.datasets[nutnr_sk].datasets[0])
+        self.assertNotIn('ctdpf_sbe43_sample-seawater_pressure', sr.datasets[ctdpf_sk].datasets[0])
 
         data = json.loads(JsonResponse(sr).json())
         for each in data:
@@ -299,21 +327,35 @@ class StreamRequestTest(unittest.TestCase):
         par_sk = StreamKey('CE05MOAS', 'GL319', '01-PARADM000', 'recovered_host', 'parad_m_glider_recovered')
         ctd_sk = StreamKey('CE05MOAS', 'GL319', '05-CTDGVM000', 'recovered_host', 'ctdgv_m_glider_instrument_recovered')
 
+        # Fetch the source data
         gps_ds = xr.open_dataset(os.path.join(DATA_DIR, gps_fn), decode_times=False)
         par_ds = xr.open_dataset(os.path.join(DATA_DIR, par_fn), decode_times=False)
         ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, ctd_fn), decode_times=False)
 
+        # Create the stream request
         tr = TimeRange(par_ds.time.values[0], par_ds.time.values[-1])
         sr = StreamRequest(par_sk, [], {}, tr, {}, request_id='UNIT')
-        sr.datasets[gps_sk] = gps_ds[self.base_params + [p.name for p in sr.stream_parameters[gps_sk]]]
-        sr.datasets[par_sk] = par_ds[self.base_params + [p.name for p in sr.stream_parameters[par_sk]]]
-        sr.datasets[ctd_sk] = ctd_ds[self.base_params + [p.name for p in sr.stream_parameters[ctd_sk]]]
+
+        # Filter the source data to just the data the stream request says we need
+        gps_ds = gps_ds[self.base_params + [p.name for p in sr.stream_parameters[gps_sk]]]
+        par_ds = par_ds[self.base_params + [p.name for p in sr.stream_parameters[par_sk]]]
+        ctd_ds = ctd_ds[self.base_params + [p.name for p in sr.stream_parameters[ctd_sk]]]
+
+        # Create the StreamDataset objects
+        sr.datasets[gps_sk] = StreamDataset(gps_sk, sr.coefficients, sr.uflags, [par_sk, ctd_sk], sr.request_id)
+        sr.datasets[par_sk] = StreamDataset(par_sk, sr.coefficients, sr.uflags, [gps_sk, ctd_sk], sr.request_id)
+        sr.datasets[ctd_sk] = StreamDataset(ctd_sk, sr.coefficients, sr.uflags, [par_sk, gps_sk], sr.request_id)
+
+        # Insert the source data
+        sr.datasets[gps_sk]._insert_dataset(gps_ds)
+        sr.datasets[par_sk]._insert_dataset(par_ds)
+        sr.datasets[ctd_sk]._insert_dataset(ctd_ds)
 
         sr.calculate_derived_products()
         sr.import_extra_externals()
 
-        self.assertIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[par_sk])
-        self.assertNotIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[ctd_sk])
+        self.assertIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[par_sk].datasets[3])
+        self.assertNotIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[ctd_sk].datasets[3])
 
         data = json.loads(JsonResponse(sr).json())
         for each in data:
