@@ -32,8 +32,8 @@ class CalibrationCoefficientStore(object):
         frames = [f for f in frames if deployment in [0, f.deployment] and any(self.in_range(f, times))]
 
         if not frames:
-            message = '<%s> Unable to build cc %r: no cc exists that matches times and deployment'
-            log.error(message, self.request_id, name)
+            message = '<%s> Unable to build cc %r: no cc exists for deployment: %d start: %s stop: %s'
+            log.error(message, self.request_id, name, deployment, startdt, enddt)
             return None, None
 
         first_value = frames[0].value

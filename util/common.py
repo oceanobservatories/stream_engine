@@ -86,7 +86,7 @@ class TimeRange(object):
         return abs(self.stop - self.start)
 
     def __str__(self):
-        return "{} - {}".format(self.start, self.stop)
+        return "{} - {}".format(ntp_to_datestring(self.start), ntp_to_datestring(self.stop))
 
     def collapse(self, other):
         start = max(self.start, other.start)
@@ -100,6 +100,9 @@ class TimeRange(object):
 
     def __eq__(self, other):
         return self.stop == other.stop and self.start == other.start
+
+    def __ne__(self, other):
+        return self.stop != other.stop or self.start != other.start
 
 
 class StreamKey(object):
@@ -146,6 +149,9 @@ class StreamKey(object):
 
     def __eq__(self, other):
         return self.as_tuple() == other.as_tuple()
+
+    def __ne__(self, other):
+        return self.as_tuple() != other.as_tuple()
 
     def __hash__(self):
         return hash((self.subsite, self.node, self.sensor, self.method, self.stream_name))
