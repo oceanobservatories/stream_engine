@@ -45,68 +45,70 @@ class JsonResponse(object):
         return json.dumps(out, indent=2, cls=NumpyJSONEncoder)
 
     @log_timing(log)
-    def _particles(self, ds, stream_key, parameters, external_includes):
+    def _particles(self, stream_data, stream_key, parameters, external_includes):
         """
         Convert an xray Dataset into a list of dictionaries, each representing a single point in time
         """
         particles = []
 
-        # extract the underlying numpy arrays from the dataset (indexing into the dataset is expensive)
-        data = {}
-        for p in ds.data_vars:
-            data[p] = ds[p].values
+        for deployment in sorted(stream_data.datasets):
+            ds = stream_data.datasets[deployment]
+            # extract the underlying numpy arrays from the dataset (indexing into the dataset is expensive)
+            data = {}
+            for p in ds.data_vars:
+                data[p] = ds[p].values
 
-        # Extract the parameter names from the parameter objects
-        params = [p.name for p in parameters]
+            # Extract the parameter names from the parameter objects
+            params = [p.name for p in parameters]
 
-        # check if we should include and have pressure data
-        if stream_key.is_mobile:
-            pressure_params = [(sk, param) for sk in external_includes for param in external_includes[sk]
-                               if param.data_product_identifier == PRESSURE_DPI]
-            if pressure_params:
-                pressure_key, pressure_param = pressure_params.pop()
-                pressure_name = '-'.join((pressure_key.stream.name, pressure_param.name))
-                if pressure_name in ds:
-                    data[INT_PRESSURE_NAME] = ds[pressure_name].values
-                    params.append(INT_PRESSURE_NAME)
+            # check if we should include and have pressure data
+            if stream_key.is_mobile:
+                pressure_params = [(sk, param) for sk in external_includes for param in external_includes[sk]
+                                   if param.data_product_identifier == PRESSURE_DPI]
+                if pressure_params:
+                    pressure_key, pressure_param = pressure_params.pop()
+                    pressure_name = '-'.join((pressure_key.stream.name, pressure_param.name))
+                    if pressure_name in ds:
+                        data[INT_PRESSURE_NAME] = ds[pressure_name].values
+                        params.append(INT_PRESSURE_NAME)
 
-        # check if we should include and have positional data
-        if stream_key.is_glider:
-            lat_data = data.get('glider_gps_position-m_gps_lat')
-            lon_data = data.get('glider_gps_position-m_gps_lon')
-            if lat_data is not None and lon_data is not None:
-                data['lat'] = lat_data
-                data['lon'] = lon_data
-                params.extend(('lat', 'lon'))
+            # check if we should include and have positional data
+            if stream_key.is_glider:
+                lat_data = data.get('glider_gps_position-m_gps_lat')
+                lon_data = data.get('glider_gps_position-m_gps_lon')
+                if lat_data is not None and lon_data is not None:
+                    data['lat'] = lat_data
+                    data['lon'] = lon_data
+                    params.extend(('lat', 'lon'))
 
-        if self.stream_request.include_provenance:
-            params.append('provenance')
+            if self.stream_request.include_provenance:
+                params.append('provenance')
 
-        # add any QC if it exists
-        for param in params:
-                qc_postfixes = ['qc_results', 'qc_executed']
-                for qc_postfix in qc_postfixes:
-                    qc_key = '%s_%s' % (param, qc_postfix)
-                    if qc_key in data:
-                        params.append(qc_key)
+            # add any QC if it exists
+            for param in params:
+                    qc_postfixes = ['qc_results', 'qc_executed']
+                    for qc_postfix in qc_postfixes:
+                        qc_key = '%s_%s' % (param, qc_postfix)
+                        if qc_key in data:
+                            params.append(qc_key)
 
-        # Warn for any missing parameters
-        missing = [p for p in params if p not in data]
-        if missing:
-            log.warn('<%s> Failed to get data for %r: Not in Dataset', self.request_id, missing)
+            # Warn for any missing parameters
+            missing = [p for p in params if p not in data]
+            if missing:
+                log.warn('<%s> Failed to get data for %r: Not in Dataset', self.request_id, missing)
 
-        params = [p for p in params if p in data]
+            params = [p for p in params if p in data]
 
-        pk = stream_key.as_dict()
-        for index in xrange(len(ds.time)):
-            # Create our particle from the list of parameters
-            particle = {p: data[p][index] for p in params}
-            particle['pk'] = pk
-            particle['pk']['time'] = data['time'][index]
-            if 'deployment' in data:
-                particle['pk']['deployment'] = data['deployment'][index]
+            pk = stream_key.as_dict()
+            for index in xrange(len(ds.time)):
+                # Create our particle from the list of parameters
+                particle = {p: data[p][index] for p in params}
+                particle['pk'] = pk
+                particle['pk']['time'] = data['time'][index]
+                if 'deployment' in data:
+                    particle['pk']['deployment'] = data['deployment'][index]
 
-            particles.append(particle)
+                particles.append(particle)
         return particles
 
     @staticmethod
