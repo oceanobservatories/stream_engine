@@ -261,7 +261,7 @@ class StreamDataset(object):
         log.info('<%s> get_interpolated source: %s parameter: %r',
                  self.request_id, self.stream_key.as_refdes(), parameter)
         name = parameter.name
-        datasets = [self.datasets[deployment]['obs', 'time', name] for deployment in sorted(self.datasets)
+        datasets = [self.datasets[deployment][['obs', 'time', name]] for deployment in sorted(self.datasets)
                     if name in self.datasets[deployment]]
         if datasets:
             shape = datasets[0][name].shape
