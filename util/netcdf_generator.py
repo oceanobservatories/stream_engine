@@ -32,10 +32,10 @@ class NetcdfGenerator(object):
         # ensure the directory structure is there
         if not os.path.isdir(base_path):
             os.makedirs(base_path)
-        for stream_key, dataset in self.stream_request.datasets.iteritems():
-            for deployment, ds in dataset.groupby('deployment'):
+        for stream_key, stream_dataset in self.stream_request.datasets.iteritems():
+            for deployment, ds in stream_dataset.datasets.iteritems():
                 self._add_dynamic_attributes(ds, stream_key, deployment)
-                self._add_provenance(ds)
+                self._add_provenance(ds, stream_dataset.provenance_metadata)
                 file_path = '%s/deployment%04d_%s.nc' % (base_path, deployment, stream_key.as_dashed_refdes())
                 self.to_netcdf(ds, file_path)
                 file_paths.append(file_path)
@@ -120,5 +120,5 @@ class NetcdfGenerator(object):
         ds.attrs['geospatial_vertical_resolution'] = app.config['Z_RESOLUTION']
         ds.attrs['geospatial_vertical_positive'] = app.config['Z_POSITIVE']
 
-    def _add_provenance(self, ds):
-        self.stream_request.provenance_metadata.add_to_dataset(ds, self.stream_request.request_id)
+    def _add_provenance(self, ds, provenance_metadata):
+        provenance_metadata.add_to_dataset(ds, self.stream_request.request_id)

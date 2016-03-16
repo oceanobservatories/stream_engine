@@ -5,7 +5,7 @@ import ion_functions
 import numexpr
 import numpy as np
 
-from preload_database.model.preload import Parameter
+from preload_database.model.preload import Parameter, Stream
 from util.advlogging import ParameterReport
 from util.cass import (get_location_metadata, fetch_nth_data, get_full_cass_dataset, get_first_before_metadata,
                        get_cass_lookback_dataset, CASS_LOCATION_NAME, SAN_LOCATION_NAME)
@@ -197,7 +197,11 @@ class StreamDataset(object):
                     dims.append(name)
 
                 if 'obs' not in dataset or len(result) == len(dataset.obs.values):
-                    dataset[param.name] = (dims, result, {})
+                    attrs = param.attrs
+                    coord_columns = 'time lat lon'
+                    if param.name not in coord_columns:
+                        attrs['coordinates'] = coord_columns
+                    dataset[param.name] = (dims, result, attrs)
                     calc_metadata = self._create_calculation_metadata(param, version, arg_metadata)
                     self.provenance_metadata.calculated_metadata.insert_metadata(param, calc_metadata)
                 else:
@@ -209,6 +213,10 @@ class StreamDataset(object):
                           'derived_display_name': param.display_name, 'missing': []}
             for key in missing:
                 source, value = missing[key]
+                if isinstance(source, Stream):
+                    source = source.name
+                if isinstance(value, Parameter):
+                    value = value.name
                 missing_dict = {
                     'source': source,
                     'value': value
@@ -261,7 +269,7 @@ class StreamDataset(object):
         log.info('<%s> get_interpolated source: %s parameter: %r',
                  self.request_id, self.stream_key.as_refdes(), parameter)
         name = parameter.name
-        datasets = [self.datasets[deployment]['obs', 'time', name] for deployment in sorted(self.datasets)
+        datasets = [self.datasets[deployment][['obs', 'time', name]] for deployment in sorted(self.datasets)
                     if name in self.datasets[deployment]]
         if datasets:
             shape = datasets[0][name].shape

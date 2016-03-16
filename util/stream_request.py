@@ -1,7 +1,5 @@
 import logging
 
-import numpy as np
-
 import util.annotation
 import util.provenance_metadata_store
 from engine import app
@@ -55,7 +53,6 @@ class StreamRequest(object):
         # Internals
         self.stream_parameters = {}
         self.unfulfilled = set()
-        self.provenance_metadata = util.provenance_metadata_store.ProvenanceMetadataStore(request_id)
         self.annotation_store = util.annotation.AnnotationStore()
         self.datasets = {}
         self.external_includes = {}
@@ -152,21 +149,21 @@ class StreamRequest(object):
         :return:
         """
         if self.include_provenance:
-            self.provenance_metadata.add_query_metadata(self, self.request_id, 'JSON')
             for stream_key in self.stream_parameters:
-                self.provenance_metadata.add_instrument_provenance(stream_key, self.time_range.start,
+                for deployment, dataset in self.datasets[stream_key].datasets.iteritems():
+                    prov_metadata = self.datasets[stream_key].provenance_metadata
+                    prov_metadata.add_query_metadata(self, self.request_id, 'JSON')
+                    prov_metadata.add_instrument_provenance(stream_key, self.time_range.start,
                                                                    self.time_range.stop)
-
-                if stream_key.method not in ['streamed', ]:
-                    provenance = self.datasets[stream_key].provenance.values.astype('str')
-                    for deployment in np.unique(self.datasets[stream_key].deployment.values):
+                    if stream_key.method not in ['streamed', ]:
+                        provenance = dataset.provenance.values.astype('str')
                         prov = fetch_l0_provenance(stream_key, provenance, deployment)
-                        self.provenance_metadata.update_provenance(prov)
-                else:
-                    # Get the ids for times and get the provenance information
-                    times = self.datasets[stream_key].time.values
-                    prov_ids, prov_dict = get_streaming_provenance(stream_key, times)
-                    self.provenance_metadata.update_streaming_provenance(prov_dict)
+                        prov_metadata.update_provenance(prov)
+                    else:
+                        # Get the ids for times and get the provenance information
+                        times = dataset.time.values
+                        prov_ids, prov_dict = get_streaming_provenance(stream_key, times)
+                        prov_metadata.update_streaming_provenance(prov_dict)
 
     def _insert_annotations(self):
         """
