@@ -157,16 +157,16 @@ class StreamRequest(object):
                 self.provenance_metadata.add_instrument_provenance(stream_key, self.time_range.start,
                                                                    self.time_range.stop)
 
-                if stream_key.method not in ['streamed', ]:
-                    provenance = self.datasets[stream_key].provenance.values.astype('str')
-                    for deployment in np.unique(self.datasets[stream_key].deployment.values):
+                for deployment, dataset in self.datasets[stream_key].datasets.iteritems():
+                    if stream_key.method not in ['streamed', ]:
+                        provenance = dataset.provenance.values.astype('str')
                         prov = fetch_l0_provenance(stream_key, provenance, deployment)
                         self.provenance_metadata.update_provenance(prov)
-                else:
-                    # Get the ids for times and get the provenance information
-                    times = self.datasets[stream_key].time.values
-                    prov_ids, prov_dict = get_streaming_provenance(stream_key, times)
-                    self.provenance_metadata.update_streaming_provenance(prov_dict)
+                    else:
+                        # Get the ids for times and get the provenance information
+                        times = dataset.time.values
+                        prov_ids, prov_dict = get_streaming_provenance(stream_key, times)
+                        self.provenance_metadata.update_streaming_provenance(prov_dict)
 
     def _insert_annotations(self):
         """
