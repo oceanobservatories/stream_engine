@@ -7,6 +7,7 @@ import numpy as np
 
 from preload_database.model.preload import Parameter, Stream
 from util.advlogging import ParameterReport
+from util.annotation import AnnotationStore
 from util.cass import (get_location_metadata, fetch_nth_data, get_full_cass_dataset, get_first_before_metadata,
                        get_cass_lookback_dataset, CASS_LOCATION_NAME, SAN_LOCATION_NAME)
 from util.common import (log_timing, ntp_to_datestring, UnknownFunctionTypeException,
@@ -26,6 +27,7 @@ class StreamDataset(object):
         self.stream_key = stream_key
         self.coefficients = coefficients
         self.provenance_metadata = ProvenanceMetadataStore(request_id)
+        self.annotation_store = AnnotationStore()
         self.uflags = uflags
         self.external_streams = external_streams
         self.request_id = request_id
@@ -86,6 +88,9 @@ class StreamDataset(object):
                 self._create_derived_product(dataset, self.stream_key, self.time_param, deployment,
                                              source_dataset=source_dataset)
                 dataset['time'] = dataset[self.time_param.name].copy()
+                deployments = np.empty_like(dataset.time.values, dtype='int32')
+                deployments[:] = deployment
+                dataset['deployment'] = ('obs', deployments, {'name': 'deployment'})
                 for param in self.stream_key.stream.parameters:
                     if param != self.time_param:
                         self._create_derived_product(dataset, self.stream_key, param, deployment,
@@ -213,19 +218,24 @@ class StreamDataset(object):
                           'derived_display_name': param.display_name, 'missing': []}
             for key in missing:
                 source, value = missing[key]
-                if isinstance(source, Stream):
-                    source = source.name
-                if isinstance(value, Parameter):
-                    value = value.name
                 missing_dict = {
                     'source': source,
                     'value': value
                 }
                 error_info['missing'].append(missing_dict)
-
+            error_info = self._resolve_db_objects(error_info)
             self.provenance_metadata.calculated_metadata.errors.append(error_info)
             log.error('<%s> Unable to create derived product: %r missing: %r',
                       self.request_id, param.name, error_info)
+
+    def _resolve_db_objects(self, obj):
+        if isinstance(obj, dict):
+            return {self._resolve_db_objects(k): self._resolve_db_objects(obj[k]) for k in obj}
+        if isinstance(obj, (list, tuple)):
+            return [self._resolve_db_objects(x) for x in obj]
+        if isinstance(obj, (Stream, Parameter)):
+            return repr(obj)
+        return obj
 
     @log_timing(log)
     def _interpolate_and_import_needed(self, param, external_datasets):

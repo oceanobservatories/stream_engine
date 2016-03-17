@@ -125,6 +125,17 @@ class ProvenanceMetadataStore(object):
                                                      dims=['provenance_messages'],
                                                      attrs={'long_name': 'Provenance Messages'})
 
+    def get_json(self):
+        out = OrderedDict()
+        out['provenance'] = self._prov_dict
+        out['streaming_provenance'] = self._streaming_provenance
+        out['instrument_provenance'] = self.get_instrument_provenance()
+        out['computed_provenance'] = self.calculated_metadata.get_dict()
+        out['query_parameter_provenance'] = self._query_metadata
+        out['provenance_messages'] = self.messages
+        out['requestUUID'] = self.request_uuid
+        return out
+
 
 def _send_query_for_instrument(url):
     results = requests.get(url)

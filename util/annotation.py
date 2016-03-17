@@ -34,6 +34,9 @@ class AnnotationStore(object):
             return xr.DataArray(np.array(annotations), dims=['dataset_annotations'],
                                 attrs={'long_name': 'Data Annotations'})
 
+    def as_dict_list(self):
+        return [x.as_dict() for x in self._store]
+
 
 def query_annotations(key, time_range):
     """

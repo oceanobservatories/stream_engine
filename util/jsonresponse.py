@@ -29,16 +29,24 @@ class JsonResponse(object):
     @log_timing(log)
     def json(self):
         stream_key = self.stream_request.stream_key
-        dataset = self.stream_request.datasets[stream_key]
+        stream_dataset = self.stream_request.datasets[stream_key]
         parameters = self.stream_request.requested_parameters
         external_includes = self.stream_request.external_includes
-        data = self._particles(dataset, stream_key, parameters, external_includes)
+        data = self._particles(stream_dataset, stream_key, parameters, external_includes)
 
-        metadata = self._metadata(self.stream_request)
-        if metadata:
+        prov = anno = None
+        if self.stream_request.include_provenance:
+            prov = self._provenance(stream_dataset.provenance_metadata)
+        if self.stream_request.include_annotations:
+            anno = self._annotations(stream_dataset.annotation_store)
+
+        if prov or anno:
             out = OrderedDict()
             out['data'] = data
-            out.update(metadata)
+            if prov:
+                out.update(prov)
+            if anno:
+                out.update(anno)
         else:
             out = data
 
@@ -112,20 +120,14 @@ class JsonResponse(object):
         return particles
 
     @staticmethod
-    def _metadata(stream_request):
-        if stream_request.include_provenance or stream_request.include_annotations:
-            out = OrderedDict()
-            if stream_request.provenance_metadata is not None:
-                out['provenance'] = stream_request.provenance_metadata.get_provenance_dict()
-                out['streaming_provenance'] = stream_request.provenance_metadata.get_streaming_provenance()
-                out['instrument_provenance'] = stream_request.provenance_metadata.get_instrument_provenance()
-                out['computed_provenance'] = stream_request.provenance_metadata.calculated_metatdata.get_dict()
-                out['query_parameter_provenance'] = stream_request.provenance_metadata.get_query_dict()
-                out['provenance_messages'] = stream_request.provenance_metadata.messages
-                out['requestUUID'] = stream_request.provenance_metadata.request_uuid
-            if stream_request.annotation_store is not None:
-                out['annotations'] = stream_request.annotation_store.get_json_representation()
-            return out
+    def _provenance(prov_metadata):
+        if prov_metadata is not None:
+            return prov_metadata.get_json()
+
+    @staticmethod
+    def _annotations(anno_store):
+        if anno_store is not None:
+            return {'annotations': anno_store.as_dict_list()}
 
     @staticmethod
     def _reconstruct(value):

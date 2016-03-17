@@ -53,7 +53,6 @@ class StreamRequest(object):
         # Internals
         self.stream_parameters = {}
         self.unfulfilled = set()
-        self.annotation_store = util.annotation.AnnotationStore()
         self.datasets = {}
         self.external_includes = {}
 
@@ -156,9 +155,10 @@ class StreamRequest(object):
                     prov_metadata.add_instrument_provenance(stream_key, self.time_range.start,
                                                                    self.time_range.stop)
                     if stream_key.method not in ['streamed', ]:
-                        provenance = dataset.provenance.values.astype('str')
-                        prov = fetch_l0_provenance(stream_key, provenance, deployment)
-                        prov_metadata.update_provenance(prov)
+                        if 'provenance' in dataset:
+                            provenance = dataset.provenance.values.astype('str')
+                            prov = fetch_l0_provenance(stream_key, provenance, deployment)
+                            prov_metadata.update_provenance(prov)
                     else:
                         # Get the ids for times and get the provenance information
                         times = dataset.time.values
@@ -171,8 +171,8 @@ class StreamRequest(object):
         :return:
         """
         if self.include_annotations:
-            for stream_key in self.stream_parameters:
-                self.annotation_store.add_annotations(
+            for stream_key, stream_dataset in self.datasets.iteritems():
+                stream_dataset.annotation_store.add_annotations(
                         util.annotation.query_annotations(stream_key, self.time_range))
 
     def import_extra_externals(self):
