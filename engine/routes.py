@@ -265,11 +265,11 @@ def _delimited_fs(delimiter):
 def aggregate_async():
     input_data = request.get_json()
     async_job = input_data.get("async_job")
-    log.warn("Performing aggregation on asynchronous job %s", async_job)
+    log.info("Performing aggregation on asynchronous job %s", async_job)
     st = time.time()
     util.aggregation.aggregate(async_job)
     et = time.time()
-    log.warn("Done performing aggregation on asynchronous job %s took %s seconds", async_job, et - st)
+    log.info("Done performing aggregation on asynchronous job %s took %s seconds", async_job, et - st)
     return "done"
 
 
