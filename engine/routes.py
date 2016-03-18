@@ -166,6 +166,7 @@ def netcdf_save_to_filesystem():
     input_data = request.get_json()
     base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], input_data.get('directory', 'unknown'))
 
+
     try:
         json_str = util.calc.get_netcdf(input_data, request.url)
     except Exception as e:
@@ -265,7 +266,7 @@ def _delimited_fs(delimiter):
 def aggregate_async():
     input_data = request.get_json()
     async_job = input_data.get("async_job")
-    log.warn("Performing aggregation on asynchronous job %s", async_job)
+    log.info("Performing aggregation on asynchronous job %s", async_job)
     st = time.time()
     util.aggregation.aggregate(async_job)
     et = time.time()
