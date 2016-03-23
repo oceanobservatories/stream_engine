@@ -270,7 +270,7 @@ class StreamRequestTest(unittest.TestCase):
 
         sr.calculate_derived_products()
 
-        expected_params = [p.name for p in hourly_sk.stream.parameters] + ['obs', 'time']
+        expected_params = [p.name for p in hourly_sk.stream.parameters] + ['obs', 'time', 'deployment', 'lat', 'lon']
         self.assertListEqual(sorted(expected_params), sorted(sr.datasets[hourly_sk].datasets[3]))
 
     def test_function_map_scalar(self):

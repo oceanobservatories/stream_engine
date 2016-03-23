@@ -94,11 +94,11 @@ class JsonResponse(object):
 
             # add any QC if it exists
             for param in params:
-                    qc_postfixes = ['qc_results', 'qc_executed']
-                    for qc_postfix in qc_postfixes:
-                        qc_key = '%s_%s' % (param, qc_postfix)
-                        if qc_key in data:
-                            params.append(qc_key)
+                qc_postfixes = ['qc_results', 'qc_executed']
+                for qc_postfix in qc_postfixes:
+                    qc_key = '%s_%s' % (param, qc_postfix)
+                    if qc_key in data:
+                        params.append(qc_key)
 
             # Warn for any missing parameters
             missing = [p for p in params if p not in data]

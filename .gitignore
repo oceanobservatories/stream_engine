@@ -5,3 +5,5 @@
 stream_engine*log*
 stream_engine*lock
 stream_engine.pid
+
+test/data/test_out/*nc

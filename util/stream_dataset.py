@@ -195,6 +195,9 @@ class StreamDataset(object):
         if not missing and kwargs:
             self._log_algorithm_inputs(param, kwargs)
             result, version = self._execute_algorithm(param, kwargs)
+            calc_metadata = self._create_calculation_metadata(param, version, arg_metadata)
+            self.provenance_metadata.calculated_metadata.insert_metadata(param, calc_metadata)
+
             if result is not None:
                 dims = ['obs']
                 for index, _ in enumerate(result.shape[1:]):
@@ -207,11 +210,14 @@ class StreamDataset(object):
                     if param.name not in coord_columns:
                         attrs['coordinates'] = coord_columns
                     dataset[param.name] = (dims, result, attrs)
-                    calc_metadata = self._create_calculation_metadata(param, version, arg_metadata)
-                    self.provenance_metadata.calculated_metadata.insert_metadata(param, calc_metadata)
+
                 else:
-                    log.error('<%s> Result from algorithm length mismatch, got: %r expected: %r',
-                              self.request_id, len(result), len(dataset.time.values))
+                    message = 'Result from algorithm length mismatch, got: %r expected: %r' % \
+                              (len(result), len(dataset.time.values))
+                    to_attach = {'type': 'FunctionError', "parameter": str(param),
+                                 'function': str(param.parameter_function), 'message': message}
+                    self.provenance_metadata.calculated_metadata.errors.append(to_attach)
+                    log.error('<%s> %s', self.request_id, message)
 
         else:
             error_info = {'derived_id': param.id, 'derived_name': param.name,
