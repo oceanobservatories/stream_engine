@@ -81,7 +81,7 @@ def get_netcdf(input_data, url):
 @time_request
 def get_csv(input_data, url, delimiter=','):
     stream_request = execute_stream_request(validate(input_data))
-    return CsvGenerator(stream_request, delimiter).to_csv()
+    return stream_request.stream_key.stream.name, CsvGenerator(stream_request, delimiter).to_csv()
 
 
 @time_request

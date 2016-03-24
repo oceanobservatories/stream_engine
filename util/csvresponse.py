@@ -19,8 +19,11 @@ class CsvGenerator(object):
 
     def to_csv(self):
         stream_key = self.stream_request.stream_key
-        dataset = self.stream_request.datasets[stream_key]
-        return self._create_csv(dataset, None)
+        stream_dataset = self.stream_request.datasets[stream_key]
+        output = []
+        for deployment in sorted(stream_dataset.datasets):
+            output.append(self._create_csv(stream_dataset.datasets[deployment], None))
+        return ''.join(output)
 
     def to_csv_files(self, path):
         file_paths = []
@@ -30,9 +33,9 @@ class CsvGenerator(object):
             os.makedirs(base_path)
 
         stream_key = self.stream_request.stream_key
-        dataset = self.stream_request.datasets[stream_key]
+        stream_dataset = self.stream_request.datasets[stream_key]
 
-        for deployment, ds in dataset.groupby('deployment'):
+        for deployment, ds in stream_dataset.datasets.iteritems():
             refdes = stream_key.as_dashed_refdes()
             filename = 'deployment{:04d}_{:s}{:s}'.format(deployment, refdes, self._get_suffix())
             file_path = os.path.join(base_path, filename)

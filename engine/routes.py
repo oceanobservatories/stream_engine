@@ -4,8 +4,9 @@ import os
 import signal
 import time
 from functools import wraps
+from io import BytesIO
 
-from flask import request, Response, jsonify
+from flask import request, Response, jsonify, send_file
 
 import util.aggregation
 import util.calc
@@ -143,7 +144,10 @@ def csv():
     Return the results of this query as CSV
     """
     input_data = request.get_json()
-    return Response(util.calc.get_csv(input_data, request.url, delimiter=','), mimetype='application/csv')
+    stream_name, csv_data = util.calc.get_csv(input_data, request.url, delimiter=',')
+    return send_file(BytesIO(csv_data),
+                     attachment_filename='%s.csv' % stream_name,
+                     mimetype='application/csv')
 
 
 @app.route('/tab', methods=['POST'])
@@ -153,8 +157,10 @@ def tab():
     Return the results of this query as TSV
     """
     input_data = request.get_json()
-    return Response(util.calc.get_csv(input_data, request.url, delimiter='\t'),
-                    mimetype='application/tab-separated-values')
+    stream_name, csv_data = util.calc.get_csv(input_data, request.url, delimiter='\t')
+    return send_file(BytesIO(csv_data),
+                     attachment_filename='%s.tsv' % stream_name,
+                     mimetype='application/tab-separated-values')
 
 
 @app.route('/netcdf-fs', methods=['POST'])
