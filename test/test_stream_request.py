@@ -11,6 +11,7 @@ from ion_functions.data.ctd_functions import ctd_sbe16plus_tempwat, ctd_pracsal
 
 from preload_database.database import initialize_connection, open_connection, PreloadDatabaseMode
 from util.common import StreamKey, TimeRange, StreamEngineException
+from util.csvresponse import CsvGenerator
 from util.jsonresponse import JsonResponse
 from util.netcdf_generator import NetcdfGenerator
 from util.stream_dataset import StreamDataset
@@ -194,6 +195,32 @@ class StreamRequestTest(unittest.TestCase):
         sr.calculate_derived_products()
         test_out = os.path.join(DATA_DIR, 'test_out')
         NetcdfGenerator(sr, False, test_out).write()
+
+    def test_csv(self):
+        nutnr_sk = StreamKey('CE04OSPS', 'SF01B', '4A-NUTNRA102', 'streamed', 'nutnr_a_sample')
+        ctdpf_sk = StreamKey('CE04OSPS', 'SF01B', '2A-CTDPFA107', 'streamed', 'ctdpf_sbe43_sample')
+        nutnr_fn = 'nutnr_a_sample.nc'
+        ctdpf_fn = 'ctdpf_sbe43_sample.nc'
+
+        cals = json.load(open(os.path.join(DATA_DIR, 'cals.json')))
+
+        tr = TimeRange(3.65342400e+09, 3.65351040e+09)
+        coefficients = {k: [{'start': tr.start-1, 'stop': tr.stop+1, 'value': cals[k], 'deployment': 1}] for k in cals}
+        sr = StreamRequest(nutnr_sk, [2443], coefficients, tr, {}, request_id='UNIT')
+        nutnr_ds = xr.open_dataset(os.path.join(DATA_DIR, nutnr_fn), decode_times=False)
+        ctdpf_ds = xr.open_dataset(os.path.join(DATA_DIR, ctdpf_fn), decode_times=False)
+
+        nutnr_ds = nutnr_ds[self.base_params + [p.name for p in sr.stream_parameters[nutnr_sk]]]
+        ctdpf_ds = ctdpf_ds[self.base_params + [p.name for p in sr.stream_parameters[ctdpf_sk]]]
+
+        sr.datasets[ctdpf_sk] = StreamDataset(ctdpf_sk, sr.coefficients, sr.uflags, [nutnr_sk], sr.request_id)
+        sr.datasets[nutnr_sk] = StreamDataset(nutnr_sk, sr.coefficients, sr.uflags, [ctdpf_sk], sr.request_id)
+        sr.datasets[ctdpf_sk]._insert_dataset(ctdpf_ds)
+        sr.datasets[nutnr_sk]._insert_dataset(nutnr_ds)
+
+        sr.calculate_derived_products()
+        csv = CsvGenerator(sr, ',').to_csv()
+        self.assertTrue(csv)
 
     def test_qc(self):
         nutnr_sk = StreamKey('CE04OSPS', 'SF01B', '4A-NUTNRA102', 'streamed', 'nutnr_a_sample')
