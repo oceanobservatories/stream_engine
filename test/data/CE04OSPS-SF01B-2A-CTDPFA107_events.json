@@ -1,0 +1,1435 @@
+[
+  {
+    "eventId": 5909,
+    "startDate": 1438568460000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "dataSource": null,
+    "calibrationCoefficient": [
+      {
+        "values": 0.00012028,
+        "name": "CC_residual_temperature_correction_factor_b"
+      },
+      {
+        "values": 0.001252507,
+        "name": "CC_a0"
+      },
+      {
+        "values": 0.0001,
+        "name": "CC_ptcb1"
+      },
+      {
+        "values": -0.5199,
+        "name": "CC_voltage_offset"
+      },
+      {
+        "values": -2.4619e-06,
+        "name": "CC_residual_temperature_correction_factor_c"
+      },
+      {
+        "values": 0.0,
+        "name": "CC_ptcb2"
+      },
+      {
+        "values": -0.9733758,
+        "name": "CC_g"
+      },
+      {
+        "values": 0.1472746,
+        "name": "CC_h"
+      },
+      {
+        "values": -0.0024522,
+        "name": "CC_residual_temperature_correction_factor_a"
+      },
+      {
+        "values": -0.0001213067,
+        "name": "CC_i"
+      },
+      {
+        "values": 44.37414,
+        "name": "CC_latitude"
+      },
+      {
+        "values": 2.04535e-07,
+        "name": "CC_a3"
+      },
+      {
+        "values": -1.743991e-06,
+        "name": "CC_a2"
+      },
+      {
+        "values": 0.036,
+        "name": "CC_residual_temperature_correction_factor_e"
+      },
+      {
+        "values": 0.000277772,
+        "name": "CC_a1"
+      },
+      {
+        "values": 24.8405,
+        "name": "CC_ptcb0"
+      },
+      {
+        "values": -0.5199,
+        "name": "CC_frequency_offset"
+      },
+      {
+        "values": -0.05980422,
+        "name": "CC_pa0"
+      },
+      {
+        "values": 0.001717275,
+        "name": "CC_pa1"
+      },
+      {
+        "values": 8.369519e-11,
+        "name": "CC_pa2"
+      },
+      {
+        "values": -124.95653,
+        "name": "CC_lon"
+      },
+      {
+        "values": -1.08706,
+        "name": "CC_ptempa2"
+      },
+      {
+        "values": -70.72418,
+        "name": "CC_ptempa1"
+      },
+      {
+        "values": 169.6927,
+        "name": "CC_ptempa0"
+      },
+      {
+        "values": 44.37414,
+        "name": "CC_lat"
+      },
+      {
+        "values": -9.57e-08,
+        "name": "CC_cpcor"
+      },
+      {
+        "values": 0.5327,
+        "name": "CC_oxygen_signal_slope"
+      },
+      {
+        "values": -124.95653,
+        "name": "CC_longitude"
+      },
+      {
+        "values": 3.036137e-05,
+        "name": "CC_j"
+      },
+      {
+        "values": 3.25e-06,
+        "name": "CC_ctcor"
+      },
+      {
+        "values": -6.679858,
+        "name": "CC_ptca1"
+      },
+      {
+        "values": 524732.5,
+        "name": "CC_ptca0"
+      },
+      {
+        "values": 0.2275047,
+        "name": "CC_ptca2"
+      }
+    ],
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474800525,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5702,
+          "url": null,
+          "lastModifiedTimestamp": 1457474800525,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "OSU",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 27000.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5701,
+          "url": null,
+          "lastModifiedTimestamp": 1457474800525,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2851,
+      "lastModifiedTimestamp": 1457475362273,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "16plusV2",
+        "serialNumber": "16-50112",
+        "manufacturer": "SEA-BIRD ELECTRONICS"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "Shallow 16 Plus V2 CTD",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "TN-326"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "194"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "2"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "CE04OSPS-SF01B-2A-CTDPFA107"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "44\u00b0 22.4491' N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "124\u00b0 57.3886' W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "3-Aug-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "02:21:00 AM"
+        }
+      ]
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475374552,
+    "@class": ".CalibrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 5908,
+    "startDate": 1409392260000,
+    "endDate": 1438473600000,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "dataSource": null,
+    "calibrationCoefficient": [
+      {
+        "values": 0.00015977,
+        "name": "CC_residual_temperature_correction_factor_b"
+      },
+      {
+        "values": 0.001246087,
+        "name": "CC_a0"
+      },
+      {
+        "values": -2.5e-05,
+        "name": "CC_ptcb1"
+      },
+      {
+        "values": 0.502,
+        "name": "CC_voltage_offset"
+      },
+      {
+        "values": -3.0854e-06,
+        "name": "CC_residual_temperature_correction_factor_c"
+      },
+      {
+        "values": 0.0,
+        "name": "CC_ptcb2"
+      },
+      {
+        "values": -1.002191,
+        "name": "CC_g"
+      },
+      {
+        "values": 0.1438346,
+        "name": "CC_h"
+      },
+      {
+        "values": -0.0031307,
+        "name": "CC_residual_temperature_correction_factor_a"
+      },
+      {
+        "values": -0.0002759555,
+        "name": "CC_i"
+      },
+      {
+        "values": 44.37414,
+        "name": "CC_latitude"
+      },
+      {
+        "values": 1.78513e-07,
+        "name": "CC_a3"
+      },
+      {
+        "values": -1.053524e-06,
+        "name": "CC_a2"
+      },
+      {
+        "values": 0.036,
+        "name": "CC_residual_temperature_correction_factor_e"
+      },
+      {
+        "values": 0.0002744662,
+        "name": "CC_a1"
+      },
+      {
+        "values": 25.04787,
+        "name": "CC_ptcb0"
+      },
+      {
+        "values": 0.502,
+        "name": "CC_frequency_offset"
+      },
+      {
+        "values": 0.1062501,
+        "name": "CC_pa0"
+      },
+      {
+        "values": 0.001546543,
+        "name": "CC_pa1"
+      },
+      {
+        "values": 6.464906e-12,
+        "name": "CC_pa2"
+      },
+      {
+        "values": -124.95653,
+        "name": "CC_lon"
+      },
+      {
+        "values": -0.4963498,
+        "name": "CC_ptempa2"
+      },
+      {
+        "values": 52.6279,
+        "name": "CC_ptempa1"
+      },
+      {
+        "values": -66.05836,
+        "name": "CC_ptempa0"
+      },
+      {
+        "values": 44.37414,
+        "name": "CC_lat"
+      },
+      {
+        "values": -9.57e-08,
+        "name": "CC_cpcor"
+      },
+      {
+        "values": -0.5229,
+        "name": "CC_oxygen_signal_slope"
+      },
+      {
+        "values": -124.95653,
+        "name": "CC_longitude"
+      },
+      {
+        "values": 4.000654e-05,
+        "name": "CC_j"
+      },
+      {
+        "values": 3.25e-06,
+        "name": "CC_ctcor"
+      },
+      {
+        "values": 5.603161,
+        "name": "CC_ptca1"
+      },
+      {
+        "values": 525508.6,
+        "name": "CC_ptca0"
+      },
+      {
+        "values": -0.1110844,
+        "name": "CC_ptca2"
+      }
+    ],
+    "tense": "PAST",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1431302400000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6640,
+          "url": null,
+          "lastModifiedTimestamp": 1457474805994,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "150324038",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 13535.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6639,
+          "url": null,
+          "lastModifiedTimestamp": 1457474805994,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3320,
+      "lastModifiedTimestamp": 1457475361998,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "16plusV2 (600m)",
+        "serialNumber": "16-50019",
+        "manufacturer": "SEA-BIRD ELECTRONICS"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "Shallow 16 Plus V2 CTD",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "30-Aug-14"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "09:51:00 PM"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "TN-313"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "44\u00b0 22.4484'N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "CE04OSPS-SF01B-2A-CTDPFA107"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "195"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "124\u00b0 57.3918'W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Recover Date",
+          "value": "2-Aug-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "1"
+        }
+      ]
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475372955,
+    "@class": ".CalibrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 3320,
+    "startDate": -62135769600000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "remoteDocuments": [],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+    "tag": "N00685",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1431302400000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6640,
+          "url": null,
+          "lastModifiedTimestamp": 1457474805994,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "150324038",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 13535.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6639,
+          "url": null,
+          "lastModifiedTimestamp": 1457474805994,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3320,
+      "lastModifiedTimestamp": 1457475361998,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "16plusV2 (600m)",
+        "serialNumber": "16-50019",
+        "manufacturer": "SEA-BIRD ELECTRONICS"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "Shallow 16 Plus V2 CTD",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "30-Aug-14"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "09:51:00 PM"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "TN-313"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "44\u00b0 22.4484'N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "CE04OSPS-SF01B-2A-CTDPFA107"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "195"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "124\u00b0 57.3918'W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Recover Date",
+          "value": "2-Aug-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "1"
+        }
+      ]
+    },
+    "recordedBy": null,
+    "organization": "OOI",
+    "lastModifiedTimestamp": 1457474805998,
+    "@class": ".TagEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 2851,
+    "startDate": -62135769600000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "remoteDocuments": [],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+    "tag": "ATOSU-66662-00013",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474800525,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5702,
+          "url": null,
+          "lastModifiedTimestamp": 1457474800525,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "OSU",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 27000.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5701,
+          "url": null,
+          "lastModifiedTimestamp": 1457474800525,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2851,
+      "lastModifiedTimestamp": 1457475362273,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "16plusV2",
+        "serialNumber": "16-50112",
+        "manufacturer": "SEA-BIRD ELECTRONICS"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "Shallow 16 Plus V2 CTD",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "TN-326"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "194"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "2"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "CE04OSPS-SF01B-2A-CTDPFA107"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "44\u00b0 22.4491' N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "124\u00b0 57.3886' W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "3-Aug-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "02:21:00 AM"
+        }
+      ]
+    },
+    "recordedBy": null,
+    "organization": "OOI",
+    "lastModifiedTimestamp": 1457474800529,
+    "@class": ".TagEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 4739,
+    "startDate": 1419724800000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": "CE04OSPS-SF01B-2A-CTDPFA107",
+    "eventType": "ACTUAL",
+    "notes": [
+      "CE04OSPS-SF01B-2A-CTDPFA107"
+    ],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/CE04OSPS-IntegrationEvents.csv",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474800525,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5702,
+          "url": null,
+          "lastModifiedTimestamp": 1457474800525,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "OSU",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 27000.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5701,
+          "url": null,
+          "lastModifiedTimestamp": 1457474800525,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2851,
+      "lastModifiedTimestamp": 1457475362273,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "16plusV2",
+        "serialNumber": "16-50112",
+        "manufacturer": "SEA-BIRD ELECTRONICS"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "Shallow 16 Plus V2 CTD",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "TN-326"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "194"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "2"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "CE04OSPS-SF01B-2A-CTDPFA107"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "44\u00b0 22.4491' N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "124\u00b0 57.3886' W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "3-Aug-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "02:21:00 AM"
+        }
+      ]
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "integratedInto": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474807490,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6950,
+          "url": null,
+          "lastModifiedTimestamp": 1457474807490,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6949,
+          "url": null,
+          "lastModifiedTimestamp": 1457474807490,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3475,
+      "lastModifiedTimestamp": 1457475362248,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "CE04OSPS-SF01B",
+        "serialNumber": "SN0144",
+        "manufacturer": "WHOI"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Mooring",
+        "description": "MOORING ENDURANCE OS",
+        "instrumentClass": "Mooring"
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "TN-326"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "194"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "2"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "44\u00b0 22.4491' N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "CE04OSPS-SF01B"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "124\u00b0 57.3886' W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "3-Aug-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "02:21:00 AM"
+        }
+      ]
+    },
+    "lastModifiedTimestamp": 1457474995955,
+    "@class": ".IntegrationEvent",
+    "metaData": []
+  },
+  {
+    "startDate": 1438568460000,
+    "recoveryLocationLonLat": null,
+    "attachments": [],
+    "eventDescription": null,
+    "locationLonLat": [
+      -124.95647666666666,
+      44.37415166666667
+    ],
+    "endDate": null,
+    "@class": ".DeploymentEvent",
+    "metaData": [],
+    "eventId": 5888,
+    "locationChangeNotes": [],
+    "recoveryShipName": null,
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474800525,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5702,
+          "url": null,
+          "lastModifiedTimestamp": 1457474800525,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "OSU",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 27000.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5701,
+          "url": null,
+          "lastModifiedTimestamp": 1457474800525,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2851,
+      "lastModifiedTimestamp": 1457475362273,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "16plusV2",
+        "serialNumber": "16-50112",
+        "manufacturer": "SEA-BIRD ELECTRONICS"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "Shallow 16 Plus V2 CTD",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "TN-326"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "194"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "2"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "CE04OSPS-SF01B-2A-CTDPFA107"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "44\u00b0 22.4491' N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "124\u00b0 57.3886' W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "3-Aug-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "02:21:00 AM"
+        }
+      ]
+    },
+    "eventType": "ACTUAL",
+    "deploymentShipName": null,
+    "cruisePlanDocument": {
+      "remoteResourceId": 7315,
+      "url": null,
+      "lastModifiedTimestamp": null,
+      "label": null,
+      "dataSource": null,
+      "resourceNumber": null,
+      "@class": ".RemoteResource"
+    },
+    "mooring": null,
+    "recoveryCruiseNumber": null,
+    "deploymentNumber": 2,
+    "tense": "PRESENT",
+    "dataSource": null,
+    "cruiseNumber": "TN-326",
+    "referenceDesignator": {
+      "node": "SF01B",
+      "sensor": "2A-CTDPFA107",
+      "vocab": {
+        "tocL3": "Shallow Profiler",
+        "tocL2": "OR Offshore Cabled Shallow Profiler Mooring",
+        "tocL1": "Endurance",
+        "instrument": "CTD Profiler",
+        "refdes": "CE04OSPS-SF01B-2A-CTDPFA107"
+      },
+      "full": true,
+      "subsite": "CE04OSPS"
+    },
+    "recoveryPlanDocument": {
+      "remoteResourceId": 7316,
+      "url": null,
+      "lastModifiedTimestamp": null,
+      "label": null,
+      "dataSource": null,
+      "resourceNumber": null,
+      "@class": ".RemoteResource"
+    },
+    "locationType": null,
+    "notes": [],
+    "locationName": null,
+    "depth": 194.0,
+    "deploymentDocUrls": [],
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475374570
+  },
+  {
+    "eventId": 4729,
+    "startDate": 1388275200000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": "CE04OSPS-SF01B-2A-CTDPFA107",
+    "eventType": "ACTUAL",
+    "notes": [
+      "CE04OSPS-SF01B-2A-CTDPFA107"
+    ],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/CE04OSPS-IntegrationEvents.csv",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1431302400000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6640,
+          "url": null,
+          "lastModifiedTimestamp": 1457474805994,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "150324038",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 13535.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6639,
+          "url": null,
+          "lastModifiedTimestamp": 1457474805994,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3320,
+      "lastModifiedTimestamp": 1457475361998,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "16plusV2 (600m)",
+        "serialNumber": "16-50019",
+        "manufacturer": "SEA-BIRD ELECTRONICS"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "Shallow 16 Plus V2 CTD",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "30-Aug-14"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "09:51:00 PM"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "TN-313"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "44\u00b0 22.4484'N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "CE04OSPS-SF01B-2A-CTDPFA107"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "195"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "124\u00b0 57.3918'W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Recover Date",
+          "value": "2-Aug-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "1"
+        }
+      ]
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "integratedInto": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474807507,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6954,
+          "url": null,
+          "lastModifiedTimestamp": 1457474807507,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6953,
+          "url": null,
+          "lastModifiedTimestamp": 1457474807507,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3477,
+      "lastModifiedTimestamp": 1457475361973,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "CE04OSPS-SF01B",
+        "serialNumber": "SN0141",
+        "manufacturer": "WHOI"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Mooring",
+        "description": "MOORING ENDURANCE OS",
+        "instrumentClass": "Mooring"
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "30-Aug-14"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "09:51:00 PM"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "TN-313"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "44\u00b0 22.4484'N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "195"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "CE04OSPS-SF01B"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "124\u00b0 57.3918'W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Recover Date",
+          "value": "2-Aug-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "1"
+        }
+      ]
+    },
+    "lastModifiedTimestamp": 1457474995832,
+    "@class": ".IntegrationEvent",
+    "metaData": []
+  },
+  {
+    "startDate": 1409392260000,
+    "recoveryLocationLonLat": null,
+    "attachments": [],
+    "eventDescription": null,
+    "locationLonLat": [
+      -124.95653,
+      44.37414
+    ],
+    "endDate": 1438473600000,
+    "@class": ".DeploymentEvent",
+    "metaData": [],
+    "eventId": 5877,
+    "locationChangeNotes": [],
+    "recoveryShipName": null,
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1431302400000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6640,
+          "url": null,
+          "lastModifiedTimestamp": 1457474805994,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "150324038",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 13535.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6639,
+          "url": null,
+          "lastModifiedTimestamp": 1457474805994,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3320,
+      "lastModifiedTimestamp": 1457475361998,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "16plusV2 (600m)",
+        "serialNumber": "16-50019",
+        "manufacturer": "SEA-BIRD ELECTRONICS"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "Shallow 16 Plus V2 CTD",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "30-Aug-14"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "09:51:00 PM"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "TN-313"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "44\u00b0 22.4484'N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "CE04OSPS-SF01B-2A-CTDPFA107"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "195"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "124\u00b0 57.3918'W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Recover Date",
+          "value": "2-Aug-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "1"
+        }
+      ]
+    },
+    "eventType": "ACTUAL",
+    "deploymentShipName": null,
+    "cruisePlanDocument": {
+      "remoteResourceId": 7293,
+      "url": null,
+      "lastModifiedTimestamp": null,
+      "label": null,
+      "dataSource": null,
+      "resourceNumber": null,
+      "@class": ".RemoteResource"
+    },
+    "mooring": null,
+    "recoveryCruiseNumber": null,
+    "deploymentNumber": 1,
+    "tense": "PAST",
+    "dataSource": null,
+    "cruiseNumber": "TN-313",
+    "referenceDesignator": {
+      "node": "SF01B",
+      "sensor": "2A-CTDPFA107",
+      "vocab": {
+        "tocL3": "Shallow Profiler",
+        "tocL2": "OR Offshore Cabled Shallow Profiler Mooring",
+        "tocL1": "Endurance",
+        "instrument": "CTD Profiler",
+        "refdes": "CE04OSPS-SF01B-2A-CTDPFA107"
+      },
+      "full": true,
+      "subsite": "CE04OSPS"
+    },
+    "recoveryPlanDocument": {
+      "remoteResourceId": 7294,
+      "url": null,
+      "lastModifiedTimestamp": null,
+      "label": null,
+      "dataSource": null,
+      "resourceNumber": null,
+      "@class": ".RemoteResource"
+    },
+    "locationType": null,
+    "notes": [],
+    "locationName": null,
+    "depth": 195.0,
+    "deploymentDocUrls": [],
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475372973
+  }
+]

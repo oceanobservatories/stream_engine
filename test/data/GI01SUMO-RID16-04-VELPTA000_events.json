@@ -1,0 +1,743 @@
+[
+  {
+    "eventId": 7602,
+    "startDate": 1410370200000,
+    "endDate": 1440201600000,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "dataSource": null,
+    "calibrationCoefficient": [
+      {
+        "values": -39.473835,
+        "name": "CC_lon"
+      },
+      {
+        "values": 59.933735,
+        "name": "CC_lat"
+      }
+    ],
+    "tense": "PAST",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1355443200000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 232,
+          "url": null,
+          "lastModifiedTimestamp": 1457474773514,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "J100033",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 8500.0,
+        "deliveryOrder": {
+          "remoteResourceId": 231,
+          "url": null,
+          "lastModifiedTimestamp": 1457474773514,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 116,
+      "lastModifiedTimestamp": 1457474773515,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "AQUADOPP 300M",
+        "serialNumber": "AQD 8544",
+        "manufacturer": "NORTEK"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "VELPT SERIES A (AQUADOPP 300M)",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457622602660,
+    "@class": ".CalibrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 7681,
+    "startDate": 1439666520000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "dataSource": null,
+    "calibrationCoefficient": [
+      {
+        "values": -39.573715,
+        "name": "CC_lon"
+      },
+      {
+        "values": 59.943584,
+        "name": "CC_lat"
+      }
+    ],
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1433376000000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6286,
+          "url": null,
+          "lastModifiedTimestamp": 1457474804209,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "E116246",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 8650.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6285,
+          "url": null,
+          "lastModifiedTimestamp": 1457474804209,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3143,
+      "lastModifiedTimestamp": 1457474804209,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "AQUADOPP 300M",
+        "serialNumber": "AQD 12198",
+        "manufacturer": "NORTEK"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "VELPT SERIES A (AQUADOPP 300M)",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457622614242,
+    "@class": ".CalibrationEvent",
+    "metaData": []
+  },
+  {
+    "startDate": 1439666520000,
+    "recoveryLocationLonLat": null,
+    "attachments": [],
+    "eventDescription": null,
+    "locationLonLat": null,
+    "endDate": null,
+    "@class": ".DeploymentEvent",
+    "metaData": [],
+    "eventId": 7680,
+    "locationChangeNotes": [],
+    "recoveryShipName": null,
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1433376000000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6286,
+          "url": null,
+          "lastModifiedTimestamp": 1457474804209,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "E116246",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 8650.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6285,
+          "url": null,
+          "lastModifiedTimestamp": 1457474804209,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3143,
+      "lastModifiedTimestamp": 1457474804209,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "AQUADOPP 300M",
+        "serialNumber": "AQD 12198",
+        "manufacturer": "NORTEK"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "VELPT SERIES A (AQUADOPP 300M)",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "eventType": "ACTUAL",
+    "deploymentShipName": null,
+    "cruisePlanDocument": null,
+    "mooring": null,
+    "recoveryCruiseNumber": null,
+    "deploymentNumber": 2,
+    "tense": "PRESENT",
+    "dataSource": null,
+    "cruiseNumber": null,
+    "referenceDesignator": {
+      "node": "RID16",
+      "sensor": "04-VELPTA000",
+      "vocab": null,
+      "full": true,
+      "subsite": "GI01SUMO"
+    },
+    "recoveryPlanDocument": null,
+    "locationType": null,
+    "notes": [],
+    "locationName": null,
+    "depth": "NaN",
+    "deploymentDocUrls": [],
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457622614257
+  },
+  {
+    "eventId": 4312,
+    "startDate": 1419724800000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": "VELPT S/N",
+    "eventType": "ACTUAL",
+    "notes": [
+      "VELPT S/N"
+    ],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/GI01SUMO-00002-IntegrationEvents.csv",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1433376000000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6286,
+          "url": null,
+          "lastModifiedTimestamp": 1457474804209,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "E116246",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 8650.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6285,
+          "url": null,
+          "lastModifiedTimestamp": 1457474804209,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3143,
+      "lastModifiedTimestamp": 1457474804209,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "AQUADOPP 300M",
+        "serialNumber": "AQD 12198",
+        "manufacturer": "NORTEK"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "VELPT SERIES A (AQUADOPP 300M)",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "integratedInto": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806966,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6838,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806966,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6837,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806966,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3419,
+      "lastModifiedTimestamp": 1457622607503,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "GI01SUMO",
+        "serialNumber": "GI01SUMO-00002",
+        "manufacturer": "WHOI"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Mooring",
+        "description": "MOORING Iminger OS",
+        "instrumentClass": "Mooring"
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "AT-30-01"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "59\u00b0 56.615' N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "GI01SUMO"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "2"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "19:22"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "15-Aug-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "39\u00b0 34.423' W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "2668"
+        }
+      ]
+    },
+    "lastModifiedTimestamp": 1457474990820,
+    "@class": ".IntegrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 3143,
+    "startDate": -62135769600000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "remoteDocuments": [],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+    "tag": "N00503",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1433376000000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6286,
+          "url": null,
+          "lastModifiedTimestamp": 1457474804209,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "E116246",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 8650.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6285,
+          "url": null,
+          "lastModifiedTimestamp": 1457474804209,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3143,
+      "lastModifiedTimestamp": 1457474804209,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "AQUADOPP 300M",
+        "serialNumber": "AQD 12198",
+        "manufacturer": "NORTEK"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "VELPT SERIES A (AQUADOPP 300M)",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "recordedBy": null,
+    "organization": "OOI",
+    "lastModifiedTimestamp": 1457474804213,
+    "@class": ".TagEvent",
+    "metaData": []
+  },
+  {
+    "startDate": 1410370200000,
+    "recoveryLocationLonLat": null,
+    "attachments": [],
+    "eventDescription": null,
+    "locationLonLat": null,
+    "endDate": 1440201600000,
+    "@class": ".DeploymentEvent",
+    "metaData": [],
+    "eventId": 7601,
+    "locationChangeNotes": [],
+    "recoveryShipName": null,
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1355443200000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 232,
+          "url": null,
+          "lastModifiedTimestamp": 1457474773514,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "J100033",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 8500.0,
+        "deliveryOrder": {
+          "remoteResourceId": 231,
+          "url": null,
+          "lastModifiedTimestamp": 1457474773514,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 116,
+      "lastModifiedTimestamp": 1457474773515,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "AQUADOPP 300M",
+        "serialNumber": "AQD 8544",
+        "manufacturer": "NORTEK"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "VELPT SERIES A (AQUADOPP 300M)",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "eventType": "ACTUAL",
+    "deploymentShipName": null,
+    "cruisePlanDocument": null,
+    "mooring": null,
+    "recoveryCruiseNumber": null,
+    "deploymentNumber": 1,
+    "tense": "PAST",
+    "dataSource": null,
+    "cruiseNumber": null,
+    "referenceDesignator": {
+      "node": "RID16",
+      "sensor": "04-VELPTA000",
+      "vocab": null,
+      "full": true,
+      "subsite": "GI01SUMO"
+    },
+    "recoveryPlanDocument": null,
+    "locationType": null,
+    "notes": [],
+    "locationName": null,
+    "depth": "NaN",
+    "deploymentDocUrls": [],
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457622602678
+  },
+  {
+    "eventId": 116,
+    "startDate": -62135769600000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "remoteDocuments": [],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+    "tag": "A00116",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1355443200000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 232,
+          "url": null,
+          "lastModifiedTimestamp": 1457474773514,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "J100033",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 8500.0,
+        "deliveryOrder": {
+          "remoteResourceId": 231,
+          "url": null,
+          "lastModifiedTimestamp": 1457474773514,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 116,
+      "lastModifiedTimestamp": 1457474773515,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "AQUADOPP 300M",
+        "serialNumber": "AQD 8544",
+        "manufacturer": "NORTEK"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "VELPT SERIES A (AQUADOPP 300M)",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "recordedBy": null,
+    "organization": "OOI",
+    "lastModifiedTimestamp": 1457474773519,
+    "@class": ".TagEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 4493,
+    "startDate": 1419724800000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": "VELPT S/N",
+    "eventType": "ACTUAL",
+    "notes": [
+      "VELPT S/N"
+    ],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/GI01SUMO-00001-IntegrationEvents.csv",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1355443200000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 232,
+          "url": null,
+          "lastModifiedTimestamp": 1457474773514,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "J100033",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 8500.0,
+        "deliveryOrder": {
+          "remoteResourceId": 231,
+          "url": null,
+          "lastModifiedTimestamp": 1457474773514,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 116,
+      "lastModifiedTimestamp": 1457474773515,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "AQUADOPP 300M",
+        "serialNumber": "AQD 8544",
+        "manufacturer": "NORTEK"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "VELPT SERIES A (AQUADOPP 300M)",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "integratedInto": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806956,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6836,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806956,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6835,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806956,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3418,
+      "lastModifiedTimestamp": 1457474806956,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "GI01SUMO",
+        "serialNumber": "GI01SUMO-00001",
+        "manufacturer": "WHOI"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Mooring",
+        "description": "MOORING Iminger OS",
+        "instrumentClass": "Mooring"
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "lastModifiedTimestamp": 1457474993048,
+    "@class": ".IntegrationEvent",
+    "metaData": []
+  }
+]

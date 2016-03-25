@@ -11,8 +11,8 @@ from ion_functions.data.ctd_functions import ctd_sbe16plus_tempwat, ctd_pracsal
 from preload_database.database import initialize_connection, open_connection, PreloadDatabaseMode
 from preload_database.model.preload import Parameter
 from util.advlogging import jdefault
-from util.calibration_coefficient_store import CalibrationCoefficientStore
-from util.common import StreamKey, TimeRange
+from util.asset_management import AssetEvents
+from util.common import StreamKey
 from util.stream_dataset import StreamDataset
 
 TEST_DIR = os.path.dirname(__file__)
@@ -32,7 +32,12 @@ class StreamDatasetTest(unittest.TestCase):
         cls.ctdpf_sk = StreamKey('CE04OSPS', 'SF01B', '2A-CTDPFA107', 'streamed', 'ctdpf_sbe43_sample')
         cls.nutnr_fn = 'nutnr_a_sample.nc'
         cls.ctdpf_fn = 'ctdpf_sbe43_sample.nc'
-        cls.ctd_nutnr_cals = json.load(open(os.path.join(DATA_DIR, 'cals.json')))
+        cls.ctd_events = json.load(open(os.path.join(DATA_DIR, 'CE04OSPS-SF01B-2A-CTDPFA107_events.json')))
+        cls.nut_events = json.load(open(os.path.join(DATA_DIR, 'CE04OSPS-SF01B-4A-NUTNRA102_events.json')))
+        cls.ctd_events = AssetEvents(cls.ctdpf_sk.as_three_part_refdes(),
+                                     json.load(open(os.path.join(DATA_DIR, 'CE04OSPS-SF01B-2A-CTDPFA107_events.json'))))
+        cls.nut_events = AssetEvents(cls.nutnr_sk.as_three_part_refdes(),
+                                     json.load(open(os.path.join(DATA_DIR, 'CE04OSPS-SF01B-4A-NUTNRA102_events.json'))))
 
     def assert_parameters_in_datasets(self, datasets, parameters):
         for dataset in datasets.itervalues():
@@ -40,23 +45,22 @@ class StreamDatasetTest(unittest.TestCase):
                 self.assertIn(parameter, dataset)
 
     def test_calculate_internal_single_deployment(self):
-        tr = TimeRange(3.65342400e+09, 3.65351040e+09)
-        coefficients = {k: [{'start': tr.start-1, 'stop': tr.stop+1, 'value': v, 'deployment': 1}]
-                        for k, v in self.ctd_nutnr_cals.iteritems()}
-        coefficients = CalibrationCoefficientStore(coefficients, 'UNIT')
-
         ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, self.ctdpf_fn), decode_times=False)
         ctd_ds = ctd_ds[['obs', 'time', 'deployment', 'temperature', 'pressure',
                          'pressure_temp', 'conductivity', 'ext_volt0']]
 
-        ctd_stream_dataset = StreamDataset(self.ctdpf_sk, coefficients, {}, [], 'UNIT')
+        ctd_stream_dataset = StreamDataset(self.ctdpf_sk, {}, [], 'UNIT')
+        ctd_stream_dataset.events = self.ctd_events
         ctd_stream_dataset._insert_dataset(ctd_ds)
         ctd_stream_dataset.calculate_internal()
 
-        for ds in ctd_stream_dataset.datasets.itervalues():
+        for deployment in ctd_stream_dataset.datasets:
+            ds = ctd_stream_dataset.datasets[deployment]
             tempwat = ctd_sbe16plus_tempwat(ds.temperature,
-                                            self.ctd_nutnr_cals['CC_a0'], self.ctd_nutnr_cals['CC_a1'],
-                                            self.ctd_nutnr_cals['CC_a2'], self.ctd_nutnr_cals['CC_a3'])
+                                            ctd_stream_dataset.events.get_cal('CC_a0', deployment).value,
+                                            ctd_stream_dataset.events.get_cal('CC_a1', deployment).value,
+                                            ctd_stream_dataset.events.get_cal('CC_a2', deployment).value,
+                                            ctd_stream_dataset.events.get_cal('CC_a3', deployment).value)
             np.testing.assert_array_equal(ds.seawater_temperature, tempwat)
 
             pracsal = ctd_pracsal(ds.seawater_conductivity,
@@ -65,28 +69,27 @@ class StreamDatasetTest(unittest.TestCase):
             np.testing.assert_array_equal(ds.practical_salinity, pracsal)
 
     def test_calculate_internal_multiple_deployments(self):
-        tr = TimeRange(3.65342400e+09, 3.65351040e+09)
-        coefficients = {k: [{'start': tr.start-1, 'stop': tr.stop+1, 'value': v, 'deployment': 1},
-                            {'start': tr.start-1, 'stop': tr.stop+1, 'value': v, 'deployment': 2}]
-                        for k, v in self.ctd_nutnr_cals.iteritems()}
-
-        coefficients = CalibrationCoefficientStore(coefficients, 'UNIT')
-
         ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, self.ctdpf_fn), decode_times=False)
         ctd_ds = ctd_ds[['obs', 'time', 'deployment', 'temperature', 'pressure',
                          'pressure_temp', 'conductivity', 'ext_volt0']]
 
-        ctd_ds.deployment.values[:100000] = 1
-        ctd_ds.deployment.values[100000:] = 2
+        # remap times to make this two separate deployments
+        dep1_start = self.ctd_events.deps[1].ntp_start
+        dep2_stop = self.ctd_events.deps[2].ntp_start + 864000
+        ctd_ds.time.values = np.linspace(dep1_start+1, dep2_stop-1, num=ctd_ds.time.shape[0])
 
-        ctd_stream_dataset = StreamDataset(self.ctdpf_sk, coefficients, {}, [], 'UNIT')
+        ctd_stream_dataset = StreamDataset(self.ctdpf_sk, {}, [], 'UNIT')
+        ctd_stream_dataset.events = self.ctd_events
         ctd_stream_dataset._insert_dataset(ctd_ds)
         ctd_stream_dataset.calculate_internal()
 
-        for ds in ctd_stream_dataset.datasets.itervalues():
+        for deployment in ctd_stream_dataset.datasets:
+            ds = ctd_stream_dataset.datasets[deployment]
             tempwat = ctd_sbe16plus_tempwat(ds.temperature,
-                                            self.ctd_nutnr_cals['CC_a0'], self.ctd_nutnr_cals['CC_a1'],
-                                            self.ctd_nutnr_cals['CC_a2'], self.ctd_nutnr_cals['CC_a3'])
+                                            ctd_stream_dataset.events.get_cal('CC_a0', deployment).value,
+                                            ctd_stream_dataset.events.get_cal('CC_a1', deployment).value,
+                                            ctd_stream_dataset.events.get_cal('CC_a2', deployment).value,
+                                            ctd_stream_dataset.events.get_cal('CC_a3', deployment).value)
             np.testing.assert_array_equal(ds.seawater_temperature, tempwat)
 
             pracsal = ctd_pracsal(ds.seawater_conductivity,
@@ -95,11 +98,6 @@ class StreamDatasetTest(unittest.TestCase):
             np.testing.assert_array_equal(ds.practical_salinity, pracsal)
 
     def test_calculate_external_single_deployment(self):
-        tr = TimeRange(3.65342400e+09, 3.65351040e+09)
-        coefficients = {k: [{'start': tr.start-1, 'stop': tr.stop+1, 'value': v, 'deployment': 1}]
-                        for k, v in self.ctd_nutnr_cals.iteritems()}
-        coefficients = CalibrationCoefficientStore(coefficients, 'UNIT')
-
         ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, self.ctdpf_fn), decode_times=False)
         nut_ds = xr.open_dataset(os.path.join(DATA_DIR, self.nutnr_fn), decode_times=False)
 
@@ -108,11 +106,13 @@ class StreamDatasetTest(unittest.TestCase):
         nut_ds = nut_ds[['obs', 'time', 'deployment', 'spectral_channels',
                          'frame_type', 'nutnr_dark_value_used_for_fit']]
 
-        ctd_stream_dataset = StreamDataset(self.ctdpf_sk, coefficients, {}, [], 'UNIT')
+        ctd_stream_dataset = StreamDataset(self.ctdpf_sk, {}, [], 'UNIT')
+        ctd_stream_dataset.events = self.ctd_events
         ctd_stream_dataset._insert_dataset(ctd_ds)
         ctd_stream_dataset.calculate_internal()
 
-        nut_stream_dataset = StreamDataset(self.nutnr_sk, coefficients, {}, [self.ctdpf_sk], 'UNIT')
+        nut_stream_dataset = StreamDataset(self.nutnr_sk, {}, [self.ctdpf_sk], 'UNIT')
+        nut_stream_dataset.events = self.nut_events
         nut_stream_dataset._insert_dataset(nut_ds)
         nut_stream_dataset.calculate_internal()
 
@@ -125,12 +125,6 @@ class StreamDatasetTest(unittest.TestCase):
         self.assert_parameters_in_datasets(nut_stream_dataset.datasets, expected_params)
 
     def test_calculate_external_multiple_deployments(self):
-        tr = TimeRange(3.65342400e+09, 3.65351040e+09)
-        coefficients = {k: [{'start': tr.start-1, 'stop': tr.stop+1, 'value': v, 'deployment': 1},
-                            {'start': tr.start-1, 'stop': tr.stop+1, 'value': v, 'deployment': 2}]
-                        for k, v in self.ctd_nutnr_cals.iteritems()}
-        coefficients = CalibrationCoefficientStore(coefficients, 'UNIT')
-
         ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, self.ctdpf_fn), decode_times=False)
         nut_ds = xr.open_dataset(os.path.join(DATA_DIR, self.nutnr_fn), decode_times=False)
 
@@ -139,15 +133,19 @@ class StreamDatasetTest(unittest.TestCase):
         nut_ds = nut_ds[['obs', 'time', 'deployment', 'spectral_channels',
                          'frame_type', 'nutnr_dark_value_used_for_fit']]
 
-        ctd_ds.deployment.values[:100000] = 1
-        ctd_ds.deployment.values[100000:] = 2
-        nut_ds.deployment.values[:] = 1
+        # remap times to make this two separate deployments
+        dep1_start = self.ctd_events.deps[1].ntp_start
+        dep2_stop = self.ctd_events.deps[2].ntp_start + 864000
+        ctd_ds.time.values = np.linspace(dep1_start + 1, dep2_stop - 1, num=ctd_ds.time.shape[0])
+        nut_ds.time.values = np.linspace(dep1_start + 1, dep2_stop - 1, num=nut_ds.time.shape[0])
 
-        ctd_stream_dataset = StreamDataset(self.ctdpf_sk, coefficients, {}, [], 'UNIT')
+        ctd_stream_dataset = StreamDataset(self.ctdpf_sk, {}, [], 'UNIT')
+        ctd_stream_dataset.events = self.ctd_events
         ctd_stream_dataset._insert_dataset(ctd_ds)
         ctd_stream_dataset.calculate_internal()
 
-        nut_stream_dataset = StreamDataset(self.nutnr_sk, coefficients, {}, [self.ctdpf_sk], 'UNIT')
+        nut_stream_dataset = StreamDataset(self.nutnr_sk, {}, [self.ctdpf_sk], 'UNIT')
+        nut_stream_dataset.events = self.nut_events
         nut_stream_dataset._insert_dataset(nut_ds)
         nut_stream_dataset.calculate_internal()
 
@@ -163,17 +161,13 @@ class StreamDatasetTest(unittest.TestCase):
         def mock_write(self):
             return json.dumps(self.m_qdata, default=jdefault)
 
-        tr = TimeRange(3.65342400e+09, 3.65351040e+09)
-        coefficients = {k: [{'start': tr.start - 1, 'stop': tr.stop + 1, 'value': v, 'deployment': 1}]
-                        for k, v in self.ctd_nutnr_cals.iteritems()}
-        coefficients = CalibrationCoefficientStore(coefficients, 'UNIT')
-
+        uflags = {'advancedStreamEngineLogging': True, 'userName': 'test'}
         ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, self.ctdpf_fn), decode_times=False)
         ctd_ds = ctd_ds[['obs', 'time', 'deployment', 'temperature', 'pressure',
                          'pressure_temp', 'conductivity', 'ext_volt0']]
 
-        uflags = {'advancedStreamEngineLogging': True, 'userName': 'test'}
-        ctd_stream_dataset = StreamDataset(self.ctdpf_sk, coefficients, uflags, [], 'UNIT')
+        ctd_stream_dataset = StreamDataset(self.ctdpf_sk, uflags, [], 'UNIT')
+        ctd_stream_dataset.events = self.ctd_events
         ctd_stream_dataset._insert_dataset(ctd_ds)
 
         parameter = Parameter.query.get(911)
@@ -185,17 +179,13 @@ class StreamDatasetTest(unittest.TestCase):
         def mock_write(self):
             return json.dumps(self.m_qdata, default=jdefault)
 
-        tr = TimeRange(3.65342400e+09, 3.65351040e+09)
-        coefficients = {k: [{'start': tr.start - 1, 'stop': tr.stop + 1, 'value': v, 'deployment': 1}]
-                        for k, v in self.ctd_nutnr_cals.iteritems()}
-        coefficients = CalibrationCoefficientStore(coefficients, 'UNIT')
-
+        uflags = {'advancedStreamEngineLogging': True, 'userName': 'test'}
         ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, self.ctdpf_fn), decode_times=False)
         ctd_ds = ctd_ds[['obs', 'time', 'deployment', 'temperature', 'pressure',
                          'pressure_temp', 'conductivity', 'ext_volt0']]
 
-        uflags = {'advancedStreamEngineLogging': True, 'userName': 'test'}
-        ctd_stream_dataset = StreamDataset(self.ctdpf_sk, coefficients, uflags, [], 'UNIT')
+        ctd_stream_dataset = StreamDataset(self.ctdpf_sk, uflags, [], 'UNIT')
+        ctd_stream_dataset.events = self.ctd_events
         ctd_stream_dataset._insert_dataset(ctd_ds)
 
         parameter = Parameter.query.get(911)
