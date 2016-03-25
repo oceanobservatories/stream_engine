@@ -23,6 +23,12 @@ def _numeric_interpolation(x, y, new_x, axis=0, fill=None):
     # Note that the returned dtype will be float.  If axis < ndim - 1 then
     # multidimensional data after axis will be element-wise interpolated.
     if fill is not None:
+        if isinstance(fill, basestring):
+            try:
+                fill = float(fill)
+                fill = int(fill)
+            except ValueError:
+                pass
         y = np.where(y == fill, np.NaN, y)
     f = interpolate.interp1d(x, y, kind='linear', axis=axis, copy=False)
     return f(new_x)

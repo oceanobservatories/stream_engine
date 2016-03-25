@@ -61,7 +61,7 @@ class NetcdfGenerator(object):
         file_paths = []
         for stream_key, stream_dataset in self.stream_request.datasets.iteritems():
             for deployment, ds in stream_dataset.datasets.iteritems():
-                self._add_dynamic_attributes(ds, stream_key, deployment)
+                self._add_dynamic_attributes(ds)
                 start = ds.attrs['time_coverage_start'].translate(None, '-:')
                 end = ds.attrs['time_coverage_end'].translate(None, '-:')
                 # provenance types will be written to JSON files
@@ -148,7 +148,7 @@ class NetcdfGenerator(object):
         new_data_array.name = data_array.name
         return new_data_array
 
-    def _add_dynamic_attributes(self, ds, stream_key, deployment):
+    def _add_dynamic_attributes(self, ds):
         if not ds.keys():
             raise MissingDataException("No data present in dataset")
 
@@ -164,15 +164,6 @@ class NetcdfGenerator(object):
         else:
             ds.attrs['time_coverage_resolution'] = 'P0S'
 
-        location_vals = {}
-        for loc in self.stream_request.location_information.get(stream_key.as_three_part_refdes(), []):
-            if loc['deployment'] == deployment:
-                location_vals = loc
-                break
-
-        if 'location_name' in location_vals:
-            ds.attrs['location_name'] = str(location_vals['location_name'])
-
         if 'lat' in ds:
             ds.attrs['geospatial_lat_min'] = min(ds.variables['lat'].values)
             ds.attrs['geospatial_lat_max'] = max(ds.variables['lat'].values)
@@ -184,7 +175,6 @@ class NetcdfGenerator(object):
             ds.attrs['geospatial_lon_units'] = 'degrees_east'
             ds.attrs['geospatial_lon_resolution'] = app.config["GEOSPATIAL_LAT_LON_RES"]
 
-        depth_units = str(location_vals.get('depth_units', app.config["Z_DEFAULT_UNITS"]))
-        ds.attrs['geospatial_vertical_units'] = depth_units
+        ds.attrs['geospatial_vertical_units'] = app.config["Z_DEFAULT_UNITS"]
         ds.attrs['geospatial_vertical_resolution'] = app.config['Z_RESOLUTION']
         ds.attrs['geospatial_vertical_positive'] = app.config['Z_POSITIVE']

@@ -1,0 +1,1147 @@
+[
+{
+  "@class" : ".XDeployment",
+  "location" : {
+    "depth" : 0.0,
+    "location" : [ -124.95653, 44.37414 ],
+    "longitude" : -124.95653,
+    "latitude" : 44.37414,
+    "orbitRadius" : 0.0
+  },
+  "node" : null,
+  "sensor" : {
+    "@class" : ".XInstrument",
+    "calibration" : [ {
+      "@class" : ".XCalibration",
+      "name" : "CC_ptcb1",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -2.5E-5 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21627,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_ptcb1",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_residual_temperature_correction_factor_b",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 1.5977E-4 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21626,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_residual_temperature_correction_factor_b",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_a0",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 0.001246087 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21625,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_a0",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_ptcb2",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 0.0 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21631,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_ptcb2",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_residual_temperature_correction_factor_c",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -3.0854E-6 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21630,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_residual_temperature_correction_factor_c",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_g",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -1.002191 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21629,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_g",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_voltage_offset",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 0.502 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21628,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_voltage_offset",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_h",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 0.1438346 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21632,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_h",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_residual_temperature_correction_factor_a",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -0.0031307 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21634,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_residual_temperature_correction_factor_a",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_i",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -2.759555E-4 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21633,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_i",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_a3",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 1.78513E-7 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21635,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_a3",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_a2",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -1.053524E-6 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21636,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_a2",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_residual_temperature_correction_factor_e",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 0.036 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21637,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_residual_temperature_correction_factor_e",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_a1",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 2.744662E-4 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21638,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_a1",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_ptcb0",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 25.04787 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21639,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_ptcb0",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_frequency_offset",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 0.502 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21640,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_frequency_offset",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_pa0",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 0.1062501 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21641,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_pa0",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_pa1",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 0.001546543 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21642,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_pa1",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_pa2",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 6.464906E-12 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21643,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_pa2",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_ptempa2",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -0.4963498 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21644,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_ptempa2",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_ptempa1",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 52.6279 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21645,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_ptempa1",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_ptempa0",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -66.05836 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21646,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_ptempa0",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_cpcor",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -9.57E-8 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21647,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_cpcor",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_oxygen_signal_slope",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -0.5229 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21648,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_oxygen_signal_slope",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_j",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 4.000654E-5 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21649,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_j",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_ptca1",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 5.603161 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21651,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_ptca1",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_ctcor",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 3.25E-6 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21650,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_ctcor",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_ptca0",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 525508.6 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21652,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_ptca0",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_ptca2",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -0.1110844 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21653,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_ptca2",
+        "eventStartTime" : 1358812800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231474
+      } ]
+    } ],
+    "events" : [ ],
+    "assetId" : 12833,
+    "name" : "16-50019",
+    "location" : null,
+    "serialNumber" : "16-50019",
+    "description" : "Shallow 16 Plus V2 CTD",
+    "uid" : "N00685",
+    "assetType" : "Sensor",
+    "mobile" : false,
+    "manufacturer" : "SEA-BIRD ELECTRONICS",
+    "modelNumber" : "16plusV2 (600m)",
+    "purchasePrice" : null,
+    "purchaseDate" : 0,
+    "deliveryDate" : null,
+    "depthRating" : null,
+    "physicalInfo" : {
+      "height" : -1.0,
+      "width" : -1.0,
+      "length" : null,
+      "weight" : -1.0
+    },
+    "dataSource" : "/home/asadev/uframes/uframe_ooi_20160616_ba553c7c2ce211a96098ac6db8d9b21688da8a7b/uframe-1.0/edex/data/ooi/xasset_spreadsheet/bulk_load-AssetRecord.csv",
+    "lastModifiedTimestamp" : null
+  },
+  "referenceDesignator" : {
+    "node" : "SF01B",
+    "full" : true,
+    "subsite" : "CE04OSPS",
+    "sensor" : "2A-CTDPFA107"
+  },
+  "mooring" : {
+    "@class" : ".XMooring",
+    "events" : [ ],
+    "assetId" : 10651,
+    "name" : "SN0141",
+    "location" : null,
+    "serialNumber" : "SN0141",
+    "description" : "MOORING ENDURANCE OS",
+    "uid" : "ATAPL-68870-002-0141",
+    "assetType" : "Platform",
+    "mobile" : false,
+    "manufacturer" : "WHOI",
+    "modelNumber" : "CE04OSPS-SF01B",
+    "purchasePrice" : 7438.0,
+    "purchaseDate" : 0,
+    "deliveryDate" : null,
+    "depthRating" : null,
+    "physicalInfo" : {
+      "height" : -1.0,
+      "width" : -1.0,
+      "length" : null,
+      "weight" : -1.0
+    },
+    "dataSource" : "/home/asadev/uframes/uframe_ooi_20160616_ba553c7c2ce211a96098ac6db8d9b21688da8a7b/uframe-1.0/edex/data/ooi/xasset_spreadsheet/bulk_load-AssetRecord.csv",
+    "lastModifiedTimestamp" : null
+  },
+  "deploymentNumber" : 1,
+  "versionNumber" : 1,
+  "ingestInfo" : [ ],
+  "eventId" : 15379,
+  "eventType" : "DEPLOYMENT",
+  "eventName" : "CE04OSPS-SF01B-2A-CTDPFA107",
+  "eventStartTime" : 1412070660000,
+  "eventStopTime" : 1438568460000,
+  "dataSource" : null,
+  "lastModifiedTimestamp" : null
+},
+{
+  "@class" : ".XDeployment",
+  "location" : {
+    "depth" : 0.0,
+    "location" : [ -124.95648, 44.37415 ],
+    "longitude" : -124.95648,
+    "latitude" : 44.37415,
+    "orbitRadius" : 0.0
+  },
+  "node" : null,
+  "sensor" : {
+    "@class" : ".XInstrument",
+    "calibration" : [ {
+      "@class" : ".XCalibration",
+      "name" : "CC_ptcb1",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 1.0E-4 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21766,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_ptcb1",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_residual_temperature_correction_factor_b",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 1.2028E-4 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21765,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_residual_temperature_correction_factor_b",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_a0",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 0.001252507 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21764,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_a0",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_ptcb2",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 0.0 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21770,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_ptcb2",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_residual_temperature_correction_factor_c",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -2.4619E-6 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21769,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_residual_temperature_correction_factor_c",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_g",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -0.9733758 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21768,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_g",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_voltage_offset",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -0.5199 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21767,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_voltage_offset",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_h",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 0.1472746 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21771,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_h",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_residual_temperature_correction_factor_a",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -0.0024522 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21773,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_residual_temperature_correction_factor_a",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_i",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -1.213067E-4 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21772,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_i",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_a3",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 2.04535E-7 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21774,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_a3",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_a2",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -1.743991E-6 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21775,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_a2",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_residual_temperature_correction_factor_e",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 0.036 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21776,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_residual_temperature_correction_factor_e",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_a1",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 2.77772E-4 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21777,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_a1",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_ptcb0",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 24.8405 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21778,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_ptcb0",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_frequency_offset",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -0.5199 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21779,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_frequency_offset",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_pa0",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -0.05980422 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21780,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_pa0",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_pa1",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 0.001717275 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21781,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_pa1",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_pa2",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 8.369519E-11 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21782,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_pa2",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_ptempa2",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -1.08706 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21783,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_ptempa2",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_ptempa1",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -70.72418 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21784,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_ptempa1",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_ptempa0",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 169.6927 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21785,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_ptempa0",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_cpcor",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -9.57E-8 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21786,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_cpcor",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_oxygen_signal_slope",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 0.5327 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21787,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_oxygen_signal_slope",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_j",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 3.036137E-5 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21788,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_j",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_ptca1",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ -6.679858 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21790,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_ptca1",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_ctcor",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 3.25E-6 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21789,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_ctcor",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_ptca0",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 524732.5 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21791,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_ptca0",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    }, {
+      "@class" : ".XCalibration",
+      "name" : "CC_ptca2",
+      "calData" : [ {
+        "@class" : ".XCalibrationData",
+        "values" : [ 0.2275047 ],
+        "dimensions" : [ 1 ],
+        "cardinality" : 0,
+        "comments" : null,
+        "eventId" : 21792,
+        "eventType" : "CALIBRATION_DATA",
+        "eventName" : "CC_ptca2",
+        "eventStartTime" : 1402012800000,
+        "eventStopTime" : null,
+        "dataSource" : null,
+        "lastModifiedTimestamp" : 1466179231622
+      } ]
+    } ],
+    "events" : [ ],
+    "assetId" : 14345,
+    "name" : "16-50112",
+    "location" : null,
+    "serialNumber" : "16-50112",
+    "description" : "Shallow 16 Plus V2 CTD",
+    "uid" : "ATOSU-66662-00013",
+    "assetType" : "Sensor",
+    "mobile" : false,
+    "manufacturer" : "SEA-BIRD ELECTRONICS",
+    "modelNumber" : "16plusV2",
+    "purchasePrice" : 5290.0,
+    "purchaseDate" : 0,
+    "deliveryDate" : null,
+    "depthRating" : null,
+    "physicalInfo" : {
+      "height" : -1.0,
+      "width" : -1.0,
+      "length" : null,
+      "weight" : -1.0
+    },
+    "dataSource" : "/home/asadev/uframes/uframe_ooi_20160616_ba553c7c2ce211a96098ac6db8d9b21688da8a7b/uframe-1.0/edex/data/ooi/xasset_spreadsheet/bulk_load-AssetRecord.csv",
+    "lastModifiedTimestamp" : null
+  },
+  "referenceDesignator" : {
+    "node" : "SF01B",
+    "full" : true,
+    "subsite" : "CE04OSPS",
+    "sensor" : "2A-CTDPFA107"
+  },
+  "mooring" : {
+    "@class" : ".XMooring",
+    "events" : [ ],
+    "assetId" : 10651,
+    "name" : "SN0141",
+    "location" : null,
+    "serialNumber" : "SN0141",
+    "description" : "MOORING ENDURANCE OS",
+    "uid" : "ATAPL-68870-002-0141",
+    "assetType" : "Platform",
+    "mobile" : false,
+    "manufacturer" : "WHOI",
+    "modelNumber" : "CE04OSPS-SF01B",
+    "purchasePrice" : 7438.0,
+    "purchaseDate" : 0,
+    "deliveryDate" : null,
+    "depthRating" : null,
+    "physicalInfo" : {
+      "height" : -1.0,
+      "width" : -1.0,
+      "length" : null,
+      "weight" : -1.0
+    },
+    "dataSource" : "/home/asadev/uframes/uframe_ooi_20160616_ba553c7c2ce211a96098ac6db8d9b21688da8a7b/uframe-1.0/edex/data/ooi/xasset_spreadsheet/bulk_load-AssetRecord.csv",
+    "lastModifiedTimestamp" : null
+  },
+  "deploymentNumber" : 2,
+  "versionNumber" : 1,
+  "ingestInfo" : [ ],
+  "eventId" : 15394,
+  "eventType" : "DEPLOYMENT",
+  "eventName" : "CE04OSPS-SF01B-2A-CTDPFA107",
+  "eventStartTime" : 1438568460000,
+  "eventStopTime" : null,
+  "dataSource" : null,
+  "lastModifiedTimestamp" : null
+}]
