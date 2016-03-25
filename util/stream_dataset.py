@@ -11,9 +11,10 @@ from util.annotation import AnnotationStore
 from util.cass import fetch_nth_data, get_full_cass_dataset, get_cass_lookback_dataset
 from util.common import (log_timing, ntp_to_datestring, ntp_to_datetime, UnknownFunctionTypeException,
                          StreamEngineException, TimeRange, MissingDataException)
-from util.datamodel import create_empty_dataset, compile_datasets
+from util.datamodel import create_empty_dataset, compile_datasets, add_location_data
 from util.metadata_service import (SAN_LOCATION_NAME, CASS_LOCATION_NAME, get_first_before_metadata,
                                    get_location_metadata)
+
 from util.provenance_metadata_store import ProvenanceMetadataStore
 from util.san import fetch_nsan_data, fetch_full_san_data, get_san_lookback_dataset
 from util.xray_interpolation import interp1d_data_array
@@ -24,15 +25,15 @@ ION_VERSION = getattr(ion_functions, '__version__', 'unversioned')
 
 
 class StreamDataset(object):
-    def __init__(self, stream_key, coefficients, uflags, external_streams, request_id):
+    def __init__(self, stream_key, uflags, external_streams, request_id):
         self.stream_key = stream_key
-        self.coefficients = coefficients
         self.provenance_metadata = ProvenanceMetadataStore(request_id)
         self.annotation_store = AnnotationStore()
         self.uflags = uflags
         self.external_streams = external_streams
         self.request_id = request_id
         self.datasets = {}
+        self.events = None
 
         self.internal_only = [p for p in stream_key.stream.derived if not stream_key.stream.needs_external([p])]
         self.external = [p for p in stream_key.stream.derived if stream_key.stream.needs_external([p])]
@@ -52,7 +53,18 @@ class StreamDataset(object):
         self._insert_dataset(dataset)
 
     def _insert_dataset(self, dataset):
+        """
+        Insert the supplied dataset into this StreamDataset
+        This method should not be called twice, it will replace existing data if called again.
+        """
         if dataset:
+            # RSN data shall obtain deployment information from asset management.
+            # Replace these values prior to grouping with the actual deployment number
+            if self.events and self.stream_key.method.startswith('streamed'):
+                for deployment_number in sorted(self.events.deps):
+                    mask = dataset.time.values > self.events.deps[deployment_number].ntp_start
+                    dataset.deployment.values[mask] = deployment_number
+
             for deployment, group in dataset.groupby('deployment'):
                 self.datasets[deployment] = group
         else:
@@ -75,6 +87,14 @@ class StreamDataset(object):
             for deployment, dataset in self.datasets.iteritems():
                 self._calculate_parameter_list(dataset, self.stream_key, self.external_l1, deployment, 'external L1')
                 self._calculate_parameter_list(dataset, self.stream_key, self.external_l2, deployment, 'external L2')
+
+    def add_location(self):
+        log.debug('<%s> Inserting location data for %s datasets',
+                  self.request_id, self.stream_key.as_three_part_refdes())
+        if not self.stream_key.is_glider:
+            for deployment in self.datasets:
+                lat, lon, depth = self.events.get_location_data(deployment)
+                add_location_data(self.datasets[deployment], lat, lon)
 
     @log_timing(log)
     def calculate_virtual(self, source_stream_dataset):
@@ -130,7 +150,7 @@ class StreamDataset(object):
             param_meta = None
             # Calibration Value
             if source == 'CAL':
-                cal, param_meta = self.coefficients.get(value, deployment, times)
+                cal, param_meta = self.events.get_tiled_cal(value, deployment, times)
                 if cal is not None:
                     kwargs[name] = cal
                     if np.any(np.isnan(cal)):
