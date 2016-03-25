@@ -19,6 +19,9 @@ log = logging.getLogger(__name__)
 
 
 FILL_VALUES = app.config['FILL_VALUES']
+LAT_FILL = app.config['LAT_FILL']
+LON_FILL = app.config['LON_FILL']
+DEPTH_FILL = app.config['DEPTH_FILL']
 
 
 def _get_ds_attrs(stream_key, request_uuid):
@@ -74,35 +77,14 @@ def create_empty_dataset(stream_key, request_id):
     return xr.Dataset(attrs=attrs)
 
 
-def add_location_data(ds, stream_key, location_information, request_id):
-    if 'deployment' in ds:
-        lat_fill = 90.0
-        lon_fill = -180.0
-        locs = location_information.get(stream_key.as_three_part_refdes(), [])
-        deployment_locations = {}
-        for loc in locs:
-            deployment_locations[loc.get('deployment', 0)] = {
-                'lat': loc.get('lat', lat_fill),
-                'lon': loc.get('lon', lon_fill)
-            }
+def add_location_data(ds, lat, lon):
+    lat = lat if lat else LAT_FILL
+    lon = lon if lon else LON_FILL
+    lat_array = np.full_like(ds.time.values, lat)
+    lon_array = np.full_like(ds.time.values, lon)
 
-        lat_array = np.empty_like(ds.time.values)
-        lon_array = np.empty_like(ds.time.values)
-        deployments = ds.deployment.values
-        unique_deployments = np.unique(deployments)
-        for deployment in unique_deployments:
-            lat = deployment_locations.get(deployment, {}).get('lat', lat_fill)
-            lon = deployment_locations.get(deployment, {}).get('lon', lon_fill)
-            if lat == lat_fill:
-                log.warn('<%s> No latitude! Using fill value', request_id)
-            if lon == lon_fill:
-                log.warn('<%s> No longitude! Using fill value', request_id)
-            mask = deployments == deployment
-            lat_array[mask] = lat
-            lon_array[mask] = lon
-
-        ds['lat'] = ('obs', lat_array, {'axis': 'Y', 'units': 'degrees_north', 'standard_name': 'latitude'})
-        ds['lon'] = ('obs', lon_array, {'axis': 'X', 'units': 'degrees_east', 'standard_name': 'longitude'})
+    ds['lat'] = ('obs', lat_array, {'axis': 'Y', 'units': 'degrees_north', 'standard_name': 'latitude'})
+    ds['lon'] = ('obs', lon_array, {'axis': 'X', 'units': 'degrees_east', 'standard_name': 'longitude'})
 
 
 def to_xray_dataset(cols, data, stream_key, request_uuid, san=False):
