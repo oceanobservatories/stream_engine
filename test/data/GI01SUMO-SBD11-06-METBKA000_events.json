@@ -1,0 +1,1064 @@
+[
+    {
+        "editPhase": "OPERATIONAL",
+        "eventType": "DEPLOYMENT",
+        "inductiveId": null,
+        "@class": ".XDeployment",
+        "recoverCruiseInfo": null,
+        "eventName": "GI01SUMO-SBD11-06-METBKA000",
+        "deployedBy": null,
+        "location": {
+            "latitude": 59.9337,
+            "orbitRadius": 0.0,
+            "depth": -5.0,
+            "location": [
+                -39.47378,
+                59.9337
+            ],
+            "longitude": -39.47378
+        },
+        "sensor": {
+            "serialNumber": "LGR004",
+            "uid": "N00741",
+            "purchaseDate": null,
+            "institutionPropertyNumber": null,
+            "owner": null,
+            "remoteResources": [],
+            "deliveryDate": null,
+            "firmwareVersion": null,
+            "ooiSerialNumber": null,
+            "@class": ".XInstrument",
+            "assetType": "Sensor",
+            "calibration": [
+                {
+                    "calData": [
+                        {
+                            "eventId": 34555,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.0,
+                            "eventName": "CC_jwarm",
+                            "lastModifiedTimestamp": 1474899309593,
+                            "dataSource": "N00741__20140910_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1410307200000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": "do warmlayer calc"
+                        },
+                        {
+                            "eventId": 34569,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.0,
+                            "eventName": "CC_jwarm",
+                            "lastModifiedTimestamp": 1474899309732,
+                            "dataSource": "N00741__20160710_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1468108800000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": "Constant"
+                        }
+                    ],
+                    "name": "CC_jwarm",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 34557,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.12,
+                            "eventName": "CC_height_of_air_temperature_measurement_m",
+                            "lastModifiedTimestamp": 1474899309593,
+                            "dataSource": "N00741__20140910_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1410307200000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": "Height of air temperature measurement TEMPAIR [m]"
+                        },
+                        {
+                            "eventId": 34568,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.21,
+                            "eventName": "CC_height_of_air_temperature_measurement_m",
+                            "lastModifiedTimestamp": 1474899309732,
+                            "dataSource": "N00741__20160710_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1468108800000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_height_of_air_temperature_measurement_m",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 34559,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.12,
+                            "eventName": "CC_height_of_air_humidity_measurement_m",
+                            "lastModifiedTimestamp": 1474899309593,
+                            "dataSource": "N00741__20140910_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1410307200000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": "height of air humidity measurement RELHUMI [m]"
+                        },
+                        {
+                            "eventId": 34570,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.21,
+                            "eventName": "CC_height_of_air_humidity_measurement_m",
+                            "lastModifiedTimestamp": 1474899309732,
+                            "dataSource": "N00741__20160710_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1468108800000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_height_of_air_humidity_measurement_m",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 34571,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 600.0,
+                            "eventName": "CC_zinvpbl",
+                            "lastModifiedTimestamp": 1474899309732,
+                            "dataSource": "N00741__20160710_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1468108800000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": "Constant"
+                        },
+                        {
+                            "eventId": 34561,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 600.0,
+                            "eventName": "CC_zinvpbl",
+                            "lastModifiedTimestamp": 1474899309593,
+                            "dataSource": "N00741__20140910_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1410307200000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": "Default from <def met_buoyfls(tC_sea, wnd, tC_air, relhum, timestamp, lon, ztmpwat, zwindsp, ztmpair, zhumair, lat=45.0, pr_air=1013.0, Rshort_down=150.0, Rlong_down=370.0, cumu_prcp=0.0, zinvpbl=600.0, jwarm=JWARMFL, jcool=JCOOLFL)>"
+                        }
+                    ],
+                    "name": "CC_zinvpbl",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 34573,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.37,
+                            "eventName": "CC_depth_of_conductivity_and_temperature_measurements_m",
+                            "lastModifiedTimestamp": 1474899309732,
+                            "dataSource": "N00741__20160710_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1468108800000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 34563,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.25,
+                            "eventName": "CC_depth_of_conductivity_and_temperature_measurements_m",
+                            "lastModifiedTimestamp": 1474899309593,
+                            "dataSource": "N00741__20140910_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1410307200000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": "Depth of sea temperature measurement TEMPSRF [m]"
+                        }
+                    ],
+                    "name": "CC_depth_of_conductivity_and_temperature_measurements_m",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 34572,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.74,
+                            "eventName": "CC_height_of_windspeed_sensor_above_sealevel_m",
+                            "lastModifiedTimestamp": 1474899309732,
+                            "dataSource": "N00741__20160710_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1468108800000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 34565,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.31,
+                            "eventName": "CC_height_of_windspeed_sensor_above_sealevel_m",
+                            "lastModifiedTimestamp": 1474899309593,
+                            "dataSource": "N00741__20140910_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1410307200000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": "Height of windspeed measurement WINDAVG_L0 [m]"
+                        }
+                    ],
+                    "name": "CC_height_of_windspeed_sensor_above_sealevel_m",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 34567,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.0,
+                            "eventName": "CC_jcool",
+                            "lastModifiedTimestamp": 1474899309593,
+                            "dataSource": "N00741__20140910_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1410307200000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": "do coolskin calc"
+                        },
+                        {
+                            "eventId": 34574,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.0,
+                            "eventName": "CC_jcool",
+                            "lastModifiedTimestamp": 1474899309732,
+                            "dataSource": "N00741__20160710_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1468108800000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": "Constant"
+                        }
+                    ],
+                    "name": "CC_jcool",
+                    "@class": ".XCalibration"
+                }
+            ],
+            "assetId": 3010,
+            "location": null,
+            "events": [],
+            "powerRequirements": null,
+            "editPhase": "OPERATIONAL",
+            "ooiPartNumber": null,
+            "physicalInfo": {
+                "width": -1.0,
+                "length": -1.0,
+                "weight": -1.0,
+                "height": -1.0
+            },
+            "description": "METBK for GI01SUMO-00001",
+            "deliveryOrderNumber": null,
+            "dataSource": "BulkLoad from [bulk_load-AssetRecord.csv]",
+            "shelfLifeExpirationDate": null,
+            "manufacturer": null,
+            "name": "LGR004",
+            "mobile": false,
+            "notes": null,
+            "depthRating": null,
+            "institutionPurchaseOrderNumber": null,
+            "purchasePrice": null,
+            "softwareVersion": null,
+            "modelNumber": null,
+            "ooiPropertyNumber": null,
+            "lastModifiedTimestamp": 1474898807099
+        },
+        "mooring": {
+            "serialNumber": "GI01SUMO-00001",
+            "uid": "N00220",
+            "purchaseDate": null,
+            "institutionPropertyNumber": null,
+            "owner": null,
+            "remoteResources": [],
+            "deliveryDate": null,
+            "firmwareVersion": null,
+            "ooiSerialNumber": null,
+            "@class": ".XMooring",
+            "assetType": "Mooring",
+            "assetId": 3280,
+            "location": null,
+            "events": [],
+            "powerRequirements": null,
+            "editPhase": "OPERATIONAL",
+            "ooiPartNumber": null,
+            "physicalInfo": {
+                "width": -1.0,
+                "length": -1.0,
+                "weight": -1.0,
+                "height": -1.0
+            },
+            "description": "MOORING Iminger OS",
+            "deliveryOrderNumber": null,
+            "dataSource": "BulkLoad from [bulk_load-AssetRecord.csv]",
+            "shelfLifeExpirationDate": null,
+            "manufacturer": "WHOI",
+            "name": "GI01SUMO-00001",
+            "mobile": false,
+            "notes": null,
+            "depthRating": null,
+            "institutionPurchaseOrderNumber": null,
+            "purchasePrice": null,
+            "softwareVersion": null,
+            "modelNumber": "GI01SUMO",
+            "ooiPropertyNumber": null,
+            "lastModifiedTimestamp": 1474898816233
+        },
+        "node": null,
+        "eventId": 30481,
+        "recoveredBy": null,
+        "eventStartTime": 1410375000000,
+        "versionNumber": 1,
+        "tense": "UNKNOWN",
+        "dataSource": "Load from [GI01SUMO_1_Deploy.xlsx]",
+        "ingestInfo": [],
+        "assetUid": null,
+        "referenceDesignator": {
+            "node": "SBD11",
+            "sensor": "06-METBKA000",
+            "full": true,
+            "subsite": "GI01SUMO"
+        },
+        "notes": null,
+        "deploymentNumber": 1,
+        "eventStopTime": 1440201600000,
+        "deployCruiseInfo": {
+            "editPhase": "OPERATIONAL",
+            "eventId": 19,
+            "shipName": "R/V Knorr",
+            "cruiseIdentifier": "KN-221-4",
+            "eventType": "CRUISE_INFO",
+            "notes": "UNKNOWN",
+            "eventStopTime": 1410825600000,
+            "uniqueCruiseIdentifier": "KN-221-4",
+            "eventName": "KN-221-4",
+            "tense": "UNKNOWN",
+            "assetUid": null,
+            "eventStartTime": 1410307200000,
+            "lastModifiedTimestamp": 1474898702072,
+            "@class": ".CruiseInfo",
+            "dataSource": "Load from [CruiseInformation.xlsx]"
+        },
+        "lastModifiedTimestamp": 1474899168135
+    },
+    {
+        "editPhase": "OPERATIONAL",
+        "eventType": "DEPLOYMENT",
+        "inductiveId": null,
+        "@class": ".XDeployment",
+        "recoverCruiseInfo": null,
+        "eventName": "GI01SUMO-SBD11-06-METBKA000",
+        "deployedBy": null,
+        "location": {
+            "latitude": 59.94358,
+            "orbitRadius": 0.0,
+            "depth": -5.0,
+            "location": [
+                -39.57372,
+                59.94358
+            ],
+            "longitude": -39.57372
+        },
+        "sensor": {
+            "serialNumber": "LGR021",
+            "uid": "N00743",
+            "purchaseDate": null,
+            "institutionPropertyNumber": null,
+            "owner": null,
+            "remoteResources": [],
+            "deliveryDate": null,
+            "firmwareVersion": null,
+            "ooiSerialNumber": null,
+            "@class": ".XInstrument",
+            "assetType": "Sensor",
+            "calibration": [
+                {
+                    "calData": [
+                        {
+                            "eventId": 34599,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.21,
+                            "eventName": "CC_height_of_air_temperature_measurement_m",
+                            "lastModifiedTimestamp": 1474899309979,
+                            "dataSource": "N00743__20150815_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1439596800000,
+                            "eventStopTime": null,
+                            "assetUid": "N00743",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_height_of_air_temperature_measurement_m",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 34597,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.0,
+                            "eventName": "CC_jwarm",
+                            "lastModifiedTimestamp": 1474899309979,
+                            "dataSource": "N00743__20150815_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1439596800000,
+                            "eventStopTime": null,
+                            "assetUid": "N00743",
+                            "comments": "Constant"
+                        }
+                    ],
+                    "name": "CC_jwarm",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 34601,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.21,
+                            "eventName": "CC_height_of_air_humidity_measurement_m",
+                            "lastModifiedTimestamp": 1474899309979,
+                            "dataSource": "N00743__20150815_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1439596800000,
+                            "eventStopTime": null,
+                            "assetUid": "N00743",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_height_of_air_humidity_measurement_m",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 34603,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 600.0,
+                            "eventName": "CC_zinvpbl",
+                            "lastModifiedTimestamp": 1474899309979,
+                            "dataSource": "N00743__20150815_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1439596800000,
+                            "eventStopTime": null,
+                            "assetUid": "N00743",
+                            "comments": "Constant"
+                        }
+                    ],
+                    "name": "CC_zinvpbl",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 34607,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.74,
+                            "eventName": "CC_height_of_windspeed_sensor_above_sealevel_m",
+                            "lastModifiedTimestamp": 1474899309979,
+                            "dataSource": "N00743__20150815_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1439596800000,
+                            "eventStopTime": null,
+                            "assetUid": "N00743",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_height_of_windspeed_sensor_above_sealevel_m",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 34605,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.37,
+                            "eventName": "CC_depth_of_conductivity_and_temperature_measurements_m",
+                            "lastModifiedTimestamp": 1474899309979,
+                            "dataSource": "N00743__20150815_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1439596800000,
+                            "eventStopTime": null,
+                            "assetUid": "N00743",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_depth_of_conductivity_and_temperature_measurements_m",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 34609,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.0,
+                            "eventName": "CC_jcool",
+                            "lastModifiedTimestamp": 1474899309979,
+                            "dataSource": "N00743__20150815_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1439596800000,
+                            "eventStopTime": null,
+                            "assetUid": "N00743",
+                            "comments": "Constant"
+                        }
+                    ],
+                    "name": "CC_jcool",
+                    "@class": ".XCalibration"
+                }
+            ],
+            "assetId": 3002,
+            "location": null,
+            "events": [],
+            "powerRequirements": null,
+            "editPhase": "OPERATIONAL",
+            "ooiPartNumber": null,
+            "physicalInfo": {
+                "width": -1.0,
+                "length": -1.0,
+                "weight": -1.0,
+                "height": -1.0
+            },
+            "description": "METBK for GI01SUMO-00002",
+            "deliveryOrderNumber": null,
+            "dataSource": "BulkLoad from [bulk_load-AssetRecord.csv]",
+            "shelfLifeExpirationDate": null,
+            "manufacturer": null,
+            "name": "LGR021",
+            "mobile": false,
+            "notes": null,
+            "depthRating": null,
+            "institutionPurchaseOrderNumber": null,
+            "purchasePrice": null,
+            "softwareVersion": null,
+            "modelNumber": null,
+            "ooiPropertyNumber": null,
+            "lastModifiedTimestamp": 1474898806824
+        },
+        "mooring": {
+            "serialNumber": "GI01SUMO-00002",
+            "uid": "N00221",
+            "purchaseDate": null,
+            "institutionPropertyNumber": null,
+            "owner": null,
+            "remoteResources": [],
+            "deliveryDate": null,
+            "firmwareVersion": null,
+            "ooiSerialNumber": null,
+            "@class": ".XMooring",
+            "assetType": "Mooring",
+            "assetId": 3278,
+            "location": null,
+            "events": [],
+            "powerRequirements": null,
+            "editPhase": "OPERATIONAL",
+            "ooiPartNumber": null,
+            "physicalInfo": {
+                "width": -1.0,
+                "length": -1.0,
+                "weight": -1.0,
+                "height": -1.0
+            },
+            "description": "MOORING Iminger OS",
+            "deliveryOrderNumber": null,
+            "dataSource": "BulkLoad from [bulk_load-AssetRecord.csv]",
+            "shelfLifeExpirationDate": null,
+            "manufacturer": "WHOI",
+            "name": "GI01SUMO-00002",
+            "mobile": false,
+            "notes": null,
+            "depthRating": null,
+            "institutionPurchaseOrderNumber": null,
+            "purchasePrice": null,
+            "softwareVersion": null,
+            "modelNumber": "GI01SUMO",
+            "ooiPropertyNumber": null,
+            "lastModifiedTimestamp": 1474898816183
+        },
+        "node": null,
+        "eventId": 30531,
+        "recoveredBy": null,
+        "eventStartTime": 1439666520000,
+        "versionNumber": 1,
+        "tense": "UNKNOWN",
+        "dataSource": "Load from [GI01SUMO_2_Deploy.xlsx]",
+        "ingestInfo": [],
+        "assetUid": null,
+        "referenceDesignator": {
+            "node": "SBD11",
+            "sensor": "06-METBKA000",
+            "full": true,
+            "subsite": "GI01SUMO"
+        },
+        "notes": null,
+        "deploymentNumber": 2,
+        "eventStopTime": null,
+        "deployCruiseInfo": {
+            "editPhase": "OPERATIONAL",
+            "eventId": 6,
+            "shipName": "R/V Atlantis",
+            "cruiseIdentifier": "AT-30-01",
+            "eventType": "CRUISE_INFO",
+            "notes": "UNKNOWN",
+            "eventStopTime": 1440115200000,
+            "uniqueCruiseIdentifier": "AT-30-01",
+            "eventName": "AT-30-01",
+            "tense": "UNKNOWN",
+            "assetUid": null,
+            "eventStartTime": 1439596800000,
+            "lastModifiedTimestamp": 1474898701915,
+            "@class": ".CruiseInfo",
+            "dataSource": "Load from [CruiseInformation.xlsx]"
+        },
+        "lastModifiedTimestamp": 1474899174891
+    },
+    {
+        "editPhase": "OPERATIONAL",
+        "eventType": "DEPLOYMENT",
+        "inductiveId": null,
+        "@class": ".XDeployment",
+        "recoverCruiseInfo": null,
+        "eventName": "GI01SUMO-SBD11-06-METBKA000",
+        "deployedBy": null,
+        "location": {
+            "latitude": 59.9341,
+            "orbitRadius": 0.0,
+            "depth": -5.0,
+            "location": [
+                -39.4673,
+                59.9341
+            ],
+            "longitude": -39.4673
+        },
+        "sensor": {
+            "serialNumber": "LGR004",
+            "uid": "N00741",
+            "purchaseDate": null,
+            "institutionPropertyNumber": null,
+            "owner": null,
+            "remoteResources": [],
+            "deliveryDate": null,
+            "firmwareVersion": null,
+            "ooiSerialNumber": null,
+            "@class": ".XInstrument",
+            "assetType": "Sensor",
+            "calibration": [
+                {
+                    "calData": [
+                        {
+                            "eventId": 34555,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.0,
+                            "eventName": "CC_jwarm",
+                            "lastModifiedTimestamp": 1474899309593,
+                            "dataSource": "N00741__20140910_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1410307200000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": "do warmlayer calc"
+                        },
+                        {
+                            "eventId": 34569,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.0,
+                            "eventName": "CC_jwarm",
+                            "lastModifiedTimestamp": 1474899309732,
+                            "dataSource": "N00741__20160710_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1468108800000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": "Constant"
+                        }
+                    ],
+                    "name": "CC_jwarm",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 34557,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.12,
+                            "eventName": "CC_height_of_air_temperature_measurement_m",
+                            "lastModifiedTimestamp": 1474899309593,
+                            "dataSource": "N00741__20140910_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1410307200000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": "Height of air temperature measurement TEMPAIR [m]"
+                        },
+                        {
+                            "eventId": 34568,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.21,
+                            "eventName": "CC_height_of_air_temperature_measurement_m",
+                            "lastModifiedTimestamp": 1474899309732,
+                            "dataSource": "N00741__20160710_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1468108800000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_height_of_air_temperature_measurement_m",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 34559,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.12,
+                            "eventName": "CC_height_of_air_humidity_measurement_m",
+                            "lastModifiedTimestamp": 1474899309593,
+                            "dataSource": "N00741__20140910_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1410307200000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": "height of air humidity measurement RELHUMI [m]"
+                        },
+                        {
+                            "eventId": 34570,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.21,
+                            "eventName": "CC_height_of_air_humidity_measurement_m",
+                            "lastModifiedTimestamp": 1474899309732,
+                            "dataSource": "N00741__20160710_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1468108800000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_height_of_air_humidity_measurement_m",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 34571,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 600.0,
+                            "eventName": "CC_zinvpbl",
+                            "lastModifiedTimestamp": 1474899309732,
+                            "dataSource": "N00741__20160710_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1468108800000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": "Constant"
+                        },
+                        {
+                            "eventId": 34561,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 600.0,
+                            "eventName": "CC_zinvpbl",
+                            "lastModifiedTimestamp": 1474899309593,
+                            "dataSource": "N00741__20140910_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1410307200000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": "Default from <def met_buoyfls(tC_sea, wnd, tC_air, relhum, timestamp, lon, ztmpwat, zwindsp, ztmpair, zhumair, lat=45.0, pr_air=1013.0, Rshort_down=150.0, Rlong_down=370.0, cumu_prcp=0.0, zinvpbl=600.0, jwarm=JWARMFL, jcool=JCOOLFL)>"
+                        }
+                    ],
+                    "name": "CC_zinvpbl",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 34573,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.37,
+                            "eventName": "CC_depth_of_conductivity_and_temperature_measurements_m",
+                            "lastModifiedTimestamp": 1474899309732,
+                            "dataSource": "N00741__20160710_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1468108800000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 34563,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.25,
+                            "eventName": "CC_depth_of_conductivity_and_temperature_measurements_m",
+                            "lastModifiedTimestamp": 1474899309593,
+                            "dataSource": "N00741__20140910_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1410307200000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": "Depth of sea temperature measurement TEMPSRF [m]"
+                        }
+                    ],
+                    "name": "CC_depth_of_conductivity_and_temperature_measurements_m",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 34572,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.74,
+                            "eventName": "CC_height_of_windspeed_sensor_above_sealevel_m",
+                            "lastModifiedTimestamp": 1474899309732,
+                            "dataSource": "N00741__20160710_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1468108800000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 34565,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.31,
+                            "eventName": "CC_height_of_windspeed_sensor_above_sealevel_m",
+                            "lastModifiedTimestamp": 1474899309593,
+                            "dataSource": "N00741__20140910_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1410307200000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": "Height of windspeed measurement WINDAVG_L0 [m]"
+                        }
+                    ],
+                    "name": "CC_height_of_windspeed_sensor_above_sealevel_m",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 34567,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.0,
+                            "eventName": "CC_jcool",
+                            "lastModifiedTimestamp": 1474899309593,
+                            "dataSource": "N00741__20140910_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1410307200000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": "do coolskin calc"
+                        },
+                        {
+                            "eventId": 34574,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.0,
+                            "eventName": "CC_jcool",
+                            "lastModifiedTimestamp": 1474899309732,
+                            "dataSource": "N00741__20160710_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1468108800000,
+                            "eventStopTime": null,
+                            "assetUid": "N00741",
+                            "comments": "Constant"
+                        }
+                    ],
+                    "name": "CC_jcool",
+                    "@class": ".XCalibration"
+                }
+            ],
+            "assetId": 3010,
+            "location": null,
+            "events": [],
+            "powerRequirements": null,
+            "editPhase": "OPERATIONAL",
+            "ooiPartNumber": null,
+            "physicalInfo": {
+                "width": -1.0,
+                "length": -1.0,
+                "weight": -1.0,
+                "height": -1.0
+            },
+            "description": "METBK for GI01SUMO-00001",
+            "deliveryOrderNumber": null,
+            "dataSource": "BulkLoad from [bulk_load-AssetRecord.csv]",
+            "shelfLifeExpirationDate": null,
+            "manufacturer": null,
+            "name": "LGR004",
+            "mobile": false,
+            "notes": null,
+            "depthRating": null,
+            "institutionPurchaseOrderNumber": null,
+            "purchasePrice": null,
+            "softwareVersion": null,
+            "modelNumber": null,
+            "ooiPropertyNumber": null,
+            "lastModifiedTimestamp": 1474898807099
+        },
+        "mooring": {
+            "serialNumber": "GI01SUMO-00002",
+            "uid": "OL000586",
+            "purchaseDate": null,
+            "institutionPropertyNumber": null,
+            "owner": null,
+            "remoteResources": [],
+            "deliveryDate": null,
+            "firmwareVersion": null,
+            "ooiSerialNumber": null,
+            "@class": ".XMooring",
+            "assetType": "Mooring",
+            "assetId": 561,
+            "location": null,
+            "events": [],
+            "powerRequirements": null,
+            "editPhase": "OPERATIONAL",
+            "ooiPartNumber": null,
+            "physicalInfo": {
+                "width": -1.0,
+                "length": -1.0,
+                "weight": -1.0,
+                "height": -1.0
+            },
+            "description": "MOORING Iminger OS",
+            "deliveryOrderNumber": null,
+            "dataSource": "BulkLoad from [bulk_load-AssetRecord.csv]",
+            "shelfLifeExpirationDate": null,
+            "manufacturer": "WHOI",
+            "name": "GI01SUMO-00002",
+            "mobile": false,
+            "notes": null,
+            "depthRating": null,
+            "institutionPurchaseOrderNumber": null,
+            "purchasePrice": null,
+            "softwareVersion": null,
+            "modelNumber": "GI01SUMO",
+            "ooiPropertyNumber": null,
+            "lastModifiedTimestamp": 1474898728466
+        },
+        "node": null,
+        "eventId": 30581,
+        "recoveredBy": null,
+        "eventStartTime": 1468172640000,
+        "versionNumber": 1,
+        "tense": "UNKNOWN",
+        "dataSource": "Load from [GI01SUMO_3_Deploy.xlsx]",
+        "ingestInfo": [],
+        "assetUid": null,
+        "referenceDesignator": {
+            "node": "SBD11",
+            "sensor": "06-METBKA000",
+            "full": true,
+            "subsite": "GI01SUMO"
+        },
+        "notes": null,
+        "deploymentNumber": 3,
+        "eventStopTime": 1501545600000,
+        "deployCruiseInfo": {
+            "editPhase": "OPERATIONAL",
+            "eventId": 2,
+            "shipName": "R/V Armstrong",
+            "cruiseIdentifier": "AR-07-01",
+            "eventType": "CRUISE_INFO",
+            "notes": "UNKNOWN",
+            "eventStopTime": 1468368000000,
+            "uniqueCruiseIdentifier": "AR-07-01",
+            "eventName": "AR-07-01",
+            "tense": "UNKNOWN",
+            "assetUid": null,
+            "eventStartTime": 1468022400000,
+            "lastModifiedTimestamp": 1474898701821,
+            "@class": ".CruiseInfo",
+            "dataSource": "Load from [CruiseInformation.xlsx]"
+        },
+        "lastModifiedTimestamp": 1474899181312
+    }
+]
