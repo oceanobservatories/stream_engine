@@ -43,6 +43,7 @@ class NetcdfGenerator(object):
         if not os.path.isdir(base_path):
             os.makedirs(base_path)
         file_paths = self._create_files(base_path)
+
         # build json return
         return json.dumps({'code': 200, 'message': str(file_paths)}, indent=2)
 
@@ -61,7 +62,7 @@ class NetcdfGenerator(object):
         file_paths = []
         for stream_key, stream_dataset in self.stream_request.datasets.iteritems():
             for deployment, ds in stream_dataset.datasets.iteritems():
-                self._add_dynamic_attributes(ds, stream_key, deployment)
+                self._add_dynamic_attributes(ds, stream_dataset.events.deps.get(deployment))
                 start = ds.attrs['time_coverage_start'].translate(None, '-:')
                 end = ds.attrs['time_coverage_end'].translate(None, '-:')
                 # provenance types will be written to JSON files
@@ -94,6 +95,7 @@ class NetcdfGenerator(object):
 
     @log_timing(log)
     def to_netcdf(self, ds, file_path):
+        log.error('XXXXXXXX TO_NETCDF')
         if self.classic:
             for data_array_name in ds.data_vars:
                 data_array = ds.get(data_array_name)
@@ -106,6 +108,7 @@ class NetcdfGenerator(object):
         else:
             self._ensure_no_int64(ds)
             encoding = self.make_encoding(ds)
+            log.error('calling ds.to_netcdf')
             ds.to_netcdf(file_path, engine = NETCDF_ENGINE, encoding = encoding)
 
     def make_encoding(self, ds):
@@ -148,7 +151,7 @@ class NetcdfGenerator(object):
         new_data_array.name = data_array.name
         return new_data_array
 
-    def _add_dynamic_attributes(self, ds, stream_key, deployment):
+    def _add_dynamic_attributes(self, ds, deployment_event):
         if not ds.keys():
             raise MissingDataException("No data present in dataset")
 
@@ -164,14 +167,8 @@ class NetcdfGenerator(object):
         else:
             ds.attrs['time_coverage_resolution'] = 'P0S'
 
-        location_vals = {}
-        for loc in self.stream_request.location_information.get(stream_key.as_three_part_refdes(), []):
-            if loc['deployment'] == deployment:
-                location_vals = loc
-                break
-
-        if 'location_name' in location_vals:
-            ds.attrs['location_name'] = str(location_vals['location_name'])
+        # if deployment_event.name is not None:
+        #     ds.attrs['location_name'] = str(deployment_event.name)
 
         if 'lat' in ds:
             ds.attrs['geospatial_lat_min'] = min(ds.variables['lat'].values)
@@ -184,7 +181,6 @@ class NetcdfGenerator(object):
             ds.attrs['geospatial_lon_units'] = 'degrees_east'
             ds.attrs['geospatial_lon_resolution'] = app.config["GEOSPATIAL_LAT_LON_RES"]
 
-        depth_units = str(location_vals.get('depth_units', app.config["Z_DEFAULT_UNITS"]))
-        ds.attrs['geospatial_vertical_units'] = depth_units
+        ds.attrs['geospatial_vertical_units'] = app.config["Z_DEFAULT_UNITS"]
         ds.attrs['geospatial_vertical_resolution'] = app.config['Z_RESOLUTION']
         ds.attrs['geospatial_vertical_positive'] = app.config['Z_POSITIVE']

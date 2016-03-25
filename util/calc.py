@@ -34,14 +34,12 @@ def execute_stream_request(request_parameters, needs_only=False):
     parameters = request_parameters.streams[0].get('parameters', [])
     time_range = TimeRange(request_parameters.start, request_parameters.stop)
     collapse_times = not needs_only
-    stream_request = util.stream_request.StreamRequest(stream_key, parameters, request_parameters.coefficients,
-                                                       time_range, request_parameters.uflags,
+    stream_request = util.stream_request.StreamRequest(stream_key, parameters, time_range, request_parameters.uflags,
                                                        qc_parameters=request_parameters.qc_parameters,
                                                        limit=request_parameters.limit,
                                                        include_provenance=request_parameters.include_provenance,
                                                        include_annotations=request_parameters.include_annotations,
                                                        strict_range=request_parameters.strict_range,
-                                                       location_information=request_parameters.location_information,
                                                        request_id=request_parameters.id,
                                                        collapse_times=collapse_times)
     if not needs_only:

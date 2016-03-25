@@ -203,7 +203,7 @@ def fetch_l0_provenance(stream_key, provenance_values, deployment):
     provenance metadata store.
     """
     # UUIDs are cast to strings so remove all 'None' values
-    if stream_key.method == 'streamed':
+    if stream_key.method.startswith('streamed'):
         deployment = 0
 
     prov_ids = []
@@ -214,46 +214,22 @@ def fetch_l0_provenance(stream_key, provenance_values, deployment):
             pass
 
     provenance_arguments = [
-        (stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method, deployment, prov_id) for
-        prov_id in prov_ids]
+        (stream_key.subsite, stream_key.node, stream_key.sensor,
+         stream_key.method, deployment, prov_id) for prov_id in prov_ids]
+
     query = SessionManager.prepare(L0_DATASET)
     results = execute_concurrent_with_args(SessionManager.session(), query, provenance_arguments)
     records = [ProvTuple(*rows[0]) for success, rows in results if success and len(rows) > 0]
+
     if len(provenance_arguments) != len(records):
         log.warn("Could not find %d provenance entries", len(provenance_arguments) - len(records))
+
     prov_dict = {
-        str(row.id): {'file_name': row.file_name, 'parser_name': row.parser_name, 'parser_version': row.parser_version}
-        for
-        row in records}
+        str(row.id): {'file_name': row.file_name,
+                      'parser_name': row.parser_name,
+                      'parser_version': row.parser_version}
+        for row in records}
     return prov_dict
-
-
-@log_timing(log)
-def get_streaming_provenance(stream_key, times):
-    # Get the first entry before the current
-    q1 = SessionManager.prepare(L0_STREAM_ONE)
-    q2 = SessionManager.prepare(L0_STREAM_RANGE)
-    args = [stream_key.as_three_part_refdes(), stream_key.method, times[0]]
-    res = SessionManager.execute(q1, args)
-    # get the provenance results within the time range
-    args.append(times[-1])
-    res.extend(SessionManager.execute(q2, args))
-    prov_results = []
-    prov_dict = {}
-    # create tuples for all of the objects and insert time values into the provenance
-    for r in res:
-        r = StreamProvTuple(*r)
-        if r.id not in prov_dict:
-            prov_results.append(r)
-            prov_dict[str(r.id)] = {name: getattr(r, name) for name in l0_stream_columns if name != 'id'}
-            # change the UUID to a string to prevent error on output
-    prov = numpy.array(['None'] * len(times), dtype=object)
-    for sp, ep in zip(prov_results[:-1], prov_results[1:]):
-        prov[numpy.logical_and(times >= sp.time, times <= ep.time)] = str(sp.id)
-    if prov_results:
-        last_prov = prov_results[-1]
-        prov[times >= last_prov.time] = str(last_prov.id)
-    return prov, prov_dict
 
 
 @log_timing(log)
