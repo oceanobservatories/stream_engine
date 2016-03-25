@@ -5,7 +5,7 @@ from multiprocessing.pool import ThreadPool
 import logging
 import numpy as np
 import requests
-import xray as xr
+import xarray as xr
 
 from engine import app
 from util.calculated_provenance_metadata_store import CalculatedProvenanceMetadataStore

@@ -146,3 +146,6 @@ INT_PRESSURE_NAME = 'int_ctd_pressure'
 
 # Maximum depth difference between two instruments to be considered "near"
 MAX_DEPTH_VARIANCE = 20
+
+# HDF5 Compression 0 = None, compression level 1 to 5
+HDF5_COMP_LEVEL = 1

@@ -5,7 +5,7 @@ import glob
 from itertools import chain
 import os
 import re
-import xray as xr
+import xarray as xr
 import logging
 from engine import app
 import numpy as np

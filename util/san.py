@@ -2,7 +2,7 @@ import os
 import logging
 
 import numpy
-import xray as xr
+import xarray as xr
 from multiprocessing.pool import ThreadPool
 
 from engine import app
