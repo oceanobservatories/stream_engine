@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.interpolate as interpolate
-import xray as xr
+import xarray as xr
 
 
 def _fit(x, y, new_x, axis):

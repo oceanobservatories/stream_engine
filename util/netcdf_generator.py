@@ -13,11 +13,12 @@ log = logging.getLogger(__name__)
 
 
 class NetcdfGenerator(object):
-    def __init__(self, stream_request, classic, disk_path=None):
+    def __init__(self, stream_request, classic, disk_path=None, complevel=1):
         self.stream_request = stream_request
         self.request_id = stream_request.request_id
         self.classic = classic
         self.disk_path = disk_path
+        self.complevel = complevel
 
     def write(self):
         if self.disk_path is not None:
@@ -71,7 +72,10 @@ class NetcdfGenerator(object):
                     ds[data_array_name] = self.convert_data_array(data_array, data_type, np.int32)
             ds.to_netcdf(path=file_path, format="NETCDF4_CLASSIC")
         else:
-            ds.to_netcdf(file_path)  # , encoding={k: {'zlib': True} for k in ds}) # NEEDS XARRAY >=0.7
+            compr = True            
+            if self.complevel <= 0:
+                compr = False
+            ds.to_netcdf(file_path, encoding={k: {'zlib': compr, 'complevel': self.complevel} for k in ds})
 
     @log_timing(log)
     def convert_data_array(self, data_array, orig_data_type, dest_data_type):

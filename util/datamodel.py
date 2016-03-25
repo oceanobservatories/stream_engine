@@ -8,7 +8,7 @@ import logging
 import msgpack
 import numpy as np
 import pandas as pd
-import xray as xr
+import xarray as xr
 
 from common import StreamEngineException
 from engine import app
@@ -171,6 +171,8 @@ def to_xray_dataset(cols, data, stream_key, request_uuid, san=False):
         coord_columns = 'time lat lon'
         if column not in coord_columns:
             array_attrs['coordinates'] = coord_columns
+
+        darray = xr.DataArray(data, dims=dims, attrs=array_attrs)
 
         dataset.update({column: xr.DataArray(data, dims=dims, attrs=array_attrs)})
 
