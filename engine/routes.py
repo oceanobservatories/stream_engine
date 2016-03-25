@@ -399,10 +399,9 @@ def needs():
     }
     """
     input_data = request.get_json()
-    needs_cc = util.calc.get_needs(input_data, request.url)
-
-    output_data = {'streams': needs_cc}
-    return Response(json.dumps(output_data), mimetype='application/json')
+    needs = input_data['streams']
+    needs[0]['parameters'] = []
+    return jsonify({'streams': needs})
 
 
 def output_async_error(input_data, e, filename="failure.json"):
