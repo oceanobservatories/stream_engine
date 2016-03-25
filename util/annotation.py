@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 
 import numpy as np
-import xray as xr
+import xarray as xr
 
 from util.cass import fetch_annotations
 

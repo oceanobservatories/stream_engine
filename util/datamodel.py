@@ -8,7 +8,7 @@ import logging
 import msgpack
 import numpy as np
 import pandas as pd
-import xray as xr
+import xarray as xr
 
 from common import StreamEngineException
 from engine import app
