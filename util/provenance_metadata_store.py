@@ -1,21 +1,16 @@
 import json
-import os
-from collections import defaultdict, OrderedDict
-from multiprocessing.pool import ThreadPool
-
 import logging
-import numpy as np
-import requests
-import xarray as xr
+import os
+from collections import OrderedDict
 
-from engine import app
+import requests
+
 from util.calculated_provenance_metadata_store import CalculatedProvenanceMetadataStore
 from util.common import ntp_to_datestring
 from util.jsonresponse import NumpyJSONEncoder
 
-metadata_threadpool = ThreadPool(10)
-
 log = logging.getLogger(__name__)
+
 
 class ProvenanceMetadataStore(object):
     def __init__(self, request_uuid):
@@ -40,19 +35,11 @@ class ProvenanceMetadataStore(object):
     def get_provenance_dict(self):
         return self._prov_dict
 
-    def add_instrument_provenance(self, stream_key, st, et):
-        url = app.config['ASSET_URL'] + 'assets/byReferenceDesignator/{:s}/{:s}/{:s}?startDT={:s}?endDT={:s}'.format(
-                stream_key.subsite, stream_key.node, stream_key.sensor, ntp_to_datestring(st), ntp_to_datestring(et))
-        self._instrument_provenance[stream_key] = metadata_threadpool.apply_async(_send_query_for_instrument, (url,))
+    def add_instrument_provenance(self, stream_key, events):
+        self._instrument_provenance[stream_key.as_three_part_refdes()] = events
 
     def get_instrument_provenance(self):
-        try:
-            vals = defaultdict(list)
-            for key, value in self._instrument_provenance.iteritems():
-                vals[key.as_three_part_refdes()].extend(value.get())
-            return vals
-        except ValueError:
-            return {}
+        return self._instrument_provenance
 
     def add_query_metadata(self, stream_request, query_uuid, query_type):
         self._query_metadata['query_type'] = query_type
@@ -83,7 +70,7 @@ class ProvenanceMetadataStore(object):
             if not os.path.exists(os.path.dirname(filepath)):
                 os.makedirs(os.path.dirname(filepath))
             with open(filepath, 'a') as fh:
-                json.dump(self.get_json(), fh, indent=2, separators=(',', ': '))
+                json.dump(self.get_json(), fh, indent=2, separators=(',', ': '), cls=NumpyJSONEncoder)
         except EnvironmentError as e:
             log.error('Failed to write provenance file: %s', e)
 

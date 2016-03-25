@@ -4,6 +4,8 @@ import logging
 from numbers import Number
 
 import numpy as np
+from datetime import datetime
+
 from common import log_timing
 from engine import app
 from preload_database.model.preload import Parameter, Stream
@@ -154,5 +156,7 @@ class NumpyJSONEncoder(json.JSONEncoder):
             return o.tolist()
         if isinstance(o, (Stream, Parameter)):
             return repr(o)
+        elif isinstance(o, datetime):
+            return str(o)
         else:
             return json.JSONEncoder.default(self, o)
