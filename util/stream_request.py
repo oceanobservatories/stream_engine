@@ -4,7 +4,7 @@ import util.annotation
 import util.provenance_metadata_store
 from engine import app
 from preload_database.model.preload import Parameter, Stream, NominalDepth
-from util.calibration_coefficient_store import CalibrationCoefficientStore
+from util.asset_management import AssetManagement
 from util.cass import (build_stream_dictionary, get_available_time_range, fetch_l0_provenance,
                        get_streaming_provenance)
 from util.common import log_timing, StreamEngineException, StreamKey, MissingDataException
@@ -14,13 +14,13 @@ from util.stream_dataset import StreamDataset
 
 log = logging.getLogger()
 
-
 PRESSURE_DPI = app.config.get('PRESSURE_DPI')
 GPS_STREAM_ID = app.config.get('GPS_STREAM_ID')
 LATITUDE_PARAM_ID = app.config.get('LATITUDE_PARAM_ID')
 LONGITUDE_PARAM_ID = app.config.get('LONGITUDE_PARAM_ID')
 INT_PRESSURE_NAME = app.config.get('INT_PRESSURE_NAME')
 MAX_DEPTH_VARIANCE = app.config.get('MAX_DEPTH_VARIANCE')
+ASSET_HOST = app.config.get('ASSET_HOST')
 
 
 class StreamRequest(object):
@@ -29,9 +29,9 @@ class StreamRequest(object):
     parameters and their streams
     """
 
-    def __init__(self, stream_key, parameters, coefficients, time_range, uflags, qc_parameters=None,
+    def __init__(self, stream_key, parameters, time_range, uflags, qc_parameters=None,
                  limit=None, include_provenance=False, include_annotations=False, strict_range=False,
-                 location_information=None, request_id='', collapse_times=False):
+                 request_id='', collapse_times=False):
 
         if not isinstance(stream_key, StreamKey):
             raise StreamEngineException('Received no stream key', status_code=400)
@@ -40,7 +40,6 @@ class StreamRequest(object):
         self.request_id = request_id
         self.stream_key = stream_key
         self.requested_parameters = parameters
-        self.coefficients = CalibrationCoefficientStore(coefficients, request_id)
         self.time_range = time_range
         self.uflags = uflags
         self.qc_executor = QcExecutor(qc_parameters, self)
@@ -48,9 +47,9 @@ class StreamRequest(object):
         self.include_provenance = include_provenance
         self.include_annotations = include_annotations
         self.strict_range = strict_range
-        self.location_information = location_information if location_information is not None else {}
 
         # Internals
+        self.asset_management = AssetManagement(ASSET_HOST, request_id=self.request_id)
         self.stream_parameters = {}
         self.unfulfilled = set()
         self.datasets = {}
@@ -84,13 +83,21 @@ class StreamRequest(object):
         Fetch the source data for this request
         :return:
         """
+        # Start fetching calibration data from Asset Management
+        am_futures = {}
+        for stream_key in self.stream_parameters:
+            am_futures[stream_key] = self.asset_management.get_events_async(stream_key.subsite,
+                                                                            stream_key.node,
+                                                                            stream_key.sensor)
+
+        # Start fetching instrument data
         for stream_key, stream_parameters in self.stream_parameters.iteritems():
             other_streams = set(self.stream_parameters)
             other_streams.remove(stream_key)
             should_pad = stream_key != self.stream_key
             if not stream_key.is_virtual:
                 log.debug('<%s> Fetching raw data for %s', self.request_id, stream_key.as_refdes())
-                sd = StreamDataset(stream_key, self.coefficients, self.uflags, other_streams, self.request_id)
+                sd = StreamDataset(stream_key, self.uflags, other_streams, self.request_id)
                 try:
                     sd.fetch_raw_data(self.time_range, self.limit, should_pad)
                     self.datasets[stream_key] = sd
@@ -105,8 +112,14 @@ class StreamRequest(object):
             else:
                 log.debug('<%s> Creating empty dataset for virtual stream: %s',
                           self.request_id, stream_key.as_refdes())
-                sd = StreamDataset(stream_key, self.coefficients, self.uflags, other_streams, self.request_id)
+                sd = StreamDataset(stream_key, self.uflags, other_streams, self.request_id)
                 self.datasets[stream_key] = sd
+
+        # Resolve calibration data futures and attach to instrument data
+        for stream_key in am_futures:
+            events = am_futures[stream_key].result()
+            self.datasets[stream_key].events = events
+            self.datasets[stream_key].coefficients.add(events.cals)
 
     def calculate_derived_products(self):
         # Calculate all internal-only data products
@@ -153,7 +166,7 @@ class StreamRequest(object):
                     prov_metadata = self.datasets[stream_key].provenance_metadata
                     prov_metadata.add_query_metadata(self, self.request_id, 'JSON')
                     prov_metadata.add_instrument_provenance(stream_key, self.time_range.start,
-                                                                   self.time_range.stop)
+                                                            self.time_range.stop)
                     if stream_key.method not in ['streamed', ]:
                         if 'provenance' in dataset:
                             provenance = dataset.provenance.values.astype('str')
@@ -184,10 +197,8 @@ class StreamRequest(object):
 
     def _add_location(self):
         log.debug('<%s> Inserting location data for all datasets', self.request_id)
-        for sk in self.datasets:
-            if not sk.is_glider:
-                for dataset in self.datasets[sk].datasets.itervalues():
-                    add_location_data(dataset, sk, self.location_information, self.request_id)
+        for stream_dataset in self.datasets.itervalues():
+            stream_dataset.add_location()
 
     def _locate_externals(self, parameters):
         """
@@ -433,5 +444,3 @@ class StreamRequest(object):
                     "method": method,
                     "stream": stream
                 })
-
-

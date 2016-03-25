@@ -15,6 +15,7 @@ SAN_BASE_DIRECTORY = '/opt/ooi/SAN/'
 SAN_CASS_OVERWRITE = True
 ANNOTATION_URL = 'http://localhost:12580/annotations/find/'
 ASSET_URL = 'http://localhost:12573/'
+ASSET_HOST = 'localhost'
 
 # Where to start unbound queries 2010-01-01T00:00:00.000Z
 UNBOUND_QUERY_START = 3471292800

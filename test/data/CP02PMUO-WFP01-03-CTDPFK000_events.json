@@ -1,0 +1,3090 @@
+[
+  {
+    "startDate": 1397782680000,
+    "recoveryLocationLonLat": null,
+    "attachments": [],
+    "eventDescription": null,
+    "locationLonLat": null,
+    "endDate": 1408060800000,
+    "@class": ".DeploymentEvent",
+    "metaData": [],
+    "eventId": 6045,
+    "locationChangeNotes": [],
+    "recoveryShipName": null,
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1366934400000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5900,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802458,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5899,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802458,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2950,
+      "lastModifiedTimestamp": 1457474802458,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "110",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12991-03",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "eventType": "ACTUAL",
+    "deploymentShipName": null,
+    "cruisePlanDocument": null,
+    "mooring": null,
+    "recoveryCruiseNumber": null,
+    "deploymentNumber": 1,
+    "tense": "PAST",
+    "dataSource": null,
+    "cruiseNumber": null,
+    "referenceDesignator": {
+      "node": "WFP01",
+      "sensor": "03-CTDPFK000",
+      "vocab": {
+        "tocL3": "Wire-Following Profiler",
+        "tocL2": "WA Offshore Profiler Mooring",
+        "tocL1": "Endurance",
+        "instrument": "CTD Profiler",
+        "refdes": "CE09OSPM-WFP01-03-CTDPFK000"
+      },
+      "full": true,
+      "subsite": "CE09OSPM"
+    },
+    "recoveryPlanDocument": null,
+    "locationType": null,
+    "notes": [],
+    "locationName": null,
+    "depth": "NaN",
+    "deploymentDocUrls": [],
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475399301
+  },
+  {
+    "startDate": 1385221800000,
+    "recoveryLocationLonLat": null,
+    "attachments": [],
+    "eventDescription": null,
+    "locationLonLat": null,
+    "endDate": 1385337600000,
+    "@class": ".DeploymentEvent",
+    "metaData": [],
+    "eventId": 6332,
+    "locationChangeNotes": [],
+    "recoveryShipName": null,
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1358812800000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5854,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802272,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5853,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802272,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2927,
+      "lastModifiedTimestamp": 1457474802272,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "106",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12936-01",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "eventType": "ACTUAL",
+    "deploymentShipName": null,
+    "cruisePlanDocument": null,
+    "mooring": null,
+    "recoveryCruiseNumber": null,
+    "deploymentNumber": 1,
+    "tense": "PAST",
+    "dataSource": null,
+    "cruiseNumber": null,
+    "referenceDesignator": {
+      "node": "WFP01",
+      "sensor": "03-CTDPFK000",
+      "vocab": {
+        "tocL3": "Wire-Following Profiler",
+        "tocL2": "Upstream Offshore Profiler Mooring",
+        "tocL1": "Pioneer",
+        "instrument": "CTD Profiler",
+        "refdes": "CP02PMUO-WFP01-03-CTDPFK000"
+      },
+      "full": true,
+      "subsite": "CP02PMUO"
+    },
+    "recoveryPlanDocument": null,
+    "locationType": null,
+    "notes": [],
+    "locationName": null,
+    "depth": "NaN",
+    "deploymentDocUrls": [],
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475530000
+  },
+  {
+    "startDate": 1428200700000,
+    "recoveryLocationLonLat": null,
+    "attachments": [],
+    "eventDescription": null,
+    "locationLonLat": null,
+    "endDate": 1445040000000,
+    "@class": ".DeploymentEvent",
+    "metaData": [],
+    "eventId": 6081,
+    "locationChangeNotes": [],
+    "recoveryShipName": null,
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1366934400000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5900,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802458,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5899,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802458,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2950,
+      "lastModifiedTimestamp": 1457474802458,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "110",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12991-03",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "eventType": "ACTUAL",
+    "deploymentShipName": null,
+    "cruisePlanDocument": null,
+    "mooring": null,
+    "recoveryCruiseNumber": null,
+    "deploymentNumber": 3,
+    "tense": "PAST",
+    "dataSource": null,
+    "cruiseNumber": null,
+    "referenceDesignator": {
+      "node": "WFP01",
+      "sensor": "03-CTDPFK000",
+      "vocab": {
+        "tocL3": "Wire-Following Profiler",
+        "tocL2": "WA Offshore Profiler Mooring",
+        "tocL1": "Endurance",
+        "instrument": "CTD Profiler",
+        "refdes": "CE09OSPM-WFP01-03-CTDPFK000"
+      },
+      "full": true,
+      "subsite": "CE09OSPM"
+    },
+    "recoveryPlanDocument": null,
+    "locationType": null,
+    "notes": [],
+    "locationName": null,
+    "depth": "NaN",
+    "deploymentDocUrls": [],
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475403385
+  },
+  {
+    "startDate": 1430412960000,
+    "recoveryLocationLonLat": null,
+    "attachments": [],
+    "eventDescription": null,
+    "locationLonLat": null,
+    "endDate": 1444694400000,
+    "@class": ".DeploymentEvent",
+    "metaData": [],
+    "eventId": 6391,
+    "locationChangeNotes": [],
+    "recoveryShipName": null,
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1390867200000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5976,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802779,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5975,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802779,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2988,
+      "lastModifiedTimestamp": 1457474802779,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "127",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML13103-04",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "eventType": "ACTUAL",
+    "deploymentShipName": null,
+    "cruisePlanDocument": null,
+    "mooring": null,
+    "recoveryCruiseNumber": null,
+    "deploymentNumber": 5,
+    "tense": "PAST",
+    "dataSource": null,
+    "cruiseNumber": null,
+    "referenceDesignator": {
+      "node": "WFP01",
+      "sensor": "03-CTDPFK000",
+      "vocab": {
+        "tocL3": "Wire-Following Profiler",
+        "tocL2": "Upstream Offshore Profiler Mooring",
+        "tocL1": "Pioneer",
+        "instrument": "CTD Profiler",
+        "refdes": "CP02PMUO-WFP01-03-CTDPFK000"
+      },
+      "full": true,
+      "subsite": "CP02PMUO"
+    },
+    "recoveryPlanDocument": null,
+    "locationType": null,
+    "notes": [],
+    "locationName": null,
+    "depth": "NaN",
+    "deploymentDocUrls": [],
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475540978
+  },
+  {
+    "startDate": 1413051060000,
+    "recoveryLocationLonLat": null,
+    "attachments": [],
+    "eventDescription": null,
+    "locationLonLat": null,
+    "endDate": 1418601600000,
+    "@class": ".DeploymentEvent",
+    "metaData": [],
+    "eventId": 6404,
+    "locationChangeNotes": [],
+    "recoveryShipName": null,
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1433376000000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5886,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802395,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5885,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802395,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2943,
+      "lastModifiedTimestamp": 1457474802395,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "113",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12991-02",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "eventType": "ACTUAL",
+    "deploymentShipName": null,
+    "cruisePlanDocument": null,
+    "mooring": null,
+    "recoveryCruiseNumber": null,
+    "deploymentNumber": 2,
+    "tense": "PAST",
+    "dataSource": null,
+    "cruiseNumber": null,
+    "referenceDesignator": {
+      "node": "WFP01",
+      "sensor": "03-CTDPFK000",
+      "vocab": {
+        "tocL3": "Wire-Following Profiler",
+        "tocL2": "Central Inshore Profiler Mooring",
+        "tocL1": "Pioneer",
+        "instrument": "CTD Profiler",
+        "refdes": "CP02PMCI-WFP01-03-CTDPFK000"
+      },
+      "full": true,
+      "subsite": "CP02PMCI"
+    },
+    "recoveryPlanDocument": null,
+    "locationType": null,
+    "notes": [],
+    "locationName": null,
+    "depth": "NaN",
+    "deploymentDocUrls": [],
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475542481
+  },
+  {
+    "startDate": 1430660700000,
+    "recoveryLocationLonLat": null,
+    "attachments": [],
+    "eventDescription": null,
+    "locationLonLat": null,
+    "endDate": 1444953600000,
+    "@class": ".DeploymentEvent",
+    "metaData": [],
+    "eventId": 6417,
+    "locationChangeNotes": [],
+    "recoveryShipName": null,
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1433376000000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5886,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802395,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5885,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802395,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2943,
+      "lastModifiedTimestamp": 1457474802395,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "113",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12991-02",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "eventType": "ACTUAL",
+    "deploymentShipName": null,
+    "cruisePlanDocument": null,
+    "mooring": null,
+    "recoveryCruiseNumber": null,
+    "deploymentNumber": 5,
+    "tense": "PAST",
+    "dataSource": null,
+    "cruiseNumber": null,
+    "referenceDesignator": {
+      "node": "WFP01",
+      "sensor": "03-CTDPFK000",
+      "vocab": {
+        "tocL3": "Wire-Following Profiler",
+        "tocL2": "Upstream Inshore Profiler Mooring",
+        "tocL1": "Pioneer",
+        "instrument": "CTD Profiler",
+        "refdes": "CP02PMUI-WFP01-03-CTDPFK000"
+      },
+      "full": true,
+      "subsite": "CP02PMUI"
+    },
+    "recoveryPlanDocument": null,
+    "locationType": null,
+    "notes": [],
+    "locationName": null,
+    "depth": "NaN",
+    "deploymentDocUrls": [],
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475543946
+  },
+  {
+    "startDate": 1385413080000,
+    "recoveryLocationLonLat": null,
+    "attachments": [],
+    "eventDescription": null,
+    "locationLonLat": null,
+    "endDate": 1397433600000,
+    "@class": ".DeploymentEvent",
+    "metaData": [],
+    "eventId": 6547,
+    "locationChangeNotes": [],
+    "recoveryShipName": null,
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1433376000000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5886,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802395,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5885,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802395,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2943,
+      "lastModifiedTimestamp": 1457474802395,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "113",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12991-02",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "eventType": "ACTUAL",
+    "deploymentShipName": null,
+    "cruisePlanDocument": null,
+    "mooring": null,
+    "recoveryCruiseNumber": null,
+    "deploymentNumber": 2,
+    "tense": "PAST",
+    "dataSource": null,
+    "cruiseNumber": null,
+    "referenceDesignator": {
+      "node": "WFP01",
+      "sensor": "03-CTDPFK000",
+      "vocab": {
+        "tocL3": "Wire-Following Profiler",
+        "tocL2": "Upstream Offshore Profiler Mooring",
+        "tocL1": "Pioneer",
+        "instrument": "CTD Profiler",
+        "refdes": "CP02PMUO-WFP01-03-CTDPFK000"
+      },
+      "full": true,
+      "subsite": "CP02PMUO"
+    },
+    "recoveryPlanDocument": null,
+    "locationType": null,
+    "notes": [],
+    "locationName": null,
+    "depth": "NaN",
+    "deploymentDocUrls": [],
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475563854
+  },
+  {
+    "startDate": 1444699800000,
+    "recoveryLocationLonLat": null,
+    "attachments": [],
+    "eventDescription": null,
+    "locationLonLat": null,
+    "endDate": null,
+    "@class": ".DeploymentEvent",
+    "metaData": [],
+    "eventId": 6675,
+    "locationChangeNotes": [],
+    "recoveryShipName": null,
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1368144000000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5920,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802545,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5919,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802545,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2960,
+      "lastModifiedTimestamp": 1457474802545,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "114",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12991-05",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "eventType": "ACTUAL",
+    "deploymentShipName": null,
+    "cruisePlanDocument": null,
+    "mooring": null,
+    "recoveryCruiseNumber": null,
+    "deploymentNumber": 6,
+    "tense": "PRESENT",
+    "dataSource": null,
+    "cruiseNumber": null,
+    "referenceDesignator": {
+      "node": "WFP01",
+      "sensor": "03-CTDPFK000",
+      "vocab": {
+        "tocL3": "Wire-Following Profiler",
+        "tocL2": "Upstream Offshore Profiler Mooring",
+        "tocL1": "Pioneer",
+        "instrument": "CTD Profiler",
+        "refdes": "CP02PMUO-WFP01-03-CTDPFK000"
+      },
+      "full": true,
+      "subsite": "CP02PMUO"
+    },
+    "recoveryPlanDocument": null,
+    "locationType": null,
+    "notes": [],
+    "locationName": null,
+    "depth": "NaN",
+    "deploymentDocUrls": [],
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475583189
+  },
+  {
+    "startDate": 1444613400000,
+    "recoveryLocationLonLat": null,
+    "attachments": [],
+    "eventDescription": null,
+    "locationLonLat": null,
+    "endDate": null,
+    "@class": ".DeploymentEvent",
+    "metaData": [],
+    "eventId": 6872,
+    "locationChangeNotes": [],
+    "recoveryShipName": null,
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1358812800000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5854,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802272,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5853,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802272,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2927,
+      "lastModifiedTimestamp": 1457474802272,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "106",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12936-01",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "eventType": "ACTUAL",
+    "deploymentShipName": null,
+    "cruisePlanDocument": null,
+    "mooring": null,
+    "recoveryCruiseNumber": null,
+    "deploymentNumber": 4,
+    "tense": "PRESENT",
+    "dataSource": null,
+    "cruiseNumber": null,
+    "referenceDesignator": {
+      "node": "WFP01",
+      "sensor": "03-CTDPFK000",
+      "vocab": {
+        "tocL3": "Wire-Following Profiler",
+        "tocL2": "Offshore Profiler Mooring",
+        "tocL1": "Pioneer",
+        "instrument": "CTD Profiler",
+        "refdes": "CP04OSPM-WFP01-03-CTDPFK000"
+      },
+      "full": true,
+      "subsite": "CP04OSPM"
+    },
+    "recoveryPlanDocument": null,
+    "locationType": null,
+    "notes": [],
+    "locationName": null,
+    "depth": "NaN",
+    "deploymentDocUrls": [],
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475616315
+  },
+  {
+    "startDate": 1412453040000,
+    "recoveryLocationLonLat": null,
+    "attachments": [],
+    "eventDescription": null,
+    "locationLonLat": null,
+    "endDate": 1430265600000,
+    "@class": ".DeploymentEvent",
+    "metaData": [],
+    "eventId": 6662,
+    "locationChangeNotes": [],
+    "recoveryShipName": null,
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1358812800000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5854,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802272,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5853,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802272,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2927,
+      "lastModifiedTimestamp": 1457474802272,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "106",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12936-01",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "eventType": "ACTUAL",
+    "deploymentShipName": null,
+    "cruisePlanDocument": null,
+    "mooring": null,
+    "recoveryCruiseNumber": null,
+    "deploymentNumber": 2,
+    "tense": "PAST",
+    "dataSource": null,
+    "cruiseNumber": null,
+    "referenceDesignator": {
+      "node": "WFP01",
+      "sensor": "03-CTDPFK000",
+      "vocab": {
+        "tocL3": "Wire-Following Profiler",
+        "tocL2": "Offshore Profiler Mooring",
+        "tocL1": "Pioneer",
+        "instrument": "CTD Profiler",
+        "refdes": "CP04OSPM-WFP01-03-CTDPFK000"
+      },
+      "full": true,
+      "subsite": "CP04OSPM"
+    },
+    "recoveryPlanDocument": null,
+    "locationType": null,
+    "notes": [],
+    "locationName": null,
+    "depth": "NaN",
+    "deploymentDocUrls": [],
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475581452
+  },
+  {
+    "startDate": 1397491680000,
+    "recoveryLocationLonLat": null,
+    "attachments": [],
+    "eventDescription": null,
+    "locationLonLat": null,
+    "endDate": 1412467200000,
+    "@class": ".DeploymentEvent",
+    "metaData": [],
+    "eventId": 6834,
+    "locationChangeNotes": [],
+    "recoveryShipName": null,
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1390867200000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5976,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802779,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5975,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802779,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2988,
+      "lastModifiedTimestamp": 1457474802779,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "127",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML13103-04",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "eventType": "ACTUAL",
+    "deploymentShipName": null,
+    "cruisePlanDocument": null,
+    "mooring": null,
+    "recoveryCruiseNumber": null,
+    "deploymentNumber": 3,
+    "tense": "PAST",
+    "dataSource": null,
+    "cruiseNumber": null,
+    "referenceDesignator": {
+      "node": "WFP01",
+      "sensor": "03-CTDPFK000",
+      "vocab": {
+        "tocL3": "Wire-Following Profiler",
+        "tocL2": "Upstream Offshore Profiler Mooring",
+        "tocL1": "Pioneer",
+        "instrument": "CTD Profiler",
+        "refdes": "CP02PMUO-WFP01-03-CTDPFK000"
+      },
+      "full": true,
+      "subsite": "CP02PMUO"
+    },
+    "recoveryPlanDocument": null,
+    "locationType": null,
+    "notes": [],
+    "locationName": null,
+    "depth": "NaN",
+    "deploymentDocUrls": [],
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475611680
+  },
+  {
+    "startDate": 1412539320000,
+    "recoveryLocationLonLat": null,
+    "attachments": [],
+    "eventDescription": null,
+    "locationLonLat": null,
+    "endDate": 1430352000000,
+    "@class": ".DeploymentEvent",
+    "metaData": [],
+    "eventId": 7003,
+    "locationChangeNotes": [],
+    "recoveryShipName": null,
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1366934400000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5900,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802458,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5899,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802458,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2950,
+      "lastModifiedTimestamp": 1457474802458,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "110",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12991-03",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "eventType": "ACTUAL",
+    "deploymentShipName": null,
+    "cruisePlanDocument": null,
+    "mooring": null,
+    "recoveryCruiseNumber": null,
+    "deploymentNumber": 4,
+    "tense": "PAST",
+    "dataSource": null,
+    "cruiseNumber": null,
+    "referenceDesignator": {
+      "node": "WFP01",
+      "sensor": "03-CTDPFK000",
+      "vocab": {
+        "tocL3": "Wire-Following Profiler",
+        "tocL2": "Upstream Offshore Profiler Mooring",
+        "tocL1": "Pioneer",
+        "instrument": "CTD Profiler",
+        "refdes": "CP02PMUO-WFP01-03-CTDPFK000"
+      },
+      "full": true,
+      "subsite": "CP02PMUO"
+    },
+    "recoveryPlanDocument": null,
+    "locationType": null,
+    "notes": [],
+    "locationName": null,
+    "depth": "NaN",
+    "deploymentDocUrls": [],
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475637997
+  },
+  {
+    "eventId": 6873,
+    "startDate": 1444613400000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "dataSource": null,
+    "calibrationCoefficient": [
+      {
+        "values": 39.93565,
+        "name": "CC_latitude"
+      },
+      {
+        "values": -70.87998,
+        "name": "CC_longitude"
+      }
+    ],
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1358812800000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5854,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802272,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5853,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802272,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2927,
+      "lastModifiedTimestamp": 1457474802272,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "106",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12936-01",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475616297,
+    "@class": ".CalibrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 6548,
+    "startDate": 1385413080000,
+    "endDate": 1397433600000,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "dataSource": null,
+    "calibrationCoefficient": [
+      {
+        "values": 39.937984,
+        "name": "CC_latitude"
+      },
+      {
+        "values": -70.76908,
+        "name": "CC_longitude"
+      }
+    ],
+    "tense": "PAST",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1433376000000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5886,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802395,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5885,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802395,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2943,
+      "lastModifiedTimestamp": 1457474802395,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "113",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12991-02",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475563835,
+    "@class": ".CalibrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 5015,
+    "startDate": 1356825600000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": "CTD for WFP Coastal 12991-05",
+    "eventType": "ACTUAL",
+    "notes": [
+      "CTD for WFP Coastal 12991-05"
+    ],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/profiler-IntegrationEvents.csv",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1368144000000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5920,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802545,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5919,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802545,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2960,
+      "lastModifiedTimestamp": 1457474802545,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "114",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12991-05",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "integratedInto": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1368144000000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 608,
+          "url": null,
+          "lastModifiedTimestamp": 1457474775513,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 92259.49,
+        "deliveryOrder": {
+          "remoteResourceId": 607,
+          "url": null,
+          "lastModifiedTimestamp": 1457474775513,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 304,
+      "lastModifiedTimestamp": 1457474775514,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "MMP-7",
+        "serialNumber": "ML12991-05",
+        "manufacturer": "MCLANE"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Mooring",
+        "description": "WFP COASTAL",
+        "instrumentClass": "Mooring"
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "lastModifiedTimestamp": 1457474999362,
+    "@class": ".IntegrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 2950,
+    "startDate": -62135769600000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "remoteDocuments": [],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+    "tag": "N00050",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1366934400000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5900,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802458,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5899,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802458,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2950,
+      "lastModifiedTimestamp": 1457474802458,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "110",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12991-03",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "recordedBy": null,
+    "organization": "OOI",
+    "lastModifiedTimestamp": 1457474802462,
+    "@class": ".TagEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 6418,
+    "startDate": 1430660700000,
+    "endDate": 1444953600000,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "dataSource": null,
+    "calibrationCoefficient": [
+      {
+        "values": 40.365417,
+        "name": "CC_latitude"
+      },
+      {
+        "values": -70.78318,
+        "name": "CC_longitude"
+      }
+    ],
+    "tense": "PAST",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1433376000000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5886,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802395,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5885,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802395,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2943,
+      "lastModifiedTimestamp": 1457474802395,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "113",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12991-02",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475543929,
+    "@class": ".CalibrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 6046,
+    "startDate": 1397782680000,
+    "endDate": 1408060800000,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "dataSource": null,
+    "calibrationCoefficient": [
+      {
+        "values": 46.851734,
+        "name": "CC_latitude"
+      },
+      {
+        "values": -124.97145,
+        "name": "CC_longitude"
+      }
+    ],
+    "tense": "PAST",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1366934400000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5900,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802458,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5899,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802458,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2950,
+      "lastModifiedTimestamp": 1457474802458,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "110",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12991-03",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475399285,
+    "@class": ".CalibrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 6392,
+    "startDate": 1430412960000,
+    "endDate": 1444694400000,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "dataSource": null,
+    "calibrationCoefficient": [
+      {
+        "values": 39.941616,
+        "name": "CC_latitude"
+      },
+      {
+        "values": -70.78085,
+        "name": "CC_longitude"
+      }
+    ],
+    "tense": "PAST",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1390867200000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5976,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802779,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5975,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802779,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2988,
+      "lastModifiedTimestamp": 1457474802779,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "127",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML13103-04",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475540962,
+    "@class": ".CalibrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 2927,
+    "startDate": -62135769600000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "remoteDocuments": [],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+    "tag": "N00008",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1358812800000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5854,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802272,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5853,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802272,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2927,
+      "lastModifiedTimestamp": 1457474802272,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "106",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12936-01",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "recordedBy": null,
+    "organization": "OOI",
+    "lastModifiedTimestamp": 1457474802275,
+    "@class": ".TagEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 4976,
+    "startDate": 1356825600000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": "CTD for WFP Coastal 12936-01",
+    "eventType": "ACTUAL",
+    "notes": [
+      "CTD for WFP Coastal 12936-01"
+    ],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/profiler-IntegrationEvents.csv",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1358812800000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5854,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802272,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5853,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802272,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2927,
+      "lastModifiedTimestamp": 1457474802272,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "106",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12936-01",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "integratedInto": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1358812800000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 782,
+          "url": null,
+          "lastModifiedTimestamp": 1457474776446,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 104442.23,
+        "deliveryOrder": {
+          "remoteResourceId": 781,
+          "url": null,
+          "lastModifiedTimestamp": 1457474776446,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 391,
+      "lastModifiedTimestamp": 1457474776446,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "MMP-1ST ARTICLE",
+        "serialNumber": "ML12936-01",
+        "manufacturer": "MCLANE"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Mooring",
+        "description": "WFP COASTAL (1ST ARTICLE)",
+        "instrumentClass": "Mooring"
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "lastModifiedTimestamp": 1457474998913,
+    "@class": ".IntegrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 5005,
+    "startDate": 1356825600000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": "CTD for WFP Coastal 12991-03",
+    "eventType": "ACTUAL",
+    "notes": [
+      "CTD for WFP Coastal 12991-03"
+    ],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/profiler-IntegrationEvents.csv",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1366934400000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5900,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802458,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5899,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802458,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2950,
+      "lastModifiedTimestamp": 1457474802458,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "110",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12991-03",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "integratedInto": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1366934400000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 570,
+          "url": null,
+          "lastModifiedTimestamp": 1457474775311,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 92259.49,
+        "deliveryOrder": {
+          "remoteResourceId": 569,
+          "url": null,
+          "lastModifiedTimestamp": 1457474775311,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 285,
+      "lastModifiedTimestamp": 1457474775311,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "MMP-7",
+        "serialNumber": "ML12991-03",
+        "manufacturer": "MCLANE"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Mooring",
+        "description": "WFP COASTAL",
+        "instrumentClass": "Mooring"
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "lastModifiedTimestamp": 1457474999229,
+    "@class": ".IntegrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 2988,
+    "startDate": -62135769600000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "remoteDocuments": [],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+    "tag": "N00099",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1390867200000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5976,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802779,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5975,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802779,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2988,
+      "lastModifiedTimestamp": 1457474802779,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "127",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML13103-04",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "recordedBy": null,
+    "organization": "OOI",
+    "lastModifiedTimestamp": 1457474802783,
+    "@class": ".TagEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 5035,
+    "startDate": 1388275200000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": "CTD for WFP Coastal 13103-04",
+    "eventType": "ACTUAL",
+    "notes": [
+      "CTD for WFP Coastal 13103-04"
+    ],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/profiler-IntegrationEvents.csv",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1390867200000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5976,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802779,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5975,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802779,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2988,
+      "lastModifiedTimestamp": 1457474802779,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "127",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML13103-04",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "integratedInto": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1390867200000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 1700,
+          "url": null,
+          "lastModifiedTimestamp": 1457474780991,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 94082.0,
+        "deliveryOrder": {
+          "remoteResourceId": 1699,
+          "url": null,
+          "lastModifiedTimestamp": 1457474780991,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 850,
+      "lastModifiedTimestamp": 1457474780991,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "MMP-7",
+        "serialNumber": "ML13103-04",
+        "manufacturer": "MCLANE"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Mooring",
+        "description": "WFP COASTAL",
+        "instrumentClass": "Mooring"
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "lastModifiedTimestamp": 1457474999597,
+    "@class": ".IntegrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 6082,
+    "startDate": 1428200700000,
+    "endDate": 1445040000000,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "dataSource": null,
+    "calibrationCoefficient": [
+      {
+        "values": 46.850555,
+        "name": "CC_latitude"
+      },
+      {
+        "values": -124.9725,
+        "name": "CC_longitude"
+      }
+    ],
+    "tense": "PAST",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1366934400000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5900,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802458,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5899,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802458,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2950,
+      "lastModifiedTimestamp": 1457474802458,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "110",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12991-03",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475403368,
+    "@class": ".CalibrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 4981,
+    "startDate": 1419724800000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": "CTD for WFP Coastal 12936-01",
+    "eventType": "ACTUAL",
+    "notes": [
+      "CTD for WFP Coastal 12936-01"
+    ],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/profiler-IntegrationEvents.csv",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1358812800000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5854,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802272,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5853,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802272,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2927,
+      "lastModifiedTimestamp": 1457474802272,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "106",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12936-01",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "integratedInto": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1358812800000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 782,
+          "url": null,
+          "lastModifiedTimestamp": 1457474776446,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 104442.23,
+        "deliveryOrder": {
+          "remoteResourceId": 781,
+          "url": null,
+          "lastModifiedTimestamp": 1457474776446,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 391,
+      "lastModifiedTimestamp": 1457474776446,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "MMP-1ST ARTICLE",
+        "serialNumber": "ML12936-01",
+        "manufacturer": "MCLANE"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Mooring",
+        "description": "WFP COASTAL (1ST ARTICLE)",
+        "instrumentClass": "Mooring"
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "lastModifiedTimestamp": 1457474998967,
+    "@class": ".IntegrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 6676,
+    "startDate": 1444699800000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "dataSource": null,
+    "calibrationCoefficient": [
+      {
+        "values": 39.943367,
+        "name": "CC_latitude"
+      },
+      {
+        "values": -70.77043,
+        "name": "CC_longitude"
+      }
+    ],
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1368144000000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5920,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802545,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5919,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802545,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2960,
+      "lastModifiedTimestamp": 1457474802545,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "114",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12991-05",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475583171,
+    "@class": ".CalibrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 7004,
+    "startDate": 1412539320000,
+    "endDate": 1430352000000,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "dataSource": null,
+    "calibrationCoefficient": [
+      {
+        "values": 39.94302,
+        "name": "CC_latitude"
+      },
+      {
+        "values": -70.77001,
+        "name": "CC_longitude"
+      }
+    ],
+    "tense": "PAST",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1366934400000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5900,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802458,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5899,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802458,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2950,
+      "lastModifiedTimestamp": 1457474802458,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "110",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12991-03",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475637980,
+    "@class": ".CalibrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 6663,
+    "startDate": 1412453040000,
+    "endDate": 1430265600000,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "dataSource": null,
+    "calibrationCoefficient": [
+      {
+        "values": 39.941517,
+        "name": "CC_latitude"
+      },
+      {
+        "values": -70.87843,
+        "name": "CC_longitude"
+      }
+    ],
+    "tense": "PAST",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1358812800000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5854,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802272,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5853,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802272,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2927,
+      "lastModifiedTimestamp": 1457474802272,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "106",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12936-01",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475581433,
+    "@class": ".CalibrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 5000,
+    "startDate": 1356825600000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": "CTD for WFP Coastal 12991-02",
+    "eventType": "ACTUAL",
+    "notes": [
+      "CTD for WFP Coastal 12991-02"
+    ],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/profiler-IntegrationEvents.csv",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1433376000000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5886,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802395,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5885,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802395,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2943,
+      "lastModifiedTimestamp": 1457474802395,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "113",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12991-02",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "integratedInto": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1370304000000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 572,
+          "url": null,
+          "lastModifiedTimestamp": 1457474775323,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 92259.49,
+        "deliveryOrder": {
+          "remoteResourceId": 571,
+          "url": null,
+          "lastModifiedTimestamp": 1457474775323,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 286,
+      "lastModifiedTimestamp": 1457474775324,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "MMP-7",
+        "serialNumber": "ML12991-02",
+        "manufacturer": "MCLANE"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Mooring",
+        "description": "WFP COASTAL",
+        "instrumentClass": "Mooring"
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "lastModifiedTimestamp": 1457474999176,
+    "@class": ".IntegrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 6333,
+    "startDate": 1385221800000,
+    "endDate": 1385337600000,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "dataSource": null,
+    "calibrationCoefficient": [
+      {
+        "values": 39.94157,
+        "name": "CC_latitude"
+      },
+      {
+        "values": -70.77971,
+        "name": "CC_longitude"
+      }
+    ],
+    "tense": "PAST",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1358812800000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5854,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802272,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5853,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802272,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2927,
+      "lastModifiedTimestamp": 1457474802272,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "106",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12936-01",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475529984,
+    "@class": ".CalibrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 6835,
+    "startDate": 1397491680000,
+    "endDate": 1412467200000,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "dataSource": null,
+    "calibrationCoefficient": [
+      {
+        "values": 39.941532,
+        "name": "CC_latitude"
+      },
+      {
+        "values": -70.78004,
+        "name": "CC_longitude"
+      }
+    ],
+    "tense": "PAST",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1390867200000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5976,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802779,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5975,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802779,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2988,
+      "lastModifiedTimestamp": 1457474802779,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "127",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML13103-04",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475611663,
+    "@class": ".CalibrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 2943,
+    "startDate": -62135769600000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "remoteDocuments": [],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+    "tag": "N00036",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1433376000000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5886,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802395,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5885,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802395,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2943,
+      "lastModifiedTimestamp": 1457474802395,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "113",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12991-02",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "recordedBy": null,
+    "organization": "OOI",
+    "lastModifiedTimestamp": 1457474802398,
+    "@class": ".TagEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 2960,
+    "startDate": -62135769600000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "remoteDocuments": [],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+    "tag": "N00071",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1368144000000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5920,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802545,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5919,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802545,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2960,
+      "lastModifiedTimestamp": 1457474802545,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "114",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12991-05",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "recordedBy": null,
+    "organization": "OOI",
+    "lastModifiedTimestamp": 1457474802548,
+    "@class": ".TagEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 6405,
+    "startDate": 1413051060000,
+    "endDate": 1418601600000,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "dataSource": null,
+    "calibrationCoefficient": [
+      {
+        "values": 40.226532,
+        "name": "CC_latitude"
+      },
+      {
+        "values": -70.87795,
+        "name": "CC_longitude"
+      }
+    ],
+    "tense": "PAST",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1433376000000,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 5886,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802395,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": "D100167",
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 5885,
+          "url": null,
+          "lastModifiedTimestamp": 1457474802395,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 2943,
+      "lastModifiedTimestamp": 1457474802395,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "113",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "CTD for WFP Coastal ML12991-02",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457475542464,
+    "@class": ".CalibrationEvent",
+    "metaData": []
+  }
+]

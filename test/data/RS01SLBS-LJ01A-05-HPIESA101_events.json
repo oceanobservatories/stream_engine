@@ -1,0 +1,948 @@
+[
+  {
+    "eventId": 4208,
+    "startDate": 1419724800000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": "RS01SLBS-LJ01A-05-HPIESA101",
+    "eventType": "ACTUAL",
+    "notes": [
+      "RS01SLBS-LJ01A-05-HPIESA101"
+    ],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/RS01SLBS-IntegrationEvents.csv",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806272,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6694,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806272,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6693,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806272,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3347,
+      "lastModifiedTimestamp": 1457476380301,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "3",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "HPIES for RSN",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "TN-326"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "22-Jul-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "RS01SLBS-LJ01A-05-HPIESA101"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "2900"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "44\u00b0 31.3382' N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "2"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "125\u00b0 22.8244' W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "6:55:49"
+        }
+      ]
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "integratedInto": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474807663,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6990,
+          "url": null,
+          "lastModifiedTimestamp": 1457474807663,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6989,
+          "url": null,
+          "lastModifiedTimestamp": 1457474807663,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3495,
+      "lastModifiedTimestamp": 1457476380155,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "RS01SLBS-LJ01A",
+        "serialNumber": "SN0010",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Mooring",
+        "description": "MOORING RSN",
+        "instrumentClass": "Mooring"
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "TN-326"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "RS01SLBS-LJ01A"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "125\u00b0 23.395' W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "2"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "2905"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "44\u00b0 30.918' N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "0:00"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "6-Jul-15"
+        }
+      ]
+    },
+    "lastModifiedTimestamp": 1457474989621,
+    "@class": ".IntegrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 4202,
+    "startDate": 1388275200000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": "RS01SLBS-LJ01A-05-HPIESA101",
+    "eventType": "ACTUAL",
+    "notes": [
+      "RS01SLBS-LJ01A-05-HPIESA101"
+    ],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/RS01SLBS-IntegrationEvents.csv",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806251,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6690,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806251,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6689,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806251,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3345,
+      "lastModifiedTimestamp": 1457476380130,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "2",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "HPIES for RSN",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "44\u00b0 31.3350'N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "RS01SLBS-LJ01A-05-HPIESA101"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "16:37"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "TN-313"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "125\u00b0 22.8306'W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "2896"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "27-Aug-14"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "1"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Recover Date",
+          "value": "22-Jul-15"
+        }
+      ]
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "integratedInto": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474807654,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6988,
+          "url": null,
+          "lastModifiedTimestamp": 1457474807654,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6987,
+          "url": null,
+          "lastModifiedTimestamp": 1457474807654,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3494,
+      "lastModifiedTimestamp": 1457476379978,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "RS01SLBS-LJ01A",
+        "serialNumber": "SN0003",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Mooring",
+        "description": "MOORING RSN",
+        "instrumentClass": "Mooring"
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Recover Date",
+          "value": "5-Jul-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "4-Aug-14"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "RS01SLBS-LJ01A"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "TN-313"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "4:11"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "2905"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "125\u00b0 23.3922'W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "1"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "44\u00b0 30.9162'N"
+        }
+      ]
+    },
+    "lastModifiedTimestamp": 1457474989554,
+    "@class": ".IntegrationEvent",
+    "metaData": []
+  },
+  {
+    "startDate": 1409157420000,
+    "recoveryLocationLonLat": null,
+    "attachments": [],
+    "eventDescription": null,
+    "locationLonLat": [
+      -125.38051,
+      44.52225
+    ],
+    "endDate": 1437523200000,
+    "@class": ".DeploymentEvent",
+    "metaData": [],
+    "eventId": 7473,
+    "locationChangeNotes": [],
+    "recoveryShipName": null,
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806251,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6690,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806251,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6689,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806251,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3345,
+      "lastModifiedTimestamp": 1457476380130,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "2",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "HPIES for RSN",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "44\u00b0 31.3350'N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "RS01SLBS-LJ01A-05-HPIESA101"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "16:37"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "TN-313"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "125\u00b0 22.8306'W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "2896"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "27-Aug-14"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "1"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Recover Date",
+          "value": "22-Jul-15"
+        }
+      ]
+    },
+    "eventType": "ACTUAL",
+    "deploymentShipName": null,
+    "cruisePlanDocument": {
+      "remoteResourceId": 7969,
+      "url": null,
+      "lastModifiedTimestamp": null,
+      "label": null,
+      "dataSource": null,
+      "resourceNumber": null,
+      "@class": ".RemoteResource"
+    },
+    "mooring": null,
+    "recoveryCruiseNumber": null,
+    "deploymentNumber": 1,
+    "tense": "PAST",
+    "dataSource": null,
+    "cruiseNumber": "TN-313",
+    "referenceDesignator": {
+      "node": "LJ01A",
+      "sensor": "05-HPIESA101",
+      "vocab": {
+        "tocL3": "Slope Base ",
+        "tocL2": "Cabled",
+        "tocL1": "",
+        "instrument": "\"Horizontal Electric Field",
+        "refdes": "RS01SLBS-LJ01A-05-HPIESA101"
+      },
+      "full": true,
+      "subsite": "RS01SLBS"
+    },
+    "recoveryPlanDocument": {
+      "remoteResourceId": 7970,
+      "url": null,
+      "lastModifiedTimestamp": null,
+      "label": null,
+      "dataSource": null,
+      "resourceNumber": null,
+      "@class": ".RemoteResource"
+    },
+    "locationType": null,
+    "notes": [],
+    "locationName": null,
+    "depth": 2896.0,
+    "deploymentDocUrls": [],
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457476380143
+  },
+  {
+    "eventId": 3347,
+    "startDate": -62135769600000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "remoteDocuments": [],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+    "tag": "ATAPL-58323-00003",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806272,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6694,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806272,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6693,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806272,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3347,
+      "lastModifiedTimestamp": 1457476380301,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "3",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "HPIES for RSN",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "TN-326"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "22-Jul-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "RS01SLBS-LJ01A-05-HPIESA101"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "2900"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "44\u00b0 31.3382' N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "2"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "125\u00b0 22.8244' W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "6:55:49"
+        }
+      ]
+    },
+    "recordedBy": null,
+    "organization": "OOI",
+    "lastModifiedTimestamp": 1457474806276,
+    "@class": ".TagEvent",
+    "metaData": []
+  },
+  {
+    "startDate": 1437548100000,
+    "recoveryLocationLonLat": null,
+    "attachments": [],
+    "eventDescription": null,
+    "locationLonLat": [
+      -125.38040666666667,
+      44.52230333333333
+    ],
+    "endDate": null,
+    "@class": ".DeploymentEvent",
+    "metaData": [],
+    "eventId": 7480,
+    "locationChangeNotes": [],
+    "recoveryShipName": null,
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806272,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6694,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806272,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6693,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806272,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3347,
+      "lastModifiedTimestamp": 1457476380301,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "3",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "HPIES for RSN",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "TN-326"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "22-Jul-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "RS01SLBS-LJ01A-05-HPIESA101"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "2900"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "44\u00b0 31.3382' N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "2"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "125\u00b0 22.8244' W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "6:55:49"
+        }
+      ]
+    },
+    "eventType": "ACTUAL",
+    "deploymentShipName": null,
+    "cruisePlanDocument": {
+      "remoteResourceId": 7983,
+      "url": null,
+      "lastModifiedTimestamp": null,
+      "label": null,
+      "dataSource": null,
+      "resourceNumber": null,
+      "@class": ".RemoteResource"
+    },
+    "mooring": null,
+    "recoveryCruiseNumber": null,
+    "deploymentNumber": 2,
+    "tense": "PRESENT",
+    "dataSource": null,
+    "cruiseNumber": "TN-326",
+    "referenceDesignator": {
+      "node": "LJ01A",
+      "sensor": "05-HPIESA101",
+      "vocab": {
+        "tocL3": "Slope Base ",
+        "tocL2": "Cabled",
+        "tocL1": "",
+        "instrument": "\"Horizontal Electric Field",
+        "refdes": "RS01SLBS-LJ01A-05-HPIESA101"
+      },
+      "full": true,
+      "subsite": "RS01SLBS"
+    },
+    "recoveryPlanDocument": {
+      "remoteResourceId": 7984,
+      "url": null,
+      "lastModifiedTimestamp": null,
+      "label": null,
+      "dataSource": null,
+      "resourceNumber": null,
+      "@class": ".RemoteResource"
+    },
+    "locationType": null,
+    "notes": [],
+    "locationName": null,
+    "depth": 2900.0,
+    "deploymentDocUrls": [],
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457476380312
+  },
+  {
+    "eventId": 3345,
+    "startDate": -62135769600000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "remoteDocuments": [],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+    "tag": "ATAPL-58323-00002",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806251,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6690,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806251,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6689,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806251,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3345,
+      "lastModifiedTimestamp": 1457476380130,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "2",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "HPIES for RSN",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "44\u00b0 31.3350'N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "RS01SLBS-LJ01A-05-HPIESA101"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "16:37"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "TN-313"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "125\u00b0 22.8306'W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "2896"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "27-Aug-14"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "1"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Recover Date",
+          "value": "22-Jul-15"
+        }
+      ]
+    },
+    "recordedBy": null,
+    "organization": "OOI",
+    "lastModifiedTimestamp": 1457474806256,
+    "@class": ".TagEvent",
+    "metaData": []
+  }
+]

@@ -1,0 +1,1924 @@
+[
+  {
+    "startDate": 1410370200000,
+    "recoveryLocationLonLat": null,
+    "attachments": [],
+    "eventDescription": null,
+    "locationLonLat": null,
+    "endDate": 1440201600000,
+    "@class": ".DeploymentEvent",
+    "metaData": [],
+    "eventId": 7582,
+    "locationChangeNotes": [],
+    "recoveryShipName": null,
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806509,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6742,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806509,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6741,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806509,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3371,
+      "lastModifiedTimestamp": 1457474806509,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "LGR004",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "MTBK for GI01SUMO-00001",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "eventType": "ACTUAL",
+    "deploymentShipName": null,
+    "cruisePlanDocument": null,
+    "mooring": null,
+    "recoveryCruiseNumber": null,
+    "deploymentNumber": 1,
+    "tense": "PAST",
+    "dataSource": null,
+    "cruiseNumber": null,
+    "referenceDesignator": {
+      "node": "SBD11",
+      "sensor": "06-METBKA000",
+      "vocab": {
+        "tocL3": "Buoy Tower",
+        "tocL2": "Apex Surface Mooring",
+        "tocL1": "Irminger Sea",
+        "instrument": "Bulk Meteorology Instrument Package",
+        "refdes": "GI01SUMO-SBD11-06-METBKA000"
+      },
+      "full": true,
+      "subsite": "GI01SUMO"
+    },
+    "recoveryPlanDocument": null,
+    "locationType": null,
+    "notes": [],
+    "locationName": null,
+    "depth": "NaN",
+    "deploymentDocUrls": [],
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457622597970
+  },
+  {
+    "startDate": 1439666520000,
+    "recoveryLocationLonLat": null,
+    "attachments": [],
+    "eventDescription": null,
+    "locationLonLat": null,
+    "endDate": null,
+    "@class": ".DeploymentEvent",
+    "metaData": [],
+    "eventId": 7643,
+    "locationChangeNotes": [],
+    "recoveryShipName": null,
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806529,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6746,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6745,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3373,
+      "lastModifiedTimestamp": 1457474806529,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "LGR021",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "MTBK for GI01SUMO-00002",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "eventType": "ACTUAL",
+    "deploymentShipName": null,
+    "cruisePlanDocument": null,
+    "mooring": null,
+    "recoveryCruiseNumber": null,
+    "deploymentNumber": 2,
+    "tense": "PRESENT",
+    "dataSource": null,
+    "cruiseNumber": null,
+    "referenceDesignator": {
+      "node": "SBD11",
+      "sensor": "06-METBKA000",
+      "vocab": {
+        "tocL3": "Buoy Tower",
+        "tocL2": "Apex Surface Mooring",
+        "tocL1": "Irminger Sea",
+        "instrument": "Bulk Meteorology Instrument Package",
+        "refdes": "GI01SUMO-SBD11-06-METBKA000"
+      },
+      "full": true,
+      "subsite": "GI01SUMO"
+    },
+    "recoveryPlanDocument": null,
+    "locationType": null,
+    "notes": [],
+    "locationName": null,
+    "depth": "NaN",
+    "deploymentDocUrls": [],
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457622608048
+  },
+  {
+    "eventId": 4287,
+    "startDate": 1419724800000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": "METBK-PRC S/N",
+    "eventType": "ACTUAL",
+    "notes": [
+      "METBK-PRC S/N"
+    ],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/GI01SUMO-00002-IntegrationEvents.csv",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806529,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6746,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6745,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3373,
+      "lastModifiedTimestamp": 1457474806529,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "LGR021",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "MTBK for GI01SUMO-00002",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "integratedInto": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806966,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6838,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806966,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6837,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806966,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3419,
+      "lastModifiedTimestamp": 1457622607503,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "GI01SUMO",
+        "serialNumber": "GI01SUMO-00002",
+        "manufacturer": "WHOI"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Mooring",
+        "description": "MOORING Iminger OS",
+        "instrumentClass": "Mooring"
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "AT-30-01"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "59\u00b0 56.615' N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "GI01SUMO"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "2"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "19:22"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "15-Aug-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "39\u00b0 34.423' W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "2668"
+        }
+      ]
+    },
+    "lastModifiedTimestamp": 1457474990556,
+    "@class": ".IntegrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 4283,
+    "startDate": 1419724800000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": "METBK-BPR S/N",
+    "eventType": "ACTUAL",
+    "notes": [
+      "METBK-BPR S/N"
+    ],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/GI01SUMO-00002-IntegrationEvents.csv",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806529,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6746,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6745,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3373,
+      "lastModifiedTimestamp": 1457474806529,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "LGR021",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "MTBK for GI01SUMO-00002",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "integratedInto": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806966,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6838,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806966,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6837,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806966,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3419,
+      "lastModifiedTimestamp": 1457622607503,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "GI01SUMO",
+        "serialNumber": "GI01SUMO-00002",
+        "manufacturer": "WHOI"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Mooring",
+        "description": "MOORING Iminger OS",
+        "instrumentClass": "Mooring"
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "AT-30-01"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "59\u00b0 56.615' N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "GI01SUMO"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "2"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "19:22"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "15-Aug-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "39\u00b0 34.423' W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "2668"
+        }
+      ]
+    },
+    "lastModifiedTimestamp": 1457474990509,
+    "@class": ".IntegrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 7644,
+    "startDate": 1439666520000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "dataSource": null,
+    "calibrationCoefficient": [
+      {
+        "values": 1.0,
+        "name": "CC_jwarm"
+      },
+      {
+        "values": 5.21,
+        "name": "CC_height_of_air_temperature_measurement_m"
+      },
+      {
+        "values": 5.21,
+        "name": "CC_height_of_air_humidity_measurement_m"
+      },
+      {
+        "values": 600.0,
+        "name": "CC_zinvpbl"
+      },
+      {
+        "values": 5.74,
+        "name": "CC_height_of_windspeed_sensor_above_sealevel_m"
+      },
+      {
+        "values": 1.37,
+        "name": "CC_depth_of_conductivity_and_temperature_measurements_m"
+      },
+      {
+        "values": 1.0,
+        "name": "CC_jcool"
+      },
+      {
+        "values": -39.573715,
+        "name": "CC_lon"
+      },
+      {
+        "values": 59.943584,
+        "name": "CC_lat"
+      }
+    ],
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806529,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6746,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6745,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3373,
+      "lastModifiedTimestamp": 1457474806529,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "LGR021",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "MTBK for GI01SUMO-00002",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457622608032,
+    "@class": ".CalibrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 7583,
+    "startDate": 1410370200000,
+    "endDate": 1440201600000,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "dataSource": null,
+    "calibrationCoefficient": [
+      {
+        "values": 1.0,
+        "name": "CC_jwarm"
+      },
+      {
+        "values": 5.12,
+        "name": "CC_height_of_air_temperature_measurement_m"
+      },
+      {
+        "values": 5.12,
+        "name": "CC_height_of_air_humidity_measurement_m"
+      },
+      {
+        "values": 600.0,
+        "name": "CC_zinvpbl"
+      },
+      {
+        "values": 5.31,
+        "name": "CC_height_of_windspeed_sensor_above_sealevel_m"
+      },
+      {
+        "values": 1.25,
+        "name": "CC_depth_of_conductivity_and_temperature_measurements_m"
+      },
+      {
+        "values": 1.0,
+        "name": "CC_jcool"
+      },
+      {
+        "values": -39.473835,
+        "name": "CC_lon"
+      },
+      {
+        "values": 59.933735,
+        "name": "CC_lat"
+      }
+    ],
+    "tense": "PAST",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806509,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6742,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806509,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6741,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806509,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3371,
+      "lastModifiedTimestamp": 1457474806509,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "LGR004",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "MTBK for GI01SUMO-00001",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "lastModifiedTimestamp": 1457622597953,
+    "@class": ".CalibrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 4463,
+    "startDate": 1419724800000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": "METBK-Log S/N",
+    "eventType": "ACTUAL",
+    "notes": [
+      "METBK-Log S/N"
+    ],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/GI01SUMO-00001-IntegrationEvents.csv",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806509,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6742,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806509,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6741,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806509,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3371,
+      "lastModifiedTimestamp": 1457474806509,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "LGR004",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "MTBK for GI01SUMO-00001",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "integratedInto": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806956,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6836,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806956,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6835,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806956,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3418,
+      "lastModifiedTimestamp": 1457474806956,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "GI01SUMO",
+        "serialNumber": "GI01SUMO-00001",
+        "manufacturer": "WHOI"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Mooring",
+        "description": "MOORING Iminger OS",
+        "instrumentClass": "Mooring"
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "lastModifiedTimestamp": 1457474992685,
+    "@class": ".IntegrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 3371,
+    "startDate": -62135769600000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "remoteDocuments": [],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+    "tag": "N00741",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806509,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6742,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806509,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6741,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806509,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3371,
+      "lastModifiedTimestamp": 1457474806509,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "LGR004",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "MTBK for GI01SUMO-00001",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "recordedBy": null,
+    "organization": "OOI",
+    "lastModifiedTimestamp": 1457474806513,
+    "@class": ".TagEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 3373,
+    "startDate": -62135769600000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": null,
+    "eventType": "ACTUAL",
+    "notes": [],
+    "remoteDocuments": [],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+    "tag": "N00743",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806529,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6746,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6745,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3373,
+      "lastModifiedTimestamp": 1457474806529,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "LGR021",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "MTBK for GI01SUMO-00002",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "recordedBy": null,
+    "organization": "OOI",
+    "lastModifiedTimestamp": 1457474806533,
+    "@class": ".TagEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 4289,
+    "startDate": 1419724800000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": "METBK-WND S/N",
+    "eventType": "ACTUAL",
+    "notes": [
+      "METBK-WND S/N"
+    ],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/GI01SUMO-00002-IntegrationEvents.csv",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806529,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6746,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6745,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3373,
+      "lastModifiedTimestamp": 1457474806529,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "LGR021",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "MTBK for GI01SUMO-00002",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "integratedInto": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806966,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6838,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806966,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6837,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806966,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3419,
+      "lastModifiedTimestamp": 1457622607503,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "GI01SUMO",
+        "serialNumber": "GI01SUMO-00002",
+        "manufacturer": "WHOI"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Mooring",
+        "description": "MOORING Iminger OS",
+        "instrumentClass": "Mooring"
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "AT-30-01"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "59\u00b0 56.615' N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "GI01SUMO"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "2"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "19:22"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "15-Aug-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "39\u00b0 34.423' W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "2668"
+        }
+      ]
+    },
+    "lastModifiedTimestamp": 1457474990580,
+    "@class": ".IntegrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 4286,
+    "startDate": 1419724800000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": "METBK-LWR S/N",
+    "eventType": "ACTUAL",
+    "notes": [
+      "METBK-LWR S/N"
+    ],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/GI01SUMO-00002-IntegrationEvents.csv",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806529,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6746,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6745,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3373,
+      "lastModifiedTimestamp": 1457474806529,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "LGR021",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "MTBK for GI01SUMO-00002",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "integratedInto": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806966,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6838,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806966,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6837,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806966,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3419,
+      "lastModifiedTimestamp": 1457622607503,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "GI01SUMO",
+        "serialNumber": "GI01SUMO-00002",
+        "manufacturer": "WHOI"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Mooring",
+        "description": "MOORING Iminger OS",
+        "instrumentClass": "Mooring"
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "AT-30-01"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "59\u00b0 56.615' N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "GI01SUMO"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "2"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "19:22"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "15-Aug-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "39\u00b0 34.423' W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "2668"
+        }
+      ]
+    },
+    "lastModifiedTimestamp": 1457474990544,
+    "@class": ".IntegrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 4288,
+    "startDate": 1419724800000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": "METBK-SWR S/N",
+    "eventType": "ACTUAL",
+    "notes": [
+      "METBK-SWR S/N"
+    ],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/GI01SUMO-00002-IntegrationEvents.csv",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806529,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6746,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6745,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3373,
+      "lastModifiedTimestamp": 1457474806529,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "LGR021",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "MTBK for GI01SUMO-00002",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "integratedInto": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806966,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6838,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806966,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6837,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806966,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3419,
+      "lastModifiedTimestamp": 1457622607503,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "GI01SUMO",
+        "serialNumber": "GI01SUMO-00002",
+        "manufacturer": "WHOI"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Mooring",
+        "description": "MOORING Iminger OS",
+        "instrumentClass": "Mooring"
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "AT-30-01"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "59\u00b0 56.615' N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "GI01SUMO"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "2"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "19:22"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "15-Aug-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "39\u00b0 34.423' W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "2668"
+        }
+      ]
+    },
+    "lastModifiedTimestamp": 1457474990567,
+    "@class": ".IntegrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 4282,
+    "startDate": 1419724800000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": "METBK-Log S/N",
+    "eventType": "ACTUAL",
+    "notes": [
+      "METBK-Log S/N"
+    ],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/GI01SUMO-00002-IntegrationEvents.csv",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806529,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6746,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6745,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3373,
+      "lastModifiedTimestamp": 1457474806529,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "LGR021",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "MTBK for GI01SUMO-00002",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "integratedInto": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806966,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6838,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806966,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6837,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806966,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3419,
+      "lastModifiedTimestamp": 1457622607503,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "GI01SUMO",
+        "serialNumber": "GI01SUMO-00002",
+        "manufacturer": "WHOI"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Mooring",
+        "description": "MOORING Iminger OS",
+        "instrumentClass": "Mooring"
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "AT-30-01"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "59\u00b0 56.615' N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "GI01SUMO"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "2"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "19:22"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "15-Aug-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "39\u00b0 34.423' W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "2668"
+        }
+      ]
+    },
+    "lastModifiedTimestamp": 1457474990497,
+    "@class": ".IntegrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 4284,
+    "startDate": 1419724800000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": "METBK-CT S/N",
+    "eventType": "ACTUAL",
+    "notes": [
+      "METBK-CT S/N"
+    ],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/GI01SUMO-00002-IntegrationEvents.csv",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806529,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6746,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6745,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3373,
+      "lastModifiedTimestamp": 1457474806529,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "LGR021",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "MTBK for GI01SUMO-00002",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "integratedInto": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806966,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6838,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806966,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6837,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806966,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3419,
+      "lastModifiedTimestamp": 1457622607503,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "GI01SUMO",
+        "serialNumber": "GI01SUMO-00002",
+        "manufacturer": "WHOI"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Mooring",
+        "description": "MOORING Iminger OS",
+        "instrumentClass": "Mooring"
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "AT-30-01"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "59\u00b0 56.615' N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "GI01SUMO"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "2"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "19:22"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "15-Aug-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "39\u00b0 34.423' W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "2668"
+        }
+      ]
+    },
+    "lastModifiedTimestamp": 1457474990520,
+    "@class": ".IntegrationEvent",
+    "metaData": []
+  },
+  {
+    "eventId": 4285,
+    "startDate": 1419724800000,
+    "endDate": null,
+    "attachments": [],
+    "eventDescription": "METBK-HRH S/N",
+    "eventType": "ACTUAL",
+    "notes": [
+      "METBK-HRH S/N"
+    ],
+    "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/GI01SUMO-00002-IntegrationEvents.csv",
+    "tense": "PRESENT",
+    "asset": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806529,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6746,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6745,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806529,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3373,
+      "lastModifiedTimestamp": 1457474806529,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": null,
+        "serialNumber": "LGR021",
+        "manufacturer": null
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Sensor",
+        "description": "MTBK for GI01SUMO-00002",
+        "instrumentClass": null
+      },
+      "@class": ".AssetRecord",
+      "metaData": []
+    },
+    "remoteDocuments": [],
+    "recordedBy": null,
+    "integratedInto": {
+      "purchaseAndDeliveryInfo": {
+        "deliveryDate": 1457474806966,
+        "purchaseDate": null,
+        "purchaseOrder": {
+          "remoteResourceId": 6838,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806966,
+          "label": "Purchase Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        },
+        "purchaseCost": 0.0,
+        "deliveryOrder": {
+          "remoteResourceId": 6837,
+          "url": null,
+          "lastModifiedTimestamp": 1457474806966,
+          "label": "Delivery Order",
+          "dataSource": null,
+          "resourceNumber": null,
+          "@class": ".RemoteResource"
+        }
+      },
+      "assetId": 3419,
+      "lastModifiedTimestamp": 1457622607503,
+      "physicalInfo": {
+        "depthRatingM": 0.0,
+        "heightCm": 0.0,
+        "requiredPowerW": 0.0,
+        "widthCm": 0.0,
+        "lengthCm": 0.0,
+        "weightOz": 0.0
+      },
+      "manufactureInfo": {
+        "modelNumber": "GI01SUMO",
+        "serialNumber": "GI01SUMO-00002",
+        "manufacturer": "WHOI"
+      },
+      "dataSource": "BULK-CSV: /home/asadev/uframes/uframe_ooi_20160308_ea1dae284889d8686e687e78f1361264e0133374/uframe-1.0/edex/data/ooi/asset_spreadsheet/bulk_load-AssetRecord.csv",
+      "remoteDocuments": [],
+      "assetInfo": {
+        "owner": null,
+        "type": "Mooring",
+        "description": "MOORING Iminger OS",
+        "instrumentClass": "Mooring"
+      },
+      "@class": ".AssetRecord",
+      "metaData": [
+        {
+          "type": "java.lang.String",
+          "key": "Cruise Number",
+          "value": "AT-30-01"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Latitude",
+          "value": "59\u00b0 56.615' N"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Ref Des",
+          "value": "GI01SUMO"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Deployment Number",
+          "value": "2"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Time",
+          "value": "19:22"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Anchor Launch Date",
+          "value": "15-Aug-15"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Longitude",
+          "value": "39\u00b0 34.423' W"
+        },
+        {
+          "type": "java.lang.String",
+          "key": "Water Depth",
+          "value": "2668"
+        }
+      ]
+    },
+    "lastModifiedTimestamp": 1457474990532,
+    "@class": ".IntegrationEvent",
+    "metaData": []
+  }
+]
