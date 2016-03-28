@@ -4,7 +4,7 @@ import os
 import unittest
 
 import numpy as np
-import xray as xr
+import xarray as xr
 from ion_functions.data.ctd_functions import ctd_sbe16plus_tempwat, ctd_pracsal
 
 from preload_database.database import initialize_connection, open_connection, PreloadDatabaseMode
