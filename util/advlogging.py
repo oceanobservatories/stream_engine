@@ -32,12 +32,11 @@ class CalculatedParameter(object):
         self.arg_summary.append(query_parameter.argument)
         self.algorithm_arguments.append(query_parameter)
 
-
 class QueryData(object):
-
     def __init__(self, name):
         self.calculated_parameters = {}
         self.user_info = QueryInfo(name)
+        self.calculated_result = None
 
     def add_algorithm_argument(self, calc_param_id, arg):
         calc_param = self.calculated_parameters[calc_param_id]
@@ -67,6 +66,9 @@ class ParameterReport(object):
 
     def set_calculated_parameter(self, param_id, param_name, algorithm):
         self.m_qdata.add_calculated_parameter(param_id, param_name, algorithm)
+
+    def add_result(self, value):
+        self.m_qdata.calculated_result = value
 
     def write(self):
         try:
