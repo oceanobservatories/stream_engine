@@ -172,6 +172,7 @@ def _validate_stream(stream):
 
 
 def _get_userflags(input_data):
-    keys = ['userName', 'advancedStreamEngineLogging']
+    keys = ['userName', 'advancedStreamEngineLogging', 'requestTime']
     user_flags = {k: input_data.get(k) for k in keys}
+
     return user_flags

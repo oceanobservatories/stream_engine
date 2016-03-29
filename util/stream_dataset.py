@@ -10,7 +10,7 @@ from util.advlogging import ParameterReport
 from util.annotation import AnnotationStore
 from util.cass import (get_location_metadata, fetch_nth_data, get_full_cass_dataset, get_first_before_metadata,
                        get_cass_lookback_dataset, CASS_LOCATION_NAME, SAN_LOCATION_NAME)
-from util.common import (log_timing, ntp_to_datestring, UnknownFunctionTypeException,
+from util.common import (log_timing, ntp_to_datestring, ntp_to_datetime, UnknownFunctionTypeException,
                          StreamEngineException, TimeRange, MissingDataException)
 from util.datamodel import create_empty_dataset, compile_datasets
 from util.provenance_metadata_store import ProvenanceMetadataStore
@@ -193,8 +193,9 @@ class StreamDataset(object):
             missing = {k: function_map[k] for k in set(function_map) - set(kwargs)}
 
         if not missing and kwargs:
-            self._log_algorithm_inputs(param, kwargs)
+            ds_start, ds_end = dataset.time.values[0], dataset.time.values[-1]
             result, version = self._execute_algorithm(param, kwargs)
+            self._log_algorithm_inputs(param, kwargs, result.tolist(), ds_start, ds_end)
             if result is not None:
                 dims = ['obs']
                 for index, _ in enumerate(result.shape[1:]):
@@ -349,17 +350,22 @@ class StreamDataset(object):
                 'time_endDT': t2_dt,
                 'deployments': [deployment]}
 
-    def _log_algorithm_inputs(self, parameter, kwargs):
+    def _log_algorithm_inputs(self, parameter, kwargs, result, ds_start, ds_end):
         flag = self.uflags.get('advancedStreamEngineLogging', False)
-        user = self.uflags.get('userName', '_nouser')
-
         if flag:
+            user = self.uflags.get('userName', '_nouser')
+            prefix = self.uflags.get('requestTime', 'time-unspecified')
             log.debug('<%s> _log_algorithm_inputs (%r)', self.request_id, parameter)
-            log_name = '{:s}-{:s}'.format(self.stream_key.as_dashed_refdes(), parameter.name)
-            report = ParameterReport(user, self.request_id, log_name)
+            begin_dt, end_dt = ntp_to_datetime(ds_start), ntp_to_datetime(ds_end)
+            begin_date = begin_dt.strftime('%Y%m%dT%H%M%S')
+            end_date = end_dt.strftime('%Y%m%dT%H%M%S')
+            log_dir = '{:s}-{:s}'.format(prefix, self.stream_key.as_dashed_refdes())
+            log_name = '{:s}-{:s}-{:s}-{:s}'.format(begin_date, end_date, self.stream_key.as_dashed_refdes(), parameter.name)
+            report = ParameterReport(user, log_dir, log_name)
             report.set_calculated_parameter(parameter.id, parameter.name, parameter.parameter_function.function)
             for key, value in kwargs.iteritems():
                 report.add_parameter_argument(parameter.id, key, value.tolist())
+            report.add_result(result)
             report.write()
 
     @log_timing(log)
