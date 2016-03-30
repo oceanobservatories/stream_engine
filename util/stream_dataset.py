@@ -193,8 +193,13 @@ class StreamDataset(object):
             missing = {k: function_map[k] for k in set(function_map) - set(kwargs)}
 
         if not missing and kwargs:
-            ds_start, ds_end = dataset.time.values[0], dataset.time.values[-1]
             result, version = self._execute_algorithm(param, kwargs)
+            if 'time' in dataset:
+                ds_start, ds_end = dataset.time.values[0], dataset.time.values[-1]
+            elif stream_key.stream.time_parameter is param:
+                ds_start, ds_end = result[0], result[-1]
+            else:
+                ds_start = ds_end = 0
             self._log_algorithm_inputs(param, kwargs, result.tolist(), ds_start, ds_end)
             calc_metadata = self._create_calculation_metadata(param, version, arg_metadata)
             self.provenance_metadata.calculated_metadata.insert_metadata(param, calc_metadata)
