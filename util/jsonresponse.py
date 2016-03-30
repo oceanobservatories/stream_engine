@@ -6,6 +6,7 @@ from numbers import Number
 import numpy as np
 from common import log_timing
 from engine import app
+from preload_database.model.preload import Parameter, Stream
 
 
 __author__ = 'Stephen Zakrewsky'
@@ -151,5 +152,7 @@ class NumpyJSONEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, (np.generic, np.ndarray)):
             return o.tolist()
+        if isinstance(o, (Stream, Parameter)):
+            return repr(o)
         else:
             return json.JSONEncoder.default(self, o)
