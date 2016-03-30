@@ -151,5 +151,7 @@ class NumpyJSONEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, (np.generic, np.ndarray)):
             return o.tolist()
+        if isinstance(o, (Stream, Parameter)):
+            return repr(o)
         else:
             return json.JSONEncoder.default(self, o)
