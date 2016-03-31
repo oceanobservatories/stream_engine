@@ -200,10 +200,10 @@ class StreamDataset(object):
                 ds_start, ds_end = result[0], result[-1]
             else:
                 ds_start = ds_end = 0
-            self._log_algorithm_inputs(param, kwargs, result.tolist(), ds_start, ds_end)
             calc_metadata = self._create_calculation_metadata(param, version, arg_metadata)
             self.provenance_metadata.calculated_metadata.insert_metadata(param, calc_metadata)
             if result is not None:
+                self._log_algorithm_inputs(param, kwargs, result.tolist(), ds_start, ds_end)
                 dims = ['obs']
                 for index, _ in enumerate(result.shape[1:]):
                     name = '%s_dim_%d' % (param.name, index)
