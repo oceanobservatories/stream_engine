@@ -194,13 +194,7 @@ class StreamDataset(object):
 
         if not missing and kwargs:
             result, version = self._execute_algorithm(param, kwargs)
-            if 'time' in dataset:
-                ds_start, ds_end = dataset.time.values[0], dataset.time.values[-1]
-            elif stream_key.stream.time_parameter is param:
-                ds_start, ds_end = result[0], result[-1]
-            else:
-                ds_start = ds_end = 0
-            self._log_algorithm_inputs(param, kwargs, result.tolist(), ds_start, ds_end)
+            self._log_algorithm_inputs(param, kwargs, result, stream_key, dataset)
             calc_metadata = self._create_calculation_metadata(param, version, arg_metadata)
             self.provenance_metadata.calculated_metadata.insert_metadata(param, calc_metadata)
             if result is not None:
@@ -360,9 +354,16 @@ class StreamDataset(object):
                 'time_endDT': t2_dt,
                 'deployments': [deployment]}
 
-    def _log_algorithm_inputs(self, parameter, kwargs, result, ds_start, ds_end):
+    def _log_algorithm_inputs(self, parameter, kwargs, result, stream_key, dataset):
         flag = self.uflags.get('advancedStreamEngineLogging', False)
         if flag:
+            if 'time' in dataset:
+                ds_start, ds_end = dataset.time.values[0], dataset.time.values[-1]
+            elif stream_key.stream.time_parameter is parameter:
+                ds_start, ds_end = result[0], result[-1]
+            else:
+                ds_start = ds_end = 0
+
             user = self.uflags.get('userName', '_nouser')
             prefix = self.uflags.get('requestTime', 'time-unspecified')
             log.debug('<%s> _log_algorithm_inputs (%r)', self.request_id, parameter)
@@ -375,8 +376,11 @@ class StreamDataset(object):
             report.set_calculated_parameter(parameter.id, parameter.name, parameter.parameter_function.function)
             for key, value in kwargs.iteritems():
                 report.add_parameter_argument(parameter.id, key, value.tolist())
-            report.add_result(result)
-            report.write()
+            if result is not None:
+                report.add_result(result.tolist())
+            else:
+                report.add_result(None)
+            return report.write()
 
     @log_timing(log)
     def _execute_algorithm(self, parameter, kwargs):

@@ -3,11 +3,14 @@ import logging
 import os
 import unittest
 
+import mock
 import numpy as np
 import xarray as xr
 from ion_functions.data.ctd_functions import ctd_sbe16plus_tempwat, ctd_pracsal
 
 from preload_database.database import initialize_connection, open_connection, PreloadDatabaseMode
+from preload_database.model.preload import Parameter
+from util.advlogging import jdefault
 from util.calibration_coefficient_store import CalibrationCoefficientStore
 from util.common import StreamKey, TimeRange
 from util.stream_dataset import StreamDataset
@@ -155,3 +158,47 @@ class StreamDatasetTest(unittest.TestCase):
                            'ctdpf_sbe43_sample-practical_salinity',
                            'temp_sal_corrected_nitrate']
         self.assert_parameters_in_datasets(nut_stream_dataset.datasets, expected_params)
+
+    def test_log_algorithm_inputs(self):
+        def mock_write(self):
+            return json.dumps(self.m_qdata, default=jdefault)
+
+        tr = TimeRange(3.65342400e+09, 3.65351040e+09)
+        coefficients = {k: [{'start': tr.start - 1, 'stop': tr.stop + 1, 'value': v, 'deployment': 1}]
+                        for k, v in self.ctd_nutnr_cals.iteritems()}
+        coefficients = CalibrationCoefficientStore(coefficients, 'UNIT')
+
+        ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, self.ctdpf_fn), decode_times=False)
+        ctd_ds = ctd_ds[['obs', 'time', 'deployment', 'temperature', 'pressure',
+                         'pressure_temp', 'conductivity', 'ext_volt0']]
+
+        uflags = {'advancedStreamEngineLogging': True, 'userName': 'test'}
+        ctd_stream_dataset = StreamDataset(self.ctdpf_sk, coefficients, uflags, [], 'UNIT')
+        ctd_stream_dataset._insert_dataset(ctd_ds)
+
+        parameter = Parameter.query.get(911)
+        with mock.patch('util.stream_dataset.ParameterReport.write', new=mock_write):
+            result = ctd_stream_dataset._log_algorithm_inputs(parameter, {}, np.array([1, 2, 3]), self.ctdpf_sk, ctd_ds)
+            print result
+
+    def test_log_algorithm_inputs_no_result(self):
+        def mock_write(self):
+            return json.dumps(self.m_qdata, default=jdefault)
+
+        tr = TimeRange(3.65342400e+09, 3.65351040e+09)
+        coefficients = {k: [{'start': tr.start - 1, 'stop': tr.stop + 1, 'value': v, 'deployment': 1}]
+                        for k, v in self.ctd_nutnr_cals.iteritems()}
+        coefficients = CalibrationCoefficientStore(coefficients, 'UNIT')
+
+        ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, self.ctdpf_fn), decode_times=False)
+        ctd_ds = ctd_ds[['obs', 'time', 'deployment', 'temperature', 'pressure',
+                         'pressure_temp', 'conductivity', 'ext_volt0']]
+
+        uflags = {'advancedStreamEngineLogging': True, 'userName': 'test'}
+        ctd_stream_dataset = StreamDataset(self.ctdpf_sk, coefficients, uflags, [], 'UNIT')
+        ctd_stream_dataset._insert_dataset(ctd_ds)
+
+        parameter = Parameter.query.get(911)
+        with mock.patch('util.stream_dataset.ParameterReport.write', new=mock_write):
+            result = ctd_stream_dataset._log_algorithm_inputs(parameter, {}, None, self.ctdpf_sk, ctd_ds)
+            print result
