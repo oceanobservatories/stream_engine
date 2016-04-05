@@ -71,11 +71,18 @@ class NetcdfGenerator(object):
                     ds[data_array_name] = self.convert_data_array(data_array, data_type, np.int32)
             ds.to_netcdf(path=file_path, format="NETCDF4_CLASSIC")
         else:
-            compr = True            
+            compr = True
             comp_level = app.config.get('HDF5_COMP_LEVEL', 1)
             if comp_level <= 0:
                 compr = False
+            self._ensure_no_int64(ds)
             ds.to_netcdf(file_path, encoding={k: {'zlib': compr, 'complevel': comp_level} for k in ds})
+
+    def _ensure_no_int64(self, ds):
+        for each in ds:
+            if ds[each].dtype == 'int64':
+                ds[each] = ds[each].astype('int32')
+                log.info('<%s> Forced %s from int64 to int32', self.request_id, each)
 
     @log_timing(log)
     def convert_data_array(self, data_array, orig_data_type, dest_data_type):
