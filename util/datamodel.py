@@ -139,7 +139,7 @@ def to_xray_dataset(cols, data, stream_key, request_uuid, san=False):
             fill_val = _get_fill_value(param)
             is_array = param.parameter_type == 'array<quantity>'
         else:
-            encoding = str
+            encoding = 'str'
             fill_val = ''
             is_array = False
 
@@ -147,6 +147,10 @@ def to_xray_dataset(cols, data, stream_key, request_uuid, san=False):
             encoding = app.config['INTERNAL_OUTPUT_MAPPING'][column]
 
         data = _replace_values(dataframe[column].values, encoding, fill_val, is_array, column)
+        data = _force_dtype(data, encoding)
+        if data is None:
+            log.error('<%s> Unable to encode data NAME: %s FROM: %s TO: %s, dropping from dataset',
+                      request_uuid, column, data.dtype, encoding)
 
         # Fix up the dimensions for possible multi-d objects
         dims = ['obs']
@@ -175,6 +179,13 @@ def to_xray_dataset(cols, data, stream_key, request_uuid, san=False):
         dataset.update({column: xr.DataArray(data, dims=dims, attrs=array_attrs)})
 
     return dataset
+
+
+def _force_dtype(data_slice, value_encoding):
+    try:
+        return data_slice.astype(value_encoding)
+    except ValueError:
+        return None
 
 
 def _replace_values(data_slice, value_encoding, fill_value, is_array, name):
