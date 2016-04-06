@@ -11,7 +11,7 @@ from flask import request, Response, jsonify, send_file
 import util.aggregation
 import util.calc
 from engine import app
-from util.common import StreamEngineException, TimedOutException, MissingDataException, MissingTimeException
+from util.common import StreamEngineException, TimedOutException, MissingDataException, MissingTimeException, ntp_to_datestring
 from util.san import onload_netCDF, SAN_netcdf
 
 log = logging.getLogger(__name__)
@@ -82,11 +82,19 @@ def write_file_with_content(base_path, file_path, content):
         return False
 
 
-def write_status(path, status="complete"):
+def write_status(path, filename="status.txt", status="complete"):
     if not os.path.exists(path):
         os.makedirs(path)
-    with open(os.path.join(path, "status.txt"), 'w') as s:
-        s.write(status)
+    with open(os.path.join(path, filename), 'w') as s:
+        s.write(status + os.linesep)
+
+def time_prefix_filename(ntp_start, ntp_stop, suffix):
+    sdate = ntp_to_datestring(ntp_start)
+    edate = ntp_to_datestring(ntp_stop)
+    s = "-"
+    status_filename = s.join((sdate.translate(None, '-:'),edate.translate(None, '-:'), suffix))
+    return status_filename
+
 
 
 ##########################
@@ -175,8 +183,12 @@ def netcdf_save_to_filesystem():
     try:
         json_str = util.calc.get_netcdf(input_data, request.url)
     except Exception as e:
-        json_str = output_async_error(input_data, e)
+        json_efile = time_prefix_filename(input_data.get('start'), input_data.get('stop'), "failure.json")
+        json_str = output_async_error(input_data, e, filename=json_efile)
 
+    status_filename = time_prefix_filename(input_data.get('start'), input_data.get('stop'), "status.txt")
+
+    write_status(base_path, filename=status_filename)
     write_status(base_path)
     return Response(json_str, mimetype='application/json')
 
@@ -215,7 +227,10 @@ def particles_save_to_filesystem():
         message = "Request for particles failed for the following reason: " + e.message
         # set the contents of failure.json
         json_output = json.dumps({'code': 500, 'message': message, 'requestUUID': input_data.get('requestUUID', '')})
-        file_path = os.path.join(base_path, 'failure.json')
+        sep = "-"
+        # input_data.get('requestUUID')
+        filename = time_prefix_filename(input_data.get('start'), input_data.get('stop'), "failure.json")
+        file_path = os.path.join(base_path, filename)
         log.exception(json_output)
     # try to write file, if it does not succeed then return an error
     if not write_file_with_content(base_path, file_path, json_output):
@@ -392,7 +407,7 @@ def needs():
     return Response(json.dumps(output_data), mimetype='application/json')
 
 
-def output_async_error(input_data, e):
+def output_async_error(input_data, e, filename="failure.json"):
     output = {
         "code": 500,
         "message": "Request for particles failed for the following reason: %s" % e.message,
@@ -401,7 +416,7 @@ def output_async_error(input_data, e):
     base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], input_data.get('directory', 'unknown'))
     # try to write file, if it does not succeed then return an additional error
     json_str = json.dumps(output, indent=2, separators=(',', ': '))
-    if not write_file_with_content(base_path, os.path.join(base_path, "failure.json"), json_str):
+    if not write_file_with_content(base_path, os.path.join(base_path, filename), json_str):
         msg = "%s. Supplied directory '%s' is invalid. Path specified exists but is not a directory." % (
             output['message'], base_path)
         output['message'] = msg
