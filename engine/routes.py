@@ -11,7 +11,7 @@ from flask import request, Response, jsonify, send_file
 import util.aggregation
 import util.calc
 from engine import app
-from util.common import StreamEngineException, TimedOutException, MissingDataException, MissingTimeException, ntp_to_datestring
+from util.common import StreamEngineException, TimedOutException, MissingDataException, MissingTimeException, ntp_to_datestring, StreamKey
 from util.san import onload_netCDF, SAN_netcdf
 
 log = logging.getLogger(__name__)
@@ -201,18 +201,13 @@ def particles_save_to_filesystem():
     :return: JSON object:
     """
     input_data = request.get_json()
-    request_id = input_data.get('requestUUID', 'unknown')
-    streams = input_data.get('streams')
-
-    # output is sent to filesystem, the directory will be supplied via endpoint, in case it is not, use a default
-    # NOTE(uFrame): If a default is being used, there's likely a bug in uFrame
-    base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'],
-                             input_data.get('directory', 'unknown/%0f-%s' % request_id))
-
-    filename = '%s.json' % streams[0].stream
-    code = 200
+    base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], input_data.get('directory', 'unknown'))
+    filename = '{:s}.json'.format(StreamKey.from_dict(input_data.get('streams')[0]).as_dashed_refdes())
     file_path = os.path.join(base_path, filename)
+
+    code = 200
     message = str([file_path])
+
     try:
         json_output = util.calc.get_particles(input_data, request.url)
     except (MissingDataException, MissingTimeException) as e:
@@ -230,6 +225,7 @@ def particles_save_to_filesystem():
         filename = time_prefix_filename(input_data.get('start'), input_data.get('stop'), "failure.json")
         file_path = os.path.join(base_path, filename)
         log.exception(json_output)
+
     # try to write file, if it does not succeed then return an error
     if not write_file_with_content(base_path, file_path, json_output):
         # if the code is 500, append message, otherwise replace it with this error
