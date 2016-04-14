@@ -3,6 +3,7 @@ import logging
 import os
 import tempfile
 import zipfile
+import shutil
 
 import numpy as np
 
@@ -27,20 +28,11 @@ class NetcdfGenerator(object):
 
     @log_timing(log)
     def create_raw_files(self):
-        file_paths = []
         base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], self.disk_path)
         # ensure the directory structure is there
         if not os.path.isdir(base_path):
             os.makedirs(base_path)
-        for stream_key, stream_dataset in self.stream_request.datasets.iteritems():
-            for deployment, ds in stream_dataset.datasets.iteritems():
-                self._add_dynamic_attributes(ds, stream_key, deployment)
-                start = ds.attrs['time_coverage_start'].translate(None, '-:')
-                end = ds.attrs['time_coverage_end'].translate(None, '-:')
-                self._add_provenance(ds, stream_dataset.provenance_metadata)
-                file_path = '%s/deployment%04d_%s_%s-%s.nc' % (base_path, deployment, stream_key.as_dashed_refdes(), start, end)
-                self.to_netcdf(ds, file_path)
-                file_paths.append(file_path)
+        file_paths = self._create_files(base_path)
         # build json return
         return json.dumps({'code': 200, 'message': str(file_paths)}, indent=2)
 
@@ -48,16 +40,26 @@ class NetcdfGenerator(object):
     def create_zip(self):
         with tempfile.NamedTemporaryFile() as tzf:
             with zipfile.ZipFile(tzf.name, 'w') as zf:
-                self.write_to_zipfile(zf)
+                temp_dir = tempfile.mkdtemp()
+                file_paths = self._create_files(temp_dir)
+                for file_path in file_paths:
+                    zf.write(file_path, os.path.basename(file_path))
+                shutil.rmtree(temp_dir)
             return tzf.read()
 
-    @log_timing(log)
-    def write_to_zipfile(self, zf):
-        for stream_key, dataset in self.stream_request.datasets.iteritems():
-            for deployment, ds in dataset.groupby('deployment'):
-                with tempfile.NamedTemporaryFile() as tf:
-                    self.to_netcdf(ds, tf.name)
-                    zf.write(tf.name, 'deployment%04d_%s.nc' % (deployment, stream_key.as_dashed_refdes(),))
+    def _create_files(self, base_path):
+        file_paths = []
+        for stream_key, stream_dataset in self.stream_request.datasets.iteritems():
+            for deployment, ds in stream_dataset.datasets.iteritems():
+                self._add_dynamic_attributes(ds, stream_key, deployment)
+                start = ds.attrs['time_coverage_start'].translate(None, '-:')
+                end = ds.attrs['time_coverage_end'].translate(None, '-:')
+                self._add_provenance(ds, stream_dataset.provenance_metadata)
+                file_name = 'deployment%04d_%s_%s-%s.nc' % (deployment, stream_key.as_dashed_refdes(), start, end)
+                file_path = os.path.join(base_path, file_name)
+                self.to_netcdf(ds, file_path)
+                file_paths.append(file_path)
+        return file_paths
 
     @log_timing(log)
     def to_netcdf(self, ds, file_path):

@@ -55,10 +55,13 @@ class ProvenanceMetadataStore(object):
         self._instrument_provenance[stream_key] = metadata_threadpool.apply_async(_send_query_for_instrument, (url,))
 
     def get_instrument_provenance(self):
-        vals = defaultdict(list)
-        for key, value in self._instrument_provenance.iteritems():
-            vals[key.as_three_part_refdes()].extend(value.get())
-        return vals
+        try:
+            vals = defaultdict(list)
+            for key, value in self._instrument_provenance.iteritems():
+                vals[key.as_three_part_refdes()].extend(value.get())
+            return vals
+        except ValueError:
+            return None
 
     def add_query_metadata(self, stream_request, query_uuid, query_type):
         self._query_metadata['query_type'] = query_type

@@ -75,7 +75,7 @@ def get_netcdf(input_data, url):
     disk_path = input_data.get('directory', 'unknown')
     classic = input_data.get('classic', False)
     stream_request = execute_stream_request(validate(input_data))
-    return NetcdfGenerator(stream_request, classic, disk_path).write()
+    return stream_request.stream_key.stream.name, NetcdfGenerator(stream_request, classic, disk_path).write()
 
 
 @time_request
