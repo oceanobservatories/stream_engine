@@ -2,6 +2,8 @@ import json
 import logging
 import os
 import unittest
+import httplib
+import ast
 
 import mock
 import numpy as np
@@ -170,7 +172,29 @@ class StreamRequestTest(unittest.TestCase):
         response = json.loads(JsonResponse(sr).json())
         self.assertEqual(len(response), len(nutnr_ds.time.values))
 
-    def test_netcdf(self):
+    def test_netcdf_raw_files(self):
+        disk_path = os.path.join(DATA_DIR, 'test_out')
+        _, json_data = self._test_netcdf(disk_path)
+        # Process results
+        json_decoded = json.loads(json_data)
+        self.assertIn('code', json_decoded)
+        self.assertIn('message', json_decoded)
+        self.assertIsInstance(json_decoded['code'], int)
+        self.assertIsInstance(json_decoded['message'], unicode)
+        self.assertEqual(json_decoded['code'], httplib.OK)
+        file_paths = ast.literal_eval(json_decoded['message'])
+        for file_path in file_paths:
+            self.assertTrue(os.path.isfile(file_path))
+
+    def test_netcdf_zip(self):
+        disk_path = None
+        stream_name, zip_data = self._test_netcdf(disk_path)
+        # Process results
+        file_path = os.path.join(DATA_DIR, 'test_out', '%s.zip' % stream_name)
+        with open(file_path, 'w') as f:
+            f.write(zip_data)
+
+    def _test_netcdf(self, disk_path):
         nutnr_sk = StreamKey('CE04OSPS', 'SF01B', '4A-NUTNRA102', 'streamed', 'nutnr_a_sample')
         ctdpf_sk = StreamKey('CE04OSPS', 'SF01B', '2A-CTDPFA107', 'streamed', 'ctdpf_sbe43_sample')
         nutnr_fn = 'nutnr_a_sample.nc'
@@ -193,8 +217,7 @@ class StreamRequestTest(unittest.TestCase):
         sr.datasets[nutnr_sk]._insert_dataset(nutnr_ds)
 
         sr.calculate_derived_products()
-        test_out = os.path.join(DATA_DIR, 'test_out')
-        NetcdfGenerator(sr, False, test_out).write()
+        return sr.stream_key.stream.name, NetcdfGenerator(sr, False, disk_path).write()
 
     def test_csv(self):
         nutnr_sk = StreamKey('CE04OSPS', 'SF01B', '4A-NUTNRA102', 'streamed', 'nutnr_a_sample')
