@@ -142,7 +142,12 @@ def netcdf():
     """
     Return the results of this query as netCDF
     """
-    netcdf_save_to_filesystem()
+    input_data = request.get_json()
+    input_data['directory'] = None  # Set to synchronous mode
+    stream_name, zip_data = util.calc.get_netcdf(input_data, request.url)
+    return send_file(BytesIO(zip_data),
+                     attachment_filename='%s.zip' % stream_name,
+                     mimetype='application/octet-stream')
 
 
 @app.route('/csv', methods=['POST'])
@@ -181,7 +186,7 @@ def netcdf_save_to_filesystem():
     base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], input_data.get('directory', 'unknown'))
 
     try:
-        json_str = util.calc.get_netcdf(input_data, request.url)
+        stream_name, json_str = util.calc.get_netcdf(input_data, request.url)
     except Exception as e:
         json_efile = time_prefix_filename(input_data.get('start'), input_data.get('stop'), "failure.json")
         json_str = output_async_error(input_data, e, filename=json_efile)

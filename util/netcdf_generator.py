@@ -53,11 +53,16 @@ class NetcdfGenerator(object):
 
     @log_timing(log)
     def write_to_zipfile(self, zf):
-        for stream_key, dataset in self.stream_request.datasets.iteritems():
-            for deployment, ds in dataset.groupby('deployment'):
+        for stream_key, stream_dataset in self.stream_request.datasets.iteritems():
+            for deployment, ds in stream_dataset.datasets.iteritems():
+                self._add_dynamic_attributes(ds, stream_key, deployment)
+                start = ds.attrs['time_coverage_start'].translate(None, '-:')
+                end = ds.attrs['time_coverage_end'].translate(None, '-:')
+                self._add_provenance(ds, stream_dataset.provenance_metadata)
+                file_path = 'deployment%04d_%s_%s-%s.nc' % (deployment, stream_key.as_dashed_refdes(), start, end)
                 with tempfile.NamedTemporaryFile() as tf:
                     self.to_netcdf(ds, tf.name)
-                    zf.write(tf.name, 'deployment%04d_%s.nc' % (deployment, stream_key.as_dashed_refdes(),))
+                    zf.write(tf.name, file_path)
 
     @log_timing(log)
     def to_netcdf(self, ds, file_path):
