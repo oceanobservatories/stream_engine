@@ -3,6 +3,7 @@ import logging
 import os
 import tempfile
 import zipfile
+from time import sleep
 
 import numpy as np
 
@@ -37,8 +38,12 @@ class NetcdfGenerator(object):
                 self._add_dynamic_attributes(ds, stream_key, deployment)
                 start = ds.attrs['time_coverage_start'].translate(None, '-:')
                 end = ds.attrs['time_coverage_end'].translate(None, '-:')
-                self._add_provenance(ds, stream_dataset.provenance_metadata)
-                file_path = '%s/deployment%04d_%s_%s-%s.nc' % (base_path, deployment, stream_key.as_dashed_refdes(), start, end)
+                # provenance types will be written to JSON files
+                prov_json = '%s/deployment%04d_%s_provenance_%s-%s.json' % (base_path, 
+                         deployment, stream_key.as_dashed_refdes(), start, end)
+                stream_dataset.provenance_metadata.dump_json(prov_json)
+                file_path = '%s/deployment%04d_%s_%s-%s.nc' % (base_path, 
+                         deployment, stream_key.as_dashed_refdes(), start, end)
                 self.to_netcdf(ds, file_path)
                 file_paths.append(file_path)
         # build json return
