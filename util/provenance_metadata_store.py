@@ -1,4 +1,5 @@
 import json
+import os
 from collections import defaultdict, OrderedDict
 from multiprocessing.pool import ThreadPool
 
@@ -14,9 +15,7 @@ from util.jsonresponse import NumpyJSONEncoder
 
 metadata_threadpool = ThreadPool(10)
 
-
 log = logging.getLogger(__name__)
-
 
 class ProvenanceMetadataStore(object):
     def __init__(self, request_uuid):
@@ -139,6 +138,14 @@ class ProvenanceMetadataStore(object):
         out['requestUUID'] = self.request_uuid
         return out
 
+    def dump_json(self, filepath):
+        try:
+            if not os.path.exists(os.path.dirname(filepath)):
+                os.makedirs(os.path.dirname(filepath))
+            with open(filepath, 'a') as fh:
+                json.dump(self.get_json(), fh, indent=2, separators=(',', ': '))
+        except EnvironmentError as e:
+            log.error('Failed to write provenance file: %s', e)
 
 def _send_query_for_instrument(url):
     results = requests.get(url)

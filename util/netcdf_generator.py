@@ -54,7 +54,10 @@ class NetcdfGenerator(object):
                 self._add_dynamic_attributes(ds, stream_key, deployment)
                 start = ds.attrs['time_coverage_start'].translate(None, '-:')
                 end = ds.attrs['time_coverage_end'].translate(None, '-:')
-                self._add_provenance(ds, stream_dataset.provenance_metadata)
+                # provenance types will be written to JSON files
+                prov_json = '%s/deployment%04d_%s_provenance_%s-%s.json' % (base_path,
+                         deployment, stream_key.as_dashed_refdes(), start, end)
+                stream_dataset.provenance_metadata.dump_json(prov_json)
                 file_name = 'deployment%04d_%s_%s-%s.nc' % (deployment, stream_key.as_dashed_refdes(), start, end)
                 file_path = os.path.join(base_path, file_name)
                 self.to_netcdf(ds, file_path)
