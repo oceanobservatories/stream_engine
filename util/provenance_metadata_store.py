@@ -1,4 +1,5 @@
 import json
+import os
 from collections import defaultdict, OrderedDict
 from multiprocessing.pool import ThreadPool
 
@@ -14,9 +15,7 @@ from util.jsonresponse import NumpyJSONEncoder
 
 metadata_threadpool = ThreadPool(10)
 
-
 log = logging.getLogger(__name__)
-
 
 class ProvenanceMetadataStore(object):
     def __init__(self, request_uuid):
@@ -61,7 +60,7 @@ class ProvenanceMetadataStore(object):
                 vals[key.as_three_part_refdes()].extend(value.get())
             return vals
         except ValueError:
-            return None
+            return defaultdict(list)
 
     def add_query_metadata(self, stream_request, query_uuid, query_type):
         self._query_metadata['query_type'] = query_type
@@ -117,17 +116,6 @@ class ProvenanceMetadataStore(object):
                                                             attrs={
                                                                 'long_name': 'Query Parameter Provenance Information'})
 
-        instrument_prov = self.get_instrument_provenance()
-        if instrument_prov:
-            ds['instrument_provenance'] = xr.DataArray([json.dumps(instrument_prov)],
-                                                       dims=['instrument_provenance_dim'],
-                                                       attrs={
-                                                           'long_name': 'Instrument Provenance Information'})
-        if self.messages:
-            ds['provenance_messages'] = xr.DataArray(self.messages,
-                                                     dims=['provenance_messages'],
-                                                     attrs={'long_name': 'Provenance Messages'})
-
     def get_json(self):
         out = OrderedDict()
         out['provenance'] = self._prov_dict
@@ -139,6 +127,14 @@ class ProvenanceMetadataStore(object):
         out['requestUUID'] = self.request_uuid
         return out
 
+    def dump_json(self, filepath):
+        try:
+            if not os.path.exists(os.path.dirname(filepath)):
+                os.makedirs(os.path.dirname(filepath))
+            with open(filepath, 'a') as fh:
+                json.dump(self.get_json(), fh, indent=2, separators=(',', ': '))
+        except EnvironmentError as e:
+            log.error('Failed to write provenance file: %s', e)
 
 def _send_query_for_instrument(url):
     results = requests.get(url)

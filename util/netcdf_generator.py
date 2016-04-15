@@ -54,7 +54,12 @@ class NetcdfGenerator(object):
                 self._add_dynamic_attributes(ds, stream_key, deployment)
                 start = ds.attrs['time_coverage_start'].translate(None, '-:')
                 end = ds.attrs['time_coverage_end'].translate(None, '-:')
-                self._add_provenance(ds, stream_dataset.provenance_metadata)
+                # provenance types will be written to JSON files
+                prov_fname = 'deployment%04d_%s_provenance_%s-%s.json' % (deployment, 
+                                   stream_key.as_dashed_refdes(), start, end)
+                prov_json = os.path.join(base_path, prov_fname)
+                file_paths.append(prov_json)
+                stream_dataset.provenance_metadata.dump_json(prov_json)
                 file_name = 'deployment%04d_%s_%s-%s.nc' % (deployment, stream_key.as_dashed_refdes(), start, end)
                 file_path = os.path.join(base_path, file_name)
                 self.to_netcdf(ds, file_path)
@@ -134,6 +139,3 @@ class NetcdfGenerator(object):
         ds.attrs['geospatial_vertical_units'] = depth_units
         ds.attrs['geospatial_vertical_resolution'] = app.config['Z_RESOLUTION']
         ds.attrs['geospatial_vertical_positive'] = app.config['Z_POSITIVE']
-
-    def _add_provenance(self, ds, provenance_metadata):
-        provenance_metadata.add_to_dataset(ds, self.stream_request.request_id)
