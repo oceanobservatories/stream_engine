@@ -84,7 +84,7 @@ class QcExecutor(object):
             if 'strict_validation' not in qcs[function_name]:
                 local_qc_args[function_name]['strict_validation'] = False
 
-            if set(qcs) == set(local_qc_args):
+            try:
                 module = importlib.import_module(ParameterFunction.query.filter_by(function=function_name).first().owner)
                 results = getattr(module, function_name)(**local_qc_args.get(function_name))
                 qc_count_name = '%s_qc_executed' % parameter.name
@@ -101,3 +101,6 @@ class QcExecutor(object):
 
                 dataset[qc_count_name].values |= flag
                 dataset[qc_results_name].values |= results
+
+            except (TypeError, ValueError) as e:
+                log.exception('<%s> Failed to execute QC %s %r', self.request_id, function_name, e)
