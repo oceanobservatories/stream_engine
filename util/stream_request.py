@@ -97,7 +97,7 @@ class StreamRequest(object):
                 except MissingDataException as e:
                     if stream_key == self.stream_key:
                         raise MissingDataException("Query returned no results for primary stream")
-                    elif stream_key in self.stream_key.stream.source_streams:
+                    elif stream_key.stream in self.stream_key.stream.source_streams:
                         raise MissingDataException("Query returned no results for source stream")
                     else:
                         log.error('<%s> %s', self.request_id, e.message)
