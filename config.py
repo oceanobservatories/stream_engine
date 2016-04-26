@@ -53,6 +53,7 @@ NETCDF_SOURCE_URL = "http://oceanobservatories.org/"
 NETCDF_PUBLISHER_EMAIL = ""
 NETCDF_LICENSE = ""
 NETCDF_CALENDAR_TYPE = "gregorian"
+NETCDF_UNLIMITED_DIMS = ['obs', 'time']
 
 Z_AXIS_NAME = "depth"
 Z_POSITIVE = "down"

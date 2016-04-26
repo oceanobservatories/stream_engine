@@ -9,9 +9,12 @@ import numpy as np
 
 from engine import app
 from util.common import log_timing, MissingDataException, ntp_to_datestring
+from xarray.backends import api
+from netcdf_store import NetCDF4DataStoreUnlimited
+
+api.WRITEABLE_STORES['netcdf4_unlimited'] = NetCDF4DataStoreUnlimited
 
 log = logging.getLogger(__name__)
-
 
 class NetcdfGenerator(object):
     def __init__(self, stream_request, classic, disk_path=None):
@@ -83,7 +86,9 @@ class NetcdfGenerator(object):
             if comp_level <= 0:
                 compr = False
             self._ensure_no_int64(ds)
-            ds.to_netcdf(file_path, encoding={k: {'zlib': compr, 'complevel': comp_level} for k in ds})
+            udim = app.config.get('NETCDF_UNLIMITED_DIMS')
+            ds.to_netcdf(file_path, engine='netcdf4_unlimited', 
+                         encoding={k: {'zlib': compr, 'complevel': comp_level, 'unlimited': udim} for k in ds})
 
     def _ensure_no_int64(self, ds):
         for each in ds:
