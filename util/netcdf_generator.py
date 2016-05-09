@@ -89,8 +89,17 @@ class NetcdfGenerator(object):
                 compr = False
             self._ensure_no_int64(ds)
             udim = app.config.get('NETCDF_UNLIMITED_DIMS')
-            ds.to_netcdf(file_path, engine = NETCDF_ENGINE, 
-               encoding={k: {'zlib': compr, 'complevel': comp_level, UNLIMITED_DIMS: udim} for k in ds})
+            chunksizes_1d = app.config.get('NETCDF_1D_CHUNKSIZES')
+            chunkable_types = app.config.get('NETCDF_CHUNK_TYPES')
+            var_encoding = {}
+            for k in ds:
+                if len(ds[k].dims) <= 1 and ds[k].dtype in chunkable_types:
+                    var_encoding[k] = {'zlib': compr, 'complevel': comp_level, 
+                                       'contiguous': False, 'chunksizes': chunksizes_1d, UNLIMITED_DIMS: udim}
+                else:
+                    var_encoding[k] = {'zlib': compr, 'complevel': comp_level, UNLIMITED_DIMS: udim}
+
+            ds.to_netcdf(file_path, engine = NETCDF_ENGINE, encoding = var_encoding)
 
     def _ensure_no_int64(self, ds):
         for each in ds:
