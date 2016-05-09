@@ -89,8 +89,27 @@ class NetcdfGenerator(object):
                 compr = False
             self._ensure_no_int64(ds)
             udim = app.config.get('NETCDF_UNLIMITED_DIMS')
-            ds.to_netcdf(file_path, engine = NETCDF_ENGINE, 
-               encoding={k: {'zlib': compr, 'complevel': comp_level, UNLIMITED_DIMS: udim} for k in ds})
+            obs_chunksize = app.config.get('NETCDF_CHUNKSIZES')
+            var_encoding = {}
+            for k in ds:
+                # Chunk size is configurable along the 'obs' dimension.
+                # Other dims, if present, are chunked by data sizes
+                # of for their respective dimensions.
+                chunking_dims = []
+                for i in range(len(ds[k].dims)):
+                    if ds[k].dims[i] is 'obs':
+                        chunking_dims.append(obs_chunksize)
+                    else:
+                        chunking_dims.append(ds[k].shape[i])
+
+                # Exclude types that can't be chunked
+                if obs_chunksize > 0 and ds[k].size > obs_chunksize and ds[k].dtype is not 'numpy.dtype' and '|S' not in str(ds[k].dtype):
+                    var_encoding[k] = {'zlib': compr, 'complevel': comp_level, 
+                                       'contiguous': False, 'chunksizes': chunking_dims, UNLIMITED_DIMS: udim}
+                else:
+                    var_encoding[k] = {'zlib': compr, 'complevel': comp_level, UNLIMITED_DIMS: udim}
+
+            ds.to_netcdf(file_path, engine = NETCDF_ENGINE, encoding = var_encoding)
 
     def _ensure_no_int64(self, ds):
         for each in ds:
