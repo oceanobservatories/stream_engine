@@ -83,14 +83,36 @@ class NetcdfGenerator(object):
                     ds[data_array_name] = self.convert_data_array(data_array, data_type, np.int32)
             ds.to_netcdf(path=file_path, format="NETCDF4_CLASSIC")
         else:
-            compr = True
-            comp_level = app.config.get('HDF5_COMP_LEVEL', 1)
-            if comp_level <= 0:
-                compr = False
             self._ensure_no_int64(ds)
-            udim = app.config.get('NETCDF_UNLIMITED_DIMS')
-            ds.to_netcdf(file_path, engine = NETCDF_ENGINE, 
-               encoding={k: {'zlib': compr, 'complevel': comp_level, UNLIMITED_DIMS: udim} for k in ds})
+            encoding = self.make_encoding(ds)
+            ds.to_netcdf(file_path, engine = NETCDF_ENGINE, encoding = encoding)
+
+    def make_encoding(self, ds):
+        encoding = {}
+        compr = True
+        comp_level = app.config.get('HDF5_COMP_LEVEL', 1)
+        if comp_level <= 0:
+            compr = False
+        chunksize = app.config.get('NETCDF_CHUNKSIZES')
+        udim = app.config.get('NETCDF_UNLIMITED_DIMS')
+
+        for k in ds.data_vars:
+            values = ds[k].values
+            shape = values.shape
+
+            if values.dtype.kind == 'O':
+                values = values.astype('str')
+
+            if values.dtype.kind == 'S':
+                size = values.dtype.itemsize
+                if size > 1:
+                    shape = shape + (size,)
+
+            dim0 = min(shape[0], chunksize)
+            shape = (dim0,) + shape[1:]
+            encoding[k] = {'zlib': compr, 'chunksizes': shape, 'complevel': comp_level, UNLIMITED_DIMS: udim}
+        return encoding 
+
 
     def _ensure_no_int64(self, ds):
         for each in ds:
