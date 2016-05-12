@@ -194,7 +194,6 @@ def netcdf_save_to_filesystem():
     status_filename = time_prefix_filename(input_data.get('start'), input_data.get('stop'), "status.txt")
 
     write_status(base_path, filename=status_filename)
-    write_status(base_path)
     return Response(json_str, mimetype='application/json')
 
 
