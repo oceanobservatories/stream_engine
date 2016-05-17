@@ -194,6 +194,10 @@ class StreamDataset(object):
 
         if not missing and kwargs:
             result, version = self._execute_algorithm(param, kwargs)
+            if not isinstance(result, np.ndarray):
+                log.warn('<%s> Algorithm for %r returned non ndarray', self.request_id, param.name)
+                result = np.array([result])
+
             self._log_algorithm_inputs(param, kwargs, result, stream_key, dataset)
             calc_metadata = self._create_calculation_metadata(param, version, arg_metadata)
             self.provenance_metadata.calculated_metadata.insert_metadata(param, calc_metadata)
