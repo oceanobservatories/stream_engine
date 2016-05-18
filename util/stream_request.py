@@ -290,6 +290,9 @@ class StreamRequest(object):
             self.unfulfilled = self.unfulfilled.union(external_unfulfilled)
             self.external_includes.update(found)
 
+        log.warn('<%s> Unable to find sources for the following params: %r',
+                    self.request_id, self.unfulfilled)
+
     @log_timing(log)
     def _collapse_times(self):
         """
