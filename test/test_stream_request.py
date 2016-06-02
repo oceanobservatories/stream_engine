@@ -439,3 +439,17 @@ class StreamRequestTest(unittest.TestCase):
             self.assertIn('int_ctd_pressure', each)
             self.assertIn('lat', each)
             self.assertIn('lon', each)
+
+    def test_glider_rename_netcdf_lat_lon(self):
+        ctd_sk = StreamKey('CE05MOAS', 'GL319', '05-CTDGVM000', 'recovered_host', 'ctdgv_m_glider_instrument_recovered')
+        ctd_fn = 'deployment0003_CE05MOAS-GL319-05-CTDGVM000-recovered_host-ctdgv_m_glider_instrument_recovered.nc'
+        ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, ctd_fn), decode_times=False)
+
+        self.assertIn('glider_gps_position-m_gps_lat', ctd_ds)
+        self.assertIn('glider_gps_position-m_gps_lon', ctd_ds)
+
+        modified = NetcdfGenerator._rename_glider_lat_lon(ctd_sk, ctd_ds)
+        self.assertNotIn('glider_gps_position-m_gps_lat', modified)
+        self.assertNotIn('glider_gps_position-m_gps_lon', modified)
+        self.assertIn('lat', modified)
+        self.assertIn('lon', modified)

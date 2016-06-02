@@ -8,15 +8,20 @@ import shutil
 import numpy as np
 
 from engine import app
+from preload_database.model.preload import Stream, Parameter
 from util.common import log_timing, MissingDataException, ntp_to_datestring
 from xarray.backends import api
 from netcdf_store import NetCDF4DataStoreUnlimited, UNLIMITED_DIMS
 
 NETCDF_ENGINE = 'netcdf4_unlimited'
+GPS_STREAM_ID = app.config.get('GPS_STREAM_ID')
+LATITUDE_PARAM_ID = app.config.get('LATITUDE_PARAM_ID')
+LONGITUDE_PARAM_ID = app.config.get('LONGITUDE_PARAM_ID')
 
 api.WRITEABLE_STORES[NETCDF_ENGINE] = NetCDF4DataStoreUnlimited
 
 log = logging.getLogger(__name__)
+
 
 class NetcdfGenerator(object):
     def __init__(self, stream_request, classic, disk_path=None):
@@ -60,16 +65,32 @@ class NetcdfGenerator(object):
                 start = ds.attrs['time_coverage_start'].translate(None, '-:')
                 end = ds.attrs['time_coverage_end'].translate(None, '-:')
                 # provenance types will be written to JSON files
-                prov_fname = 'deployment%04d_%s_provenance_%s-%s.json' % (deployment, 
+                prov_fname = 'deployment%04d_%s_provenance_%s-%s.json' % (deployment,
                                    stream_key.as_dashed_refdes(), start, end)
                 prov_json = os.path.join(base_path, prov_fname)
                 file_paths.append(prov_json)
                 stream_dataset.provenance_metadata.dump_json(prov_json)
                 file_name = 'deployment%04d_%s_%s-%s.nc' % (deployment, stream_key.as_dashed_refdes(), start, end)
                 file_path = os.path.join(base_path, file_name)
+                ds = self._rename_glider_lat_lon(stream_key, ds)
                 self.to_netcdf(ds, file_path)
                 file_paths.append(file_path)
         return file_paths
+
+    @staticmethod
+    def _rename_glider_lat_lon(stream_key, dataset):
+        """
+        Rename INTERPOLATED glider GPS lat/lon values to lat/lon
+        """
+        if stream_key.is_glider:
+            gps_stream = Stream.query.get(GPS_STREAM_ID)
+            lat_param = Parameter.query.get(LATITUDE_PARAM_ID)
+            lon_param = Parameter.query.get(LONGITUDE_PARAM_ID)
+            lat_name = '-'.join((gps_stream.name, lat_param.name))
+            lon_name = '-'.join((gps_stream.name, lon_param.name))
+            if lat_name in dataset and lon_name in dataset:
+                return dataset.rename({lat_name: 'lat', lon_name: 'lon'})
+        return dataset
 
     @log_timing(log)
     def to_netcdf(self, ds, file_path):
@@ -111,8 +132,7 @@ class NetcdfGenerator(object):
             dim0 = min(shape[0], chunksize)
             shape = (dim0,) + shape[1:]
             encoding[k] = {'zlib': compr, 'chunksizes': shape, 'complevel': comp_level, UNLIMITED_DIMS: udim}
-        return encoding 
-
+        return encoding
 
     def _ensure_no_int64(self, ds):
         for each in ds:
