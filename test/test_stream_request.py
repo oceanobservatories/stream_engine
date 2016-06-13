@@ -118,13 +118,14 @@ class StreamRequestTest(unittest.TestCase):
 
         self.assertEqual(set(sr.stream_parameters), {sk, sk2})
 
-        # now, an OPTAA with a colocated CTDPF/optode
-        sk = StreamKey('RS03AXBS', 'LJ03A', '11-OPTAAC303', 'streamed', 'optaa_sample')
-        sk2 = StreamKey('RS03AXBS', 'LJ03A', '12-CTDPFB301', 'streamed', 'ctdpf_optode_sample')
-        tr = TimeRange(3617736678.149051, 3661524609.0570827)
-        sr = StreamRequest(sk, [], {}, tr, {}, request_id='UNIT')
-
-        self.assertEqual(set(sr.stream_parameters), {sk, sk2})
+        # TODO: uncomment when OPTAA data products restored in preload
+        # # now, an OPTAA with a colocated CTDPF/optode
+        # sk = StreamKey('RS03AXBS', 'LJ03A', '11-OPTAAC303', 'streamed', 'optaa_sample')
+        # sk2 = StreamKey('RS03AXBS', 'LJ03A', '12-CTDPFB301', 'streamed', 'ctdpf_optode_sample')
+        # tr = TimeRange(3617736678.149051, 3661524609.0570827)
+        # sr = StreamRequest(sk, [], {}, tr, {}, request_id='UNIT')
+        #
+        # self.assertEqual(set(sr.stream_parameters), {sk, sk2})
 
     def test_virtual(self):
         sk1 = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_hourly')
