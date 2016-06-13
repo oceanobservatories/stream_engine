@@ -419,9 +419,9 @@ class StreamDataset(object):
         except UnknownFunctionTypeException:
             raise
         except Exception as e:
-            log.error('<%s> Exception executing algorithm for %r: %s', self.request_id, parameter, e.message)
+            log.error('<%s> Exception executing algorithm for %r: %s', self.request_id, parameter, e)
             to_attach = {'type': 'FunctionError', "parameter": str(parameter),
-                         'function': str(func), 'message': e.message}
+                         'function': str(func), 'message': str(e)}
             self.provenance_metadata.calculated_metadata.errors.append(to_attach)
             result = version = None
 
