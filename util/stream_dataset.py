@@ -275,7 +275,10 @@ class StreamDataset(object):
                       self.request_id, self.stream_key, source_key, parameter)
             new_name = '-'.join((source_key.stream.name, parameter.name))
             for deployment, ds in self.datasets.iteritems():
-                ds[new_name] = source_dataset.get_interpolated(ds.time.values, parameter)
+                try:
+                    ds[new_name] = source_dataset.get_interpolated(ds.time.values, parameter)
+                except StreamEngineException as e:
+                    log.error(e)
 
     @log_timing(log)
     def get_interpolated(self, target_times, parameter):
@@ -293,7 +296,7 @@ class StreamDataset(object):
         if datasets:
             shape = datasets[0][name].shape
             if len(shape) != 1:
-                raise StreamEngineException('<%s> Attempted to interpolate >1d data: %s', self.request_id, shape)
+                raise StreamEngineException('<%s> Attempted to interpolate >1d data: %s' % (self.request_id, shape))
 
             # Two possible choices here.
             # 1) Requested times are contained in a single deployment -> pull from deployment
