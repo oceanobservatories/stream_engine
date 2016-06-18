@@ -43,6 +43,7 @@ class BotptVirtualTest(unittest.TestCase):
     metadata = []
     base_params = ['time', 'deployment', 'provenance']
 
+    @unittest.skip('missing data file')
     def test_botpt_15s(self):
         botpt_sk = StreamKey('RS03ECAL', 'MJ03E', '06-BOTPTA302', 'streamed', 'botpt_nano_sample')
         botpt_15s_sk = StreamKey('RS03ECAL', 'MJ03E', '06-BOTPTA302', 'streamed', 'botpt_nano_sample_15s')
@@ -72,6 +73,7 @@ class BotptVirtualTest(unittest.TestCase):
         self.assertIn('botsflu_10minrate', result)
         self.assertIn('botsflu_predtide', result)
 
+    @unittest.skip('missing data file')
     def test_botpt_24hr(self):
         botpt_sk = StreamKey('RS03ECAL', 'MJ03E', '06-BOTPTA302', 'streamed', 'botpt_nano_sample')
         botpt_24hr_sk = StreamKey('RS03ECAL', 'MJ03E', '06-BOTPTA302', 'streamed', 'botpt_nano_sample_24hr')

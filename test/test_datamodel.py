@@ -1,7 +1,7 @@
 import logging
 import os
 
-from unittest2 import TestCase
+from unittest import TestCase
 import xarray as xr
 import numpy as np
 
