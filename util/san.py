@@ -6,9 +6,10 @@ import xarray as xr
 from multiprocessing.pool import ThreadPool
 
 from engine import app
-from util.cass import insert_dataset, get_san_location_metadata, fetch_bin
+from util.cass import insert_dataset, fetch_bin
 from util.common import StreamKey, log_timing
 from util.datamodel import to_xray_dataset, compile_datasets
+from util.metadata_service import SAN_LOCATION_NAME, get_location_metadata_by_store
 
 log = logging.getLogger(__name__)
 san_threadpool = ThreadPool(10)
@@ -171,7 +172,7 @@ def fetch_nsan_data(stream_key, time_range, num_points=1000, location_metadata=N
     :return:
     """
     if location_metadata is None:
-        location_metadata = get_san_location_metadata(stream_key, time_range)
+        location_metadata = get_location_metadata_by_store(stream_key, time_range, SAN_LOCATION_NAME)
     ref_des_dir, dir_string = get_SAN_directories(stream_key, split=True)
     if not os.path.exists(ref_des_dir):
         log.warning("Reference Designator does not exist in offloaded SAN")
@@ -223,7 +224,7 @@ def fetch_full_san_data(stream_key, time_range, location_metadata=None):
     :return:
     """
     if location_metadata is None:
-        location_metadata = get_san_location_metadata(stream_key, time_range)
+        location_metadata = get_location_metadata_by_store(stream_key, time_range, SAN_LOCATION_NAME)
     # get which bins we can gather data from
     ref_des_dir, dir_string = get_SAN_directories(stream_key, split=True)
     if not os.path.exists(ref_des_dir):

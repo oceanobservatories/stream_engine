@@ -5,10 +5,10 @@ import util.provenance_metadata_store
 from engine import app
 from preload_database.model.preload import Parameter, Stream, NominalDepth
 from util.calibration_coefficient_store import CalibrationCoefficientStore
-from util.cass import (build_stream_dictionary, get_available_time_range, fetch_l0_provenance,
-                       get_streaming_provenance)
+from util.cass import fetch_l0_provenance, get_streaming_provenance
 from util.common import log_timing, StreamEngineException, StreamKey, MissingDataException
 from util.datamodel import add_location_data
+from util.metadata_service import build_stream_dictionary, get_available_time_range
 from util.qc_executor import QcExecutor
 from util.stream_dataset import StreamDataset
 
