@@ -1,3 +1,6 @@
 [submodule "preload_database"]
 	path = preload_database
 	url = https://github.com/oceanobservatories/preload-database
+[submodule "util/metadata_service/metadata_service_api"]
+	path = util/metadata_service/metadata_service_api
+	url = https://github.com/oceanobservatories/ooi-metadata-service-api.git

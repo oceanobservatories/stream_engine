@@ -9,8 +9,6 @@ import numpy
 from engine import app
 from preload_database.model.preload import Stream
 
-FUNCTION = 'function'
-
 log = logging.getLogger(__name__)
 
 stream_cache = {}
