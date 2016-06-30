@@ -1,3 +1,5 @@
+import global_test_setup
+
 import json
 import logging
 import os
@@ -44,8 +46,8 @@ def get_stream_metadata():
     return [row[1:6] for row in metadata.itertuples()]
 
 
-@mock.patch('util.stream_request.get_available_time_range', new=get_available_time_range)
-@mock.patch('util.cass._get_stream_metadata', new=get_stream_metadata)
+@mock.patch('util.metadata_service.stream.get_available_time_range', new=get_available_time_range)
+@mock.patch('util.metadata_service.stream._get_stream_metadata', new=get_stream_metadata)
 class StreamRequestTest(unittest.TestCase):
     metadata = []
     base_params = ['time', 'deployment', 'provenance']
@@ -306,14 +308,20 @@ class StreamRequestTest(unittest.TestCase):
         vel_sk = StreamKey('GI01SUMO', 'RID16', '04-VELPTA000', 'recovered_host', 'velpt_ab_dcl_instrument_recovered')
 
         tr = TimeRange(metbk_ds.time.values[0], metbk_ds.time.values[-1])
-        coefficients = {k: [{'start': tr.start-1000, 'stop': tr.stop+1000, 'value': cals[k], 'deployment': 3}] for k in cals}
+        coefficients = {
+            k: [{'start': tr.start-1000, 'stop': tr.stop+1000, 'value': cals[k], 'deployment': 3}] for k in cals
+        }
         sr = StreamRequest(hourly_sk, [], coefficients, tr, {}, request_id='UNIT')
 
         metbk_ds = metbk_ds[self.base_params + [p.name for p in sr.stream_parameters[source_sk]]]
         vel_ds = vel_ds[self.base_params + [p.name for p in sr.stream_parameters[vel_sk]]]
 
-        sr.datasets[source_sk] = StreamDataset(source_sk, sr.coefficients, sr.uflags, [hourly_sk, vel_sk], sr.request_id)
-        sr.datasets[hourly_sk] = StreamDataset(hourly_sk, sr.coefficients, sr.uflags, [source_sk, vel_sk], sr.request_id)
+        sr.datasets[source_sk] = StreamDataset(
+            source_sk, sr.coefficients, sr.uflags, [hourly_sk, vel_sk], sr.request_id
+        )
+        sr.datasets[hourly_sk] = StreamDataset(
+            hourly_sk, sr.coefficients, sr.uflags, [source_sk, vel_sk], sr.request_id
+        )
         sr.datasets[vel_sk] = StreamDataset(vel_sk, sr.coefficients, sr.uflags, [hourly_sk, vel_sk], sr.request_id)
 
         sr.datasets[source_sk]._insert_dataset(metbk_ds)

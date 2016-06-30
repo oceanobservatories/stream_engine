@@ -5,10 +5,10 @@ import util.provenance_metadata_store
 from engine import app
 from preload_database.model.preload import Parameter, Stream, NominalDepth
 from util.calibration_coefficient_store import CalibrationCoefficientStore
-from util.cass import (build_stream_dictionary, get_available_time_range, fetch_l0_provenance,
-                       get_streaming_provenance)
+from util.cass import fetch_l0_provenance, get_streaming_provenance
 from util.common import log_timing, StreamEngineException, StreamKey, MissingDataException
 from util.datamodel import add_location_data
+from util.metadata_service import build_stream_dictionary, get_available_time_range
 from util.qc_executor import QcExecutor
 from util.stream_dataset import StreamDataset
 
@@ -153,7 +153,7 @@ class StreamRequest(object):
                     prov_metadata = self.datasets[stream_key].provenance_metadata
                     prov_metadata.add_query_metadata(self, self.request_id, 'JSON')
                     prov_metadata.add_instrument_provenance(stream_key, self.time_range.start,
-                                                                   self.time_range.stop)
+                                                            self.time_range.stop)
                     if stream_key.method not in ['streamed', ]:
                         if 'provenance' in dataset:
                             provenance = dataset.provenance.values.astype('str')
@@ -291,7 +291,7 @@ class StreamRequest(object):
             self.external_includes.update(found)
 
         log.warn('<%s> Unable to find sources for the following params: %r',
-                    self.request_id, self.unfulfilled)
+                 self.request_id, self.unfulfilled)
 
     @log_timing(log)
     def _collapse_times(self):
@@ -436,5 +436,3 @@ class StreamRequest(object):
                     "method": method,
                     "stream": stream
                 })
-
-

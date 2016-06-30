@@ -1,3 +1,5 @@
+import global_test_setup
+
 import logging
 import os
 

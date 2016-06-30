@@ -8,11 +8,12 @@ import numpy as np
 from preload_database.model.preload import Parameter, Stream
 from util.advlogging import ParameterReport
 from util.annotation import AnnotationStore
-from util.cass import (get_location_metadata, fetch_nth_data, get_full_cass_dataset, get_first_before_metadata,
-                       get_cass_lookback_dataset, CASS_LOCATION_NAME, SAN_LOCATION_NAME)
+from util.cass import fetch_nth_data, get_full_cass_dataset, get_cass_lookback_dataset
 from util.common import (log_timing, ntp_to_datestring, ntp_to_datetime, UnknownFunctionTypeException,
                          StreamEngineException, TimeRange, MissingDataException)
 from util.datamodel import create_empty_dataset, compile_datasets
+from util.metadata_service import (SAN_LOCATION_NAME, CASS_LOCATION_NAME, get_first_before_metadata,
+                                   get_location_metadata)
 from util.provenance_metadata_store import ProvenanceMetadataStore
 from util.san import fetch_nsan_data, fetch_full_san_data, get_san_lookback_dataset
 from util.xray_interpolation import interp1d_data_array
@@ -379,7 +380,9 @@ class StreamDataset(object):
             begin_date = begin_dt.strftime('%Y%m%dT%H%M%S')
             end_date = end_dt.strftime('%Y%m%dT%H%M%S')
             log_dir = '{:s}-{:s}'.format(prefix, self.stream_key.as_dashed_refdes())
-            log_name = '{:s}-{:s}-{:s}-{:s}'.format(begin_date, end_date, self.stream_key.as_dashed_refdes(), parameter.name)
+            log_name = '{:s}-{:s}-{:s}-{:s}'.format(
+                begin_date, end_date, self.stream_key.as_dashed_refdes(), parameter.name
+            )
             report = ParameterReport(user, log_dir, log_name)
             report.set_calculated_parameter(parameter.id, parameter.name, parameter.parameter_function.function)
             for key, value in kwargs.iteritems():

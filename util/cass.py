@@ -13,28 +13,19 @@ from cassandra.concurrent import execute_concurrent_with_args
 from cassandra.query import _clean_column_name, tuple_factory, BatchStatement
 
 import engine
-from util.common import log_timing, TimeRange, FUNCTION, timed_cache
+from util.common import log_timing
 from util.datamodel import to_xray_dataset
-from util.location_metadata import LocationMetadata
+from util.metadata_service import (CASS_LOCATION_NAME, get_location_metadata_by_store, get_location_metadata,
+                                   metadata_service_api)
 
 logging.getLogger('cassandra').setLevel(logging.WARNING)
 log = logging.getLogger(__name__)
 
-PARTITION_COLUMNS = ['bin', 'store', 'count', 'first', 'last']
-Row = namedtuple('Row', PARTITION_COLUMNS)
 l0_stream_columns = ['time', 'id', 'driver_class', 'driver_host', 'driver_module', 'driver_version', 'event_json']
 ProvTuple = namedtuple('provenance_tuple',
                        ['subsite', 'sensor', 'node', 'method', 'deployment', 'id', 'file_name', 'parser_name',
                         'parser_version'])
 StreamProvTuple = namedtuple('stream_provenance_tuple', l0_stream_columns)
-
-SAN_LOCATION_NAME = 'san'
-CASS_LOCATION_NAME = 'cass'
-
-STREAM_METADATA = '''select stream, count, first, last from STREAM_METADATA
-where SUBSITE=? and NODE=? and SENSOR=? and METHOD=? and STREAM=?'''
-
-ALL_STREAM_METADATA = 'SELECT subsite, node, sensor, method, stream FROM stream_metadata'
 
 L0_DATASET = """select * from dataset_l0_provenance
 where subsite=? and node=? and sensor=? and method=? and deployment=? and id=?"""
@@ -44,12 +35,6 @@ WHERE refdes = ? AND method = ? and time <= ? ORDER BY time DESC LIMIT 1""".form
 
 L0_STREAM_RANGE = """SELECT {:s} FROM streaming_l0_provenance
 WHERE refdes = ? AND method = ? and time >= ? and time <= ?""".format(', '.join(l0_stream_columns))
-
-PARTITION_INSERT = """INSERT INTO partition_metadata (stream, refdes, method, bin, store, count, first, last)
-values (?, ?, ?, ?, ?, ?, ?, ?)"""
-
-COUNT_QUERY = """SELECT COUNT(*) from {:s}
-WHERE subsite = ? and node = ? and sensor = ? and bin = ? and method = ?"""
 
 
 # noinspection PyUnresolvedReferences
@@ -130,124 +115,6 @@ def _init():
 
 
 @log_timing(log)
-def _get_stream_metadata():
-    ps = SessionManager.prepare(ALL_STREAM_METADATA)
-    rows = SessionManager.execute(ps)
-    return rows
-
-
-@timed_cache(engine.app.config['METADATA_CACHE_SECONDS'])
-def build_stream_dictionary():
-    d = {}
-    for subsite, node, sensor, method, stream in _get_stream_metadata():
-        d.setdefault(stream, {}).setdefault(method, {}).setdefault(subsite, {}).setdefault(node, []).append(sensor)
-    return d
-
-
-@log_timing(log)
-def query_partition_metadata_before(stream_key, time_start):
-    """
-    Return the last 4 bins before the the given time range.  Need to return 4 to account for some possibilities:
-        Data is present in both SAN and CASS. Need 2 bins to choose location
-        Data in current bin is all after the start of the time range:
-            Need to check to make sure start time is before current time so need bins for fallback.
-    :param stream_key:
-    :param time_start:
-    :return: Return a list of named tuples which contain the following information about metadata bins
-    [
-        [
-            bin, The bin number
-            store : cass or san for location,
-            count : Number of data points
-            first : first ntp time of data in bin
-            last : last ntp time of data in the bin
-        ],
-    ]
-    """
-    start_bin = time_in_bin_units(time_start, stream_key.stream.name)
-    query = (
-        "SELECT {:s} FROM partition_metadata " +
-        "WHERE stream='{:s}' AND refdes='{:s}' AND method='{:s}' AND bin <= ? " +
-        "ORDER BY method DESC, bin DESC LIMIT 4").format(
-            ','.join(PARTITION_COLUMNS), stream_key.stream.name,
-            '{:s}-{:s}-{:s}'.format(stream_key.subsite, stream_key.node, stream_key.sensor),
-            stream_key.method)
-    query = SessionManager.prepare(query)
-    res = SessionManager.execute(query, [start_bin])
-    return [Row(*row) for row in res]
-
-
-@log_timing(log)
-def query_partition_metadata(stream_key, time_range):
-    """
-    Get the metadata entries for partitions that contain data within the time range.
-    :param stream_key:
-    :param time_range:
-    :return: Return a list of lists which contain the following information about metadata bins
-    [
-        [
-            bin #,
-            store : cass or san for location,
-            count : Number of data points
-            first : first ntp time of data in bin
-            last : last ntp time of data in the bin
-        ],
-    ]
-    """
-    start_bin = get_first_possible_bin(time_range.start, stream_key.stream.name)
-    end_bin = time_in_bin_units(time_range.stop, stream_key.stream.name)
-    query = (
-        "SELECT bin, store, count, first, last FROM partition_metadata " +
-        "WHERE stream = '{:s}' AND  refdes = '{:s}' AND method = '{:s}' AND bin >= ? and bin <= ?").format(
-            stream_key.stream.name, stream_key.as_three_part_refdes(),
-            stream_key.method)
-    query = SessionManager.prepare(query)
-    return SessionManager.execute(query, [start_bin, end_bin])
-
-
-@log_timing(log)
-def get_cass_location_metadata(stream_key, time_range):
-    """
-    Get the bins, counts, times, and total data contained in cassandra for a streamkey in the given time range
-    :param stream_key: stream-key
-    :param time_range: time range to search
-    :return: Returns a 3-tuple.
-            First entry is the sorted list of bins that contain data in cassandra.
-            Second entry is a dictonary of each bin pointing to the count, start, and stop times  in a tuple.
-            Third entry is the total data contained in cassandra for the time range.
-    """
-    results = query_partition_metadata(stream_key, time_range)
-    bins = {}
-    total = 0
-    for data_bin, location, count, first, last in results:
-        if location == 'cass':
-            total = total + count
-            bins[data_bin] = (count, first, last)
-    return LocationMetadata(bins)
-
-
-@log_timing(log)
-def get_san_location_metadata(stream_key, time_range):
-    """
-    Get the bins, counts, times, and total data contained in cassandra for a streamkey in the given time range
-    :param stream_key: stream-key
-    :param time_range: time range to search
-    :return: Returns a 3-tuple.
-            First entry is the sorted list of bins that contain data in cassandra.
-            Second entry is a dictonary of each bin pointing to the count, start, and stop times  in a tuple.
-            Third entry is the total data contained in cassandra for the time range.
-    """
-    results = query_partition_metadata(stream_key, time_range)
-    bins = {}
-    total = 0
-    for data_bin, location, count, first, last in results:
-        if location == SAN_LOCATION_NAME:
-            total = total + count
-            bins[data_bin] = (count, first, last)
-    return LocationMetadata(bins)
-
-
-@log_timing(log)
 def get_cass_lookback_dataset(stream_key, start_time, data_bin, deployments, request_id):
     # try to fetch the first n times to ensure we get a deployment value in there.
     cols, rows = fetch_with_func(query_n_before, stream_key,
@@ -260,100 +127,6 @@ def get_cass_lookback_dataset(stream_key, start_time, data_bin, deployments, req
             ret_rows.append(r)
             needed.remove(r[dep_idx])
     return to_xray_dataset(cols, ret_rows, stream_key, request_id)
-
-
-@log_timing(log)
-def get_first_before_metadata(stream_key, start_time):
-    """
-    Return metadata information for the first bin before the time range
-     Cass metadata, San metadata, messages
-
-    :param stream_key:
-    :param start_time:
-    :return:
-    """
-    res = query_partition_metadata_before(stream_key, start_time)
-    # filter to ensure start time < time_range_start
-    res = filter(lambda x: x.first <= start_time, res)
-    if not res:
-        return {}
-    first_bin = res[0].bin
-    res = filter(lambda x: x.bin == first_bin, res)
-    if len(res) == 1:
-        to_use = res[0]
-    else:
-        # Check same size
-        if res[0].count == res[1].count:
-            # take the choosen one
-            res = filter(lambda x: x.store == engine.app.config['PREFERRED_DATA_LOCATION'], res)
-            to_use = res[0]
-        # other otherwise take the larger of the two
-        else:
-            if res[0].count < res[1].count:
-                to_use = res[1]
-            else:
-                to_use = res[0]
-    return {to_use.store: LocationMetadata({to_use.bin: (to_use.count, to_use.first, to_use.last)})}
-
-
-@log_timing(log)
-def get_location_metadata(stream_key, time_range):
-    results = query_partition_metadata(stream_key, time_range)
-    cass_bins = {}
-    san_bins = {}
-    cass_total = 0
-    san_total = 0
-    messages = []
-    for data_bin, location, count, first, last in results:
-        # Check to see if the data in the bin is within the time range.
-        if time_range.start <= last and time_range.stop >= first:
-            if location == CASS_LOCATION_NAME:
-                cass_total = cass_total + count
-                cass_bins[data_bin] = (count, first, last)
-            if location == SAN_LOCATION_NAME:
-                san_total = san_total + count
-                san_bins[data_bin] = (count, first, last)
-    if engine.app.config['PREFERRED_DATA_LOCATION'] == SAN_LOCATION_NAME:
-        for key in san_bins.keys():
-            if key in cass_bins:
-                cass_count, _, _ = cass_bins[key]
-                san_count, _, _ = san_bins[key]
-                if cass_count != san_count:
-                    log.warn("Metadata count does not match for bin %d - SAN: %d  CASS: %d", key, san_count, cass_count)
-                    messages.append(
-                            "Metadata count does not match for bin {:d} - SAN: {:d} " +
-                            "CASS: {:d} Took location with highest data count.".format(key, san_count, cass_count))
-                    if cass_count > san_count:
-                        san_bins.pop(key)
-                        san_total -= san_count
-                    else:
-                        cass_bins.pop(key)
-                        cass_total -= cass_count
-                else:
-                    cass_bins.pop(key)
-                    cass_total -= cass_count
-    else:
-        for key in cass_bins.keys():
-            if key in san_bins:
-                cass_count, _, _ = cass_bins[key]
-                san_count, _, _ = san_bins[key]
-                if cass_count != san_count:
-                    log.warn("Metadata count does not match for bin %d - SAN: %d  CASS: %d", key, san_count, cass_count)
-                    messages.append(
-                            "Metadata count does not match for bin {:d} - SAN: {:d} " +
-                            "CASS: {:d} Took location with highest data count.".format(key, san_count, cass_count))
-                    if cass_count > san_count:
-                        san_bins.pop(key)
-                        san_total -= san_count
-                    else:
-                        cass_bins.pop(key)
-                        cass_total -= cass_count
-                else:
-                    san_bins.pop(key)
-                    san_total -= san_count
-    cass_metadata = LocationMetadata(cass_bins)
-    san_metadata = LocationMetadata(san_bins)
-    return cass_metadata, san_metadata, messages
 
 
 @log_timing(log)
@@ -412,7 +185,7 @@ def query_full_bin(stream_key, bins_and_limit, cols):
 
 
 @log_timing(log)
-def fetch_concurrent(stream_key, cols, times, concurrency=50):
+def fetch_concurrent(stream_key, cols, times, concurrency=50):  # TODO: remove - unused
     query = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s' and time>=? and time<=?" % \
             (','.join(cols), stream_key.stream.name, stream_key.subsite, stream_key.node, stream_key.sensor,
              stream_key.method)
@@ -639,7 +412,7 @@ def fetch_all_data(stream_key, time_range, location_metadata=None):
     :return:
     """
     if location_metadata is None:
-        location_metadata = get_cass_location_metadata(stream_key, time_range)
+        location_metadata = get_location_metadata_by_store(stream_key, time_range, CASS_LOCATION_NAME)
     cols = SessionManager.get_query_columns(stream_key.stream.name)
 
     rows = []
@@ -669,6 +442,14 @@ def execute_unlimited_query(stream_key, cols, time_bin, time_range):
                                                time_range.stop)))
 
 
+def _get_stream_row_count(stream_key, data_bin):
+    COUNT_QUERY = "SELECT COUNT(*) FROM {:s} WHERE subsite = ? and node = ? and sensor = ? and bin = ? and method = ?"
+    count_query = SessionManager.prepare(COUNT_QUERY.format(stream_key.stream.name))
+    return SessionManager.execute(
+        count_query, (stream_key.subsite, stream_key.node, stream_key.sensor, data_bin, stream_key.method)
+    )[0][0]
+
+
 @log_timing(log)
 def insert_dataset(stream_key, dataset):
     """
@@ -684,20 +465,15 @@ def insert_dataset(stream_key, dataset):
     data_lists = {}
     size = dataset['index'].size
     # get the metadata partion
-    meta = query_partition_metadata(stream_key, TimeRange(bin_to_time(data_bin),
-                                                          bin_to_time(data_bin + 1)))
-    bin_meta = None
-    for i in meta:
-        if i[0] == data_bin and i[1] == CASS_LOCATION_NAME:
-            bin_meta = i
-            break
+    bin_meta = metadata_service_api.get_partition_metadata_record(
+        *(stream_key.as_tuple() + (data_bin, CASS_LOCATION_NAME))
+    )
     if bin_meta is not None and not engine.app.config['SAN_CASS_OVERWRITE']:
         # If there is already data and we do not want overwriting return an error
         error_message = "Data present in Cassandra bin {:d} for {:s}. " + \
                         "Aborting operation!".format(data_bin, stream_key.as_refdes())
         log.error(error_message)
         return error_message
-
     # get the data in the correct format
     cols = SessionManager.get_query_columns(stream_key.stream.name)
     dynamic_cols = cols[1:]
@@ -755,39 +531,29 @@ def insert_dataset(stream_key, dataset):
     if fails > 0:
         log.warn("Failed to insert %s particles into Cassandra bin %d for %s!", fails, data_bin, stream_key.as_refdes())
 
-    partition_insert_query = SessionManager.prepare(PARTITION_INSERT)
-
-    # Update the metadata
     if bin_meta is None:
         # Create metadata entry for the new bin
-        ref_des = stream_key.as_three_part_refdes()
-        st = dataset['time'].min()
-        et = dataset['time'].max()
-        SessionManager.execute(partition_insert_query, (
-            stream_key.stream.name, ref_des, stream_key.method, data_bin, CASS_LOCATION_NAME, count, st, et))
-        ret_val = 'Inserted {:d} particles into Cassandra bin {:d} for {:s}.'.format(count, dataset['bin'].values[0],
-                                                                                     stream_key.as_refdes())
-        return ret_val
+        first = dataset['time'].min()
+        last = dataset['time'].max()
+        bin_meta = metadata_service_api.build_partition_metadata_record(
+            *(stream_key.as_tuple() + (data_bin, CASS_LOCATION_NAME, first, last, count))
+        )
+        metadata_service_api.create_partition_metadata_record(bin_meta)
+        ret_val = 'Inserted {:d} particles into Cassandra bin {:d} for {:s}.'.format(
+            count, data_bin, stream_key.as_refdes()
+        )
     else:
-        count_query = SessionManager.prepare(COUNT_QUERY.format(stream_key.stream.name))
-        # get the new count, check times, and update metadata
-        new_count = SessionManager.execute(count_query, (
-            stream_key.subsite, stream_key.node, stream_key.sensor, data_bin, stream_key.method))[0][0]
-        ref_des = stream_key.as_three_part_refdes()
-        st = min(dataset['time'].values.min(), bin_meta[3])
-        et = max(dataset['time'].values.max(), bin_meta[4])
-        meta_query = "INSERT INTO partition_metadata (stream, refdes, method, bin, store, count, first, last)" + \
-                     "values ('{:s}','{:s}','{:s}',{:d},'{:s}',{:d},{:f},{:f})".format(stream_key.stream.name, ref_des,
-                                                                                       stream_key.method, data_bin,
-                                                                                       CASS_LOCATION_NAME, new_count,
-                                                                                       st, et)
-        meta_query = SessionManager.prepare(meta_query)
-        SessionManager.execute(meta_query)
-        ret_val = 'After updating Cassandra bin {:d} for {:s} there are {:d} particles.'.format(data_bin,
-                                                                                                stream_key.as_refdes(),
-                                                                                                new_count)
-        log.info(ret_val)
-        return ret_val
+        # check times, get the new count, and update metadata
+        bin_meta['first'] = min(dataset['time'].values.min(), bin_meta['first'])
+        bin_meta['last'] = max(dataset['time'].values.max(), bin_meta['last'])
+        bin_meta['count'] = _get_stream_row_count(stream_key, data_bin)
+        metadata_service_api.update_partition_metadata_record(bin_meta['id'], bin_meta)
+        ret_val = 'After updating Cassandra bin {:d} for {:s} there are {:d} particles.'.format(
+            data_bin, stream_key.as_refdes(), new_count
+        )
+
+    log.info(ret_val)
+    return ret_val
 
 
 @log_timing(log)
@@ -847,10 +613,10 @@ def fetch_annotations(stream_key, time_range, with_mooring=True):
 
 
 @log_timing(log)
-def store_qc_results(qc_results_values, pk, particle_ids, particle_bins, particle_deploys,
+def store_qc_results(qc_results_values, pk, particle_ids, particle_bins, particle_deploys,  # TODO: remove - unused
                      param_name, strict_range=False):
     start_time = time.clock()
-    if engine.app.config['QC_RESULTS_STORAGE_SYSTEM'] == 'cass':
+    if engine.app.config['QC_RESULTS_STORAGE_SYSTEM'] == CASS_LOCATION_NAME:
         log.info('Storing QC results in Cassandra.')
         insert_results = SessionManager.prepare(
                 "insert into ooi.qc_results "
@@ -881,27 +647,5 @@ def store_qc_results(qc_results_values, pk, particle_ids, particle_bins, particl
                 engine.app.config['QC_RESULTS_STORAGE_SYSTEM']))
 
 
-def initialize_worker():
+def initialize_worker():    # TODO: remove - unused
     _init()
-
-
-def get_first_possible_bin(t, stream):
-    t -= engine.app.config['MAX_BIN_SIZE_MIN'] * 60
-    return long(t)
-
-
-def time_in_bin_units(t, stream):
-    return long(t)
-
-
-def bin_to_time(b):
-    return float(b)
-
-
-def get_available_time_range(stream_key):
-    ps = SessionManager.prepare(STREAM_METADATA)
-    rows = SessionManager.execute(ps, (stream_key.subsite, stream_key.node,
-                                       stream_key.sensor, stream_key.method,
-                                       stream_key.stream.name))
-    stream, count, first, last = rows[0]
-    return TimeRange(first, last + 1)

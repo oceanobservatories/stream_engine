@@ -1,3 +1,5 @@
+import global_test_setup
+
 import json
 import logging
 import os
@@ -37,8 +39,8 @@ def get_stream_metadata():
     return [row[1:6] for row in metadata.itertuples()]
 
 
-@mock.patch('util.stream_request.get_available_time_range', new=get_available_time_range)
-@mock.patch('util.cass._get_stream_metadata', new=get_stream_metadata)
+@mock.patch('util.metadata_service.stream.get_available_time_range', new=get_available_time_range)
+@mock.patch('util.metadata_service.stream._get_stream_metadata', new=get_stream_metadata)
 class BotptVirtualTest(unittest.TestCase):
     metadata = []
     base_params = ['time', 'deployment', 'provenance']
