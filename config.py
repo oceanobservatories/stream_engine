@@ -7,7 +7,6 @@ CASSANDRA_CONNECT_TIMEOUT = 60
 CASSANDRA_FETCH_SIZE = 1000
 CASSANDRA_DEFAULT_TIMEOUT = 60
 CASSANDRA_QUERY_CONSISTENCY = 'QUORUM'
-METADATA_CACHE_SECONDS = 600
 
 PARAMETER_LOGGING = '/opendap_export/stream_engine'
 SAN_BASE_DIRECTORY = '/opt/ooi/SAN/'
@@ -64,8 +63,6 @@ Z_STANDARD_NAME = 'depth'
 Z_RESOLUTION = 0.1
 GEOSPATIAL_LAT_LON_RES = 0.1
 
-MAX_BIN_SIZE_MIN = 20160
-
 COLLAPSE_TIMES = True
 
 # If the ratio of total data to requested points is less than this value all of the data is returned
@@ -81,10 +78,6 @@ UI_FULL_SAMPLE_LIMIT = 5000
 UI_HARD_LIMIT = 20000
 
 ASYNC_DOWNLOAD_BASE_DIR = '/opt/ooi/async'
-
-# 'san' or 'cass': If data is present in a time bin on both the SAN and Cassandra this option chooses
-# which value to take if the number of entries match.  Otherwise the location with the most data is chosen.
-PREFERRED_DATA_LOCATION = 'san'
 
 QC_RESULTS_STORAGE_SYSTEM = 'none'  # 'log' to write qc results to a file, 'cass' to write qc results to a database
 
@@ -151,3 +144,18 @@ MAX_DEPTH_VARIANCE = 20
 
 # HDF5 Compression 0 = None, compression level 1 to 5
 HDF5_COMP_LEVEL = 1
+
+############################
+# Metadata Module Settings #
+############################
+STREAM_METADATA_SERVICE_URL = 'http://127.0.0.1:12571/streamMetadata'
+PARTITION_METADATA_SERVICE_URL = 'http://127.0.0.1:12571/partitionMetadata'
+
+METADATA_CACHE_SECONDS = 600
+
+# 'san' or 'cass': If data is present in a time bin on both the SAN and Cassandra this option chooses
+# which value to take if the number of entries match.  Otherwise the location with the most data is chosen.
+PREFERRED_DATA_LOCATION = 'san'
+
+MAX_BIN_SIZE_MIN = 20160
+

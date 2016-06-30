@@ -6,9 +6,10 @@ import xarray as xr
 from multiprocessing.pool import ThreadPool
 
 from engine import app
-from util.cass import insert_dataset, get_san_location_metadata, fetch_bin
+from util.cass import insert_dataset, fetch_bin
 from util.common import StreamKey, log_timing
 from util.datamodel import to_xray_dataset, compile_datasets
+from util.metadata_service import get_san_location_metadata
 
 log = logging.getLogger(__name__)
 san_threadpool = ThreadPool(10)
