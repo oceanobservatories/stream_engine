@@ -1,6 +1,7 @@
 .idea
 .cache
 *.pyc
+*~
 
 stream_engine*log*
 stream_engine*lock
