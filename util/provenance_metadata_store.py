@@ -24,7 +24,6 @@ class ProvenanceMetadataStore(object):
         self.calculated_metadata = CalculatedProvenanceMetadataStore()
         self.messages = []
         self._prov_dict = {}
-        self._streaming_provenance = {}
         self._instrument_provenance = {}
         self._query_metadata = OrderedDict()
 
@@ -37,13 +36,6 @@ class ProvenanceMetadataStore(object):
     def update_provenance(self, provenance):
         for i in provenance:
             self._prov_dict[i] = provenance[i]
-
-    def update_streaming_provenance(self, stream_prov):
-        for i in stream_prov:
-            self._streaming_provenance[i] = stream_prov[i]
-
-    def get_streaming_provenance(self):
-        return self._streaming_provenance
 
     def get_provenance_dict(self):
         return self._prov_dict
@@ -79,7 +71,6 @@ class ProvenanceMetadataStore(object):
     def get_json(self):
         out = OrderedDict()
         out['provenance'] = self._prov_dict
-        out['streaming_provenance'] = self._streaming_provenance
         out['instrument_provenance'] = self.get_instrument_provenance()
         out['computed_provenance'] = self.calculated_metadata.get_dict()
         out['query_parameter_provenance'] = self._query_metadata
@@ -95,6 +86,7 @@ class ProvenanceMetadataStore(object):
                 json.dump(self.get_json(), fh, indent=2, separators=(',', ': '))
         except EnvironmentError as e:
             log.error('Failed to write provenance file: %s', e)
+
 
 def _send_query_for_instrument(url):
     results = requests.get(url)

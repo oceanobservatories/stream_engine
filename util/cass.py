@@ -430,7 +430,7 @@ def fetch_l0_provenance(stream_key, provenance_values, deployment):
     provenance metadata store.
     """
     # UUIDs are cast to strings so remove all 'None' values
-    prov_ids = list({x for x in provenance_values if x != 'None'})
+    prov_ids = list({x for x in provenance_values if x not in ["None", ""]})
     provenance_arguments = [
         (stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method, deployment, uuid.UUID(prov_id)) for
         prov_id in prov_ids]

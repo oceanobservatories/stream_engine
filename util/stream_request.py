@@ -154,16 +154,10 @@ class StreamRequest(object):
                     prov_metadata.add_query_metadata(self, self.request_id, 'JSON')
                     prov_metadata.add_instrument_provenance(stream_key, self.time_range.start,
                                                                    self.time_range.stop)
-                    if stream_key.method not in ['streamed', ]:
-                        if 'provenance' in dataset:
-                            provenance = dataset.provenance.values.astype('str')
-                            prov = fetch_l0_provenance(stream_key, provenance, deployment)
-                            prov_metadata.update_provenance(prov)
-                    else:
-                        # Get the ids for times and get the provenance information
-                        times = dataset.time.values
-                        prov_ids, prov_dict = get_streaming_provenance(stream_key, times)
-                        prov_metadata.update_streaming_provenance(prov_dict)
+                    if 'provenance' in dataset:
+                        provenance = dataset.provenance.values.astype('str')
+                        prov = fetch_l0_provenance(stream_key, provenance, deployment)
+                        prov_metadata.update_provenance(prov)
 
     def _insert_annotations(self):
         """
