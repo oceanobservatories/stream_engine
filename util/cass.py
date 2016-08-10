@@ -203,9 +203,18 @@ def fetch_l0_provenance(stream_key, provenance_values, deployment):
     provenance metadata store.
     """
     # UUIDs are cast to strings so remove all 'None' values
-    prov_ids = list({x for x in provenance_values if x != 'None'})
+    if stream_key.method == 'streamed':
+        deployment = 0
+
+    prov_ids = []
+    for each in set(provenance_values):
+        try:
+            prov_ids.append(uuid.UUID(each))
+        except ValueError:
+            pass
+
     provenance_arguments = [
-        (stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method, deployment, uuid.UUID(prov_id)) for
+        (stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method, deployment, prov_id) for
         prov_id in prov_ids]
     query = SessionManager.prepare(L0_DATASET)
     results = execute_concurrent_with_args(SessionManager.session(), query, provenance_arguments)
