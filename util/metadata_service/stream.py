@@ -1,7 +1,7 @@
 import engine
 import logging
 from collections import namedtuple
-from util.common import log_timing, TimeRange, timed_cache
+from util.common import log_timing, TimeRange, timed_cache, MissingStreamMetadataException
 from util.metadata_service import metadata_service_api
 
 _log = logging.getLogger(__name__)
@@ -27,4 +27,6 @@ def build_stream_dictionary():
 @log_timing(_log)
 def get_available_time_range(stream_key):
     stream_metadata_record = metadata_service_api.get_stream_metadata_record(*stream_key.as_tuple())
+    if stream_metadata_record is None:
+        raise MissingStreamMetadataException('Query returned no results for primary stream')
     return TimeRange(stream_metadata_record['first'], stream_metadata_record['last'] + 1)

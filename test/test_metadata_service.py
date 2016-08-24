@@ -6,7 +6,7 @@ import mock
 import unittest
 import util.metadata_service
 from preload_database.database import initialize_connection, open_connection, PreloadDatabaseMode
-from util.common import TimeRange, StreamKey
+from util.common import TimeRange, StreamKey, MissingStreamMetadataException
 from util.metadata_service import CASS_LOCATION_NAME, SAN_LOCATION_NAME
 
 
@@ -326,3 +326,8 @@ class MetadataServiceTest(unittest.TestCase):
             .format(bin_min + 4, 10, 12)
         ]
         self.assertItemsEqual(messages, expected_messages)
+
+    def test_missing_stream(self):
+        with self.assertRaises(MissingStreamMetadataException):
+            sk = StreamKey(*['fake'] * 5)
+            util.metadata_service.get_available_time_range(sk)
