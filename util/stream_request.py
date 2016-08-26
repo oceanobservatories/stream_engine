@@ -95,10 +95,16 @@ class StreamRequest(object):
                     sd.fetch_raw_data(self.time_range, self.limit, should_pad)
                     self.datasets[stream_key] = sd
                 except MissingDataException as e:
+                    dt = (ntp_to_datetime(self.time_range.start))
+                    sdate = dt.strftime('%m/%d/%Y %H:%M:%S')
+                    dt = (ntp_to_datetime(self.time_range.stop))
+                    edate = dt.strftime('%m/%d/%Y %H:%M:%S')
+                    msg = "for %s to %s" % (sdate, edate)
                     if stream_key == self.stream_key:
-                        raise MissingDataException("Query returned no results for primary stream")
+                        print self.time_range
+                        raise MissingDataException("Query returned no results for primary stream %s" % (msg))
                     elif stream_key.stream in self.stream_key.stream.source_streams:
-                        raise MissingDataException("Query returned no results for source stream")
+                        raise MissingDataException("Query returned no results for source stream %s" % (msg))
                     else:
                         log.error('<%s> %s', self.request_id, e.message)
 
