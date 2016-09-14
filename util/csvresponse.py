@@ -3,6 +3,7 @@ import logging
 import os
 
 from engine import app
+from util.common import ntp_to_datestring
 
 log = logging.getLogger(__name__)
 
@@ -36,9 +37,15 @@ class CsvGenerator(object):
         stream_dataset = self.stream_request.datasets[stream_key]
 
         for deployment, ds in stream_dataset.datasets.iteritems():
+
             refdes = stream_key.as_dashed_refdes()
-            filename = 'deployment{:04d}_{:s}{:s}'.format(deployment, refdes, self._get_suffix())
+            times = ds['time']
+            start = ntp_to_datestring(times[0])
+            end = ntp_to_datestring(times[-1])
+
+            filename = 'deployment%04d_%s_%s-%s.csv' % (deployment, refdes, start, end)
             file_path = os.path.join(base_path, filename)
+
             with open(file_path, 'w') as filehandle:
                 self._create_csv(ds, filehandle)
             file_paths.append(file_path)
