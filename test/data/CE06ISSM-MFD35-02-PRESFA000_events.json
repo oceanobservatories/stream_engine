@@ -1,0 +1,3142 @@
+[
+    {
+        "editPhase": "OPERATIONAL",
+        "eventType": "DEPLOYMENT",
+        "inductiveId": null,
+        "@class": ".XDeployment",
+        "recoverCruiseInfo": null,
+        "eventName": "CE06ISSM-MFD35-02-PRESFA000",
+        "deployedBy": null,
+        "location": {
+            "latitude": 47.11667,
+            "orbitRadius": 0.0,
+            "depth": 29.0,
+            "location": [
+                -124.2675,
+                47.11667
+            ],
+            "longitude": -124.2675
+        },
+        "sensor": {
+            "serialNumber": "26P64515-1328",
+            "uid": "A00052",
+            "purchaseDate": 1333584000000,
+            "institutionPropertyNumber": null,
+            "owner": null,
+            "remoteResources": [],
+            "deliveryDate": 1333584000000,
+            "firmwareVersion": null,
+            "ooiSerialNumber": null,
+            "@class": ".XInstrument",
+            "assetType": "Sensor",
+            "calibration": [
+                {
+                    "calData": [
+                        {
+                            "eventId": 21983,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_y3",
+                            "lastModifiedTimestamp": 1474658693613,
+                            "dataSource": "A00052__20141007_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1412640000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00052",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_y3",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 21985,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -3910.859,
+                            "eventName": "CC_y1",
+                            "lastModifiedTimestamp": 1474658693613,
+                            "dataSource": "A00052__20141007_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1412640000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00052",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_y1",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 21987,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -10708.25,
+                            "eventName": "CC_y2",
+                            "lastModifiedTimestamp": 1474658693613,
+                            "dataSource": "A00052__20141007_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1412640000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00052",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_y2",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 21989,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -1024.374,
+                            "eventName": "CC_c3",
+                            "lastModifiedTimestamp": 1474658693613,
+                            "dataSource": "A00052__20141007_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1412640000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00052",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_c3",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 21991,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 8388.6,
+                            "eventName": "CC_b",
+                            "lastModifiedTimestamp": 1474658693613,
+                            "dataSource": "A00052__20141007_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1412640000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00052",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_b",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 21993,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -6.532171,
+                            "eventName": "CC_c2",
+                            "lastModifiedTimestamp": 1474658693613,
+                            "dataSource": "A00052__20141007_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1412640000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00052",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_c2",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 21995,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 607.2786,
+                            "eventName": "CC_c1",
+                            "lastModifiedTimestamp": 1474658693613,
+                            "dataSource": "A00052__20141007_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1412640000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00052",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_c1",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 21997,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.827194,
+                            "eventName": "CC_u0",
+                            "lastModifiedTimestamp": 1474658693613,
+                            "dataSource": "A00052__20141007_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1412640000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00052",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_u0",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 21999,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 18.21885,
+                            "eventName": "CC_t3",
+                            "lastModifiedTimestamp": 1474658693613,
+                            "dataSource": "A00052__20141007_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1412640000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00052",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_t3",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 22001,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.607202,
+                            "eventName": "CC_t2",
+                            "lastModifiedTimestamp": 1474658693613,
+                            "dataSource": "A00052__20141007_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1412640000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00052",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_t2",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 22003,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 27.83369,
+                            "eventName": "CC_t1",
+                            "lastModifiedTimestamp": 1474658693613,
+                            "dataSource": "A00052__20141007_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1412640000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00052",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_t1",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 22005,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 27.90597,
+                            "eventName": "CC_t4",
+                            "lastModifiedTimestamp": 1474658693613,
+                            "dataSource": "A00052__20141007_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1412640000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00052",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_t4",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 22007,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_offset_correction_factor",
+                            "lastModifiedTimestamp": 1474658693613,
+                            "dataSource": "A00052__20141007_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1412640000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00052",
+                            "comments": "Constant"
+                        }
+                    ],
+                    "name": "CC_offset_correction_factor",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 22009,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -0.1172,
+                            "eventName": "CC_pressure_offset_calibration_coefficient",
+                            "lastModifiedTimestamp": 1474658693613,
+                            "dataSource": "A00052__20141007_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1412640000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00052",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_pressure_offset_calibration_coefficient",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 22013,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_d2",
+                            "lastModifiedTimestamp": 1474658693613,
+                            "dataSource": "A00052__20141007_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1412640000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00052",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_d2",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 22011,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 125829.1,
+                            "eventName": "CC_m",
+                            "lastModifiedTimestamp": 1474658693613,
+                            "dataSource": "A00052__20141007_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1412640000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00052",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_m",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 22015,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.02928,
+                            "eventName": "CC_d1",
+                            "lastModifiedTimestamp": 1474658693613,
+                            "dataSource": "A00052__20141007_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1412640000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00052",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_d1",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 22017,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.0,
+                            "eventName": "CC_slope_correction_factor",
+                            "lastModifiedTimestamp": 1474658693613,
+                            "dataSource": "A00052__20141007_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1412640000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00052",
+                            "comments": "Constant"
+                        }
+                    ],
+                    "name": "CC_slope_correction_factor",
+                    "@class": ".XCalibration"
+                }
+            ],
+            "assetId": 459,
+            "location": null,
+            "events": [],
+            "powerRequirements": null,
+            "editPhase": "OPERATIONAL",
+            "ooiPartNumber": null,
+            "physicalInfo": {
+                "width": -1.0,
+                "length": -1.0,
+                "weight": -1.0,
+                "height": -1.0
+            },
+            "description": "PRESF SERIES B (26 PLUS)",
+            "deliveryOrderNumber": null,
+            "dataSource": "BulkLoad from [bulk_load-AssetRecord.csv]",
+            "shelfLifeExpirationDate": null,
+            "manufacturer": "SEA-BIRD ELECTRONICS",
+            "name": "26P64515-1328",
+            "mobile": false,
+            "notes": null,
+            "depthRating": null,
+            "institutionPurchaseOrderNumber": null,
+            "purchasePrice": 13450.0,
+            "softwareVersion": null,
+            "modelNumber": "26Plus",
+            "ooiPropertyNumber": null,
+            "lastModifiedTimestamp": 1474658271695
+        },
+        "mooring": {
+            "serialNumber": "CE06ISSM-00001",
+            "uid": "A00226",
+            "purchaseDate": 1361145600000,
+            "institutionPropertyNumber": null,
+            "owner": null,
+            "remoteResources": [],
+            "deliveryDate": 1361145600000,
+            "firmwareVersion": null,
+            "ooiSerialNumber": null,
+            "@class": ".XMooring",
+            "assetType": "Mooring",
+            "assetId": 1553,
+            "location": null,
+            "events": [],
+            "powerRequirements": null,
+            "editPhase": "OPERATIONAL",
+            "ooiPartNumber": null,
+            "physicalInfo": {
+                "width": -1.0,
+                "length": -1.0,
+                "weight": -1.0,
+                "height": -1.0
+            },
+            "description": "MOORING ENDURANCE WA LP",
+            "deliveryOrderNumber": null,
+            "dataSource": "BulkLoad from [bulk_load-AssetRecord.csv]",
+            "shelfLifeExpirationDate": null,
+            "manufacturer": "WHOI",
+            "name": "CE06ISSM-00001",
+            "mobile": false,
+            "notes": null,
+            "depthRating": null,
+            "institutionPurchaseOrderNumber": null,
+            "purchasePrice": 327912.39,
+            "softwareVersion": null,
+            "modelNumber": "CE06ISSM",
+            "ooiPropertyNumber": null,
+            "lastModifiedTimestamp": 1474658312303
+        },
+        "node": null,
+        "eventId": 35175,
+        "recoveredBy": null,
+        "eventStartTime": 1412711760000,
+        "versionNumber": 1,
+        "tense": "UNKNOWN",
+        "dataSource": "Load from [CE06ISSM_1_Deploy.xlsx]",
+        "ingestInfo": [],
+        "assetUid": null,
+        "referenceDesignator": {
+            "node": "MFD35",
+            "sensor": "02-PRESFA000",
+            "full": true,
+            "subsite": "CE06ISSM"
+        },
+        "notes": null,
+        "deploymentNumber": 1,
+        "eventStopTime": 1428624000000,
+        "deployCruiseInfo": {
+            "editPhase": "OPERATIONAL",
+            "eventId": 28,
+            "shipName": "R/V Oceanus",
+            "cruiseIdentifier": "OC1410A",
+            "eventType": "CRUISE_INFO",
+            "notes": "UNKNOWN",
+            "eventStopTime": 1412899200000,
+            "uniqueCruiseIdentifier": "OC1410A",
+            "eventName": "OC1410A",
+            "tense": "UNKNOWN",
+            "@class": ".CruiseInfo",
+            "eventStartTime": 1412553600000,
+            "lastModifiedTimestamp": 1474658508449,
+            "assetUid": null,
+            "dataSource": "Load from [CruiseInformation.xlsx]"
+        },
+        "lastModifiedTimestamp": 1474659226607
+    },
+    {
+        "editPhase": "OPERATIONAL",
+        "eventType": "DEPLOYMENT",
+        "inductiveId": null,
+        "@class": ".XDeployment",
+        "recoverCruiseInfo": null,
+        "eventName": "CE06ISSM-MFD35-02-PRESFA000",
+        "deployedBy": null,
+        "location": {
+            "latitude": 47.13111,
+            "orbitRadius": 0.0,
+            "depth": 29.0,
+            "location": [
+                -124.27195,
+                47.13111
+            ],
+            "longitude": -124.27195
+        },
+        "sensor": {
+            "serialNumber": "26P71826-1351",
+            "uid": "A00248",
+            "purchaseDate": 1358899200000,
+            "institutionPropertyNumber": null,
+            "owner": null,
+            "remoteResources": [],
+            "deliveryDate": 1358899200000,
+            "firmwareVersion": null,
+            "ooiSerialNumber": null,
+            "@class": ".XInstrument",
+            "assetType": "Sensor",
+            "calibration": [
+                {
+                    "calData": [
+                        {
+                            "eventId": 23674,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_y3",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 25940,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_y3",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18580,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_y3",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_y3",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 25941,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -3843.931,
+                            "eventName": "CC_y1",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23675,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -3843.931,
+                            "eventName": "CC_y1",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18582,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -3843.931,
+                            "eventName": "CC_y1",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_y1",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 18584,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -9856.4,
+                            "eventName": "CC_y2",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 25942,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -9856.4,
+                            "eventName": "CC_y2",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23676,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -9856.4,
+                            "eventName": "CC_y2",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_y2",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 23677,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -997.2383,
+                            "eventName": "CC_c3",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 25943,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -997.2383,
+                            "eventName": "CC_c3",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18586,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -997.2383,
+                            "eventName": "CC_c3",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_c3",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 23678,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 8388.6,
+                            "eventName": "CC_b",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18588,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 8388.6,
+                            "eventName": "CC_b",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 25944,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 8388.6,
+                            "eventName": "CC_b",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_b",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 25945,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -13.9087,
+                            "eventName": "CC_c2",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": "the PRESF instrument needs to be written"
+                        },
+                        {
+                            "eventId": 18590,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -13.9087,
+                            "eventName": "CC_c2",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23679,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -13.9087,
+                            "eventName": "CC_c2",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_c2",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 18592,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 603.8619,
+                            "eventName": "CC_c1",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23680,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 603.8619,
+                            "eventName": "CC_c1",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 25946,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 603.8619,
+                            "eventName": "CC_c1",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": "IDD for data recovered directly from"
+                        }
+                    ],
+                    "name": "CC_c1",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 18596,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 18.5233,
+                            "eventName": "CC_t3",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23682,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 18.5233,
+                            "eventName": "CC_t3",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 25948,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 18.5233,
+                            "eventName": "CC_t3",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_t3",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 25947,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.843186,
+                            "eventName": "CC_u0",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23681,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.843186,
+                            "eventName": "CC_u0",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18594,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.843186,
+                            "eventName": "CC_u0",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_u0",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 18598,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.615129,
+                            "eventName": "CC_t2",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23683,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.615129,
+                            "eventName": "CC_t2",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 25949,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.615129,
+                            "eventName": "CC_t2",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_t2",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 25950,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 27.66064,
+                            "eventName": "CC_t1",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23684,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 27.66064,
+                            "eventName": "CC_t1",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18600,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 27.66064,
+                            "eventName": "CC_t1",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_t1",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 23685,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 25.79376,
+                            "eventName": "CC_t4",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18602,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 25.79376,
+                            "eventName": "CC_t4",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 25951,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 25.79376,
+                            "eventName": "CC_t4",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_t4",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 23686,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_offset_correction_factor",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": "Constant"
+                        },
+                        {
+                            "eventId": 18604,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_offset_correction_factor",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": "Constant"
+                        },
+                        {
+                            "eventId": 25952,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_offset_correction_factor",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": "Constant"
+                        }
+                    ],
+                    "name": "CC_offset_correction_factor",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 25953,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -0.1653,
+                            "eventName": "CC_pressure_offset_calibration_coefficient",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": "from SBE offset_correction pdf"
+                        },
+                        {
+                            "eventId": 23687,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -0.1447,
+                            "eventName": "CC_pressure_offset_calibration_coefficient",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18606,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -0.1914,
+                            "eventName": "CC_pressure_offset_calibration_coefficient",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_pressure_offset_calibration_coefficient",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 25954,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 125829.1,
+                            "eventName": "CC_m",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23689,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 125829.1,
+                            "eventName": "CC_m",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18608,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 125829.1,
+                            "eventName": "CC_m",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_m",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 25955,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_d2",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18610,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_d2",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23688,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_d2",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_d2",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 25956,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.022398,
+                            "eventName": "CC_d1",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18612,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.022398,
+                            "eventName": "CC_d1",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23690,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.022398,
+                            "eventName": "CC_d1",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_d1",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 23691,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.0,
+                            "eventName": "CC_slope_correction_factor",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": "Constant"
+                        },
+                        {
+                            "eventId": 25957,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.0,
+                            "eventName": "CC_slope_correction_factor",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": "Constant"
+                        },
+                        {
+                            "eventId": 18614,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.0,
+                            "eventName": "CC_slope_correction_factor",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": "Constant"
+                        }
+                    ],
+                    "name": "CC_slope_correction_factor",
+                    "@class": ".XCalibration"
+                }
+            ],
+            "assetId": 1435,
+            "location": null,
+            "events": [],
+            "powerRequirements": null,
+            "editPhase": "OPERATIONAL",
+            "ooiPartNumber": null,
+            "physicalInfo": {
+                "width": -1.0,
+                "length": -1.0,
+                "weight": -1.0,
+                "height": -1.0
+            },
+            "description": "PRESF SERIES A (26PLUS)",
+            "deliveryOrderNumber": null,
+            "dataSource": "BulkLoad from [bulk_load-AssetRecord.csv]",
+            "shelfLifeExpirationDate": null,
+            "manufacturer": "SEA-BIRD ELECTRONICS",
+            "name": "26P71826-1351",
+            "mobile": false,
+            "notes": null,
+            "depthRating": null,
+            "institutionPurchaseOrderNumber": null,
+            "purchasePrice": 13450.0,
+            "softwareVersion": null,
+            "modelNumber": "SBE-26PLUS",
+            "ooiPropertyNumber": null,
+            "lastModifiedTimestamp": 1474658307942
+        },
+        "mooring": {
+            "serialNumber": "CE06ISSM-00002",
+            "uid": "A01159",
+            "purchaseDate": 1361145600000,
+            "institutionPropertyNumber": null,
+            "owner": null,
+            "remoteResources": [],
+            "deliveryDate": 1361145600000,
+            "firmwareVersion": null,
+            "ooiSerialNumber": null,
+            "@class": ".XMooring",
+            "assetType": "Mooring",
+            "assetId": 928,
+            "location": null,
+            "events": [],
+            "powerRequirements": null,
+            "editPhase": "OPERATIONAL",
+            "ooiPartNumber": null,
+            "physicalInfo": {
+                "width": -1.0,
+                "length": -1.0,
+                "weight": -1.0,
+                "height": -1.0
+            },
+            "description": "MOORING ENDURANCE OR LP",
+            "deliveryOrderNumber": null,
+            "dataSource": "BulkLoad from [bulk_load-AssetRecord.csv]",
+            "shelfLifeExpirationDate": null,
+            "manufacturer": "WHOI",
+            "name": "CE06ISSM-00002",
+            "mobile": false,
+            "notes": null,
+            "depthRating": null,
+            "institutionPurchaseOrderNumber": null,
+            "purchasePrice": 327912.39,
+            "softwareVersion": null,
+            "modelNumber": "CE06ISSM",
+            "ooiPropertyNumber": null,
+            "lastModifiedTimestamp": 1474658288900
+        },
+        "node": null,
+        "eventId": 33438,
+        "recoveredBy": null,
+        "eventStartTime": 1428640200000,
+        "versionNumber": 1,
+        "tense": "UNKNOWN",
+        "dataSource": "Load from [CE06ISSM_2_Deploy.xlsx]",
+        "ingestInfo": [],
+        "assetUid": null,
+        "referenceDesignator": {
+            "node": "MFD35",
+            "sensor": "02-PRESFA000",
+            "full": true,
+            "subsite": "CE06ISSM"
+        },
+        "notes": null,
+        "deploymentNumber": 2,
+        "eventStopTime": 1444694400000,
+        "deployCruiseInfo": {
+            "editPhase": "OPERATIONAL",
+            "eventId": 29,
+            "shipName": "R/V Oceanus",
+            "cruiseIdentifier": "OC1503D",
+            "eventType": "CRUISE_INFO",
+            "notes": "UNKNOWN",
+            "eventStopTime": 1428710400000,
+            "uniqueCruiseIdentifier": "OC1503D",
+            "eventName": "OC1503D",
+            "tense": "UNKNOWN",
+            "@class": ".CruiseInfo",
+            "eventStartTime": 1427932800000,
+            "lastModifiedTimestamp": 1474658508455,
+            "assetUid": null,
+            "dataSource": "Load from [CruiseInformation.xlsx]"
+        },
+        "lastModifiedTimestamp": 1474658933105
+    },
+    {
+        "editPhase": "OPERATIONAL",
+        "eventType": "DEPLOYMENT",
+        "inductiveId": null,
+        "@class": ".XDeployment",
+        "recoverCruiseInfo": null,
+        "eventName": "CE06ISSM-MFD35-02-PRESFA000",
+        "deployedBy": null,
+        "location": {
+            "latitude": 47.13327,
+            "orbitRadius": 0.0,
+            "depth": 29.0,
+            "location": [
+                -124.27092,
+                47.13327
+            ],
+            "longitude": -124.27092
+        },
+        "sensor": {
+            "serialNumber": "26P-1391",
+            "uid": "N00674",
+            "purchaseDate": null,
+            "institutionPropertyNumber": null,
+            "owner": null,
+            "remoteResources": [],
+            "deliveryDate": null,
+            "firmwareVersion": null,
+            "ooiSerialNumber": null,
+            "@class": ".XInstrument",
+            "assetType": "Sensor",
+            "calibration": [
+                {
+                    "calData": [
+                        {
+                            "eventId": 17324,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_y3",
+                            "lastModifiedTimestamp": 1474658680590,
+                            "dataSource": "N00674__20151013_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1444694400000,
+                            "eventStopTime": null,
+                            "assetUid": "N00674",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_y3",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 17326,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -3983.797,
+                            "eventName": "CC_y1",
+                            "lastModifiedTimestamp": 1474658680590,
+                            "dataSource": "N00674__20151013_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1444694400000,
+                            "eventStopTime": null,
+                            "assetUid": "N00674",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_y1",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 17328,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -9856.866,
+                            "eventName": "CC_y2",
+                            "lastModifiedTimestamp": 1474658680590,
+                            "dataSource": "N00674__20151013_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1444694400000,
+                            "eventStopTime": null,
+                            "assetUid": "N00674",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_y2",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 17330,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -1105.32,
+                            "eventName": "CC_c3",
+                            "lastModifiedTimestamp": 1474658680590,
+                            "dataSource": "N00674__20151013_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1444694400000,
+                            "eventStopTime": null,
+                            "assetUid": "N00674",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_c3",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 17332,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 8388.6,
+                            "eventName": "CC_b",
+                            "lastModifiedTimestamp": 1474658680590,
+                            "dataSource": "N00674__20151013_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1444694400000,
+                            "eventStopTime": null,
+                            "assetUid": "N00674",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_b",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 17334,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 10.06003,
+                            "eventName": "CC_c2",
+                            "lastModifiedTimestamp": 1474658680590,
+                            "dataSource": "N00674__20151013_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1444694400000,
+                            "eventStopTime": null,
+                            "assetUid": "N00674",
+                            "comments": "the PRESF instrument needs to be written"
+                        }
+                    ],
+                    "name": "CC_c2",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 17336,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 599.7413,
+                            "eventName": "CC_c1",
+                            "lastModifiedTimestamp": 1474658680590,
+                            "dataSource": "N00674__20151013_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1444694400000,
+                            "eventStopTime": null,
+                            "assetUid": "N00674",
+                            "comments": "IDD for data recovered directly from"
+                        }
+                    ],
+                    "name": "CC_c1",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 17338,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.793598999999999,
+                            "eventName": "CC_u0",
+                            "lastModifiedTimestamp": 1474658680590,
+                            "dataSource": "N00674__20151013_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1444694400000,
+                            "eventStopTime": null,
+                            "assetUid": "N00674",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_u0",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 17340,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 19.84326,
+                            "eventName": "CC_t3",
+                            "lastModifiedTimestamp": 1474658680590,
+                            "dataSource": "N00674__20151013_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1444694400000,
+                            "eventStopTime": null,
+                            "assetUid": "N00674",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_t3",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 17342,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.493062,
+                            "eventName": "CC_t2",
+                            "lastModifiedTimestamp": 1474658680590,
+                            "dataSource": "N00674__20151013_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1444694400000,
+                            "eventStopTime": null,
+                            "assetUid": "N00674",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_t2",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 17344,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 27.80895,
+                            "eventName": "CC_t1",
+                            "lastModifiedTimestamp": 1474658680590,
+                            "dataSource": "N00674__20151013_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1444694400000,
+                            "eventStopTime": null,
+                            "assetUid": "N00674",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_t1",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 17346,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 41.17355999999999,
+                            "eventName": "CC_t4",
+                            "lastModifiedTimestamp": 1474658680590,
+                            "dataSource": "N00674__20151013_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1444694400000,
+                            "eventStopTime": null,
+                            "assetUid": "N00674",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_t4",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 17348,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_offset_correction_factor",
+                            "lastModifiedTimestamp": 1474658680590,
+                            "dataSource": "N00674__20151013_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1444694400000,
+                            "eventStopTime": null,
+                            "assetUid": "N00674",
+                            "comments": "Constant"
+                        }
+                    ],
+                    "name": "CC_offset_correction_factor",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 17350,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -0.173,
+                            "eventName": "CC_pressure_offset_calibration_coefficient",
+                            "lastModifiedTimestamp": 1474658680590,
+                            "dataSource": "N00674__20151013_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1444694400000,
+                            "eventStopTime": null,
+                            "assetUid": "N00674",
+                            "comments": "from SBE offset_correction pdf"
+                        }
+                    ],
+                    "name": "CC_pressure_offset_calibration_coefficient",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 17354,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_d2",
+                            "lastModifiedTimestamp": 1474658680590,
+                            "dataSource": "N00674__20151013_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1444694400000,
+                            "eventStopTime": null,
+                            "assetUid": "N00674",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_d2",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 17352,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 125829.1,
+                            "eventName": "CC_m",
+                            "lastModifiedTimestamp": 1474658680590,
+                            "dataSource": "N00674__20151013_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1444694400000,
+                            "eventStopTime": null,
+                            "assetUid": "N00674",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_m",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 17356,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.029624,
+                            "eventName": "CC_d1",
+                            "lastModifiedTimestamp": 1474658680590,
+                            "dataSource": "N00674__20151013_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1444694400000,
+                            "eventStopTime": null,
+                            "assetUid": "N00674",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_d1",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 17358,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.0,
+                            "eventName": "CC_slope_correction_factor",
+                            "lastModifiedTimestamp": 1474658680590,
+                            "dataSource": "N00674__20151013_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1444694400000,
+                            "eventStopTime": null,
+                            "assetUid": "N00674",
+                            "comments": "Constant"
+                        }
+                    ],
+                    "name": "CC_slope_correction_factor",
+                    "@class": ".XCalibration"
+                }
+            ],
+            "assetId": 2684,
+            "location": null,
+            "events": [],
+            "powerRequirements": null,
+            "editPhase": "OPERATIONAL",
+            "ooiPartNumber": null,
+            "physicalInfo": {
+                "width": -1.0,
+                "length": -1.0,
+                "weight": -1.0,
+                "height": -1.0
+            },
+            "description": "PRESF SERIES B (26PLUS)",
+            "deliveryOrderNumber": null,
+            "dataSource": "BulkLoad from [bulk_load-AssetRecord.csv]",
+            "shelfLifeExpirationDate": null,
+            "manufacturer": "SEA-BIRD ELECTRONICS",
+            "name": "26P-1391",
+            "mobile": false,
+            "notes": null,
+            "depthRating": null,
+            "institutionPurchaseOrderNumber": null,
+            "purchasePrice": 14300.0,
+            "softwareVersion": null,
+            "modelNumber": "SBE-26 PLUS",
+            "ooiPropertyNumber": null,
+            "lastModifiedTimestamp": 1474658352371
+        },
+        "mooring": {
+            "serialNumber": "CE06ISSM-00003",
+            "uid": "N00267",
+            "purchaseDate": null,
+            "institutionPropertyNumber": null,
+            "owner": null,
+            "remoteResources": [],
+            "deliveryDate": null,
+            "firmwareVersion": null,
+            "ooiSerialNumber": null,
+            "@class": ".XMooring",
+            "assetType": "Mooring",
+            "assetId": 3148,
+            "location": null,
+            "events": [],
+            "powerRequirements": null,
+            "editPhase": "OPERATIONAL",
+            "ooiPartNumber": null,
+            "physicalInfo": {
+                "width": -1.0,
+                "length": -1.0,
+                "weight": -1.0,
+                "height": -1.0
+            },
+            "description": "MOORING ENDURANCE OR LP",
+            "deliveryOrderNumber": null,
+            "dataSource": "BulkLoad from [bulk_load-AssetRecord.csv]",
+            "shelfLifeExpirationDate": null,
+            "manufacturer": "WHOI",
+            "name": "CE06ISSM-00003",
+            "mobile": false,
+            "notes": null,
+            "depthRating": null,
+            "institutionPurchaseOrderNumber": null,
+            "purchasePrice": 327912.39,
+            "softwareVersion": null,
+            "modelNumber": "CE06ISSM",
+            "ooiPropertyNumber": null,
+            "lastModifiedTimestamp": 1474658369531
+        },
+        "node": null,
+        "eventId": 35633,
+        "recoveredBy": null,
+        "eventStartTime": 1444776840000,
+        "versionNumber": 1,
+        "tense": "UNKNOWN",
+        "dataSource": "Load from [CE06ISSM_3_Deploy.xlsx]",
+        "ingestInfo": [],
+        "assetUid": null,
+        "referenceDesignator": {
+            "node": "MFD35",
+            "sensor": "02-PRESFA000",
+            "full": true,
+            "subsite": "CE06ISSM"
+        },
+        "notes": null,
+        "deploymentNumber": 3,
+        "eventStopTime": 1462492800000,
+        "deployCruiseInfo": {
+            "editPhase": "OPERATIONAL",
+            "eventId": 30,
+            "shipName": "R/V Oceanus",
+            "cruiseIdentifier": "OC1510A",
+            "eventType": "CRUISE_INFO",
+            "notes": "UNKNOWN",
+            "eventStopTime": 1444953600000,
+            "uniqueCruiseIdentifier": "OC1510A",
+            "eventName": "OC1510A",
+            "tense": "UNKNOWN",
+            "@class": ".CruiseInfo",
+            "eventStartTime": 1444176000000,
+            "lastModifiedTimestamp": 1474658508462,
+            "assetUid": null,
+            "dataSource": "Load from [CruiseInformation.xlsx]"
+        },
+        "lastModifiedTimestamp": 1474659303257
+    },
+    {
+        "editPhase": "OPERATIONAL",
+        "eventType": "DEPLOYMENT",
+        "inductiveId": null,
+        "@class": ".XDeployment",
+        "recoverCruiseInfo": null,
+        "eventName": "CE06ISSM-MFD35-02-PRESFA000",
+        "deployedBy": null,
+        "location": {
+            "latitude": 47.13498,
+            "orbitRadius": 0.0,
+            "depth": 29.0,
+            "location": [
+                -124.27315,
+                47.13498
+            ],
+            "longitude": -124.27315
+        },
+        "sensor": {
+            "serialNumber": "26P71826-1351",
+            "uid": "A00248",
+            "purchaseDate": 1358899200000,
+            "institutionPropertyNumber": null,
+            "owner": null,
+            "remoteResources": [],
+            "deliveryDate": 1358899200000,
+            "firmwareVersion": null,
+            "ooiSerialNumber": null,
+            "@class": ".XInstrument",
+            "assetType": "Sensor",
+            "calibration": [
+                {
+                    "calData": [
+                        {
+                            "eventId": 23674,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_y3",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 25940,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_y3",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18580,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_y3",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_y3",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 25941,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -3843.931,
+                            "eventName": "CC_y1",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23675,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -3843.931,
+                            "eventName": "CC_y1",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18582,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -3843.931,
+                            "eventName": "CC_y1",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_y1",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 18584,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -9856.4,
+                            "eventName": "CC_y2",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 25942,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -9856.4,
+                            "eventName": "CC_y2",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23676,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -9856.4,
+                            "eventName": "CC_y2",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_y2",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 23677,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -997.2383,
+                            "eventName": "CC_c3",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 25943,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -997.2383,
+                            "eventName": "CC_c3",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18586,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -997.2383,
+                            "eventName": "CC_c3",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_c3",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 23678,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 8388.6,
+                            "eventName": "CC_b",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18588,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 8388.6,
+                            "eventName": "CC_b",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 25944,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 8388.6,
+                            "eventName": "CC_b",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_b",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 25945,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -13.9087,
+                            "eventName": "CC_c2",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": "the PRESF instrument needs to be written"
+                        },
+                        {
+                            "eventId": 18590,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -13.9087,
+                            "eventName": "CC_c2",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23679,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -13.9087,
+                            "eventName": "CC_c2",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_c2",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 18592,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 603.8619,
+                            "eventName": "CC_c1",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23680,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 603.8619,
+                            "eventName": "CC_c1",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 25946,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 603.8619,
+                            "eventName": "CC_c1",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": "IDD for data recovered directly from"
+                        }
+                    ],
+                    "name": "CC_c1",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 18596,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 18.5233,
+                            "eventName": "CC_t3",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23682,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 18.5233,
+                            "eventName": "CC_t3",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 25948,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 18.5233,
+                            "eventName": "CC_t3",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_t3",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 25947,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.843186,
+                            "eventName": "CC_u0",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23681,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.843186,
+                            "eventName": "CC_u0",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18594,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 5.843186,
+                            "eventName": "CC_u0",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_u0",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 18598,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.615129,
+                            "eventName": "CC_t2",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23683,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.615129,
+                            "eventName": "CC_t2",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 25949,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.615129,
+                            "eventName": "CC_t2",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_t2",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 25950,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 27.66064,
+                            "eventName": "CC_t1",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23684,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 27.66064,
+                            "eventName": "CC_t1",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18600,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 27.66064,
+                            "eventName": "CC_t1",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_t1",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 23685,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 25.79376,
+                            "eventName": "CC_t4",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18602,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 25.79376,
+                            "eventName": "CC_t4",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 25951,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 25.79376,
+                            "eventName": "CC_t4",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_t4",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 23686,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_offset_correction_factor",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": "Constant"
+                        },
+                        {
+                            "eventId": 18604,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_offset_correction_factor",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": "Constant"
+                        },
+                        {
+                            "eventId": 25952,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_offset_correction_factor",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": "Constant"
+                        }
+                    ],
+                    "name": "CC_offset_correction_factor",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 25953,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -0.1653,
+                            "eventName": "CC_pressure_offset_calibration_coefficient",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": "from SBE offset_correction pdf"
+                        },
+                        {
+                            "eventId": 23687,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -0.1447,
+                            "eventName": "CC_pressure_offset_calibration_coefficient",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18606,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": -0.1914,
+                            "eventName": "CC_pressure_offset_calibration_coefficient",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_pressure_offset_calibration_coefficient",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 25954,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 125829.1,
+                            "eventName": "CC_m",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23689,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 125829.1,
+                            "eventName": "CC_m",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18608,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 125829.1,
+                            "eventName": "CC_m",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_m",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 25955,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_d2",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18610,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_d2",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23688,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.0,
+                            "eventName": "CC_d2",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_d2",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 25956,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.022398,
+                            "eventName": "CC_d1",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 18612,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.022398,
+                            "eventName": "CC_d1",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        },
+                        {
+                            "eventId": 23690,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 0.022398,
+                            "eventName": "CC_d1",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": null
+                        }
+                    ],
+                    "name": "CC_d1",
+                    "@class": ".XCalibration"
+                },
+                {
+                    "calData": [
+                        {
+                            "eventId": 23691,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.0,
+                            "eventName": "CC_slope_correction_factor",
+                            "lastModifiedTimestamp": 1474658699545,
+                            "dataSource": "A00248__20140417_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1397692800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": "Constant"
+                        },
+                        {
+                            "eventId": 25957,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.0,
+                            "eventName": "CC_slope_correction_factor",
+                            "lastModifiedTimestamp": 1474658708734,
+                            "dataSource": "A00248__20160506_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1462492800000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": "Constant"
+                        },
+                        {
+                            "eventId": 18614,
+                            "eventType": "CALIBRATION_DATA",
+                            "notes": null,
+                            "value": 1.0,
+                            "eventName": "CC_slope_correction_factor",
+                            "lastModifiedTimestamp": 1474658683650,
+                            "dataSource": "A00248__20150410_Cal_Info.xlsx",
+                            "tense": "UNKNOWN",
+                            "@class": ".XCalibrationData",
+                            "eventStartTime": 1428624000000,
+                            "eventStopTime": null,
+                            "assetUid": "A00248",
+                            "comments": "Constant"
+                        }
+                    ],
+                    "name": "CC_slope_correction_factor",
+                    "@class": ".XCalibration"
+                }
+            ],
+            "assetId": 1435,
+            "location": null,
+            "events": [],
+            "powerRequirements": null,
+            "editPhase": "OPERATIONAL",
+            "ooiPartNumber": null,
+            "physicalInfo": {
+                "width": -1.0,
+                "length": -1.0,
+                "weight": -1.0,
+                "height": -1.0
+            },
+            "description": "PRESF SERIES A (26PLUS)",
+            "deliveryOrderNumber": null,
+            "dataSource": "BulkLoad from [bulk_load-AssetRecord.csv]",
+            "shelfLifeExpirationDate": null,
+            "manufacturer": "SEA-BIRD ELECTRONICS",
+            "name": "26P71826-1351",
+            "mobile": false,
+            "notes": null,
+            "depthRating": null,
+            "institutionPurchaseOrderNumber": null,
+            "purchasePrice": 13450.0,
+            "softwareVersion": null,
+            "modelNumber": "SBE-26PLUS",
+            "ooiPropertyNumber": null,
+            "lastModifiedTimestamp": 1474658307942
+        },
+        "mooring": {
+            "serialNumber": "CE06ISSM-00004",
+            "uid": "OL000397",
+            "purchaseDate": null,
+            "institutionPropertyNumber": null,
+            "owner": null,
+            "remoteResources": [],
+            "deliveryDate": null,
+            "firmwareVersion": null,
+            "ooiSerialNumber": null,
+            "@class": ".XMooring",
+            "assetType": "Mooring",
+            "assetId": 3543,
+            "location": null,
+            "events": [],
+            "powerRequirements": null,
+            "editPhase": "OPERATIONAL",
+            "ooiPartNumber": null,
+            "physicalInfo": {
+                "width": -1.0,
+                "length": -1.0,
+                "weight": -1.0,
+                "height": -1.0
+            },
+            "description": "MOORING ENDURANCE OR LP",
+            "deliveryOrderNumber": null,
+            "dataSource": "BulkLoad from [bulk_load-AssetRecord.csv]",
+            "shelfLifeExpirationDate": null,
+            "manufacturer": "WHOI",
+            "name": "CE06ISSM-00004",
+            "mobile": false,
+            "notes": null,
+            "depthRating": null,
+            "institutionPurchaseOrderNumber": null,
+            "purchasePrice": null,
+            "softwareVersion": null,
+            "modelNumber": "CE06ISSM",
+            "ooiPropertyNumber": null,
+            "lastModifiedTimestamp": 1474658383854
+        },
+        "node": null,
+        "eventId": 35658,
+        "recoveredBy": null,
+        "eventStartTime": 1462501440000,
+        "versionNumber": 1,
+        "tense": "UNKNOWN",
+        "dataSource": "Load from [CE06ISSM_4_Deploy.xlsx]",
+        "ingestInfo": [],
+        "assetUid": null,
+        "referenceDesignator": {
+            "node": "MFD35",
+            "sensor": "02-PRESFA000",
+            "full": true,
+            "subsite": "CE06ISSM"
+        },
+        "notes": null,
+        "deploymentNumber": 4,
+        "eventStopTime": null,
+        "deployCruiseInfo": {
+            "editPhase": "OPERATIONAL",
+            "eventId": 51,
+            "shipName": "R/V Thompson",
+            "cruiseIdentifier": "TN-342",
+            "eventType": "CRUISE_INFO",
+            "notes": "UNKNOWN",
+            "eventStopTime": 1463529600000,
+            "uniqueCruiseIdentifier": "TN-342",
+            "eventName": "TN-342",
+            "tense": "UNKNOWN",
+            "@class": ".CruiseInfo",
+            "eventStartTime": 1462406400000,
+            "lastModifiedTimestamp": 1474658508599,
+            "assetUid": null,
+            "dataSource": "Load from [CruiseInformation.xlsx]"
+        },
+        "lastModifiedTimestamp": 1474659307157
+    }
+]

@@ -5,7 +5,6 @@ import datetime
 import ntplib
 import numpy as np
 import requests
-from toolz import dicttoolz
 
 from engine import app
 
@@ -63,7 +62,7 @@ class AnnotationRecord(object):
         self.stop = datetime.datetime.utcfromtimestamp(self._stop_millis / 1000.0)
 
     def as_dict(self):
-        return dicttoolz.keyfilter(lambda x: not x.startswith('_'), self.__dict__)
+        return {k: v for k, v in self.__dict__ if not k.startswith('_')}
 
 
 class AnnotationStore(object):

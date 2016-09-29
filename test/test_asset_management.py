@@ -15,6 +15,7 @@ log.setLevel(logging.DEBUG)
 TEST_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.join(TEST_DIR, 'data')
 events_response = open(os.path.join(DATA_DIR, 'CE04OSPS-SF01B-2A-CTDPFA107_events.json')).read()
+events_response_presf = open(os.path.join(DATA_DIR, 'CE06ISSM-MFD35-02-PRESFA000_events.json')).read()
 
 
 class AssetManagementTest(unittest.TestCase):
@@ -67,6 +68,13 @@ class AssetManagementTest(unittest.TestCase):
         am = self.test_create_am()
         with requests_mock.Mocker() as m:
             m.get(am.base_url, text=events_response)
+            future = am.get_events_async(self.refdes)
+            return future.result()
+
+    def test_get_events_async_presf(self):
+        am = self.test_create_am()
+        with requests_mock.Mocker() as m:
+            m.get(am.base_url, text=events_response_presf)
             future = am.get_events_async(self.refdes)
             return future.result()
 
@@ -147,7 +155,7 @@ class AssetManagementTest(unittest.TestCase):
         ]
 
         for dep, name, value in expected:
-            cal, _, _ = cals.get(dep, {}).get(name)[0]
+            _, _, cal = cals.get(dep, {}).get(name)[0]
             self.assertIsNotNone(cal, msg='Missing cal value for %s %s' % (name, dep))
 
             np.testing.assert_almost_equal(value, cal, decimal=5)
@@ -172,3 +180,9 @@ class AssetManagementTest(unittest.TestCase):
 
         cal, meta = events.get_tiled_cal('CC_lon', 2, np.array([1, 2]))
         np.testing.assert_almost_equal(cal, np.array([-124.95648, -124.95648]))
+
+    def test_multiple_cals(self):
+        events = self.test_get_events_async_presf()
+        for cals in events.cals.itervalues():
+            for name, entries in cals.iteritems():
+                self.assertEqual(len(entries), 1, msg='Found multiple calibrations for %s' % name)
