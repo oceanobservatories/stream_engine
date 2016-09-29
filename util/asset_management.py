@@ -32,27 +32,21 @@ class Deployment(object):
 
     def __init__(self, am_dictionary):
         self.am_dictionary = am_dictionary
-        self._times = None
+        self._start, self._stop = self._extract_times(self.am_dictionary)
 
     @property
     def ntp_start(self):
-        start, _ = self.get_times()
-        return (start - self.ntp_epoch).total_seconds()
+        return (self._start - self.ntp_epoch).total_seconds()
 
     @property
     def ntp_stop(self):
-        _, stop = self.get_times()
+        stop = self._stop
         if stop is None:
             stop = datetime.utcnow()
         return (stop - self.ntp_epoch).total_seconds()
 
     def get_number(self):
         return self.am_dictionary.get('deploymentNumber', 0)
-
-    def get_times(self):
-        if self._times is None:
-            self._times = self._extract_times(self.am_dictionary)
-        return self._times
 
     def get_location(self):
         return self.am_dictionary.get('location')
@@ -64,53 +58,38 @@ class Deployment(object):
         return self._get_sensor().get('calibration', [])
 
     def get_cal_values(self):
-        dstart, dstop = self.get_times()
+        dstart, dstop = self._start, self._stop
         d = {}
+        cals = {}
+
+        # gather all possible calibrations
         for each in self._get_calibration():
             name = each.get('name')
             data = each.get('calData')
             for each in data:
-                val, cstart, cstop = self._extract_from_cal(each)
-                try:
-                    cstart, cstop = self._valid_times(dstart, dstop, cstart, cstop)
-                    d.setdefault(name, []).append((val, cstart, cstop))
-                except TimeBoundsException:
-                    continue
+                val, cstart = self._extract_from_cal(each)
+                cals.setdefault(name, []).append((cstart, None, val))
+
+        # close all open calibrations which aren't the latest calibrations
+        for name, calibrations in cals.iteritems():
+            calibrations.sort()
+            calibrations.reverse()
+
+            last_start = None
+            for start, stop, val in calibrations:
+                stop = last_start
+                last_start = start
+
+                # keep only those within the bounds of this deployment
+                if (dstop is None or start < dstop) and (stop is None or stop > dstart):
+                    d.setdefault(name, []).append((start, stop, val))
+
         return d
-
-    def _valid_times(self, dstart, dstop, cstart, cstop):
-        # start times must always be defined
-        if not all((cstart, dstart)):
-            raise TimeBoundsException
-
-        # deployment stop defined and cal start after - not applicable this deployment
-        if dstop is not None and cstart > dstop:
-            raise TimeBoundsException
-
-        # cal stop defined and deployment start after - not applicable this deployment
-        if cstop is not None and dstart > cstop:
-            raise TimeBoundsException
-
-        # trim calibration times to deployment bounds
-        if cstart < dstart:
-            cstart = dstart
-
-        # both stops are unbounded, do nothing
-        if cstop is None and dstop is None:
-            pass
-        # cal stop is unbounded but deployment stop defined, trim
-        elif cstop is None and dstop:
-            cstop = dstop
-        # both stops are defined but cal exceed deployment, trim
-        elif cstop > dstop:
-            cstop = dstop
-
-        return cstart, cstop
 
     def _extract_from_cal(self, data):
         val = data.get('value')
         start, stop = self._extract_times(data)
-        return val, start, stop
+        return val, start
 
     @staticmethod
     def _extract_times(dictionary):
@@ -161,6 +140,19 @@ class AssetEvents(object):
             self.cals[number] = deployment.get_cal_values()
             self.locations[number] = deployment.get_location()
 
+        # close all open deployments which aren't the latest deployment
+        deps = []
+        for n, deployment in self.deps.iteritems():
+            deps.append((deployment._start, deployment._stop, n))
+
+        deps.sort()
+        deps.reverse()
+        last_start = None
+        for start, stop, n in deps:
+            if stop is None:
+                self.deps[n]._stop = last_start
+            last_start = start
+
     def get_location_data(self, deployment):
         """
         Returns the latitude, longitude and depth for this deployment or None if not found
@@ -191,11 +183,11 @@ class AssetEvents(object):
 
         if name in LATITUDE_NAMES:
             lat, _, _ = self.get_location_data(deployment)
-            cal = [(lat, 0, 0)]
+            cal = [(0, 0, lat)]
 
         elif name in LONGITUDE_NAMES:
             _, lon, _ = self.get_location_data(deployment)
-            cal = [(lon, 0, 0)]
+            cal = [(0, 0, lon)]
 
         else:
             cal = self.get_cal(name, deployment)
@@ -205,8 +197,12 @@ class AssetEvents(object):
             log.error(message, self.request_id, name, deployment)
             return None, None
 
+        if len(cal) > 1:
+            log.error('Found multiple calibration values for %r inside deployment: %d. Using first', name, deployment)
+            cal = cal[:1]
+
         if len(cal) == 1:
-            value, _, _ = cal[0]
+            _, _, value = cal[0]
             value = np.array(value)
             shape = times.shape + value.shape
 
@@ -233,6 +229,11 @@ class AssetEvents(object):
                 'type': 'CC',
             }
             return cc, cc_meta
+
+        else:
+            message = '<%s> Unable to build cc %r: no cc exists for deployment: %d'
+            log.error(message, self.request_id, name, deployment)
+            return None, None
 
 
 class AssetManagement(object):
