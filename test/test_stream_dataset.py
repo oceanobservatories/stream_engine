@@ -65,10 +65,10 @@ class StreamDatasetTest(unittest.TestCase):
         for deployment in ctd_stream_dataset.datasets:
             ds = ctd_stream_dataset.datasets[deployment]
             tempwat = ctd_sbe16plus_tempwat(ds.temperature,
-                                            ctd_stream_dataset.events.get_cal('CC_a0', deployment)[0][0],
-                                            ctd_stream_dataset.events.get_cal('CC_a1', deployment)[0][0],
-                                            ctd_stream_dataset.events.get_cal('CC_a2', deployment)[0][0],
-                                            ctd_stream_dataset.events.get_cal('CC_a3', deployment)[0][0])
+                                            ctd_stream_dataset.events.get_cal('CC_a0', deployment)[0][2],
+                                            ctd_stream_dataset.events.get_cal('CC_a1', deployment)[0][2],
+                                            ctd_stream_dataset.events.get_cal('CC_a2', deployment)[0][2],
+                                            ctd_stream_dataset.events.get_cal('CC_a3', deployment)[0][2])
             np.testing.assert_array_equal(ds.seawater_temperature, tempwat)
 
             pracsal = ctd_pracsal(ds.seawater_conductivity,
@@ -94,10 +94,10 @@ class StreamDatasetTest(unittest.TestCase):
         for deployment in ctd_stream_dataset.datasets:
             ds = ctd_stream_dataset.datasets[deployment]
             tempwat = ctd_sbe16plus_tempwat(ds.temperature,
-                                            ctd_stream_dataset.events.get_cal('CC_a0', deployment)[0][0],
-                                            ctd_stream_dataset.events.get_cal('CC_a1', deployment)[0][0],
-                                            ctd_stream_dataset.events.get_cal('CC_a2', deployment)[0][0],
-                                            ctd_stream_dataset.events.get_cal('CC_a3', deployment)[0][0])
+                                            ctd_stream_dataset.events.get_cal('CC_a0', deployment)[0][2],
+                                            ctd_stream_dataset.events.get_cal('CC_a1', deployment)[0][2],
+                                            ctd_stream_dataset.events.get_cal('CC_a2', deployment)[0][2],
+                                            ctd_stream_dataset.events.get_cal('CC_a3', deployment)[0][2])
             np.testing.assert_array_equal(ds.seawater_temperature, tempwat)
 
             pracsal = ctd_pracsal(ds.seawater_conductivity,
