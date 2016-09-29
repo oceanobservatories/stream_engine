@@ -96,6 +96,13 @@ class TimeRange(object):
     def copy(self):
         return TimeRange(self.start, self.stop)
 
+    def as_millis(self):
+        """
+        Return the start/stop times in milliseconds since 1-1-1970
+        :return: (start, stop)
+        """
+        return int(ntplib.ntp_to_system_time(self.start) * 1000), int(ntplib.ntp_to_system_time(self.stop) * 1000)
+
     def __eq__(self, other):
         return self.stop == other.stop and self.start == other.start
 

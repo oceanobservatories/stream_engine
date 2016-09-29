@@ -120,6 +120,10 @@ class StreamRequest(object):
                 sd = StreamDataset(stream_key, self.uflags, other_streams, self.request_id)
                 self.datasets[stream_key] = sd
 
+        # Fetch annotations
+        self._insert_annotations()
+        self._exclude_flagged_data()
+
     def calculate_derived_products(self):
         # Calculate all internal-only data products
         for sk in self.datasets:
@@ -142,7 +146,6 @@ class StreamRequest(object):
 
         self._run_qc()
         self._insert_provenance()
-        self._insert_annotations()
         self._add_location()
 
     @log_timing(log)
@@ -175,10 +178,17 @@ class StreamRequest(object):
         Insert all annotations for this request. This is dependent on the data already having been fetched.
         :return:
         """
-        if self.include_annotations:
-            for stream_key, stream_dataset in self.datasets.iteritems():
-                stream_dataset.annotation_store.add_annotations(
-                        util.annotation.query_annotations(stream_key, self.time_range))
+        for stream_key, stream_dataset in self.datasets.iteritems():
+            stream_dataset.annotation_store.query_annotations(stream_key, self.time_range)
+
+    def _exclude_flagged_data(self):
+        """
+        Exclude data from datasets based on annotations
+        TODO: Future optimization, avoid querying excluded data when possible
+        :return:
+        """
+        for stream_key, stream_dataset in self.datasets.iteritems():
+            stream_dataset.exclude_flagged_data()
 
     def import_extra_externals(self):
         # import any other required "externals" into all datasets

@@ -117,6 +117,17 @@ class StreamDataset(object):
                         self._create_derived_product(dataset, self.stream_key, param, deployment,
                                                      source_dataset=source_dataset)
 
+    def exclude_flagged_data(self):
+        if self.annotation_store.has_exclusion():
+            deployments = list(self.datasets)
+            for deployment in deployments:
+                dataset = self.datasets[deployment]
+                mask = self.annotation_store.get_exclusion_mask(dataset.time.values)
+                obs = dataset.obs.values
+                new_obs = obs[mask]
+                if len(obs) != len(new_obs):
+                    self.datasets[deployment] = dataset.isel(obs=new_obs)
+
     def _build_function_arguments(self, dataset, stream_key, funcmap, deployment, source_dataset=None):
         """
         Build the arguments needed to execute a data product algorithm

@@ -554,62 +554,6 @@ def insert_dataset(stream_key, dataset):
 
 
 @log_timing(log)
-def fetch_annotations(stream_key, time_range, with_mooring=True):
-    # ------- Query 1 -------
-    # query where annotation effectivity is within the query time range
-    # or straddles the end points
-    select_columns = "subsite, node, sensor, time, time2, parameters, provenance, annotation, method, deployment, id "
-    select_clause = "select " + select_columns + "from annotations "
-    where_clause = "where subsite=? and node=? and sensor=?"
-    time_constraint = " and time>=%s and time<=%s"
-    query_base = select_clause + where_clause + time_constraint
-    query_string = query_base % (time_range.start, time_range.stop)
-
-    query1 = SessionManager.prepare(query_string)
-
-    # ------- Query 2 --------
-    # Where annotation effectivity straddles the entire query time range
-    # -- This is necessary because of the way the Cassandra uses the
-    # start-time in the primary key
-    time_constraint_wide = " and time<=%s"
-    query_base_wide = select_clause + where_clause + time_constraint_wide
-    query_string_wide = query_base_wide % time_range.start
-
-    query2 = SessionManager.prepare(query_string_wide)
-
-    # ----------------------------------------------------------------------
-    # Prepare arguments for both query1 and query2
-    # ----------------------------------------------------------------------
-    # [(subsite,node,sensor),(subsite,node,''),(subsite,'','')
-    tup1 = (stream_key.subsite, stream_key.node, stream_key.sensor)
-    tup2 = (stream_key.subsite, stream_key.node, '')
-    tup3 = (stream_key.subsite, '', '')
-    args = [tup1]
-    if with_mooring:
-        args.append(tup2)
-        args.append(tup3)
-
-    result = []
-    # query where annotation effectivity is within the query time range
-    # or straddles the end points
-    for success, rows in execute_concurrent_with_args(SessionManager.session(), query1, args, concurrency=3):
-        if success:
-            result.extend(list(rows))
-
-    temp = []
-    for success, rows in execute_concurrent_with_args(SessionManager.session(), query2, args, concurrency=3):
-        if success:
-            temp.extend(list(rows))
-
-    for row in temp:
-        time2 = row[4]
-        if time_range.stop < time2:
-            result.append(row)
-
-    return result
-
-
-@log_timing(log)
 def store_qc_results(qc_results_values, pk, particle_ids, particle_bins, particle_deploys,  # TODO: remove - unused
                      param_name, strict_range=False):
     start_time = time.clock()

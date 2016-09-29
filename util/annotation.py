@@ -1,13 +1,69 @@
-import json
-from datetime import datetime
+import logging
+from collections import namedtuple
 
+import datetime
+import ntplib
 import numpy as np
-import xarray as xr
+import requests
+from toolz import dicttoolz
 
-from util.cass import fetch_annotations
+from engine import app
+
+log = logging.getLogger(__name__)
 
 # Seconds from NTP epoch to UNIX epoch
 NTP_OFFSET_SECS = 2208988800
+
+
+class AnnotationServiceInterface(object):
+    def __init__(self, anno_host, port=12580):
+        self.base_url = 'http://%s:%d/anno/find' % (anno_host, port)
+
+    def find_annotations(self, key, time_range):
+        start, stop = time_range.as_millis()
+        params = {
+            'refdes': key.as_three_part_refdes(),
+            'method': key.method,
+            'stream': key.stream_name,
+            'beginDT': start,
+            'endDT': stop
+        }
+
+        response = requests.get(self.base_url, params=params)
+        payload = response.json()
+
+        if response.status_code == 200:
+            result = []
+            for record in payload:
+                if record.pop('@class', None) == '.AnnotationRecord':
+                    result.append(AnnotationRecord(**record))
+            return result
+
+        else:
+            log.error('Error fetching annotations: <%r> %r', response.status_code, payload)
+            return []
+
+
+class AnnotationRecord(object):
+    def __init__(self, subsite=None, node=None, sensor=None, method=None, stream=None, annotation=None,
+                 exclusionFlag=None, beginDT=None, endDT=None):
+        self.subsite = subsite
+        self.node = node
+        self.sensor = sensor
+        self.method = method
+        self.stream = stream
+        self.annotation = annotation
+        self.exclusion_flag = exclusionFlag
+
+        self._start_millis = beginDT
+        self._stop_millis = endDT
+        self._start_ntp = ntplib.system_to_ntp_time(self._start_millis / 1000.0)
+        self._stop_ntp = ntplib.system_to_ntp_time(self._stop_millis / 1000.0)
+        self.start = datetime.datetime.utcfromtimestamp(self._start_millis / 1000.0)
+        self.stop = datetime.datetime.utcfromtimestamp(self._stop_millis / 1000.0)
+
+    def as_dict(self):
+        return dicttoolz.keyfilter(lambda x: not x.startswith('_'), self.__dict__)
 
 
 class AnnotationStore(object):
@@ -16,89 +72,39 @@ class AnnotationStore(object):
     """
 
     def __init__(self):
-        self._store = set()
+        self._store = []
+        self._ntpstart = None
+        self._ntpstop = None
 
-    def add_annotations(self, anotations):
-        for i in anotations:
-            self._add_annotation(i)
+    def add_annotations(self, annotations):
+        self._store.extend(annotations)
 
-    def _add_annotation(self, annotation):
-        self._store.add(annotation)
+    def query_annotations(self, stream_key, time_range):
+        self._store = _service.find_annotations(stream_key, time_range)
 
     def get_annotations(self):
         return list(self._store)
 
-    def as_data_array(self):
-        annotations = [json.dumps(x.as_dict()) for x in self._store]
-        if annotations:
-            return xr.DataArray(np.array(annotations), dims=['dataset_annotations'],
-                                attrs={'long_name': 'Data Annotations'})
-
     def as_dict_list(self):
         return [x.as_dict() for x in self._store]
 
-
-def query_annotations(key, time_range):
-    """
-    Query edex for annotations on a stream request.
-    :param key: "Key from fetch pd data"
-    :param time_range: Time range to use  (float, float)
-    :return:
-    """
-    # Query Cassandra annotations table
-    result = fetch_annotations(key, time_range)
-
-    result_list = []
-
-    for r in result:
-        # Annotations columns in order defined in cass.py
-        subsite, node, sensor, time1, time2, parameters, provenance, annotation, method, deployment, myid = r
-
-        ref_des = '-'.join([subsite, node, sensor])
-        startt = datetime.utcfromtimestamp(time1 - NTP_OFFSET_SECS).isoformat() + "Z"
-        endt = datetime.utcfromtimestamp(time2 - NTP_OFFSET_SECS).isoformat() + "Z"
-
-        # Add to JSON document
-        anno = Annotation(ref_des, startt, endt, parameters, provenance, annotation, method, deployment, str(myid))
-        result_list.append(anno)
-
-    return result_list
-
-
-class Annotation(object):
-    def __init__(self, refdes, start, end, parameters, provenance, annotation, method, deployment, ident):
-        self.referenceDesignator = refdes
-        self.beginDT = start
-        self.endDT = end
-        self.parameters = parameters
-        self.provenance = provenance
-        self.annotation = annotation
-        self.method = method
-        self.deployment = deployment
-        self.ident = ident
-
-    def as_dict(self):
-        return {
-            'referenceDesignator': self.referenceDesignator,
-            'beginDT': self.beginDT,
-            'endDT': self.endDT,
-            'parameters': self.parameters,
-            'provenance': self.provenance,
-            'annotation': self.annotation,
-            'method': self.method,
-            'deployment': self.deployment,
-            'id': self.ident,
-        }
-
-    def __eq__(self, other):
-        if not isinstance(other, Annotation):
-            return False
-        return self.ident == other.ident
-
-    def __hash__(self):
-        return hash(self.ident)
-
     @staticmethod
-    def from_dict(d):
-        return Annotation(d["referenceDesignator"], d["beginDT"], d["endDT"], d["parameters"], d["provenance"],
-                          d["annotation"], d["method"], d["deployment"], d["id"])
+    def _update_mask(times, mask, anno):
+        return mask & ((times < anno._start_ntp) | (times > anno._stop_ntp))
+
+    def get_exclusion_mask(self, times):
+        mask = np.ones_like(times).astype('bool')
+        for anno in self._store:
+            if anno.exclusion_flag:
+                mask = self._update_mask(times, mask, anno)
+
+        return mask
+
+    def has_exclusion(self):
+        return any((x.exclusion_flag for x in self._store))
+
+
+_service = AnnotationServiceInterface(app.config.get('ANNOTATION_HOST'))
+
+
+

@@ -1,3 +1,5 @@
+import ntplib
+
 import global_test_setup
 
 import json
@@ -13,6 +15,7 @@ from ion_functions.data.ctd_functions import ctd_sbe16plus_tempwat, ctd_pracsal
 from preload_database.database import initialize_connection, open_connection, PreloadDatabaseMode
 from preload_database.model.preload import Parameter
 from util.advlogging import jdefault
+from util.annotation import AnnotationRecord
 from util.asset_management import AssetEvents
 from util.common import StreamKey
 from util.stream_dataset import StreamDataset
@@ -45,6 +48,9 @@ class StreamDatasetTest(unittest.TestCase):
         for dataset in datasets.itervalues():
             for parameter in parameters:
                 self.assertIn(parameter, dataset)
+
+    def _create_exclusion_anno(self, start, stop):
+        return AnnotationRecord(beginDT=start, endDT=stop, exclusionFlag=True)
 
     def test_calculate_internal_single_deployment(self):
         ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, self.ctdpf_fn), decode_times=False)
@@ -194,3 +200,35 @@ class StreamDatasetTest(unittest.TestCase):
         with mock.patch('util.stream_dataset.ParameterReport.write', new=mock_write):
             result = ctd_stream_dataset._log_algorithm_inputs(parameter, {}, None, self.ctdpf_sk, ctd_ds)
             self.assertIsNotNone(result)
+
+    def test_exclude_data(self):
+        ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, self.ctdpf_fn), decode_times=False)
+        ctd_ds = ctd_ds[['obs', 'time', 'deployment', 'temperature', 'pressure',
+                         'pressure_temp', 'conductivity', 'ext_volt0']]
+
+        times = ctd_ds.time.values
+
+        ctd_stream_dataset = StreamDataset(self.ctdpf_sk, {}, [], 'UNIT')
+        ctd_stream_dataset.events = self.ctd_events
+        ctd_stream_dataset._insert_dataset(ctd_ds)
+
+        ctd_stream_dataset.exclude_flagged_data()
+        np.testing.assert_array_equal(times, ctd_stream_dataset.datasets[2].time.values)
+
+        # exclude a bit
+        start = ntplib.ntp_to_system_time(times[0]) * 1000
+        stop = ntplib.ntp_to_system_time(times[100]) * 1000
+        anno = self._create_exclusion_anno(start, stop)
+        ctd_stream_dataset.annotation_store.add_annotations([anno])
+
+        ctd_stream_dataset.exclude_flagged_data()
+        np.testing.assert_array_equal(times[101:], ctd_stream_dataset.datasets[2].time.values)
+
+        # exclude everything
+        start = ntplib.ntp_to_system_time(times[0]) * 1000
+        stop = ntplib.ntp_to_system_time(times[-1]) * 1000
+        anno = self._create_exclusion_anno(start, stop)
+        ctd_stream_dataset.annotation_store.add_annotations([anno])
+
+        ctd_stream_dataset.exclude_flagged_data()
+        np.testing.assert_array_equal([], ctd_stream_dataset.datasets[2].time.values)
