@@ -231,4 +231,4 @@ class StreamDatasetTest(unittest.TestCase):
         ctd_stream_dataset.annotation_store.add_annotations([anno])
 
         ctd_stream_dataset.exclude_flagged_data()
-        np.testing.assert_array_equal([], ctd_stream_dataset.datasets[2].time.values)
+        self.assertNotIn(2, ctd_stream_dataset.datasets)
