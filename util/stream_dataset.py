@@ -126,7 +126,10 @@ class StreamDataset(object):
                 obs = dataset.obs.values
                 new_obs = obs[mask]
                 if len(obs) != len(new_obs):
-                    self.datasets[deployment] = dataset.isel(obs=new_obs)
+                    if len(new_obs) == 0:
+                        del self.datasets[deployment]
+                    else:
+                        self.datasets[deployment] = dataset.isel(obs=new_obs)
 
     def _build_function_arguments(self, dataset, stream_key, funcmap, deployment, source_dataset=None):
         """

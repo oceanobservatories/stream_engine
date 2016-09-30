@@ -44,8 +44,9 @@ class AnnotationServiceInterface(object):
 
 
 class AnnotationRecord(object):
-    def __init__(self, subsite=None, node=None, sensor=None, method=None, stream=None, annotation=None,
+    def __init__(self, id=None, subsite=None, node=None, sensor=None, method=None, stream=None, annotation=None,
                  exclusionFlag=None, beginDT=None, endDT=None):
+        self.id = id
         self.subsite = subsite
         self.node = node
         self.sensor = sensor
@@ -62,7 +63,7 @@ class AnnotationRecord(object):
         self.stop = datetime.datetime.utcfromtimestamp(self._stop_millis / 1000.0)
 
     def as_dict(self):
-        return {k: v for k, v in self.__dict__ if not k.startswith('_')}
+        return {k: v for k, v in self.__dict__.iteritems() if not k.startswith('_')}
 
 
 class AnnotationStore(object):

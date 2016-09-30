@@ -13,6 +13,7 @@ SAN_BASE_DIRECTORY = '/opt/ooi/SAN/'
 # When loading data back into cassandra should we allow writing to an already present databin.
 SAN_CASS_OVERWRITE = True
 ANNOTATION_URL = 'http://localhost:12580/annotations/find/'
+ANNOTATION_HOST = 'localhost'
 ASSET_URL = 'http://localhost:12573/'
 ASSET_HOST = 'localhost'
 
