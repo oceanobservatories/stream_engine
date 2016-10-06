@@ -167,7 +167,7 @@ class StreamKey(object):
             'node': self.node,
             'sensor': self.sensor,
             'method': self.method,
-            'stream': self.stream.name if self.stream is not None else None
+            'stream': self.stream_name
         }
 
     def as_tuple(self):

@@ -1,15 +1,13 @@
-from collections import OrderedDict
 import json
 import logging
-from numbers import Number
+from collections import OrderedDict
+from datetime import datetime
 
 import numpy as np
-from datetime import datetime
 
 from common import log_timing
 from engine import app
 from preload_database.model.preload import Parameter, Stream
-
 
 __author__ = 'Stephen Zakrewsky'
 
@@ -110,11 +108,10 @@ class JsonResponse(object):
 
             params = [p for p in params if p in data]
 
-            pk = stream_key.as_dict()
             for index in xrange(len(ds.time)):
                 # Create our particle from the list of parameters
                 particle = {p: data[p][index] for p in params}
-                particle['pk'] = pk
+                particle['pk'] = stream_key.as_dict()
                 particle['pk']['time'] = data['time'][index]
                 if 'deployment' in data:
                     particle['pk']['deployment'] = data['deployment'][index]
