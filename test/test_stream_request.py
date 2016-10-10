@@ -13,6 +13,7 @@ import pandas as pd
 import xarray as xr
 
 from preload_database.database import initialize_connection, open_connection, PreloadDatabaseMode
+from preload_database.model.preload import Parameter
 from util.asset_management import AssetEvents
 from util.common import StreamKey, TimeRange, StreamEngineException
 from util.csvresponse import CsvGenerator
@@ -20,6 +21,7 @@ from util.jsonresponse import JsonResponse
 from util.netcdf_generator import NetcdfGenerator
 from util.stream_dataset import StreamDataset
 from util.stream_request import StreamRequest
+from util.calc import execute_stream_request, validate
 
 TEST_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.join(TEST_DIR, 'data')
@@ -384,3 +386,61 @@ class StreamRequestTest(unittest.TestCase):
         self.assertNotIn('glider_gps_position-m_gps_lon', modified)
         self.assertIn('lat', modified)
         self.assertIn('lon', modified)
+
+    def test_secondary_streams_interpolation(self):
+        echo_fn = 'echo_sounding.nc'
+        ctdpf_fn = 'ctdpf_sbe43_sample.nc'
+        echo_ds = xr.open_dataset(os.path.join(DATA_DIR, echo_fn), decode_times=False)
+        ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, ctdpf_fn), decode_times=False)
+
+        ctd_ds = ctd_ds.isel(obs=np.arange(0, 100))
+        echo_ds = echo_ds.isel(obs=np.arange(0, 100))
+
+        tr = TimeRange(ctd_ds.time.values[0], ctd_ds.time.values[-1])
+        sr = StreamRequest(self.ctd_sk, [2310], tr, {}, request_id='UNIT', external_includes={self.echo_sk: {Parameter.query.get(2575),}})
+        sr.datasets[self.ctd_sk] = StreamDataset(self.ctd_sk, sr.uflags, [], sr.request_id)
+        sr.datasets[self.echo_sk] = StreamDataset(self.echo_sk, sr.uflags, [], sr.request_id)
+
+        sr.datasets[self.ctd_sk]._insert_dataset(ctd_ds)
+        sr.datasets[self.echo_sk]._insert_dataset(echo_ds)
+
+        sr.datasets[self.ctd_sk].events = AssetEvents('test', [])
+        sr.datasets[self.echo_sk].events = AssetEvents('test', [])
+
+        sr.calculate_derived_products()
+        sr.import_extra_externals()
+
+        data = json.loads(JsonResponse(sr).json())
+        for each in data:
+            self.assertIn('echo_sounding-hpies_ies_timestamp', each)
+            log.info(each)
+
+    def test_execute_stream_request_streams_interpolation(self):
+        echo_fn = 'echo_sounding.nc'
+        ctdpf_fn = 'ctdpf_sbe43_sample.nc'
+        echo_ds = xr.open_dataset(os.path.join(DATA_DIR, echo_fn), decode_times=False)
+        ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, ctdpf_fn), decode_times=False)
+
+        ctd_ds = ctd_ds.isel(obs=np.arange(0, 100))
+        echo_ds = echo_ds.isel(obs=np.arange(0, 100))
+
+        input_data = json.load(open(os.path.join(DATA_DIR, 'multiple_stream_request.json')))
+        request_parameters = validate(input_data)
+        sr = execute_stream_request(request_parameters, True)
+
+        sr.datasets[self.ctd_sk] = StreamDataset(self.ctd_sk, sr.uflags, [], sr.request_id)
+        sr.datasets[self.echo_sk] = StreamDataset(self.echo_sk, sr.uflags, [], sr.request_id)
+
+        sr.datasets[self.ctd_sk]._insert_dataset(ctd_ds)
+        sr.datasets[self.echo_sk]._insert_dataset(echo_ds)
+
+        sr.datasets[self.ctd_sk].events = AssetEvents('test', [])
+        sr.datasets[self.echo_sk].events = AssetEvents('test', [])
+
+        sr.calculate_derived_products()
+        sr.import_extra_externals()
+
+        data = json.loads(JsonResponse(sr).json())
+        for each in data:
+            self.assertIn('echo_sounding-hpies_ies_timestamp', each)
+            log.info(each)

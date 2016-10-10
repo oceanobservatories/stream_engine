@@ -1,0 +1,24 @@
+{
+    "streams": [
+        {
+            "subsite": "CE04OSPS",
+            "node": "SF01B",
+            "sensor": "2A-CTDPFA107",
+            "method": "streamed",
+            "stream": "ctdpf_sbe43_sample",
+            "parameters": [2310]
+        },
+        {
+            "subsite": "RS01SLBS",
+            "node": "LJ01A",
+            "sensor": "05-HPIESA101",
+            "method": "streamed",
+            "stream": "echo_sounding",
+            "parameters": [2575]
+        }
+    ],
+    "coefficients": {},
+    "start": 3653423999.775322,
+    "stop": 3653424024.525519,
+    "limit": 100
+}

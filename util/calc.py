@@ -34,6 +34,14 @@ def execute_stream_request(request_parameters, needs_only=False):
     parameters = request_parameters.streams[0].get('parameters', [])
     time_range = TimeRange(request_parameters.start, request_parameters.stop)
     collapse_times = not needs_only
+    external_includes = None
+    if len(request_parameters.streams) > 1:
+        ext_parameters = request_parameters.streams[1].get('parameters', [])
+        if len(ext_parameters) > 0:
+            ext_stream_key = StreamKey.from_dict(request_parameters.streams[1])
+            ext_parameter = Parameter.query.get(ext_parameters[0])
+            external_includes = {ext_stream_key: {ext_parameter, }}
+
     stream_request = util.stream_request.StreamRequest(stream_key, parameters, time_range, request_parameters.uflags,
                                                        qc_parameters=request_parameters.qc_parameters,
                                                        limit=request_parameters.limit,
@@ -41,7 +49,8 @@ def execute_stream_request(request_parameters, needs_only=False):
                                                        include_annotations=request_parameters.include_annotations,
                                                        strict_range=request_parameters.strict_range,
                                                        request_id=request_parameters.id,
-                                                       collapse_times=collapse_times)
+                                                       collapse_times=collapse_times,
+                                                       external_includes=external_includes)
     if not needs_only:
         stream_request.fetch_raw_data()
         stream_request.calculate_derived_products()

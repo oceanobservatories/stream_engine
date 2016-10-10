@@ -77,18 +77,25 @@ class JsonResponse(object):
                 if pressure_params:
                     pressure_key, pressure_param = pressure_params.pop()
                     pressure_name = '-'.join((pressure_key.stream.name, pressure_param.name))
-                    if pressure_name in ds:
-                        data[INT_PRESSURE_NAME] = ds[pressure_name].values
+                    if pressure_name in data:
+                        data[INT_PRESSURE_NAME] = data.pop(pressure_name)
                         params.append(INT_PRESSURE_NAME)
 
             # check if we should include and have positional data
             if stream_key.is_glider:
-                lat_data = data.get('glider_gps_position-m_gps_lat')
-                lon_data = data.get('glider_gps_position-m_gps_lon')
+                lat_data = data.pop('glider_gps_position-m_gps_lat', None)
+                lon_data = data.pop('glider_gps_position-m_gps_lon', None)
                 if lat_data is not None and lon_data is not None:
                     data['lat'] = lat_data
                     data['lon'] = lon_data
                     params.extend(('lat', 'lon'))
+
+            # remaining externals
+            for sk in external_includes:
+                for param in external_includes[sk]:
+                    name = '-'.join((sk.stream_name, param.name))
+                    if name in data:
+                        params.append(name)
 
             if self.stream_request.include_provenance:
                 params.append('provenance')
