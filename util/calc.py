@@ -34,6 +34,14 @@ def execute_stream_request(request_parameters, needs_only=False):
     parameters = request_parameters.streams[0].get('parameters', [])
     time_range = TimeRange(request_parameters.start, request_parameters.stop)
     collapse_times = not needs_only
+
+    external_includes = {}
+    for stream in request_parameters.streams[1:]:
+        external_sk = StreamKey.from_dict(stream)
+        for parameter in stream.get('parameters', []):
+            external_parameter = Parameter.query.get(parameter)
+            external_includes.setdefault(external_sk, set()).add(external_parameter)
+
     stream_request = util.stream_request.StreamRequest(stream_key, parameters, time_range, request_parameters.uflags,
                                                        qc_parameters=request_parameters.qc_parameters,
                                                        limit=request_parameters.limit,
@@ -41,7 +49,8 @@ def execute_stream_request(request_parameters, needs_only=False):
                                                        include_annotations=request_parameters.include_annotations,
                                                        strict_range=request_parameters.strict_range,
                                                        request_id=request_parameters.id,
-                                                       collapse_times=collapse_times)
+                                                       collapse_times=collapse_times,
+                                                       external_includes=external_includes)
     if not needs_only:
         stream_request.fetch_raw_data()
         stream_request.calculate_derived_products()
@@ -138,11 +147,11 @@ def _validate_streams(input_data):
         raise MalformedRequestException('Received invalid request', payload={'request': input_data})
 
     for each in streams:
-        _validate_stream(each)
+        _validate_stream(each, streams.index(each) > 0)
     return streams
 
 
-def _validate_stream(stream):
+def _validate_stream(stream, empty_param_check=False):
     if not isinstance(stream, dict):
         raise MalformedRequestException('Received invalid request, stream is not dictionary',
                                         payload={'request': stream})
@@ -157,6 +166,11 @@ def _validate_stream(stream):
         raise InvalidStreamException('The requested stream does not exist in preload', payload={'stream': stream})
 
     parameters = stream.get('parameters', [])
+
+    if empty_param_check and len(parameters) == 0:
+        raise InvalidParameterException('The parameter list for the secondary stream is empty',
+                                            payload={'stream': stream})
+
     stream_parameters = [p.id for p in preload_stream.parameters]
     for pid in parameters:
         p = Parameter.query.get(pid)
