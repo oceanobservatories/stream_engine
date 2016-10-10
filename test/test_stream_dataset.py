@@ -232,3 +232,82 @@ class StreamDatasetTest(unittest.TestCase):
 
         ctd_stream_dataset.exclude_flagged_data()
         self.assertNotIn(2, ctd_stream_dataset.datasets)
+
+    def test_insert_valid_scalar_data(self):
+        ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, self.ctdpf_fn), decode_times=False)
+        ctd_ds = ctd_ds[['obs', 'time', 'deployment', 'temperature', 'pressure',
+                         'pressure_temp', 'conductivity', 'ext_volt0']]
+
+        data = np.zeros_like(ctd_ds.time.values)
+        param = Parameter.query.get(3777)
+
+        StreamDataset._insert_data(ctd_ds, param, data)
+        self.assertIn('corrected_dissolved_oxygen', ctd_ds)
+
+    def test_insert_fill_scalar_data(self):
+        ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, self.ctdpf_fn), decode_times=False)
+        ctd_ds = ctd_ds[['obs', 'time', 'deployment', 'temperature', 'pressure',
+                         'pressure_temp', 'conductivity', 'ext_volt0']]
+
+        data = None
+        param = Parameter.query.get(3777)
+
+        StreamDataset._insert_data(ctd_ds, param, data)
+        self.assertIn('corrected_dissolved_oxygen', ctd_ds)
+
+        filled = np.zeros_like(ctd_ds.time.values)
+        filled[:] = param.fill_value
+        np.testing.assert_equal(ctd_ds.corrected_dissolved_oxygen, filled)
+
+    def test_insert_bad_length_data(self):
+        ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, self.ctdpf_fn), decode_times=False)
+        ctd_ds = ctd_ds[['obs', 'time', 'deployment', 'temperature', 'pressure',
+                         'pressure_temp', 'conductivity', 'ext_volt0']]
+
+        data = np.arange(0, 100)
+        param = Parameter.query.get(3777)
+
+        with self.assertRaises(ValueError):
+            StreamDataset._insert_data(ctd_ds, param, data)
+
+        self.assertNotIn('corrected_dissolved_oxygen', ctd_ds)
+
+    def test_insert_valid_array_data(self):
+        adcp_fn = 'deployment0000_RS03AXBS-LJ03A-10-ADCPTE301-streamed-adcp_velocity_beam.nc'
+        adcp_ds = xr.open_dataset(os.path.join(DATA_DIR, adcp_fn), decode_times=False)
+
+        data = np.zeros_like(adcp_ds.velocity_beam1)
+        param = Parameter.query.get(2769)
+
+        StreamDataset._insert_data(adcp_ds, param, data)
+        self.assertIn('corrected_echo_intensity_beam1', adcp_ds)
+
+        self.assertEqual(set(adcp_ds.corrected_echo_intensity_beam1.dims), {'obs', 'bin'})
+
+    def test_insert_fill_array_data(self):
+        adcp_fn = 'deployment0000_RS03AXBS-LJ03A-10-ADCPTE301-streamed-adcp_velocity_beam.nc'
+        adcp_ds = xr.open_dataset(os.path.join(DATA_DIR, adcp_fn), decode_times=False)
+
+        data = None
+        param = Parameter.query.get(2769)
+
+        StreamDataset._insert_data(adcp_ds, param, data)
+        self.assertIn('corrected_echo_intensity_beam1', adcp_ds)
+
+        self.assertEqual(set(adcp_ds.corrected_echo_intensity_beam1.dims), {'obs', 'bin'})
+
+        filled = np.zeros_like(adcp_ds.velocity_beam1)
+        filled[:] = param.fill_value
+        np.testing.assert_equal(adcp_ds.corrected_echo_intensity_beam1, filled)
+
+    def test_insert_bad_shape_array_data(self):
+        adcp_fn = 'deployment0000_RS03AXBS-LJ03A-10-ADCPTE301-streamed-adcp_velocity_beam.nc'
+        adcp_ds = xr.open_dataset(os.path.join(DATA_DIR, adcp_fn), decode_times=False)
+
+        data = np.zeros_like(adcp_ds.time)
+        param = Parameter.query.get(2769)
+
+        with self.assertRaises(ValueError):
+            StreamDataset._insert_data(adcp_ds, param, data)
+
+        self.assertNotIn('corrected_echo_intensity_beam1', adcp_ds)

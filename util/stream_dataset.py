@@ -236,28 +236,25 @@ class StreamDataset(object):
             self._log_algorithm_inputs(param, kwargs, result, stream_key, dataset)
             calc_metadata = self._create_calculation_metadata(param, version, arg_metadata)
             self.provenance_metadata.calculated_metadata.insert_metadata(param, calc_metadata)
-            if result is not None:
-                dims = ['obs']
-                for index, _ in enumerate(result.shape[1:]):
-                    name = '%s_dim_%d' % (param.name, index)
-                    dims.append(name)
 
-                if 'obs' not in dataset or len(result) == len(dataset.obs.values):
-                    attrs = param.attrs
-                    coord_columns = 'time lat lon'
-                    if param.name not in coord_columns:
-                        attrs['coordinates'] = coord_columns
-                    dataset[param.name] = (dims, result, attrs)
-
-                else:
-                    message = 'Result from algorithm length mismatch, got: %r expected: %r' % \
-                              (len(result), len(dataset.time.values))
-                    to_attach = {'type': 'FunctionError', "parameter": str(param),
-                                 'function': str(param.parameter_function), 'message': message}
-                    self.provenance_metadata.calculated_metadata.errors.append(to_attach)
-                    log.error('<%s> %s', self.request_id, message)
+            try:
+                self._insert_data(dataset, param, result,
+                                  provenance_metadata=self.provenance_metadata,
+                                  request_id=self.request_id)
+            except ValueError:
+                self._insert_data(dataset, param, None,
+                                  provenance_metadata=self.provenance_metadata,
+                                  request_id=self.request_id)
 
         else:
+            try:
+                self._insert_data(dataset, param, None,
+                                  provenance_metadata=self.provenance_metadata,
+                                  request_id=self.request_id)
+            except ValueError:
+                # Swallow this raised error, it has already been logged.
+                pass
+
             error_info = {'derived_id': param.id, 'derived_name': param.name,
                           'derived_display_name': param.display_name, 'missing': []}
             for key in missing:
@@ -271,6 +268,58 @@ class StreamDataset(object):
             self.provenance_metadata.calculated_metadata.errors.append(error_info)
             log.error('<%s> Unable to create derived product: %r missing: %r',
                       self.request_id, param.name, error_info)
+
+    @staticmethod
+    def _insert_data(dataset, param, data, provenance_metadata=None, request_id=None):
+        """
+        Insert the specified parameter into this dataset. If data is None, use the fill value
+        :param dataset:
+        :param param:
+        :param data:
+        :return:
+        """
+        dims = ['obs']
+
+        # IF dimensions are defined in preload, use those
+        # otherwise, create dimensions dynamically based on the
+        # shape of the data
+        if param.dimensions:
+            dims += [d.value for d in param.dimensions]
+        else:
+            if data is not None:
+                for index, _ in enumerate(data.shape[1:]):
+                    name = '%s_dim_%d' % (param.name, index)
+                    dims.append(name)
+
+        # IF data is missing and specified dimensions aren't already defined
+        # we cannot determine the correct shape, limit dimensions to obs
+        missing = [d for d in dims if d not in dataset]
+        if missing and data is None:
+            log.error('Unable to resolve all dimensions for derived parameter: %r. Filling as scalar', missing)
+            dims = ['obs']
+
+        # Data is None, replace with fill values
+        if data is None:
+            shape = tuple([len(dataset[d]) for d in dims])
+            data = np.zeros(shape)
+            data[:] = param.fill_value
+
+        try:
+            attrs = param.attrs
+            coord_columns = 'time lat lon'
+            if param.name not in coord_columns:
+                attrs['coordinates'] = coord_columns
+            dataset[param.name] = (dims, data, attrs)
+
+        except ValueError as e:
+            message = 'Unable to insert parameter: %r. Data shape (%r) does not match expected shape (%r)' % \
+                      (param, data.shape, e)
+            to_attach = {'type': 'FunctionError', "parameter": str(param),
+                         'function': str(param.parameter_function), 'message': message}
+            if provenance_metadata:
+                provenance_metadata.calculated_metadata.errors.append(to_attach)
+            log.error('<%s> %s', request_id, message)
+            raise
 
     def _resolve_db_objects(self, obj):
         if isinstance(obj, dict):

@@ -116,14 +116,17 @@ def to_xray_dataset(cols, data, stream_key, request_uuid, san=False):
             continue
 
         param = params.get(column)
+
         if param:
             encoding = param.value_encoding
+            param_dims = [dim.value for dim in param.dimensions]
             fill_val = _get_fill_value(param)
             is_array = param.parameter_type == 'array<quantity>'
         else:
             encoding = 'str'
             fill_val = ''
             is_array = False
+            param_dims = []
 
         if column in app.config['INTERNAL_OUTPUT_MAPPING']:
             encoding = app.config['INTERNAL_OUTPUT_MAPPING'][column]
@@ -137,9 +140,12 @@ def to_xray_dataset(cols, data, stream_key, request_uuid, san=False):
         # Fix up the dimensions for possible multi-d objects
         dims = ['obs']
         if len(data.shape) > 1:
-            for index, dim in enumerate(data.shape[1:]):
-                name = "{:s}_dim_{:d}".format(column, index)
-                dims.append(name)
+            if param_dims:
+                dims += param_dims
+            else:
+                for index, dim in enumerate(data.shape[1:]):
+                    name = "{:s}_dim_{:d}".format(column, index)
+                    dims.append(name)
 
         if column == 'time':
             array_attrs = {
