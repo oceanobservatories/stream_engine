@@ -164,14 +164,15 @@ class StreamRequest(object):
         """
         if self.include_provenance:
             for stream_key in self.stream_parameters:
-                for deployment, dataset in self.datasets[stream_key].datasets.iteritems():
-                    prov_metadata = self.datasets[stream_key].provenance_metadata
-                    prov_metadata.add_query_metadata(self, self.request_id, 'JSON')
-                    prov_metadata.add_instrument_provenance(stream_key, self.datasets[stream_key].events.events)
-                    if 'provenance' in dataset:
-                        provenance = dataset.provenance.values.astype('str')
-                        prov = fetch_l0_provenance(stream_key, provenance, deployment)
-                        prov_metadata.update_provenance(prov)
+                if stream_key in self.datasets:
+                    for deployment, dataset in self.datasets[stream_key].datasets.iteritems():
+                        prov_metadata = self.datasets[stream_key].provenance_metadata
+                        prov_metadata.add_query_metadata(self, self.request_id, 'JSON')
+                        prov_metadata.add_instrument_provenance(stream_key, self.datasets[stream_key].events.events)
+                        if 'provenance' in dataset:
+                            provenance = dataset.provenance.values.astype('str')
+                            prov = fetch_l0_provenance(stream_key, provenance, deployment)
+                            prov_metadata.update_provenance(prov)
 
     def _insert_annotations(self):
         """
