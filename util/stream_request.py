@@ -30,7 +30,7 @@ class StreamRequest(object):
 
     def __init__(self, stream_key, parameters, time_range, uflags, qc_parameters=None,
                  limit=None, include_provenance=False, include_annotations=False, strict_range=False,
-                 request_id='', collapse_times=False):
+                 request_id='', collapse_times=False, external_includes=None):
 
         if not isinstance(stream_key, StreamKey):
             raise StreamEngineException('Received no stream key', status_code=400)
@@ -52,7 +52,7 @@ class StreamRequest(object):
         self.stream_parameters = {}
         self.unfulfilled = set()
         self.datasets = {}
-        self.external_includes = {}
+        self.external_includes = {} if external_includes is None else external_includes
 
         self._initialize()
 
