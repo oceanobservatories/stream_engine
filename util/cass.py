@@ -323,6 +323,8 @@ def sample_n_bins(stream_key, time_range, num_points, metadata_bins, cols=None):
     # Get the last data point
     _, rows = fetch_with_func(query_n_before, stream_key, [(lb, time_range.stop, 1)], cols=cols)
     results.extend(rows)
+    tindex = cols.index('time')
+    results = sorted(results, key=lambda dat: dat[tindex])
     return cols, results
 
 
@@ -360,7 +362,8 @@ def sample_n_points(stream_key, time_range, num_points, metadata_bins, bin_infor
     _, lin_sampled = fetch_with_func(query_n_before, stream_key, times, cols)
     results.extend(lin_sampled)
     # Sort the data
-    results = sorted(results, key=lambda dat: dat[1])
+    tindex = cols.index('time')
+    results = sorted(results, key=lambda dat: dat[tindex])
     return cols, results
 
 
