@@ -194,9 +194,10 @@ class StreamRequest(object):
     def import_extra_externals(self):
         # import any other required "externals" into all datasets
         for source_sk in self.external_includes:
-            for param in self.external_includes[source_sk]:
-                for target_sk in self.datasets:
-                    self.datasets[target_sk].interpolate_into(source_sk, self.datasets[source_sk], param)
+            if source_sk in self.datasets:
+                for param in self.external_includes[source_sk]:
+                    for target_sk in self.datasets:
+                        self.datasets[target_sk].interpolate_into(source_sk, self.datasets[source_sk], param)
 
     def _add_location(self):
         log.debug('<%s> Inserting location data for all datasets', self.request_id)
