@@ -30,32 +30,36 @@ RequestParameters = namedtuple('RequestParameters', ['id', 'streams', 'coefficie
 
 
 def execute_stream_request(request_parameters, needs_only=False):
-    stream_key = StreamKey.from_dict(request_parameters.streams[0])
-    parameters = request_parameters.streams[0].get('parameters', [])
-    time_range = TimeRange(request_parameters.start, request_parameters.stop)
-    collapse_times = not needs_only
+    stream_request = []
 
-    external_includes = {}
-    for stream in request_parameters.streams[1:]:
-        external_sk = StreamKey.from_dict(stream)
-        for parameter in stream.get('parameters', []):
-            external_parameter = Parameter.query.get(parameter)
-            external_includes.setdefault(external_sk, set()).add(external_parameter)
+    for index, stream in enumerate(request_parameters.streams):
+        stream_key = StreamKey.from_dict(request_parameters.streams[index])
+        parameters = request_parameters.streams[index].get('parameters', [])
+        time_range = TimeRange(request_parameters.start, request_parameters.stop)
+        collapse_times = not needs_only
 
-    stream_request = util.stream_request.StreamRequest(stream_key, parameters, time_range, request_parameters.uflags,
-                                                       qc_parameters=request_parameters.qc_parameters,
-                                                       limit=request_parameters.limit,
-                                                       include_provenance=request_parameters.include_provenance,
-                                                       include_annotations=request_parameters.include_annotations,
-                                                       strict_range=request_parameters.strict_range,
-                                                       request_id=request_parameters.id,
-                                                       collapse_times=collapse_times,
-                                                       external_includes=external_includes)
-    if not needs_only:
-        stream_request.fetch_raw_data()
-        stream_request.calculate_derived_products()
-        stream_request.import_extra_externals()
-    return stream_request
+        stream_request.append(util.stream_request.StreamRequest(
+            stream_key, parameters, time_range, request_parameters.uflags,
+            qc_parameters=request_parameters.qc_parameters,
+            limit=request_parameters.limit,
+            include_provenance=request_parameters.include_provenance,
+            include_annotations=request_parameters.include_annotations,
+            strict_range=request_parameters.strict_range,
+            request_id=request_parameters.id,
+            collapse_times=collapse_times))
+
+        if not needs_only:
+            stream_request[index].fetch_raw_data()
+            stream_request[index].calculate_derived_products()
+            stream_request[index].import_extra_externals()
+        else:
+            # If needs_only is true we only want to process the first stream, for now
+            break
+
+        if index > 0:
+            stream_request[0].interpolate_from_stream_request(stream_request[index])
+
+    return stream_request[0]
 
 
 def time_request(func):
