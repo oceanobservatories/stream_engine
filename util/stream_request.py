@@ -30,7 +30,7 @@ class StreamRequest(object):
 
     def __init__(self, stream_key, parameters, time_range, uflags, qc_parameters=None,
                  limit=None, include_provenance=False, include_annotations=False, strict_range=False,
-                 request_id='', collapse_times=False, external_includes=None):
+                 request_id='', collapse_times=False):
 
         if not isinstance(stream_key, StreamKey):
             raise StreamEngineException('Received no stream key', status_code=400)
@@ -52,7 +52,7 @@ class StreamRequest(object):
         self.stream_parameters = {}
         self.unfulfilled = set()
         self.datasets = {}
-        self.external_includes = {} if external_includes is None else external_includes
+        self.external_includes = {}
 
         self._initialize()
 
@@ -452,3 +452,11 @@ class StreamRequest(object):
                     "method": method,
                     "stream": stream
                 })
+
+    def interpolate_from_stream_request(self, stream_request):
+        source_sk = stream_request.stream_key
+        target_sk = self.stream_key
+        if source_sk in stream_request.datasets and target_sk in self.datasets:
+            for param in stream_request.requested_parameters:
+                self.datasets[target_sk].interpolate_into(source_sk, stream_request.datasets[source_sk], param)
+                self.external_includes.setdefault(source_sk, set()).add(param)

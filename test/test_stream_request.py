@@ -53,6 +53,7 @@ def get_stream_metadata():
 class StreamRequestTest(unittest.TestCase):
     metadata = []
     base_params = ['time', 'deployment', 'provenance']
+    call_cnt = 0
 
     @classmethod
     def setUpClass(cls):
@@ -264,7 +265,8 @@ class StreamRequestTest(unittest.TestCase):
         expected_params = [p.name for p in hourly_sk.stream.parameters] + ['obs', 'time', 'deployment', 'lat', 'lon']
         self.assertListEqual(sorted(expected_params), sorted(sr.datasets[hourly_sk].datasets[1]))
 
-    def create_echo_sounding_sr(self):
+    def create_echo_sounding_sr(self, parameters=None):
+        parameters = [] if parameters is None else parameters
         echo_fn = 'echo_sounding.nc'
         echo_ds = xr.open_dataset(os.path.join(DATA_DIR, echo_fn), decode_times=False)
         # somehow the times in this dataset are corrupted. Remap to valid times spanning both deployments
@@ -273,7 +275,7 @@ class StreamRequestTest(unittest.TestCase):
         echo_ds.time.values = np.linspace(dep1_start + 1, dep2_end - 1, num=echo_ds.time.shape[0])
 
         tr = TimeRange(dep1_start, dep2_end)
-        sr = StreamRequest(self.echo_sk, [], tr, {}, request_id='UNIT')
+        sr = StreamRequest(self.echo_sk, parameters, tr, {}, request_id='UNIT')
         sr.datasets[self.echo_sk] = StreamDataset(self.echo_sk, sr.uflags, [], sr.request_id)
         sr.datasets[self.echo_sk].events = self.hpies_events
         sr.datasets[self.echo_sk]._insert_dataset(echo_ds)
@@ -387,51 +389,50 @@ class StreamRequestTest(unittest.TestCase):
         self.assertIn('lat', modified)
         self.assertIn('lon', modified)
 
-    def test_secondary_streams_interpolation(self):
-        echo_fn = 'echo_sounding.nc'
+    def test_execute_stream_request_multiple_streams(self):
+        input_data = json.load(open(os.path.join(DATA_DIR, 'multiple_stream_request.json')))
+
         ctdpf_fn = 'ctdpf_sbe43_sample.nc'
-        echo_ds = xr.open_dataset(os.path.join(DATA_DIR, echo_fn), decode_times=False)
+        echo_fn = 'echo_sounding.nc'
         ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, ctdpf_fn), decode_times=False)
+        echo_ds = xr.open_dataset(os.path.join(DATA_DIR, echo_fn), decode_times=False)
 
         ctd_ds = ctd_ds.isel(obs=np.arange(0, 100))
         echo_ds = echo_ds.isel(obs=np.arange(0, 100))
 
-        tr = TimeRange(ctd_ds.time.values[0], ctd_ds.time.values[-1])
-        sr = StreamRequest(self.ctd_sk, [2310], tr, {}, request_id='UNIT', external_includes={self.echo_sk: {Parameter.query.get(2575),}})
-        sr.datasets[self.ctd_sk] = StreamDataset(self.ctd_sk, sr.uflags, [], sr.request_id)
-        sr.datasets[self.echo_sk] = StreamDataset(self.echo_sk, sr.uflags, [], sr.request_id)
+        def mock_fetch_raw_data(self):
+            if StreamRequestTest.call_cnt % 2 == 0:
+                self.datasets[self.stream_key] = StreamDataset(self.stream_key, self.uflags, [], self.request_id)
+                self.datasets[self.stream_key]._insert_dataset(ctd_ds)
+                self.datasets[self.stream_key].events = AssetEvents('test', [])
 
-        sr.datasets[self.ctd_sk]._insert_dataset(ctd_ds)
-        sr.datasets[self.echo_sk]._insert_dataset(echo_ds)
+            else:
+                self.datasets[self.stream_key] = StreamDataset(self.stream_key, self.uflags, [], self.request_id)
+                self.datasets[self.stream_key]._insert_dataset(echo_ds)
+                self.datasets[self.stream_key].events = AssetEvents('test', [])
 
-        sr.datasets[self.ctd_sk].events = AssetEvents('test', [])
-        sr.datasets[self.echo_sk].events = AssetEvents('test', [])
+            StreamRequestTest.call_cnt += 1
 
-        sr.calculate_derived_products()
-        sr.import_extra_externals()
+        def mock_collapse_times(self):
+            pass
 
-        data = json.loads(JsonResponse(sr).json())
-        for each in data:
-            self.assertIn('echo_sounding-hpies_ies_timestamp', each)
-            log.info(each)
+        with mock.patch('util.stream_request.StreamRequest.fetch_raw_data', new=mock_fetch_raw_data):
+            with mock.patch('util.stream_request.StreamRequest._collapse_times', new=mock_collapse_times):
+                sr = execute_stream_request(validate(input_data), True)
+                self.assertEqual(len(sr.external_includes), 1)
 
-    def test_execute_stream_request_multiple_streams(self):
-        input_data = json.load(open(os.path.join(DATA_DIR, 'multiple_stream_request.json')))
-        request_parameters = validate(input_data)
-        sr = execute_stream_request(request_parameters, True)
+                sr = execute_stream_request(validate(input_data))
+                self.assertIn(self.echo_sk, sr.external_includes)
+                expected = {Parameter.query.get(2575)}
+                self.assertEqual(expected, sr.external_includes[self.echo_sk])
 
-        self.assertIn(self.echo_sk, sr.external_includes)
-        expected = {Parameter.query.get(2575)}
-        self.assertEqual(expected, sr.external_includes[self.echo_sk])
-
-        self.assertIn(self.nut_sk, sr.external_includes)
-        expected = Parameter.query.get(2327)
-        self.assertIn(expected, sr.external_includes[self.nut_sk])
-        expected = Parameter.query.get(2328)
-        self.assertIn(expected, sr.external_includes[self.nut_sk])
-        expected = Parameter.query.get(2329)
-        self.assertIn(expected, sr.external_includes[self.nut_sk])
-
+                self.assertIn(self.nut_sk, sr.external_includes)
+                expected = Parameter.query.get(2327)
+                self.assertIn(expected, sr.external_includes[self.nut_sk])
+                expected = Parameter.query.get(2328)
+                self.assertIn(expected, sr.external_includes[self.nut_sk])
+                expected = Parameter.query.get(2329)
+                self.assertIn(expected, sr.external_includes[self.nut_sk])
 
     def test_execute_stream_request_multiple_streams_invalid_input(self):
         input_data = json.load(open(os.path.join(DATA_DIR, 'multiple_stream_request_no_parameter.json')))
@@ -443,3 +444,27 @@ class StreamRequestTest(unittest.TestCase):
 
         with self.assertRaises(InvalidParameterException):
             validate(input_data)
+
+    def test_two_sr(self):
+        nut_sr = self.create_nut_sr()
+        nut_sr.calculate_derived_products()
+        nut_sr.import_extra_externals()
+
+        echo_sr = self.create_echo_sounding_sr(parameters=[3786])
+        echo_sr.calculate_derived_products()
+        echo_sr.import_extra_externals()
+
+        nut_sr.interpolate_from_stream_request(echo_sr)
+
+        self.assertIn(self.echo_sk, nut_sr.external_includes)
+        expected = {Parameter.query.get(3786)}
+        self.assertEqual(expected, nut_sr.external_includes[self.echo_sk])
+
+        expected_name = 'echo_sounding-hpies_temperature'
+
+        for dataset in nut_sr.datasets[self.nut_sk].datasets.itervalues():
+            self.assertIn(expected_name, dataset)
+
+        data = json.loads(JsonResponse(nut_sr).json())
+        for each in data:
+            self.assertIn(expected_name, each)
