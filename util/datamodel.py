@@ -164,6 +164,9 @@ def to_xray_dataset(cols, data, stream_key, request_uuid, san=False):
         if column not in coord_columns:
             array_attrs['coordinates'] = coord_columns
 
+        # Override the fill value supplied by preload if necessary
+        array_attrs['_FillValue'] = fill_val
+
         dataset.update({column: xr.DataArray(data, dims=dims, attrs=array_attrs)})
 
     return dataset
