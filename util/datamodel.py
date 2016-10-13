@@ -292,6 +292,8 @@ def compile_datasets(datasets):
 
 
 def _get_fill_value(param):
-    if param.fill_value is not None:
-        return param.fill_value
-    return FILL_VALUES.get(param.value_encoding)
+    try:
+        return np.array(param.fill_value).astype(param.value_encoding)
+    except (ValueError, TypeError) as e:
+        log.error('Invalid fill value specified for parameter: %r (%r)', param, e)
+        return FILL_VALUES.get(param.value_encoding)

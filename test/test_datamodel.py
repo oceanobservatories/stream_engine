@@ -10,9 +10,9 @@ import xarray as xr
 import numpy as np
 
 from preload_database.database import initialize_connection, PreloadDatabaseMode, open_connection
-from preload_database.model.preload import Stream
+from preload_database.model.preload import Stream, Parameter
 from util.common import StreamKey
-from util.datamodel import to_xray_dataset
+from util.datamodel import to_xray_dataset, _get_fill_value
 
 TEST_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.join(TEST_DIR, 'data')
@@ -80,3 +80,7 @@ class DataModelTest(TestCase):
         ds = to_xray_dataset(params, rows, adcp_sk, None)
         # verify only two dimensions exists, bin and obs
         self.assertEqual(set(ds.dims), {'bin', 'obs'})
+
+    def test_get_fill_value(self):
+        for param in Parameter.query:
+            self.assertIsNotNone(_get_fill_value(param))
