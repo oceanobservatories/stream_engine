@@ -121,17 +121,20 @@ class NetcdfGenerator(object):
             values = ds[k].values
             shape = values.shape
 
-            if values.dtype.kind == 'O':
-                values = values.astype('str')
+            if 0 in shape:
+                encoding[k] = {'zlib': compr, 'complevel': comp_level, UNLIMITED_DIMS: udim}
+            else:
+                if values.dtype.kind == 'O':
+                    values = values.astype('str')
 
-            if values.dtype.kind == 'S':
-                size = values.dtype.itemsize
-                if size > 1:
-                    shape = shape + (size,)
+                if values.dtype.kind == 'S':
+                    size = values.dtype.itemsize
+                    if size > 1:
+                        shape = shape + (size,)
 
-            dim0 = min(shape[0], chunksize)
-            shape = (dim0,) + shape[1:]
-            encoding[k] = {'zlib': compr, 'chunksizes': shape, 'complevel': comp_level, UNLIMITED_DIMS: udim}
+                dim0 = min(shape[0], chunksize)
+                shape = (dim0,) + shape[1:]
+                encoding[k] = {'zlib': compr, 'chunksizes': shape, 'complevel': comp_level, UNLIMITED_DIMS: udim}
         return encoding
 
     def _ensure_no_int64(self, ds):
