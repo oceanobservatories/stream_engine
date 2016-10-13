@@ -11,7 +11,7 @@ from util.annotation import AnnotationStore
 from util.cass import fetch_nth_data, get_full_cass_dataset, get_cass_lookback_dataset
 from util.common import (log_timing, ntp_to_datestring, ntp_to_datetime, UnknownFunctionTypeException,
                          StreamEngineException, TimeRange, MissingDataException)
-from util.datamodel import create_empty_dataset, compile_datasets, add_location_data
+from util.datamodel import create_empty_dataset, compile_datasets, add_location_data, _get_fill_value
 from util.metadata_service import (SAN_LOCATION_NAME, CASS_LOCATION_NAME, get_first_before_metadata,
                                    get_location_metadata)
 
@@ -298,14 +298,20 @@ class StreamDataset(object):
             log.error('Unable to resolve all dimensions for derived parameter: %r. Filling as scalar', missing)
             dims = ['obs']
 
+        fill_value = _get_fill_value(param)
+
         # Data is None, replace with fill values
         if data is None:
             shape = tuple([len(dataset[d]) for d in dims])
             data = np.zeros(shape)
-            data[:] = param.fill_value
+            data[:] = fill_value
 
         try:
             attrs = param.attrs
+
+            # Override the fill value supplied by preload if necessary
+            attrs['_FillValue'] = fill_value
+
             coord_columns = 'time lat lon'
             if param.name not in coord_columns:
                 attrs['coordinates'] = coord_columns
