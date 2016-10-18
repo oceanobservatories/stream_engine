@@ -12,7 +12,7 @@ import util.aggregation
 import util.calc
 from engine import app
 from util.common import (StreamEngineException, TimedOutException, MissingDataException,
-                         MissingTimeException, ntp_to_datestring, StreamKey)
+                         MissingTimeException, ntp_to_datestring, StreamKey, InvalidPathException)
 from util.san import onload_netCDF, SAN_netcdf
 
 log = logging.getLogger(__name__)
@@ -52,18 +52,29 @@ def signal_handler(signum, frame):
     raise TimedOutException("Data processing timed out after %s seconds")
 
 
-def set_timeout(func):
-    @wraps(func)
-    def decorated_function(*args, **kwargs):
-        signal.signal(signal.SIGALRM, signal_handler)
-        signal.alarm(int(app.config['REQUEST_TIMEOUT_SECONDS']))
-        try:
-            result = func(*args, **kwargs)
-        finally:
-            signal.alarm(0)
+def set_timeout(timeout=None):
+    # If timeout is a supplied argument to the wrapped function
+    # use it, otherwise use the default timeout
+    if timeout is None or not isinstance(timeout, int):
+        timeout = app.config['REQUEST_TIMEOUT_SECONDS']
 
-        return result
-    return decorated_function
+    def inner(func):
+        @wraps(func)
+        def decorated_function(*args, **kwargs):
+            signal.signal(signal.SIGALRM, signal_handler)
+            signal.alarm(timeout)
+            try:
+                result = func(*args, **kwargs)
+            except TimedOutException:
+                raise StreamEngineException("Data processing timed out after %s seconds" %
+                                            timeout, status_code=408)
+            finally:
+                signal.alarm(0)
+
+            return result
+
+        return decorated_function
+    return inner
 
 
 def write_file_with_content(base_path, file_path, content):
@@ -94,8 +105,41 @@ def time_prefix_filename(ntp_start, ntp_stop, suffix):
     sdate = ntp_to_datestring(ntp_start)
     edate = ntp_to_datestring(ntp_stop)
     s = "-"
-    status_filename = s.join((sdate.translate(None, '-:'),edate.translate(None, '-:'), suffix))
+    status_filename = s.join((sdate.translate(None, '-:'), edate.translate(None, '-:'), suffix))
     return status_filename
+
+
+def fix_directory(input_data):
+    # TODO
+    # TEMP FIX UNTIL UFRAME IS UPDATED TO PASS RELATIVE PATH
+    directory = input_data.pop('directory', None)
+    if directory:
+        input_data['directory'] = '/'.join(directory.split('/')[-2:])
+    return input_data
+
+
+def raise_invalid_path(base_dir, path):
+    """
+    Given a base directory and a path, return true if path resolves under this directory.
+    Return false if the path escapes the base directory
+    :param base_dir:
+    :param path:
+    :return:
+    """
+    base_real = os.path.realpath(base_dir)
+    path_real = os.path.realpath(os.path.join(base_dir, path))
+    if not path_real.startswith(base_real + os.sep):
+        raise InvalidPathException('Supplied path: %r does not resolve under base path: %r' % (path, base_dir))
+
+
+def get_local_dir(input_data):
+    input_data = fix_directory(input_data)
+    base_dir = app.config['LOCAL_ASYNC_DIR']
+    request_dir = input_data.get('directory')
+    if request_dir is None:
+        raise InvalidPathException('Supplied path: %r is not valid' % request_dir)
+    raise_invalid_path(base_dir, request_dir)
+    return os.path.join(base_dir, request_dir)
 
 
 ##########################
@@ -129,7 +173,7 @@ def time_prefix_filename(ntp_start, ntp_stop, suffix):
 
 
 @app.route('/estimate', methods=['POST'])
-@set_timeout
+@set_timeout()
 def estimate():
     """
     Return an estimate for how big the request would be if processed
@@ -139,7 +183,7 @@ def estimate():
 
 
 @app.route('/particles', methods=['POST'])
-@set_timeout
+@set_timeout()
 def particles():
     """
     Return the results of this query as JSON
@@ -149,7 +193,7 @@ def particles():
 
 
 @app.route('/netcdf', methods=['POST'])
-@set_timeout
+@set_timeout()
 def netcdf():
     """
     Return the results of this query as netCDF
@@ -163,7 +207,7 @@ def netcdf():
 
 
 @app.route('/csv', methods=['POST'])
-@set_timeout
+@set_timeout()
 def csv():
     """
     Return the results of this query as CSV
@@ -176,7 +220,7 @@ def csv():
 
 
 @app.route('/tab', methods=['POST'])
-@set_timeout
+@set_timeout()
 def tab():
     """
     Return the results of this query as TSV
@@ -189,13 +233,13 @@ def tab():
 
 
 @app.route('/netcdf-fs', methods=['POST'])
-@set_timeout
+@set_timeout()
 def netcdf_save_to_filesystem():
     """
     Save the requested data to the filesystem as netCDF, return the result of the query as JSON
     """
     input_data = request.get_json()
-    base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], input_data.get('directory', 'unknown'))
+    base_path = get_local_dir(input_data)
 
     try:
         _, json_str = util.calc.get_netcdf(input_data, request.url)
@@ -210,14 +254,14 @@ def netcdf_save_to_filesystem():
 
 
 @app.route('/particles-fs', methods=['POST'])
-@set_timeout
+@set_timeout()
 def particles_save_to_filesystem():
     """
     Save the requested data to the filesystem as JSON, return the result of the query as JSON
     :return: JSON object:
     """
     input_data = request.get_json()
-    base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], input_data.get('directory', 'unknown'))
+    base_path = get_local_dir(input_data)
     filename = '{:s}.json'.format(StreamKey.from_dict(input_data.get('streams')[0]).as_dashed_refdes())
     file_path = os.path.join(base_path, filename)
 
@@ -255,7 +299,7 @@ def particles_save_to_filesystem():
 
 
 @app.route('/csv-fs', methods=['POST'])
-@set_timeout
+@set_timeout()
 def csv_save_to_filesystem():
     """
     Save the query results to the filesystem as CSV, return the overall status as JSON
@@ -265,7 +309,7 @@ def csv_save_to_filesystem():
 
 
 @app.route('/tab-fs', methods=['POST'])
-@set_timeout
+@set_timeout()
 def tab_save_to_filesystem():
     """
     Save the query results to the filesystem as TSV, return the overall status as JSON
@@ -281,7 +325,7 @@ def _delimited_fs(delimiter):
     :return: JSON response
     """
     input_data = request.get_json()
-    base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], input_data.get('directory', 'unknown'))
+    base_path = get_local_dir(input_data)
     try:
         json_str = util.calc.get_csv_fs(input_data, request.url, base_path, delimiter=delimiter)
     except Exception as e:
@@ -292,20 +336,28 @@ def _delimited_fs(delimiter):
 
 
 @app.route('/aggregate', methods=['POST'])
-@set_timeout
+@set_timeout(timeout=app.config.get('AGGREGATION_TIMEOUT_SECONDS'))
 def aggregate_async():
-    input_data = request.get_json()
-    async_job = input_data.get("async_job")
-    log.info("Performing aggregation on asynchronous job %s", async_job)
-    st = time.time()
-    util.aggregation.aggregate(async_job)
-    et = time.time()
-    log.info("Done performing aggregation on asynchronous job %s took %s seconds", async_job, et - st)
-    return "done"
+    if app.config['AGGREGATE']:
+        input_data = request.get_json()
+        async_job = input_data.get("async_job")
+        request_id = input_data.get("requestUUID")
+
+        # Verify the supplied path is valid before proceeding
+        raise_invalid_path(app.config['FINAL_ASYNC_DIR'], async_job)
+
+        log.info("<%s> Performing aggregation on asynchronous job %s", request_id, async_job)
+        st = time.time()
+        util.aggregation.aggregate(async_job, request_id=request_id)
+        et = time.time() - st
+        log.info("<%s> Done performing aggregation on asynchronous job %s took %s seconds", request_id, async_job, et)
+        return "done"
+    else:
+        return "aggregation disabled"
 
 
 @app.route('/san_offload', methods=['POST'])
-@set_timeout
+@set_timeout()
 def full_netcdf():
     """
     POST should contain a dictionary of the following format:
@@ -346,7 +398,7 @@ def full_netcdf():
 
 
 @app.route('/san_onload', methods=['POST'])
-@set_timeout
+@set_timeout()
 def onload_netcdf():
     """
     Post should contain the fileName : string file name to onload
@@ -363,7 +415,7 @@ def onload_netcdf():
 
 
 @app.route('/needs', methods=['POST'])
-@set_timeout
+@set_timeout()
 def needs():
     """
     Given a list of reference designators, streams and parameters, return the
@@ -411,9 +463,9 @@ def needs():
     }
     """
     input_data = request.get_json()
-    needs = input_data['streams']
-    needs[0]['parameters'] = []
-    return jsonify({'streams': needs})
+    stream_needs = input_data['streams']
+    stream_needs[0]['parameters'] = []
+    return jsonify({'streams': stream_needs})
 
 
 def output_async_error(input_data, e, filename="failure.json"):
@@ -422,7 +474,7 @@ def output_async_error(input_data, e, filename="failure.json"):
         "message": "Request for particles failed for the following reason: %s" % e.message,
         'requestUUID': input_data.get('requestUUID', '')
     }
-    base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], input_data.get('directory', 'unknown'))
+    base_path = get_local_dir(input_data)
     # try to write file, if it does not succeed then return an additional error
     json_str = json.dumps(output, indent=2, separators=(',', ': '))
     if not write_file_with_content(base_path, os.path.join(base_path, filename), json_str):

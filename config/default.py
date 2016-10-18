@@ -4,7 +4,7 @@ import os
 # General Settings         #
 ############################
 DEBUG = False
-STREAM_ENGINE_VERSION = "1.0.2"
+STREAM_ENGINE_VERSION = "2.0.0"
 # Cassandra process pool size
 POOL_SIZE = 4
 LOGGING_CONFIG = 'logging.conf'
@@ -16,7 +16,6 @@ PARAMETER_LOGGING = '/opendap_export/stream_engine'
 DPA_VERSION_VARIABLE = "version"
 INTERNAL_OUTPUT_EXCLUDE_LIST = ['bin', ]
 CONFIG_DIR = os.path.dirname(__file__)
-ASYNC_DOWNLOAD_BASE_DIR = '/opt/ooi/async'
 
 
 ############################
