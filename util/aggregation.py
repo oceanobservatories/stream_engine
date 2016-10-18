@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 import codecs
+import fnmatch
+import json
 from collections import defaultdict, OrderedDict
 import glob
 from itertools import chain
@@ -12,10 +14,16 @@ import numpy as np
 
 import jinja2
 
+from util.common import log_timing
+from util.datamodel import compile_datasets
+from util.netcdf_utils import write_netcdf, add_dynamic_attributes, analyze_datasets
+
 log = logging.getLogger(__name__)
 
 dre = re.compile('(deployment\d+_\S*).nc')
 
+
+MAX_AGGREGATION_SIZE = app.config['MAX_AGGREGATION_SIZE']
 ATTRIBUTE_CARRYOVER_MAP = {
     'time_coverage_start': {'type': 'string', 'func': min},
     'time_coverage_end': {'type': 'string', 'func': max},
@@ -34,33 +42,17 @@ def flatten(arr):
     return list(chain.from_iterable(arr))
 
 
-VARIABLE_CARRYOVER_MAP = {
-    'streaming_provenance': {'type': 'string', 'func': extract_single_value},
-    'computed_provenance': {'type': 'string', 'func': extract_single_value},
-    'query_parameter_provenance': {'type': 'string', 'func': extract_single_value},
-    'instrument_provenance': {'type': 'string', 'func': extract_single_value},
-    'provenance_messages': {'type': 'string', 'func': flatten},
-    'annotations': {'type': 'string', 'func': flatten},
-}
-
-
 def get_nc_info(file_name):
-    with xr.open_dataset(file_name, decode_times=False) as ds:
+    with xr.open_dataset(file_name, decode_times=False, mask_and_scale=False, decode_cf=False) as ds:
         ret_val = {
-            'size': ds.time.size,
+            'size': ds.obs.size,
         }
         for i in ATTRIBUTE_CARRYOVER_MAP:
             if i in ds.attrs:
                 ret_val[i] = ds.attrs[i]
 
-        if 'l0_provenance_keys' in ds.variables and 'l0_provenance_data' in ds.variables:
-            ret_val['l0_provenance'] = zip(ds.variables['l0_provenance_keys'].values,
-                                           ds.variables['l0_provenance_data'].values)
-
         ret_val['file_start_time'] = ds.time.values[-1]
-        for i in VARIABLE_CARRYOVER_MAP:
-            if i in ds.variables:
-                ret_val[i] = ds.variables[i].values
+
     return ret_val
 
 
@@ -68,16 +60,12 @@ def collect_subjob_info(job_direct):
     """
     :return: Return a dictionary of file names and coordinate sizes
     """
-    root_dir = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], job_direct)
     subjob_info = {}
-    for direct, subdirs, files in os.walk(root_dir):
-        for i in files:
-            if i.endswith('.nc'):
-                idx = direct.index(job_direct)
-                pname = direct[idx + len(job_direct) + 1:]
-                fname = os.path.join(pname, i)
-                nc_info = get_nc_info(os.path.join(direct, i))
-                subjob_info[fname] = nc_info
+    for direct, subdirs, files in os.walk(job_direct):
+        for fname in fnmatch.filter(files, '*.nc'):
+            fpath = os.path.join(job_direct, fname)
+            nc_info = get_nc_info(fpath)
+            subjob_info[fname] = nc_info
 
     return subjob_info
 
@@ -95,7 +83,7 @@ def do_provenance(param):
     return keys, values
 
 
-def output_ncml(mapping):
+def output_ncml(mapping, request_id=None):
     loader = jinja2.FileSystemLoader(searchpath='templates')
     env = jinja2.Environment(loader=loader, trim_blocks=True, lstrip_blocks=True)
     ncml_template = env.get_template('ncml.jinja')
@@ -112,40 +100,18 @@ def output_ncml(mapping):
 
         # do something with provenance...
         file_start_time = [x['file_start_time'] for x in info_dict.itervalues()]
-        try:
-            l0keys, l0values = do_provenance([x['l0_provenance'] for x in info_dict.itervalues()])
-            variable_dict = {
-                'l0_provenance_keys': {'value': l0keys, 'type': 'string', 'size': len(l0keys), 'separator': '*'},
-                'l0_provenance_data': {'value': l0values, 'type': 'string', 'size': len(l0values), 'separator': '*'},
-                'combined_file_start_time': {'value': file_start_time, 'type': 'float', 'size': len(file_start_time),
-                                             'separator': None}
-            }
-        except KeyError:
-            # no l0_provenance output
-            variable_dict = {
-                'combined_file_start_time': {'value': file_start_time, 'type': 'float', 'size': len(file_start_time),
-                                             'separator': None}
-            }
+        variable_dict = {
+            'combined_file_start_time': {'value': file_start_time, 'type': 'float', 'size': len(file_start_time),
+                                         'separator': None}
+        }
 
-        for i in VARIABLE_CARRYOVER_MAP:
-            try:
-                arr = []
-                for x in info_dict.itervalues():
-                    if i in x:
-                        arr.append(x[i])
-                if arr:
-                    vals = VARIABLE_CARRYOVER_MAP[i]['func'](arr)
-                    variable_dict[i] = {'value': vals, 'type': VARIABLE_CARRYOVER_MAP[i]['type'], 'size': len(vals),
-                                        'separator': '*'}
-            except KeyError:
-                pass
         with codecs.open(combined_file, 'wb', 'utf-8') as ncml_file:
             ncml_file.write(
                     ncml_template.render(coord_dict=info_dict, attr_dict=attr_dict,
                                          var_dict=variable_dict))
 
 
-def generate_combination_map(direct, subjob_info):
+def generate_combination_map(out_dir, subjob_info):
     mapping = defaultdict(dict)
     for fname, info in subjob_info.iteritems():
         match = dre.search(fname)
@@ -154,7 +120,7 @@ def generate_combination_map(direct, subjob_info):
             index = file_base.rfind('_')
             nameprefix = file_base[:index] if index > 0 else file_base
             ncml_name = '{:s}.ncml'.format(nameprefix)
-            ncml_name = os.path.join(direct, ncml_name)
+            ncml_name = os.path.join(out_dir, ncml_name)
             mapping[ncml_name][fname] = info
     # sort the map so the time in the file increases along with obs
     sorted_map = {}
@@ -166,9 +132,196 @@ def generate_combination_map(direct, subjob_info):
     return sorted_map
 
 
-def aggregate(async_job_dir):
-    if app.config['AGGREGATE']:
-        subjob_info = collect_subjob_info(async_job_dir)
-        direct = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], async_job_dir)
-        mapping = generate_combination_map(direct, subjob_info)
-        output_ncml(mapping)
+def aggregate_provenance_group(job_dir, files):
+    aggregate_dict = {}
+    for f in sorted(files):
+        path = os.path.join(job_dir, f)
+        data = json.load(open(path))
+        for key in data:
+            if key == 'instrument_provenance':
+                aggregate_dict[key] = data[key]
+            elif key == 'provenance':
+                aggregate_dict.setdefault(key, {}).update(data[key])
+            else:
+                aggregate_dict.setdefault(key, {})[f] = data[key]
+
+    return aggregate_dict
+
+
+@log_timing(log)
+def aggregate_provenance_json(job_dir, output_dir, request_id=None):
+    groups = {}
+    prov_label = '_provenance_'
+    for f in os.listdir(job_dir):
+        if prov_label in f and f.endswith('json'):
+            group = f.split(prov_label)[0]
+            groups.setdefault(group, []).append(f)
+
+    for group in groups:
+        aggregate_dict = aggregate_provenance_group(job_dir, groups[group])
+        with open(os.path.join(output_dir, '%s_aggregate_provenance.json' % group), 'w') as fh:
+            json.dump(aggregate_dict, fh, indent=2)
+
+
+def get_name(ds, group_name):
+    start = ds.attrs['time_coverage_start'].translate(None, '-:')
+    end = ds.attrs['time_coverage_end'].translate(None, '-:')
+
+    return '%s_%s-%s.nc' % (group_name, start, end)
+
+
+@log_timing(log)
+def shape_up(dataset, parameters, request_id=None):
+    """
+    Ensure that all parameters in this dataset match the supplied dimensions
+    padding with the fill value as necessary.
+    Dataset is modified in place
+    :param dataset: dataset to be updated
+    :param shapes: map of expected shapes
+    :return:
+    """
+    temp_dims = []
+
+    if 'obs' in dataset:
+        for var in parameters:
+            shape = (dataset.obs.size, ) + parameters[var]['shape']
+            dtype = parameters[var]['dtype']
+            dims = ('obs', ) + parameters[var]['dims']
+            fill = parameters[var]['fill']
+
+            if var not in dataset:
+                fv = np.zeros(shape).astype(dtype)
+                fv[:] = fill
+
+                # insert the missing data into our dataset as fill values
+                dataset[var] = (dims, fv, {'_FillValue': fill})
+
+            else:
+                if dataset[var].dims == dims and dataset[var].shape == shape:
+                    # Nothing to do here
+                    continue
+
+                # uh-oh, dimensions/shape don't match
+                if dataset[var].shape == shape:
+                    # only dimension names are mismatched. Rewrite with "correct" names
+                    dataset[var] = (dims, dataset[var].values, dataset[var].attrs)
+                    continue
+
+                # shape and dimensions mismatched
+                # pad data and re-insert
+                pads = []
+                current_shape = dataset[var].shape
+                vals = dataset[var].values
+
+                # add any missing dimensions
+                while len(shape) > len(current_shape):
+                    current_shape += (1, )
+
+                # if dimensions were added, reshape the data
+                if current_shape != dataset[var].shape:
+                    vals = vals.reshape(current_shape)
+
+                # generate any necessary pads
+                for index, size in enumerate(shape):
+                    pads.append((0, size-current_shape[index]))
+
+                # if dimension names are the same but shape has changed
+                # we have to rename the existing dimension(s) or we won't
+                # be able to re-insert our data
+                for index, dim_name in enumerate(dataset[var].dims):
+                    # skip the obs dimension
+                    if index == 0:
+                        continue
+                    if dim_name == dims[index]:
+                        temp_name = 'TEMP_DIM_%s_%d' % (var, index)
+                        dataset.rename({dim_name: temp_name}, inplace=True)
+                        temp_dims.append(temp_name)
+
+                # pad the data and re-insert
+                padded_data = np.pad(vals, pads, mode='constant', constant_values=fill)
+                dataset[var] = (dims, padded_data, dataset[var].attrs)
+
+        # delete any temporary dimensions created
+        for dim in temp_dims:
+            del dataset[dim]
+
+
+@log_timing(log)
+def concatenate_and_write(datasets, out_dir, group_name, request_id=None):
+    ds = compile_datasets(datasets)
+    add_dynamic_attributes(ds)
+    write_netcdf(ds, os.path.join(out_dir, get_name(ds, group_name)))
+
+
+@log_timing(log)
+def aggregate_netcdf_group(job_dir, output_dir, files, group_name, request_id=None):
+    datasets = []
+    accum_size = 0
+    parameters = analyze_datasets(job_dir, files, request_id=request_id)
+    for f in sorted(files):
+        path = os.path.join(job_dir, f)
+        size = os.stat(path).st_size
+        accum_size += size
+        if accum_size > MAX_AGGREGATION_SIZE:
+            concatenate_and_write(datasets, output_dir, group_name, request_id=request_id)
+            accum_size = size
+            datasets = []
+
+        with xr.open_dataset(path, decode_times=False, mask_and_scale=False, decode_cf=False) as ds:
+            ds.load()
+            shape_up(ds, parameters, request_id=request_id)
+            datasets.append(ds)
+
+    if datasets:
+        concatenate_and_write(datasets, output_dir, group_name, request_id=request_id)
+
+
+@log_timing(log)
+def aggregate_netcdf(job_dir, output_dir, request_id=None):
+    groups = {}
+    for f in fnmatch.filter(os.listdir(job_dir), '*.nc'):
+        group = f.rsplit('_', 1)[0]
+        groups.setdefault(group, []).append(f)
+
+    for group in groups:
+        aggregate_netcdf_group(job_dir, output_dir, groups[group], group, request_id=request_id)
+
+
+@log_timing(log)
+def generate_ncml(job_dir, out_dir, request_id=None):
+    subjob_info = collect_subjob_info(job_dir)
+    mapping = generate_combination_map(out_dir, subjob_info)
+    output_ncml(mapping, out_dir)
+
+
+def aggregate_status(job_dir, out_dir, request_id=None):
+    results = []
+    for f in fnmatch.filter(os.listdir(job_dir), '*-status.txt'):
+        start, stop, _ = f.split('-', 2)
+        results.append((start, stop, 'complete'))
+
+    for f in fnmatch.filter(os.listdir(job_dir), '*-failure.json'):
+        start, stop, _ = f.split('-', 2)
+        results.append((start, stop, json.load(open(os.path.join(job_dir, f)))))
+
+    results.sort()
+    out = OrderedDict()
+    for start, stop, value in results:
+        key = '-'.join((start, stop))
+        out[key] = value
+
+    with open(os.path.join(out_dir, 'status.txt'), 'w') as fh:
+        json.dump(out, fh, indent=2)
+
+
+def aggregate(async_job_dir, request_id=None):
+    job_dir = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], async_job_dir)
+    output_dir = job_dir + '_AGG'
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    aggregate_status(job_dir, output_dir, request_id=request_id)
+    aggregate_netcdf(job_dir, output_dir, request_id=request_id)
+    aggregate_provenance_json(job_dir, output_dir, request_id=request_id)
+    generate_ncml(job_dir, output_dir, request_id=request_id)
+

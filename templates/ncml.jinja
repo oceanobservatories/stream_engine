@@ -21,7 +21,6 @@
         {% if  info['separator'] is not none %}
         <values separator="{{ info['separator'] }}">
             {% for value in info['value'] %} {% if not loop.last %} {{ value }}{{ info['separator']}}{% else %} {{ value }} {% endif %} {% endfor %}
-
         </values>
         {% else %}
         <values>
