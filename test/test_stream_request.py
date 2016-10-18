@@ -19,6 +19,7 @@ from util.common import StreamKey, TimeRange, StreamEngineException, InvalidPara
 from util.csvresponse import CsvGenerator
 from util.jsonresponse import JsonResponse
 from util.netcdf_generator import NetcdfGenerator
+from util.netcdf_utils import rename_glider_lat_lon
 from util.stream_dataset import StreamDataset
 from util.stream_request import StreamRequest
 from util.calc import execute_stream_request, validate
@@ -383,7 +384,7 @@ class StreamRequestTest(unittest.TestCase):
         self.assertIn('glider_gps_position-m_gps_lat', ctd_ds)
         self.assertIn('glider_gps_position-m_gps_lon', ctd_ds)
 
-        modified = NetcdfGenerator._rename_glider_lat_lon(ctd_sk, ctd_ds)
+        modified = rename_glider_lat_lon(ctd_sk, ctd_ds)
         self.assertNotIn('glider_gps_position-m_gps_lat', modified)
         self.assertNotIn('glider_gps_position-m_gps_lon', modified)
         self.assertIn('lat', modified)
