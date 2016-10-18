@@ -282,14 +282,17 @@ def _delimited_fs(delimiter):
 @app.route('/aggregate', methods=['POST'])
 @set_timeout
 def aggregate_async():
-    input_data = request.get_json()
-    async_job = input_data.get("async_job")
-    log.info("Performing aggregation on asynchronous job %s", async_job)
-    st = time.time()
-    util.aggregation.aggregate(async_job)
-    et = time.time()
-    log.info("Done performing aggregation on asynchronous job %s took %s seconds", async_job, et - st)
-    return "done"
+    if app.config['AGGREGATE']:
+        input_data = request.get_json()
+        async_job = input_data.get("async_job")
+        log.info("Performing aggregation on asynchronous job %s", async_job)
+        st = time.time()
+        util.aggregation.aggregate(async_job)
+        et = time.time()
+        log.info("Done performing aggregation on asynchronous job %s took %s seconds", async_job, et - st)
+        return "done"
+    else:
+        return "aggregation disabled"
 
 
 @app.route('/san_offload', methods=['POST'])

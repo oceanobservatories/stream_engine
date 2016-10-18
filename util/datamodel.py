@@ -274,23 +274,22 @@ def compile_datasets(datasets):
     """
     Given a list of datasets. Possibly containing None. Return a single
     dataset with unique indexes and sorted by the 'time' parameter
-    :param datasets: :return:
+    :param datasets:
+    :return:
     """
     # filter out the Nones
     datasets = filter(None, datasets)
     if not datasets:
         return None
-    datasets.sort(key=lambda val: val['time'].values[0])
-    # now determine if they are in order or not..
-    idx = 0
-    for ds in datasets:
-        # Determine if the max and the min are all in order
-        new_index = [i for i in range(idx, idx + len(ds['obs']))]
-        ds['obs'] = new_index
-        idx = new_index[-1] + 1
+
     dataset = xr.concat(datasets, dim='obs')
+    # recreate the obs dimension
+    dataset['obs'] = np.arange(dataset.obs.size)
+    # sort the dataset by time
     sorted_idx = dataset.time.argsort()
     dataset = dataset.reindex({'obs': sorted_idx})
+    # recreate the obs dimension again to ensure it is sequential
+    dataset['obs'] = np.arange(dataset.obs.size)
     return dataset
 
 

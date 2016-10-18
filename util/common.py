@@ -329,3 +329,18 @@ def timed_cache(expire_seconds):
         return inner
 
     return wrapper
+
+
+def dict_equal(d1, d2):
+    """Function to recursively check if two dicts are equal"""
+    if isinstance(d1, dict) and isinstance(d2, dict):
+        # check keysets
+        if set(d1) != set(d2):
+            return False
+
+        # otherwise loop through all the keys and check if the dicts and items are equal
+        return all((dict_equal(d1[key], d2[key]) for key in d1))
+
+    # check equality on other objects
+    else:
+        return d1 == d2
