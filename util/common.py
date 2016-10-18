@@ -319,6 +319,12 @@ class WriteErrorException(StreamEngineException):
     status_code = 500
 
 
+class InvalidPathException(StreamEngineException):
+    """
+    Invalid path was supplied.
+    """
+    status_code = 400
+
 
 def timed_cache(expire_seconds):
     """
@@ -363,3 +369,18 @@ def read_size_config(config):
 def find_root():
     here = os.path.dirname(__file__)
     return os.path.dirname(here)
+
+
+def dict_equal(d1, d2):
+    """Function to recursively check if two dicts are equal"""
+    if isinstance(d1, dict) and isinstance(d2, dict):
+        # check keysets
+        if set(d1) != set(d2):
+            return False
+
+        # otherwise loop through all the keys and check if the dicts and items are equal
+        return all((dict_equal(d1[key], d2[key]) for key in d1))
+
+    # check equality on other objects
+    else:
+        return d1 == d2
