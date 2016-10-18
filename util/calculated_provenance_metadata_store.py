@@ -1,6 +1,8 @@
 import uuid
 from collections import defaultdict
 
+from util.common import dict_equal
+
 
 class CalculatedProvenanceMetadataStore(object):
     """Metadata store for provenance values"""
@@ -17,7 +19,7 @@ class CalculatedProvenanceMetadataStore(object):
         for call in self.params[parameter]:
             if dict_equal(to_insert, self.calls[call]):
                 return call
-        # create and id and append it to the list
+        # create an id and append it to the list
         call_id = str(uuid.uuid4())
         self.calls[call_id] = to_insert
         self.params[parameter].append(call_id)
@@ -32,22 +34,3 @@ class CalculatedProvenanceMetadataStore(object):
 
     def get_keys_for_calculated(self, parameter):
         return self.ref_map[parameter]
-
-
-def dict_equal(d1, d2):
-    """Function to recursively check if two dicts are equal"""
-    if isinstance(d1, dict) and isinstance(d2, dict):
-        # check keysets
-        if set(d1) != set(d2):
-            return False
-
-        # otherwise loop through all the keys and check if the dicts and items are equal
-        for key in d1:
-            if key in d2:
-                if not dict_equal(d1[key], d2[key]):
-                    return False
-        # we made it through
-        return True
-    # check equality on other objects
-    else:
-        return d1 == d2

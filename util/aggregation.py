@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 import codecs
+import fnmatch
+import json
 from collections import defaultdict, OrderedDict
 import glob
 from itertools import chain
@@ -11,6 +13,9 @@ from engine import app
 import numpy as np
 
 import jinja2
+
+from util.datamodel import compile_datasets
+from util.netcdf_utils import write_netcdf, add_dynamic_attributes, analyze_datasets
 
 log = logging.getLogger(__name__)
 
@@ -166,9 +171,161 @@ def generate_combination_map(direct, subjob_info):
     return sorted_map
 
 
+def aggregate_provenance_group(job_dir, files):
+    aggregate_dict = {}
+    for f in sorted(files):
+        path = os.path.join(job_dir, f)
+        data = json.load(open(path))
+        for key in data:
+            if key == 'instrument_provenance':
+                aggregate_dict[key] = data[key]
+            else:
+                aggregate_dict.setdefault(key, OrderedDict())[f] = data[key]
+
+    return aggregate_dict
+
+
+def aggregate_provenance_json(job_dir):
+    groups = {}
+    prov_label = '_provenance_'
+    for f in os.listdir(job_dir):
+        if prov_label in f and f.endswith('json'):
+            group = f.split(prov_label)[0]
+            groups.setdefault(group, []).append(f)
+
+    for group in groups:
+        aggregate_dict = aggregate_provenance_group(job_dir, groups[group])
+        json.dump(aggregate_dict, open(os.path.join(job_dir, '%s_aggregate_provenance.json' % group), 'w'), indent=2)
+
+
+def get_name(ds, group_name):
+    start = ds.attrs['time_coverage_start'].translate(None, '-:')
+    end = ds.attrs['time_coverage_end'].translate(None, '-:')
+
+    return 'AGG_%s_%s-%s.nc' % (group_name, start, end)
+
+
+def shape_up(dataset, parameters):
+    """
+    Ensure that all parameters in this dataset match the supplied dimensions
+    padding with the fill value as necessary.
+    Dataset is modified in place
+    :param dataset: dataset to be updated
+    :param shapes: map of expected shapes
+    :return:
+    """
+    temp_dims = []
+
+    if 'obs' in dataset:
+        for var in parameters:
+            shape = (dataset.obs.size, ) + parameters[var]['shape']
+            dtype = parameters[var]['dtype']
+            dims = ('obs', ) + parameters[var]['dims']
+            fill = parameters[var]['fill']
+
+            if var not in dataset:
+                fv = np.zeros(shape).astype(dtype)
+                fv[:] = fill
+
+                # insert the missing data into our dataset as fill values
+                dataset[var] = (dims, fv, {'_FillValue': fill})
+
+            else:
+                if dataset[var].dims == dims and dataset[var].shape == shape:
+                    # Nothing to do here
+                    continue
+
+                # uh-oh, dimensions/shape don't match
+                if dataset[var].shape == shape:
+                    # only dimension names are mismatched. Rewrite with "correct" names
+                    dataset[var] = (dims, dataset[var].values, dataset[var].attrs)
+                    continue
+
+                # shape and dimensions mismatched
+                # pad data and re-insert
+                pads = []
+                current_shape = dataset[var].shape
+                vals = dataset[var].values
+
+                # add any missing dimensions
+                while len(shape) > len(current_shape):
+                    current_shape += (1, )
+
+                # if dimensions were added, reshape the data
+                if current_shape != dataset[var].shape:
+                    vals = vals.reshape(current_shape)
+
+                # generate any necessary pads
+                for index, size in enumerate(shape):
+                    pads.append((0, size-current_shape[index]))
+
+                # if dimension names are the same but shape has changed
+                # we have to rename the existing dimension(s) or we won't
+                # be able to re-insert our data
+                for index, dim_name in enumerate(dataset[var].dims):
+                    # skip the obs dimension
+                    if index == 0:
+                        continue
+                    if dim_name == dims[index]:
+                        temp_name = 'TEMP_DIM_%s_%d' % (var, index)
+                        dataset.rename({dim_name: temp_name}, inplace=True)
+                        temp_dims.append(temp_name)
+
+                # pad the data and re-insert
+                padded_data = np.pad(vals, pads, mode='constant', constant_values=fill)
+                dataset[var] = (dims, padded_data, dataset[var].attrs)
+
+        # delete any temporary dimensions created
+        for dim in temp_dims:
+            del dataset[dim]
+
+
+def concatenate_and_write(datasets, out_dir, group_name):
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+    ds = compile_datasets(datasets)
+    add_dynamic_attributes(ds)
+    write_netcdf(ds, os.path.join(out_dir, get_name(ds, group_name)))
+
+
+def aggregate_netcdf_group(job_dir, output_dir, files, group_name):
+    datasets = []
+    MAX_SIZE = 500e6
+    accum_size = 0
+    parameters = analyze_datasets(job_dir, files)
+    for f in sorted(files):
+        path = os.path.join(job_dir, f)
+        size = os.stat(path).st_size
+        accum_size += size
+        if accum_size > MAX_SIZE:
+            concatenate_and_write(datasets, output_dir, group_name)
+            accum_size = size
+            datasets = []
+
+        with xr.open_dataset(path, decode_times=False, mask_and_scale=False, decode_cf=False) as ds:
+            ds.load()
+            shape_up(ds, parameters)
+            datasets.append(ds)
+
+    if datasets:
+        concatenate_and_write(datasets, output_dir, group_name)
+
+
+def aggregate_netcdf(job_dir, output_dir):
+    groups = {}
+    for f in fnmatch.filter(os.listdir(job_dir), '*.nc'):
+        group = f.rsplit('_', 1)[0]
+        groups.setdefault(group, []).append(f)
+
+    for group in groups:
+        aggregate_netcdf_group(job_dir, output_dir, groups[group], group)
+
+
 def aggregate(async_job_dir):
-    if app.config['AGGREGATE']:
-        subjob_info = collect_subjob_info(async_job_dir)
-        direct = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], async_job_dir)
-        mapping = generate_combination_map(direct, subjob_info)
-        output_ncml(mapping)
+    job_dir = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], async_job_dir)
+    output_dir = job_dir + '_AGG'
+    aggregate_netcdf(job_dir, output_dir)
+
+    subjob_info = collect_subjob_info(async_job_dir)
+    mapping = generate_combination_map(job_dir, subjob_info)
+    output_ncml(mapping)
