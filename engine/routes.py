@@ -11,7 +11,8 @@ from flask import request, Response, jsonify, send_file
 import util.aggregation
 import util.calc
 from engine import app
-from util.common import StreamEngineException, TimedOutException, MissingDataException, MissingTimeException, ntp_to_datestring, StreamKey
+from util.common import (StreamEngineException, TimedOutException, MissingDataException,
+                         MissingTimeException, ntp_to_datestring, StreamKey)
 from util.san import onload_netCDF, SAN_netcdf
 
 log = logging.getLogger(__name__)
@@ -88,13 +89,22 @@ def write_status(path, filename="status.txt", status="complete"):
     with open(os.path.join(path, filename), 'w') as s:
         s.write(status + os.linesep)
 
+
 def time_prefix_filename(ntp_start, ntp_stop, suffix):
     sdate = ntp_to_datestring(ntp_start)
     edate = ntp_to_datestring(ntp_stop)
     s = "-"
-    status_filename = s.join((sdate.translate(None, '-:'),edate.translate(None, '-:'), suffix))
+    status_filename = s.join((sdate.translate(None, '-:'), edate.translate(None, '-:'), suffix))
     return status_filename
 
+
+def fix_directory(input_data):
+    # TODO
+    # TEMP FIX UNTIL UFRAME IS UPDATE TO PASS RELATIVE PATH
+    directory = input_data.pop('directory', None)
+    if directory:
+        input_data['directory'] = '/'.join(directory.split('/')[-2:])
+    return input_data
 
 
 ##########################
@@ -125,6 +135,7 @@ def time_prefix_filename(ntp_start, ntp_stop, suffix):
 #     'start': ntptime,
 #     'stop': ntptime
 # }
+
 
 @app.route('/particles', methods=['POST'])
 @set_timeout
@@ -183,7 +194,8 @@ def netcdf_save_to_filesystem():
     Save the requested data to the filesystem as netCDF, return the result of the query as JSON
     """
     input_data = request.get_json()
-    base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], input_data.get('directory', 'unknown'))
+    input_data = fix_directory(input_data)
+    base_path = os.path.join(app.config['LOCAL_ASYNC_DIR'], input_data.get('directory', 'unknown'))
 
     try:
         _, json_str = util.calc.get_netcdf(input_data, request.url)
@@ -205,7 +217,8 @@ def particles_save_to_filesystem():
     :return: JSON object:
     """
     input_data = request.get_json()
-    base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], input_data.get('directory', 'unknown'))
+    input_data = fix_directory(input_data)
+    base_path = os.path.join(app.config['LOCAL_ASYNC_DIR'], input_data.get('directory', 'unknown'))
     filename = '{:s}.json'.format(StreamKey.from_dict(input_data.get('streams')[0]).as_dashed_refdes())
     file_path = os.path.join(base_path, filename)
 
@@ -269,7 +282,8 @@ def _delimited_fs(delimiter):
     :return: JSON response
     """
     input_data = request.get_json()
-    base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], input_data.get('directory', 'unknown'))
+    input_data = fix_directory(input_data)
+    base_path = os.path.join(app.config['LOCAL_ASYNC_DIR'], input_data.get('directory', 'unknown'))
     try:
         json_str = util.calc.get_csv_fs(input_data, request.url, base_path, delimiter=delimiter)
     except Exception as e:
@@ -285,9 +299,10 @@ def aggregate_async():
     if app.config['AGGREGATE']:
         input_data = request.get_json()
         async_job = input_data.get("async_job")
+        request_id = input_data.get("requestUUID")
         log.info("Performing aggregation on asynchronous job %s", async_job)
         st = time.time()
-        util.aggregation.aggregate(async_job)
+        util.aggregation.aggregate(async_job, request_id=request_id)
         et = time.time()
         log.info("Done performing aggregation on asynchronous job %s took %s seconds", async_job, et - st)
         return "done"
@@ -402,9 +417,9 @@ def needs():
     }
     """
     input_data = request.get_json()
-    needs = input_data['streams']
-    needs[0]['parameters'] = []
-    return jsonify({'streams': needs})
+    stream_needs = input_data['streams']
+    stream_needs[0]['parameters'] = []
+    return jsonify({'streams': stream_needs})
 
 
 def output_async_error(input_data, e, filename="failure.json"):
@@ -413,7 +428,7 @@ def output_async_error(input_data, e, filename="failure.json"):
         "message": "Request for particles failed for the following reason: %s" % e.message,
         'requestUUID': input_data.get('requestUUID', '')
     }
-    base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], input_data.get('directory', 'unknown'))
+    base_path = os.path.join(app.config['LOCAL_ASYNC_DIR'], input_data.get('directory', 'unknown'))
     # try to write file, if it does not succeed then return an additional error
     json_str = json.dumps(output, indent=2, separators=(',', ': '))
     if not write_file_with_content(base_path, os.path.join(base_path, filename), json_str):
