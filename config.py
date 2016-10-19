@@ -79,8 +79,6 @@ UI_FULL_SAMPLE_LIMIT = 5000
 # set a hard limit for the maximum size a limited query can be.  All data can be accessed using an async query.
 UI_HARD_LIMIT = 20000
 
-ASYNC_DOWNLOAD_BASE_DIR = '/opt/ooi/async'
-
 QC_RESULTS_STORAGE_SYSTEM = 'none'  # 'log' to write qc results to a file, 'cass' to write qc results to a database
 
 # Number of cassandra rows used to the correct deployment for padding of streams which provide
@@ -161,3 +159,10 @@ PREFERRED_DATA_LOCATION = 'san'
 
 MAX_BIN_SIZE_MIN = 20160
 MAX_AGGREGATION_SIZE = 500e6
+
+# Directory to place intermediate netcdf results
+LOCAL_ASYNC_DIR = '/local/async_results'
+# Directory to place aggregated netcdf results
+FINAL_ASYNC_DIR = '/opt/ooi/async'
+# Names/IPs of other stream engine nodes for aggregation
+STREAM_ENGINE_NODES = []

@@ -28,7 +28,7 @@ class CsvGenerator(object):
 
     def to_csv_files(self, path):
         file_paths = []
-        base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], path)
+        base_path = os.path.join(app.config['LOCAL_ASYNC_DIR'], path)
 
         if not os.path.isdir(base_path):
             os.makedirs(base_path)
