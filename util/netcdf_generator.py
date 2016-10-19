@@ -27,7 +27,7 @@ class NetcdfGenerator(object):
 
     @log_timing(log)
     def _create_raw_files(self):
-        base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], self.disk_path)
+        base_path = os.path.join(app.config['LOCAL_ASYNC_DIR'], self.disk_path)
         # ensure the directory structure is there
         if not os.path.isdir(base_path):
             os.makedirs(base_path)
