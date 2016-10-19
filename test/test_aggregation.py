@@ -8,7 +8,7 @@ import numpy as np
 import xarray as xr
 
 from preload_database.database import initialize_connection, open_connection, PreloadDatabaseMode
-from util.aggregation import aggregate_provenance_json, aggregate_netcdf_group, collect_subjob_info, generate_ncml
+from util.aggregation import aggregate_netcdf_group
 
 logging.basicConfig()
 log = logging.getLogger()

@@ -16,6 +16,7 @@ import jinja2
 
 from util.common import log_timing
 from util.datamodel import compile_datasets
+from util.gather import gather_files
 from util.netcdf_utils import write_netcdf, add_dynamic_attributes, analyze_datasets
 
 log = logging.getLogger(__name__)
@@ -149,7 +150,7 @@ def aggregate_provenance_group(job_dir, files):
 
 
 @log_timing(log)
-def aggregate_provenance_json(job_dir, output_dir, request_id=None):
+def aggregate_provenance(job_dir, output_dir, request_id=None):
     groups = {}
     prov_label = '_provenance_'
     for f in os.listdir(job_dir):
@@ -314,20 +315,39 @@ def aggregate_status(job_dir, out_dir, request_id=None):
         json.dump(out, fh, indent=2)
 
 
+def aggregate_csv(job_dir, out_dir, request_id=None):
+    # TODO -- aggregate CSV/TSV files
+    for f in fnmatch.filter(os.listdir(job_dir), '*.[ct]sv'):
+        os.rename(os.path.join(job_dir, f),
+                  os.path.join(out_dir, f))
+
+
+def cleanup(job_dir, request_id=None):
+    # NO-OP for now, once testing is complete, remove local files.
+    # TODO
+    pass
+
+
 def aggregate(async_job_dir, request_id=None):
-    job_dir = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], async_job_dir)
+    local_dir = os.path.join(app.config['LOCAL_ASYNC_DIR'], async_job_dir)
+    final_dir = os.path.join(app.config['FINAL_ASYNC_DIR'], async_job_dir)
+    se_nodes = app.config['STREAM_ENGINE_NODES']
+
+    # Fetch all files from remote nodes
+    gather_files(se_nodes, local_dir)
 
     # old aggregation
-    generate_ncml(job_dir, job_dir, request_id=request_id)
+    generate_ncml(local_dir, local_dir, request_id=request_id)
 
     # new aggregation
-    output_dir = job_dir + '_AGG'
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    if not os.path.exists(final_dir):
+        os.makedirs(final_dir)
 
-    aggregate_status(job_dir, output_dir, request_id=request_id)
-    aggregate_netcdf(job_dir, output_dir, request_id=request_id)
-    aggregate_provenance_json(job_dir, output_dir, request_id=request_id)
-    generate_ncml(output_dir, output_dir, request_id=request_id)
+    aggregate_status(local_dir, final_dir, request_id=request_id)
+    aggregate_csv(local_dir, final_dir, request_id=request_id)
+    aggregate_netcdf(local_dir, final_dir, request_id=request_id)
+    aggregate_provenance(local_dir, final_dir, request_id=request_id)
+    generate_ncml(local_dir, final_dir, request_id=request_id)
+    cleanup(local_dir, request_id=request_id)
 
 
