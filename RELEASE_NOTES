@@ -3,6 +3,8 @@ NEXT RELEASE
 Issue #10820
 - Stream engine will create a status.txt file containing the string "complete" when aggregation is complete.
 
+Updated preload database pointer
+
 Release 1.1.0
 
 Issue #10820 - NetCDF aggregation
