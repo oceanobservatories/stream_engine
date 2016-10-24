@@ -164,13 +164,14 @@ class StreamDataset(object):
             param_meta = None
             # Calibration Value
             if source == 'CAL':
-                cal, param_meta = self.events.get_tiled_cal(value, deployment, times)
-                if cal is not None:
-                    kwargs[name] = cal
-                    if np.any(np.isnan(cal)):
-                        msg = '<{:s}> There was not coefficient data for {:s} for all times in deployment ' \
-                              '{:d} in range ({:s} {:s})'.format(self.request_id, name, deployment, begin_dt, end_dt)
-                        log.warn(msg)
+                if self.events is not None:
+                    cal, param_meta = self.events.get_tiled_cal(value, deployment, times)
+                    if cal is not None:
+                        kwargs[name] = cal
+                        if np.any(np.isnan(cal)):
+                            msg = '<{:s}> There was not coefficient data for {:s} for all times in deployment ' \
+                                  '{:d} in range ({:s} {:s})'.format(self.request_id, name, deployment, begin_dt, end_dt)
+                            log.warn(msg)
 
             # Internal Parameter
             elif source == stream_key.stream and value.name in dataset:

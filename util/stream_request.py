@@ -118,6 +118,7 @@ class StreamRequest(object):
                 log.debug('<%s> Creating empty dataset for virtual stream: %s',
                           self.request_id, stream_key.as_refdes())
                 sd = StreamDataset(stream_key, self.uflags, other_streams, self.request_id)
+                sd.events = am_events[stream_key]
                 self.datasets[stream_key] = sd
 
         # Fetch annotations
