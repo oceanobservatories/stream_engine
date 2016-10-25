@@ -331,3 +331,28 @@ class MetadataServiceTest(unittest.TestCase):
         with self.assertRaises(MissingStreamMetadataException):
             sk = StreamKey(*['fake'] * 5)
             util.metadata_service.get_available_time_range(sk)
+
+    def test_get_particle_count(self):
+        ##############
+        # Test Setup #
+        ##############
+        bin_min = 10
+        bin_max = bin_min + 10
+        tr = TimeRange(bin_min, bin_max)
+
+        sk = self.__partition_test_setup(bin_min + 3, CASS_LOCATION_NAME, tr.stop - 1, tr.start + 1, 11)
+        self.__partition_test_setup(bin_min + 4, CASS_LOCATION_NAME, tr.stop - 2, tr.start + 2, 12)
+        self.__partition_test_setup(bin_min + 5, SAN_LOCATION_NAME, tr.stop - 3, tr.start + 3, 13)
+        self.__partition_test_setup(bin_min + 6, SAN_LOCATION_NAME, tr.stop - 4, tr.start + 4, 14)
+
+        count = 11 + 12 + 13 + 14
+
+        # Override config setting
+        engine.app.config['PREFERRED_DATA_LOCATION'] = CASS_LOCATION_NAME
+
+        ########
+        # Test #
+        ########
+        print tr
+        self.assertEqual(util.metadata_service.get_particle_count(sk, tr), count)
+
