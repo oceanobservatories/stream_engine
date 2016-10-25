@@ -11,16 +11,17 @@ import mock
 import numpy as np
 import pandas as pd
 import xarray as xr
+import math
 
 from preload_database.database import initialize_connection, open_connection, PreloadDatabaseMode
 from preload_database.model.preload import Parameter
 from util.asset_management import AssetEvents
-from util.common import StreamKey, TimeRange, StreamEngineException, InvalidParameterException
+from util.common import StreamKey, TimeRange, StreamEngineException, InvalidParameterException, read_size_config
 from util.csvresponse import CsvGenerator
 from util.jsonresponse import JsonResponse
 from util.netcdf_generator import NetcdfGenerator
 from util.stream_dataset import StreamDataset
-from util.stream_request import StreamRequest
+from util.stream_request import StreamRequest, SIZE_ESTIMATES
 from util.calc import execute_stream_request, validate
 
 TEST_DIR = os.path.dirname(__file__)
@@ -465,3 +466,32 @@ class StreamRequestTest(unittest.TestCase):
         data = json.loads(JsonResponse(nut_sr).json())
         for each in data:
             self.assertIn(expected_name, each)
+
+    def test_compute_request_size_default(self):
+        count = 100
+
+        def get_particle_count(stream, time_range):
+            return count
+        with mock.patch('util.metadata_service.get_particle_count', new=get_particle_count):
+            nut_sr = self.create_nut_sr()
+            se = {}  # empty estimates should give default of 1000 for bytes/particle
+            size_est = nut_sr.compute_request_size(se)
+            expected_size_est = count * 1000 * 2  # nutnr has a ctd stream required
+            self.assertEqual(size_est, expected_size_est)
+
+    def test_compute_request_size_known(self):
+        nutnr_count = 10
+        ctdpf_count = 100
+
+        def get_particle_count(stream, time_range):
+            if stream.stream_name == 'nutnr_a_sample':
+                return 10
+            if stream.stream_name == 'ctdpf_sbe43_sample':
+                return 100
+            return 0
+        with mock.patch('util.metadata_service.get_particle_count', new=get_particle_count):
+            nut_sr = self.create_nut_sr()
+            se = SIZE_ESTIMATES
+            size_est = nut_sr.compute_request_size(se)
+            expected_size_est = math.ceil(nutnr_count * se['nutnr_a_sample'] + ctdpf_count * se['ctdpf_sbe43_sample'])
+            self.assertEqual(size_est, expected_size_est)

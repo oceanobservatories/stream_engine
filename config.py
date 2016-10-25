@@ -160,3 +160,6 @@ METADATA_CACHE_SECONDS = 600
 PREFERRED_DATA_LOCATION = 'san'
 
 MAX_BIN_SIZE_MIN = 20160
+SIZE_CONFIG = 'stream_nc_sizes.cfg'
+# default bytes/particle estimate (for a NetCDF file)
+PARTICLE_DENSITY = 1000
