@@ -1,3 +1,5 @@
+import os
+import csv
 import datetime
 import logging
 import time
@@ -329,3 +331,24 @@ def timed_cache(expire_seconds):
         return inner
 
     return wrapper
+
+
+def read_size_config(config):
+    """
+    :param config:  file containing size estimates for each stream
+    :return:  dictionary with size estimates
+    """
+    sizes = {}
+    print config
+    with open(config, 'rb') as csvfile:
+        reader = csv.reader(csvfile)
+        for row in reader:
+            stream_name = row[0]
+            psize = row[1]
+            sizes[stream_name] = float(psize)
+    return sizes
+
+
+def find_root():
+    here = os.path.dirname(__file__)
+    return os.path.dirname(here)

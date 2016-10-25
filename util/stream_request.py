@@ -1,12 +1,15 @@
+import os
 import logging
+import math
 
 import util.annotation
+import util.metadata_service
 import util.provenance_metadata_store
 from engine import app
 from preload_database.model.preload import Parameter, Stream, NominalDepth
 from util.asset_management import AssetManagement
 from util.cass import fetch_l0_provenance
-from util.common import log_timing, StreamEngineException, StreamKey, MissingDataException
+from util.common import log_timing, StreamEngineException, StreamKey, MissingDataException, read_size_config, find_root
 from util.metadata_service import build_stream_dictionary, get_available_time_range
 from util.qc_executor import QcExecutor
 from util.stream_dataset import StreamDataset
@@ -20,6 +23,7 @@ LONGITUDE_PARAM_ID = app.config.get('LONGITUDE_PARAM_ID')
 INT_PRESSURE_NAME = app.config.get('INT_PRESSURE_NAME')
 MAX_DEPTH_VARIANCE = app.config.get('MAX_DEPTH_VARIANCE')
 ASSET_HOST = app.config.get('ASSET_HOST')
+SIZE_ESTIMATES = read_size_config(os.path.join(find_root(), app.config.get('SIZE_CONFIG')))
 
 
 class StreamRequest(object):
@@ -53,6 +57,10 @@ class StreamRequest(object):
         self.unfulfilled = set()
         self.datasets = {}
         self.external_includes = {}
+
+        # Statistics
+        self.size_estimate = None
+        self.time_estimate = None
 
         self._initialize()
 
@@ -460,3 +468,25 @@ class StreamRequest(object):
             for param in stream_request.requested_parameters:
                 self.datasets[target_sk].interpolate_into(source_sk, stream_request.datasets[source_sk], param)
                 self.external_includes.setdefault(source_sk, set()).add(param)
+
+    def compute_request_size(self, size_estimates=SIZE_ESTIMATES):
+        """
+        Estimate the time and size of a NetCDF request based on previous data.
+        :param size_estimates:  dictionary containing size estimates for each stream
+        :return:  size estimate (in bytes) - also populates self.size_estimate
+        """
+        default_size = 1000  # bytes / particle
+        try:
+            self.size_estimate = 0
+            for stream in self.stream_parameters:
+                stream_density = size_estimates.get(stream.stream_name, default_size)
+                particles = util.metadata_service.get_particle_count(stream, self.time_range)
+                self.size_estimate += particles * stream_density
+
+        except KeyError as e:
+            log.warn('missing stream statistics for %s: cowardly refusing to use default' % e)
+            return
+
+        return math.ceil(self.size_estimate)
+
+
