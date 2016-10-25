@@ -171,3 +171,17 @@ def get_location_metadata(stream_key, time_range):
             else:
                 other_bins.pop(key)
     return LocationMetadata(cass_bins), LocationMetadata(san_bins), messages
+
+
+def get_particle_count(stream_key, time_range):
+    """
+    :param stream_key:
+    :param time_range:
+    :return:  number of particles in time_range for stream_key
+    """
+    results = _query_partition_metadata(stream_key, time_range)
+    particles = 0
+    for row in results:
+        particles += row.count
+
+    return particles
