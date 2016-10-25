@@ -96,7 +96,6 @@ def time_prefix_filename(ntp_start, ntp_stop, suffix):
     return status_filename
 
 
-
 ##########################
 # ROUTES
 ##########################
@@ -125,6 +124,17 @@ def time_prefix_filename(ntp_start, ntp_stop, suffix):
 #     'start': ntptime,
 #     'stop': ntptime
 # }
+
+
+@app.route('/estimate', methods=['POST'])
+@set_timeout
+def estimate():
+    """
+    Return an estimate for how big the request would be if processed
+    """
+    input_data = request.get_json()
+    return jsonify(util.calc.get_estimate(input_data, request.url))
+
 
 @app.route('/particles', methods=['POST'])
 @set_timeout
