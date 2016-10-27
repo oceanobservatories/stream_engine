@@ -77,8 +77,11 @@ def time_request(func):
 @time_request
 def get_estimate(input_data, url):
     stream_request = execute_stream_request(validate(input_data), needs_only=True)
-    request_size = stream_request.compute_request_size()
-    return {'size': request_size}
+    filesize = stream_request.compute_request_size()
+    return {
+        'size': filesize,
+        'time': stream_request.compute_request_time(filesize)
+    }
 
 @time_request
 def get_particles(input_data, url):

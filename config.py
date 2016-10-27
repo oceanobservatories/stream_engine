@@ -163,3 +163,4 @@ MAX_BIN_SIZE_MIN = 20160
 SIZE_CONFIG = 'stream_nc_sizes.cfg'
 # default bytes/particle estimate (for a NetCDF file)
 PARTICLE_DENSITY = 1000
+SECONDS_PER_BYTE = 0.0000041
