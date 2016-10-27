@@ -6,7 +6,7 @@ from collections import OrderedDict
 import requests
 
 from util.calculated_provenance_metadata_store import CalculatedProvenanceMetadataStore
-from util.common import ntp_to_datestring
+from util.common import ntp_to_datestring, WriteErrorException
 from util.jsonresponse import NumpyJSONEncoder
 
 log = logging.getLogger(__name__)
@@ -67,8 +67,14 @@ class ProvenanceMetadataStore(object):
 
     def dump_json(self, filepath):
         try:
-            if not os.path.exists(os.path.dirname(filepath)):
-                os.makedirs(os.path.dirname(filepath))
+            parent_dir = os.path.dirname(filepath)
+            if not os.path.exists(parent_dir):
+                try:
+                    os.makedirs(parent_dir)
+                except OSError:
+                    if not os.path.isdir(parent_dir):
+                        raise WriteErrorException('Unable to create local output directory: %s' % parent_dir)
+
             with open(filepath, 'a') as fh:
                 json.dump(self.get_json(), fh, indent=2, separators=(',', ': '), cls=NumpyJSONEncoder)
         except EnvironmentError as e:

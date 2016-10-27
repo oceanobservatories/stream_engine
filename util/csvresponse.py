@@ -3,7 +3,7 @@ import logging
 import os
 
 from engine import app
-from util.common import ntp_to_datestring
+from util.common import ntp_to_datestring, WriteErrorException
 
 log = logging.getLogger(__name__)
 
@@ -31,7 +31,11 @@ class CsvGenerator(object):
         base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], path)
 
         if not os.path.isdir(base_path):
-            os.makedirs(base_path)
+            try:
+                os.makedirs(base_path)
+            except OSError:
+                if not os.path.isdir(base_path):
+                    raise WriteErrorException('Unable to create local output directory: %s' % path)
 
         stream_key = self.stream_request.stream_key
         stream_dataset = self.stream_request.datasets[stream_key]
