@@ -305,8 +305,19 @@ class UIHardLimitExceededException(StreamEngineException):
     status_code = 413
 
 
-class TimedOutException(Exception):
-    pass
+class TimedOutException(StreamEngineException):
+    """
+    The limit on processing time was exceeded
+    """
+    status_code = 408
+
+
+class WriteErrorException(StreamEngineException):
+    """
+    Error writing one or more files
+    """
+    status_code = 500
+
 
 
 def timed_cache(expire_seconds):

@@ -11,7 +11,8 @@ from flask import request, Response, jsonify, send_file
 import util.aggregation
 import util.calc
 from engine import app
-from util.common import StreamEngineException, TimedOutException, MissingDataException, MissingTimeException, ntp_to_datestring, StreamKey
+from util.common import (StreamEngineException, TimedOutException, MissingDataException,
+                         MissingTimeException, ntp_to_datestring, StreamKey)
 from util.san import onload_netCDF, SAN_netcdf
 
 log = logging.getLogger(__name__)
@@ -48,7 +49,7 @@ def log_request():
 
 # noinspection PyUnusedLocal
 def signal_handler(signum, frame):
-    raise TimedOutException()
+    raise TimedOutException("Data processing timed out after %s seconds")
 
 
 def set_timeout(func):
@@ -58,14 +59,10 @@ def set_timeout(func):
         signal.alarm(int(app.config['REQUEST_TIMEOUT_SECONDS']))
         try:
             result = func(*args, **kwargs)
-        except TimedOutException:
-            raise StreamEngineException("Data processing timed out after %s seconds" %
-                                        app.config['REQUEST_TIMEOUT_SECONDS'], status_code=408)
         finally:
             signal.alarm(0)
 
         return result
-
     return decorated_function
 
 
@@ -87,6 +84,7 @@ def write_status(path, filename="status.txt", status="complete"):
         os.makedirs(path)
     with open(os.path.join(path, filename), 'w') as s:
         s.write(status + os.linesep)
+
 
 def time_prefix_filename(ntp_start, ntp_stop, suffix):
     sdate = ntp_to_datestring(ntp_start)

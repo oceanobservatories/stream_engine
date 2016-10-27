@@ -1,4 +1,7 @@
 NEXT_RELEASE
 
+Issue #11439 - Race condition in directory creation
+- Fixed a potential race condition in directory creation
+
 Story 1007 - 1.3.6.9.2 Cassandra Fault Resolution: Stream Engine Manager: code to manage product request and sub-request allocation to stream_engines
 - Added /estimate endpoint to return file size and request time estimates.

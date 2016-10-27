@@ -5,6 +5,7 @@ from datetime import datetime
 import logging
 
 from engine import app
+from util.common import WriteErrorException
 
 DEFAULT_LOG_DIR = app.config.get('PARAMETER_LOGGING', '.')
 
@@ -72,7 +73,14 @@ class ParameterReport(object):
 
     def write(self):
         try:
-            if not os.path.exists(os.path.dirname(self.m_path)):
+            parent_dir = os.path.dirname(self.m_path)
+            if not os.path.exists(parent_dir):
+                try:
+                    os.makedirs(parent_dir)
+                except OSError:
+                    if not os.path.isdir(parent_dir):
+                        raise WriteErrorException('Unable to create local output directory: %s' % parent_dir)
+
                 os.makedirs(os.path.dirname(self.m_path))
             with open(self.m_path, 'w') as fh:
                 json.dump(self.m_qdata, fh, default=jdefault, indent=2, separators=(',', ': '))

@@ -9,7 +9,7 @@ import numpy as np
 
 from engine import app
 from preload_database.model.preload import Stream, Parameter
-from util.common import log_timing, MissingDataException, ntp_to_datestring
+from util.common import log_timing, MissingDataException, ntp_to_datestring, WriteErrorException
 from xarray.backends import api
 from netcdf_store import NetCDF4DataStoreUnlimited, UNLIMITED_DIMS
 
@@ -19,6 +19,7 @@ LATITUDE_PARAM_ID = app.config.get('LATITUDE_PARAM_ID')
 LONGITUDE_PARAM_ID = app.config.get('LONGITUDE_PARAM_ID')
 
 api.WRITEABLE_STORES[NETCDF_ENGINE] = NetCDF4DataStoreUnlimited
+
 
 log = logging.getLogger(__name__)
 
@@ -41,7 +42,12 @@ class NetcdfGenerator(object):
         base_path = os.path.join(app.config['ASYNC_DOWNLOAD_BASE_DIR'], self.disk_path)
         # ensure the directory structure is there
         if not os.path.isdir(base_path):
-            os.makedirs(base_path)
+            try:
+                os.makedirs(base_path)
+            except OSError:
+                if not os.path.isdir(base_path):
+                    raise WriteErrorException('Unable to create local output directory: %s' % self.disk_path)
+
         file_paths = self._create_files(base_path)
         # build json return
         return json.dumps({'code': 200, 'message': str(file_paths)}, indent=2)
