@@ -207,10 +207,15 @@ def _replace_values(data_slice, value_encoding, fill_value, is_array, name):
             shapes = filter(lambda x: len(x) == max_len, shapes)
             max_shape = max(shapes)
             shp = tuple([len(unpacked)] + list(max_shape))
-            data_slice = np.empty(shp, dtype=value_encoding)
+            if value_encoding == 'string':
+                data_slice = np.empty(shp, dtype='object')
+            else:
+                data_slice = np.empty(shp, dtype=value_encoding)
             data_slice.fill(fill_value)
             try:
                 _fix_data_arrays(data_slice, unpacked)
+                if value_encoding == 'string':
+                    data_slice = data_slice.astype('string')
             except Exception:
                 log.exception("Error filling arrays with data for parameter %s replacing with fill values", name)
                 data_slice.fill(fill_value)
@@ -254,9 +259,6 @@ def _replace_values(data_slice, value_encoding, fill_value, is_array, name):
 
 def _fix_data_arrays(data, unpacked):
     if unpacked is None:
-        return
-    if len(unpacked) != data.shape[0]:
-        app.logger.warn("Mismatched dimensions could not fill array")
         return
     if len(data.shape) == 1:
         for idx, val in enumerate(unpacked):
