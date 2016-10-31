@@ -12,7 +12,7 @@ import numpy as np
 from preload_database.database import initialize_connection, PreloadDatabaseMode, open_connection
 from preload_database.model.preload import Stream, Parameter
 from util.common import StreamKey
-from util.datamodel import to_xray_dataset, _get_fill_value
+from util.datamodel import to_xray_dataset, _get_fill_value, _replace_values
 
 TEST_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.join(TEST_DIR, 'data')
@@ -83,4 +83,30 @@ class DataModelTest(TestCase):
 
     def test_get_fill_value(self):
         for param in Parameter.query:
-            self.assertIsNotNone(_get_fill_value(param))
+            fill = _get_fill_value(param)
+            self.assertIsNotNone(fill)
+            if isinstance(fill, basestring):
+                self.assertEqual(fill, '')
+
+    def test_replace_values_string_arrays(self):
+        data_slice = np.array(['\x91\xb6 No GPS Data Available', '\xc0', '\x91\xac NO RDA DATA',
+                               '\x92\xac NO RDA DATA\xac NO RDA DATA', '\x91\xac NO RDA DATA',
+                               '\xc0', '\xc0', '\xc0', '\xc0', '\xc0'])
+        value_encoding = 'string'
+        fill_value = ''
+        is_array = True
+        name = 'test'
+        rval = _replace_values(data_slice, value_encoding, fill_value, is_array, name)
+        self.assertEqual(rval.shape, (10, 2))
+        self.assertEqual(rval[0][0], ' No GPS Data Available')
+        self.assertEqual(rval[0][1], '')
+        self.assertEqual(rval[1][0], '')
+        self.assertEqual(rval[1][1], '')
+        self.assertEqual(rval[2][0], ' NO RDA DATA')
+        self.assertEqual(rval[2][1], '')
+        self.assertEqual(rval[3][0], ' NO RDA DATA')
+        self.assertEqual(rval[3][1], ' NO RDA DATA')
+        self.assertEqual(rval[4][0], ' NO RDA DATA')
+        self.assertEqual(rval[4][1], '')
+        self.assertEqual(rval[5][0], '')
+        self.assertEqual(rval[5][1], '')
