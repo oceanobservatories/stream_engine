@@ -1,5 +1,9 @@
 NEXT_RELEASE
 
+Issue #11499 - Simplify overriding configuration values in Stream Engine
+- Moved default configuration from config.py to config/default.py
+- Created empty config/local.py to contain local config changes
+
 Issue #11439 - Race condition in directory creation
 - Fixed a potential race condition in directory creation
 
