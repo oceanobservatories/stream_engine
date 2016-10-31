@@ -9,7 +9,7 @@ from engine import app
 from preload_database.model.preload import Parameter, Stream, NominalDepth
 from util.asset_management import AssetManagement
 from util.cass import fetch_l0_provenance
-from util.common import log_timing, StreamEngineException, StreamKey, MissingDataException, read_size_config, find_root
+from util.common import log_timing, StreamEngineException, StreamKey, MissingDataException, read_size_config
 from util.metadata_service import build_stream_dictionary, get_available_time_range
 from util.qc_executor import QcExecutor
 from util.stream_dataset import StreamDataset
@@ -23,7 +23,7 @@ LONGITUDE_PARAM_ID = app.config.get('LONGITUDE_PARAM_ID')
 INT_PRESSURE_NAME = app.config.get('INT_PRESSURE_NAME')
 MAX_DEPTH_VARIANCE = app.config.get('MAX_DEPTH_VARIANCE')
 ASSET_HOST = app.config.get('ASSET_HOST')
-SIZE_ESTIMATES = read_size_config(os.path.join(find_root(), app.config.get('SIZE_CONFIG', 'stream_nc_sizes.cfg')))
+SIZE_ESTIMATES = read_size_config(app.config.get('SIZE_CONFIG'))
 DEFAULT_PARTICLE_DENSITY = app.config.get('PARTICLE_DENSITY', 1000)  # default bytes/particle estimate
 SECONDS_PER_BYTE = app.config.get('SECONDS_PER_BYTE', 0.0000041)  # default bytes/sec estimate
 

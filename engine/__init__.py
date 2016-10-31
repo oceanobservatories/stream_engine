@@ -4,7 +4,8 @@ from flask import Flask
 import logging.config
 
 app = Flask(__name__)
-app.config.from_object('config')
+app.config.from_object('config.default')
+app.config.from_object('config.local')
 
 
 # Flask configures its own logger deleting
