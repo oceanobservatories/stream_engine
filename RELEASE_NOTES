@@ -1,4 +1,9 @@
-NEXT_RELEASE
+Release 1.0.3
+
+Issue #11497 - Incorrectly building 2D string arrays
+- Fixed an issue which caused some queries to abort when the requested stream contains string arrays
+
+Release 1.0.2
 
 Issue #11499 - Simplify overriding configuration values in Stream Engine
 - Moved default configuration from config.py to config/default.py
