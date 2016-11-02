@@ -93,7 +93,7 @@ def rsync(remote_host, remote_folder, target_folder, retry_count=MAX_RETRY_COUNT
 def rmdir(remote_host, remote_folder, retry_count=MAX_RETRY_COUNT):
     for i in range(1, retry_count+1):
         ident = 'rmdir(%r, %r) (%d/%d)' % (remote_host, remote_folder, i, retry_count)
-        p = _rsync(remote_host, remote_folder)
+        p = _rmdir(remote_host, remote_folder)
         stdout, stderr = p.communicate()
         if p.returncode == 0:
             log.info('%r returned success (0)', ident)
