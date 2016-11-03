@@ -333,6 +333,11 @@ def cleanup(job_dir, request_id=None):
     os.rmdir(job_dir)
 
 
+def log_completion(job_dir):
+    with open(os.path.join(job_dir, 'status.txt'), 'w') as fh:
+        fh.write('complete\n')
+
+
 @log_timing(log)
 def aggregate(async_job_dir, request_id=None):
     local_dir = os.path.join(app.config['LOCAL_ASYNC_DIR'], async_job_dir)
@@ -355,3 +360,4 @@ def aggregate(async_job_dir, request_id=None):
     aggregate_provenance(local_dir, final_dir, request_id=request_id)
     generate_ncml(final_dir, final_dir, request_id=request_id)
     cleanup(local_dir, request_id=request_id)
+    log_completion(final_dir)
