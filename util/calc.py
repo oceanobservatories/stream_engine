@@ -26,7 +26,8 @@ log = logging.getLogger(__name__)
 
 RequestParameters = namedtuple('RequestParameters', ['id', 'streams', 'coefficients', 'uflags', 'start', 'stop',
                                                      'limit', 'include_provenance', 'include_annotations',
-                                                     'qc_parameters', 'strict_range', 'location_information'])
+                                                     'qc_parameters', 'strict_range', 'location_information',
+                                                     'execute_dpa'])
 
 
 def execute_stream_request(request_parameters, needs_only=False):
@@ -46,12 +47,16 @@ def execute_stream_request(request_parameters, needs_only=False):
             include_annotations=request_parameters.include_annotations,
             strict_range=request_parameters.strict_range,
             request_id=request_parameters.id,
-            collapse_times=collapse_times))
+            collapse_times=collapse_times,
+            execute_dpa=request_parameters.execute_dpa))
 
         if not needs_only:
             stream_request[index].fetch_raw_data()
-            stream_request[index].calculate_derived_products()
-            stream_request[index].import_extra_externals()
+            if request_parameters.execute_dpa:
+                stream_request[index].calculate_derived_products()
+                stream_request[index].import_extra_externals()
+            stream_request[index].execute_qc()
+            stream_request[index].insert_provenance()
         else:
             # If needs_only is true we only want to process the first stream, for now
             break
@@ -140,9 +145,10 @@ def validate(input_data):
     qc = input_data.get('qcParameters', {})
     strict = input_data.get('strict_range', False)
     locs = input_data.get('locations', {})
+    execute_dpa = input_data.get('execute_dpa', True)
 
     return RequestParameters(request_id, streams, coefficients, user_flags, start,
-                             stop, limit, prov, annotate, qc, strict, locs)
+                             stop, limit, prov, annotate, qc, strict, locs, execute_dpa)
 
 
 def _validate_coefficients(input_data):
