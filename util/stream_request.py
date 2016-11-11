@@ -35,7 +35,7 @@ class StreamRequest(object):
 
     def __init__(self, stream_key, parameters, time_range, uflags, qc_parameters=None,
                  limit=None, include_provenance=False, include_annotations=False, strict_range=False,
-                 request_id='', collapse_times=False):
+                 request_id='', collapse_times=False, execute_dpa=True):
 
         if not isinstance(stream_key, StreamKey):
             raise StreamEngineException('Received no stream key', status_code=400)
@@ -51,6 +51,7 @@ class StreamRequest(object):
         self.include_provenance = include_provenance
         self.include_annotations = include_annotations
         self.strict_range = strict_range
+        self.execute_dpa = execute_dpa
 
         # Internals
         self.asset_management = AssetManagement(ASSET_HOST, request_id=self.request_id)
@@ -150,7 +151,10 @@ class StreamRequest(object):
                         self.datasets[sk].calculate_virtual(self.datasets[poss_source])
                         break
 
+    def execute_qc(self):
         self._run_qc()
+
+    def insert_provenance(self):
         self._insert_provenance()
         self._add_location()
 
@@ -293,27 +297,28 @@ class StreamRequest(object):
         log.debug('<%s> primary stream internal needs: %r', self.request_id, primary_internals)
         self.stream_parameters[self.stream_key] = primary_internals
 
-        # Identify external parameters needed to support this query
-        external_to_process = self.stream_key.stream.needs_external(internal_requested)
-        log.debug('<%s> primary stream external needs: %r', self.request_id, external_to_process)
-        if external_to_process:
-            stream_parameters, found, external_unfulfilled = self._locate_externals(external_to_process)
-            for sk in stream_parameters:
-                self.stream_parameters.setdefault(sk, set()).update(stream_parameters[sk])
-            self.unfulfilled = external_unfulfilled
+        if self.execute_dpa:
+            # Identify external parameters needed to support this query
+            external_to_process = self.stream_key.stream.needs_external(internal_requested)
+            log.debug('<%s> primary stream external needs: %r', self.request_id, external_to_process)
+            if external_to_process:
+                stream_parameters, found, external_unfulfilled = self._locate_externals(external_to_process)
+                for sk in stream_parameters:
+                    self.stream_parameters.setdefault(sk, set()).update(stream_parameters[sk])
+                self.unfulfilled = external_unfulfilled
 
-        # Now identify any parameters needed for mobile assets
-        external_to_process = self._get_mobile_externals()
-        if external_to_process:
-            stream_parameters, found, external_unfulfilled = self._locate_externals(external_to_process)
-            for sk in stream_parameters:
-                self.stream_parameters.setdefault(sk, set()).update(stream_parameters[sk])
-            self.unfulfilled = self.unfulfilled.union(external_unfulfilled)
-            self.external_includes.update(found)
+            # Now identify any parameters needed for mobile assets
+            external_to_process = self._get_mobile_externals()
+            if external_to_process:
+                stream_parameters, found, external_unfulfilled = self._locate_externals(external_to_process)
+                for sk in stream_parameters:
+                    self.stream_parameters.setdefault(sk, set()).update(stream_parameters[sk])
+                self.unfulfilled = self.unfulfilled.union(external_unfulfilled)
+                self.external_includes.update(found)
 
-        if self.unfulfilled:
-            log.warn('<%s> Unable to find sources for the following params: %r',
-                     self.request_id, self.unfulfilled)
+            if self.unfulfilled:
+                log.warn('<%s> Unable to find sources for the following params: %r',
+                         self.request_id, self.unfulfilled)
 
     @log_timing(log)
     def _collapse_times(self):

@@ -1,4 +1,7 @@
-NEXT RELEASE
+Release 1.1.1
+
+Issue #11528
+- Accept the "execute_dpa" flag. When set to false no data product algorithms will be executed.
 
 Issue #10820
 - Stream engine will create a status.txt file containing the string "complete" when aggregation is complete.

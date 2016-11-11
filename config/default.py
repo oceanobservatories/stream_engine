@@ -4,7 +4,7 @@ import os
 # General Settings         #
 ############################
 DEBUG = False
-STREAM_ENGINE_VERSION = "1.1.0"
+STREAM_ENGINE_VERSION = "1.1.1"
 # Cassandra process pool size
 POOL_SIZE = 4
 LOGGING_CONFIG = 'logging.conf'
