@@ -184,6 +184,8 @@ class StreamRequestTest(unittest.TestCase):
     def test_calculate(self):
         sr = self.create_nut_sr()
         sr.calculate_derived_products()
+        sr.execute_qc()
+        sr.insert_provenance()
         return sr
 
     def test_netcdf_raw_files(self):
@@ -264,6 +266,7 @@ class StreamRequestTest(unittest.TestCase):
         hourly_sk = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_hourly')
         sr = self.create_metbk_hourly_sr()
         sr.calculate_derived_products()
+        sr.insert_provenance()
         expected_params = [p.name for p in hourly_sk.stream.parameters] + ['obs', 'time', 'deployment', 'lat', 'lon']
         self.assertListEqual(sorted(expected_params), sorted(sr.datasets[hourly_sk].datasets[1]))
 
