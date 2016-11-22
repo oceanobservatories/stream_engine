@@ -15,8 +15,6 @@ MAX_RETRY_COUNT = app.config.get('MAX_RETRY_COUNT', 1)
 
 
 log = logging.getLogger(__name__)
-logging.basicConfig()
-log.setLevel(logging.DEBUG)
 executor = ThreadPoolExecutor(max_workers=MAX_RSYNC_WORKERS)
 
 total_size_re = re.compile(r'total size is (\d+)')

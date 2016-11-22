@@ -1,3 +1,8 @@
+NEXT RELEASE
+
+Issue #11613
+- Fixed hard-coded log level in util/gather.py
+
 Release 1.1.1
 
 Issue #11528
