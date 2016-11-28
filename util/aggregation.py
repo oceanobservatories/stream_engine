@@ -345,7 +345,7 @@ def aggregate(async_job_dir, request_id=None):
     se_nodes = app.config['STREAM_ENGINE_NODES']
 
     if not os.path.exists(local_dir):
-        raise MissingDataException("No data found in %r" % async_job_dir)
+        os.makedirs(local_dir)
 
     # Fetch all files from remote nodes
     gather_files(se_nodes, local_dir)

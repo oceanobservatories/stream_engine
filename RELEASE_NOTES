@@ -1,3 +1,8 @@
+Release 1.1.2
+
+Issue #11623
+- Aggregation fails if the aggregation host does not have any local files
+
 Release 1.1.1
 
 Issue #11528
