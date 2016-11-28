@@ -1,4 +1,7 @@
-NEXT RELEASE
+Release 1.1.2
+
+Issue #11623
+- Aggregation fails if the aggregation host does not have any local files
 
 Issue #11613
 - Fixed hard-coded log level in util/gather.py
