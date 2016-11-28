@@ -1,4 +1,5 @@
 import os
+from collections import OrderedDict
 
 ############################
 # General Settings         #
@@ -128,6 +129,16 @@ LAT_FILL = 90.0
 LON_FILL = -180.0
 DEPTH_FILL = 0.0
 
+# NetCDF Instrument Attribute Map
+INSTRUMENT_ATTRIBUTE_MAP = OrderedDict()
+INSTRUMENT_ATTRIBUTE_MAP['manufacturer'] = 'Manufacturer'
+INSTRUMENT_ATTRIBUTE_MAP['modelNumber'] = 'ModelNumber'
+INSTRUMENT_ATTRIBUTE_MAP['serialNumber'] = 'SerialNumber'
+INSTRUMENT_ATTRIBUTE_MAP['description'] = 'Description'
+INSTRUMENT_ATTRIBUTE_MAP['firmwareVersion'] = 'FirmwareVersion'
+INSTRUMENT_ATTRIBUTE_MAP['softwareVersion'] = 'SoftwareVersion'
+INSTRUMENT_ATTRIBUTE_MAP['uid'] = 'AssetUniqueID'
+INSTRUMENT_ATTRIBUTE_MAP['notes'] = 'Notes'
 
 ############################
 # Estimation Settings      #
