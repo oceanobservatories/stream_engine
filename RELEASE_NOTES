@@ -1,5 +1,8 @@
 Release 1.1.2
 
+Issue #11624
+- Aggregation fails for CSV files
+
 Issue #11623
 - Aggregation fails if the aggregation host does not have any local files
 

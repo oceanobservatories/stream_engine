@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import shutil
 from collections import defaultdict, OrderedDict
 
 import jinja2
@@ -12,7 +13,7 @@ import numpy as np
 import xarray as xr
 
 from engine import app
-from util.common import log_timing, MissingDataException
+from util.common import log_timing
 from util.datamodel import compile_datasets
 from util.gather import gather_files
 from util.netcdf_utils import write_netcdf, add_dynamic_attributes, analyze_datasets
@@ -298,8 +299,8 @@ def aggregate_status(job_dir, out_dir, request_id=None):
 def aggregate_csv(job_dir, out_dir, request_id=None):
     # TODO -- aggregate CSV/TSV files
     for f in fnmatch.filter(os.listdir(job_dir), '*.[ct]sv'):
-        os.rename(os.path.join(job_dir, f),
-                  os.path.join(out_dir, f))
+        shutil.move(os.path.join(job_dir, f),
+                    os.path.join(out_dir, f))
 
 
 @log_timing(log)
