@@ -175,6 +175,7 @@ class StreamRequest(object):
         if self.include_provenance:
             for stream_key in self.stream_parameters:
                 if stream_key in self.datasets:
+                    self.datasets[stream_key].insert_instrument_attributes()
                     for deployment, dataset in self.datasets[stream_key].datasets.iteritems():
                         prov_metadata = self.datasets[stream_key].provenance_metadata
                         prov_metadata.add_query_metadata(self, self.request_id, 'JSON')

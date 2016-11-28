@@ -1,3 +1,8 @@
+Release 1.2.0
+
+Issue #11371
+- Add sensor asset management information to NetCDF header
+
 Release 1.1.2
 
 Issue #11624

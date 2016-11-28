@@ -37,8 +37,6 @@ class StreamDatasetTest(unittest.TestCase):
         cls.ctdpf_sk = StreamKey('CE04OSPS', 'SF01B', '2A-CTDPFA107', 'streamed', 'ctdpf_sbe43_sample')
         cls.nutnr_fn = 'nutnr_a_sample.nc'
         cls.ctdpf_fn = 'ctdpf_sbe43_sample.nc'
-        cls.ctd_events = json.load(open(os.path.join(DATA_DIR, 'CE04OSPS-SF01B-2A-CTDPFA107_events.json')))
-        cls.nut_events = json.load(open(os.path.join(DATA_DIR, 'CE04OSPS-SF01B-4A-NUTNRA102_events.json')))
         cls.ctd_events = AssetEvents(cls.ctdpf_sk.as_three_part_refdes(),
                                      json.load(open(os.path.join(DATA_DIR, 'CE04OSPS-SF01B-2A-CTDPFA107_events.json'))))
         cls.nut_events = AssetEvents(cls.nutnr_sk.as_three_part_refdes(),
@@ -311,3 +309,29 @@ class StreamDatasetTest(unittest.TestCase):
             StreamDataset._insert_data(adcp_ds, param, data)
 
         self.assertNotIn('corrected_echo_intensity_beam1', adcp_ds)
+
+    def test_provenance_as_netcdf_attribute(self):
+        ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, self.ctdpf_fn), decode_times=False)
+        ctd_ds = ctd_ds[['obs', 'time', 'deployment', 'temperature', 'pressure',
+                         'pressure_temp', 'conductivity', 'ext_volt0']]
+
+        ctd_stream_dataset = StreamDataset(self.ctdpf_sk, {}, [], 'UNIT')
+        ctd_stream_dataset.events = self.ctd_events
+        ctd_stream_dataset._insert_dataset(ctd_ds)
+        ctd_stream_dataset.insert_instrument_attributes()
+        for ds in ctd_stream_dataset.datasets.itervalues():
+            self.assertIn('Manufacturer', ds.attrs)
+            self.assertIn('ModelNumber', ds.attrs)
+            self.assertIn('SerialNumber', ds.attrs)
+            self.assertIn('Description', ds.attrs)
+            self.assertNotIn('FirmwareVersion', ds.attrs)
+            self.assertNotIn('SoftwareVersion', ds.attrs)
+            self.assertIn('AssetUniqueID', ds.attrs)
+            self.assertNotIn('Notes', ds.attrs)
+
+            self.assertEqual(ds.attrs['Manufacturer'], 'SEA-BIRD ELECTRONICS')
+            self.assertEqual(ds.attrs['ModelNumber'], '16plusV2')
+            self.assertEqual(ds.attrs['SerialNumber'], '16-50112')
+            self.assertEqual(ds.attrs['Description'], 'Shallow 16 Plus V2 CTD')
+            self.assertEqual(ds.attrs['AssetUniqueID'], 'ATOSU-66662-00013')
+
