@@ -104,6 +104,8 @@ class Deployment(object):
 
         return start, stop
 
+    def __repr__(self):
+        return 'DeploymentEvent(start: {_start} stop: {_stop} asset management: {am_dictionary}'.format(**self.__dict__)
 
 class CalibrationValue(object):
     """

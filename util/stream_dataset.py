@@ -18,10 +18,12 @@ from util.metadata_service import (SAN_LOCATION_NAME, CASS_LOCATION_NAME, get_fi
 from util.provenance_metadata_store import ProvenanceMetadataStore
 from util.san import fetch_nsan_data, fetch_full_san_data, get_san_lookback_dataset
 from util.xray_interpolation import interp1d_data_array
+from engine import app
 
 log = logging.getLogger(__name__)
 
 ION_VERSION = getattr(ion_functions, '__version__', 'unversioned')
+INSTRUMENT_ATTRIBUTE_MAP = app.config.get('INSTRUMENT_ATTRIBUTE_MAP')
 
 
 class StreamDataset(object):
@@ -69,6 +71,19 @@ class StreamDataset(object):
                 self.datasets[deployment] = group
         else:
             raise MissingDataException("Query returned no results for stream %s" % self.stream_key)
+
+    def insert_instrument_attributes(self):
+        """
+        Add applicable instrument attributes to the dataset attributes.
+        """
+        for deployment in self.datasets:
+            ds = self.datasets[deployment]
+            events = self.events.deps[deployment]
+            sensor = events._get_sensor()
+            for attribute in INSTRUMENT_ATTRIBUTE_MAP:
+                value = sensor.get(attribute)
+                if value is not None:
+                    ds.attrs[INSTRUMENT_ATTRIBUTE_MAP[attribute]] = value
 
     def calculate_internal(self):
         if not self.time_param:
