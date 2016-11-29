@@ -328,6 +328,11 @@ class StreamDatasetTest(unittest.TestCase):
             self.assertNotIn('SoftwareVersion', ds.attrs)
             self.assertIn('AssetUniqueID', ds.attrs)
             self.assertNotIn('Notes', ds.attrs)
+            self.assertNotIn('owner', ds.attrs)
+            self.assertNotIn('remoteResources', ds.attrs)
+            self.assertNotIn('shelfLifeExpirationDate', ds.attrs)
+            self.assertNotIn('mobile', ds.attrs)
+            self.assertNotIn('lastModifiedTimestamp', ds.attrs)
 
             self.assertEqual(ds.attrs['Manufacturer'], 'SEA-BIRD ELECTRONICS')
             self.assertEqual(ds.attrs['ModelNumber'], '16plusV2')
