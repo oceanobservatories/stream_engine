@@ -1,4 +1,5 @@
 import importlib
+import json
 import logging
 
 import ion_functions
@@ -82,8 +83,13 @@ class StreamDataset(object):
             sensor = events._get_sensor()
             for attribute in INSTRUMENT_ATTRIBUTE_MAP:
                 value = sensor.get(attribute)
-                if value is not None:
-                    ds.attrs[INSTRUMENT_ATTRIBUTE_MAP[attribute]] = value
+                if isinstance(value, bool):
+                    value = str(value)
+                elif isinstance(value, (list, dict)):
+                    value = json.dumps(value)
+                elif value is None:
+                    value = 'Not specified.'
+                ds.attrs[INSTRUMENT_ATTRIBUTE_MAP[attribute]] = value
 
     def calculate_internal(self):
         if not self.time_param:

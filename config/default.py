@@ -139,6 +139,11 @@ INSTRUMENT_ATTRIBUTE_MAP['firmwareVersion'] = 'FirmwareVersion'
 INSTRUMENT_ATTRIBUTE_MAP['softwareVersion'] = 'SoftwareVersion'
 INSTRUMENT_ATTRIBUTE_MAP['uid'] = 'AssetUniqueID'
 INSTRUMENT_ATTRIBUTE_MAP['notes'] = 'Notes'
+INSTRUMENT_ATTRIBUTE_MAP['owner'] = 'Owner'
+INSTRUMENT_ATTRIBUTE_MAP['remoteResources'] = 'RemoteResources'
+INSTRUMENT_ATTRIBUTE_MAP['shelfLifeExpirationDate'] = 'ShelfLifeExpirationDate'
+INSTRUMENT_ATTRIBUTE_MAP['mobile'] = 'Mobile'
+INSTRUMENT_ATTRIBUTE_MAP['lastModifiedTimestamp'] = 'LastModifiedTimestamp'
 
 ############################
 # Estimation Settings      #
