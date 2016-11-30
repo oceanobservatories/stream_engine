@@ -1,3 +1,8 @@
+NEXT_RELEASE
+
+Issue #11642
+- Bumped preload database pointer (v1.0.1) for "bin sizes incorrect in preload database"
+
 Release 1.2.1
 
 Issue #11371
