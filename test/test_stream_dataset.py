@@ -2,6 +2,7 @@ import ntplib
 
 import global_test_setup
 
+import copy
 import json
 import logging
 import os
@@ -86,6 +87,7 @@ class StreamDatasetTest(unittest.TestCase):
 
         ctd_stream_dataset = StreamDataset(self.ctdpf_sk, {}, [], 'UNIT')
         ctd_stream_dataset.events = self.ctd_events
+        ctd_stream_dataset.events.deps = {}
         ctd_stream_dataset._insert_dataset(ctd_ds)
         ctd_stream_dataset.calculate_internal()
 
@@ -348,4 +350,16 @@ class StreamDatasetTest(unittest.TestCase):
             self.assertEqual(ds.attrs['Owner'], 'Not specified.')
             self.assertEqual(ds.attrs['RemoteResources'], '[]')
             self.assertEqual(ds.attrs['ShelfLifeExpirationDate'], 'Not specified.')
+
+    def test_provenance_as_netcdf_attribute_missing(self):
+        ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, self.ctdpf_fn), decode_times=False)
+        ctd_ds = ctd_ds[['obs', 'time', 'deployment', 'temperature', 'pressure',
+                         'pressure_temp', 'conductivity', 'ext_volt0']]
+
+        ctd_stream_dataset = StreamDataset(self.ctdpf_sk, {}, [], 'UNIT')
+        ctd_stream_dataset.events = copy.deepcopy(self.ctd_events)
+        ctd_stream_dataset.events.deps = {}
+        ctd_stream_dataset._insert_dataset(ctd_ds)
+        ctd_stream_dataset.insert_instrument_attributes()
+
 
