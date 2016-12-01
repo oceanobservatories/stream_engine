@@ -1,4 +1,7 @@
-NEXT_RELEASE
+Release 1.2.2
+
+Issue #11646
+- Production generation fails if no asset management data exists for one or more deployments
 
 Issue #11642
 - Bumped preload database pointer (v1.0.1) for "bin sizes incorrect in preload database"
