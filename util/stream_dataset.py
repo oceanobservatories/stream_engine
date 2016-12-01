@@ -79,17 +79,18 @@ class StreamDataset(object):
         """
         for deployment in self.datasets:
             ds = self.datasets[deployment]
-            events = self.events.deps[deployment]
-            sensor = events._get_sensor()
-            for attribute in INSTRUMENT_ATTRIBUTE_MAP:
-                value = sensor.get(attribute)
-                if isinstance(value, bool):
-                    value = str(value)
-                elif isinstance(value, (list, dict)):
-                    value = json.dumps(value)
-                elif value is None:
-                    value = 'Not specified.'
-                ds.attrs[INSTRUMENT_ATTRIBUTE_MAP[attribute]] = value
+            if self.events is not None and deployment in self.events.deps:
+                events = self.events.deps.get[deployment]
+                sensor = events._get_sensor()
+                for attribute in INSTRUMENT_ATTRIBUTE_MAP:
+                    value = sensor.get(attribute)
+                    if isinstance(value, bool):
+                        value = str(value)
+                    elif isinstance(value, (list, dict)):
+                        value = json.dumps(value)
+                    elif value is None:
+                        value = 'Not specified.'
+                    ds.attrs[INSTRUMENT_ATTRIBUTE_MAP[attribute]] = value
 
     def calculate_internal(self):
         if not self.time_param:
