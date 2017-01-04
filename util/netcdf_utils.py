@@ -232,13 +232,18 @@ def analyze_datasets(dir_path, files, request_id=None):
     parameters = {}
     for f in files:
         path = os.path.join(dir_path, f)
-        with xr.open_dataset(path, decode_times=False, mask_and_scale=False, decode_cf=False) as ds:
+        with xr.open_dataset(path, decode_times=False, mask_and_scale=False, decode_coords=False) as ds:
             for var in ds.data_vars:
                 # drop the obs dimension
                 shape = ds[var].shape[1:]
                 dims = ds[var].dims[1:]
                 dtype = ds[var].dtype
-                fill = ds[var].attrs.get('_FillValue', FILL_VALUES.get(dtype.name))
+
+                if dtype.kind == 'S':
+                    fill = ds[var].attrs.get('_FillValue', FILL_VALUES.get('string'))
+                else:
+                    fill = ds[var].attrs.get('_FillValue', FILL_VALUES.get(dtype.name))
+
                 if var not in parameters:
                     parameters[var] = {
                         'shape': shape,

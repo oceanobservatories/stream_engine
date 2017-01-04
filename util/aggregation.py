@@ -247,7 +247,7 @@ def aggregate_netcdf_group(job_dir, output_dir, files, group_name, request_id=No
             accum_size = size
             datasets = []
 
-        with xr.open_dataset(path, decode_times=False, mask_and_scale=False, decode_cf=False) as ds:
+        with xr.open_dataset(path, decode_times=False, mask_and_scale=False, decode_coords=False) as ds:
             ds.load()
             shape_up(ds, parameters, request_id=request_id)
             datasets.append(ds)
