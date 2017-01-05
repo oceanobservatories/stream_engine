@@ -178,3 +178,24 @@ class AggregationTest(unittest.TestCase):
                                                   'test',
                                                   '',
                                                   ''])
+
+    def test_read_2d_string_variable(self):
+        a = np.array([[], [], []], 'str')
+        f1 = os.path.join(self.tempdir, 'f1.nc')
+        f2 = os.path.join(self.tempdir, 'f2.nc')
+        ds = xr.Dataset()
+        ds['time'] = (['obs'], [1, 2, 4], {})
+        ds['x'] = (['obs', 'xdim'], a, {})
+        ds.to_netcdf(f1)
+        ds = xr.Dataset()
+        ds['time'] = (['obs'], [3, 5, 6], {})
+        ds['x'] = (['obs', 'xdim'], a, {})
+        ds.to_netcdf(f2)
+
+        aggregate_netcdf_group(self.tempdir, self.tempdir, [f1, f2], 'test')
+        expected = os.path.join(self.tempdir, 'test_19000101T000001-19000101T000006.nc')
+        self.assertTrue(os.path.exists(expected))
+
+        with xr.open_dataset(expected) as ds:
+            self.assertIn('x', ds)
+            np.testing.assert_equal(ds.x.values, np.concatenate([a, a]))

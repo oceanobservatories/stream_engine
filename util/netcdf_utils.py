@@ -2,21 +2,17 @@ import logging
 
 import os
 import numpy as np
-import xarray as xr
-from xarray.backends import api
 
 from engine import app
-from netcdf_store import UNLIMITED_DIMS, NetCDF4DataStoreUnlimited
+from xarray_overrides import UNLIMITED_DIMS, NETCDF_ENGINE, xr
 from preload_database.model.preload import Stream, Parameter
 from util.common import MissingDataException, ntp_to_datestring, log_timing
 
-NETCDF_ENGINE = 'netcdf4_unlimited'
+
 GPS_STREAM_ID = app.config.get('GPS_STREAM_ID')
 LATITUDE_PARAM_ID = app.config.get('LATITUDE_PARAM_ID')
 LONGITUDE_PARAM_ID = app.config.get('LONGITUDE_PARAM_ID')
 FILL_VALUES = app.config['FILL_VALUES']
-
-api.WRITEABLE_STORES[NETCDF_ENGINE] = NetCDF4DataStoreUnlimited
 
 
 log = logging.getLogger(__name__)

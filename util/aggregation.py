@@ -10,13 +10,13 @@ from collections import defaultdict, OrderedDict
 
 import jinja2
 import numpy as np
-import xarray as xr
 
 from engine import app
 from util.common import log_timing
 from util.datamodel import compile_datasets
 from util.gather import gather_files
 from util.netcdf_utils import write_netcdf, add_dynamic_attributes, analyze_datasets
+from .xarray_overrides import xr
 
 log = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ ATTRIBUTE_CARRYOVER_MAP = {
 
 
 def get_nc_info(file_name):
-    with xr.open_dataset(file_name, decode_times=False, mask_and_scale=False, decode_cf=False) as ds:
+    with xr.open_dataset(file_name, decode_times=False, mask_and_scale=False, decode_coords=False) as ds:
         ret_val = {
             'size': ds.obs.size,
         }
@@ -264,7 +264,14 @@ def aggregate_netcdf(job_dir, output_dir, request_id=None):
         groups.setdefault(group, []).append(f)
 
     for group in groups:
-        aggregate_netcdf_group(job_dir, output_dir, groups[group], group, request_id=request_id)
+        try:
+            aggregate_netcdf_group(job_dir, output_dir, groups[group], group, request_id=request_id)
+        except Exception as e:
+            log.exception('<%s> Exception aggregating group: %r', request_id, group)
+            # Aggregation failed, move the un-aggregated files to the output directory
+            for filename in groups[group]:
+                shutil.move(os.path.join(job_dir, filename),
+                            os.path.join(output_dir, filename))
 
 
 @log_timing(log)
