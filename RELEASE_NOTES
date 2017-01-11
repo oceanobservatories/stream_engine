@@ -3,6 +3,9 @@ Release 1.2.3
 Issue #11753
 - Aggregation fails when string lengths differ between datasets
 
+Issue #11715
+- Added source attribute to the AnnotationRecord class to identify the creator of the data.
+
 Release 1.2.2
 
 Issue #11646
