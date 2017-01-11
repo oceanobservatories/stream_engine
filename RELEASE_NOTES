@@ -1,3 +1,8 @@
+Release 1.2.4
+
+Issue #11715
+- Added source attribute to the AnnotationRecord class to identify the creator of the data.
+
 Release 1.2.3
 
 Issue #11753
