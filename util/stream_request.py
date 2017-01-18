@@ -130,6 +130,7 @@ class StreamRequest(object):
         # Fetch annotations
         self._insert_annotations()
         self._exclude_flagged_data()
+        self._exclude_nondeployed_data()
 
     def calculate_derived_products(self):
         # Calculate all internal-only data products
@@ -201,6 +202,14 @@ class StreamRequest(object):
         """
         for stream_key, stream_dataset in self.datasets.iteritems():
             stream_dataset.exclude_flagged_data()
+
+    def _exclude_nondeployed_data(self):
+        """
+        Exclude data from datasets that are outside of deployment dates
+        :return:
+        """
+        for stream_key, stream_dataset in self.datasets.iteritems():
+            stream_dataset.exclude_nondeployed_data()
 
     def import_extra_externals(self):
         # import any other required "externals" into all datasets
