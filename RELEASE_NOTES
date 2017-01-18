@@ -1,3 +1,8 @@
+NEXT_RELEASE
+
+Issue #10777
+- modify stream_engine to utilize deployment times to bound product generation requests
+
 Release 1.2.3
 
 Issue #11753

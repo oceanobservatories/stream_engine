@@ -145,13 +145,23 @@ class StreamDataset(object):
             for deployment in deployments:
                 dataset = self.datasets[deployment]
                 mask = self.annotation_store.get_exclusion_mask(dataset.time.values)
-                obs = dataset.obs.values
-                new_obs = obs[mask]
-                if len(obs) != len(new_obs):
-                    if len(new_obs) == 0:
-                        del self.datasets[deployment]
+                if mask.any():
+                    self.datasets[deployment] = dataset.isel(obs=mask)
+                else:
+                    del self.datasets[deployment]
+
+    def exclude_nondeployed_data(self):
+        if self.events is not None:
+            for deployment in self.datasets:
+                dataset = self.datasets[deployment]
+                if deployment in self.events.deps:
+                    deployment_event = self.events.deps[deployment]
+                    mask = (dataset.time.values >= deployment_event.ntp_start) & \
+                           (dataset.time.values < deployment_event.ntp_stop)
+                    if mask.any():
+                        self.datasets[deployment] = dataset.isel(obs=mask)
                     else:
-                        self.datasets[deployment] = dataset.isel(obs=new_obs)
+                        del self.datasets[deployment]
 
     def _build_function_arguments(self, dataset, stream_key, funcmap, deployment, source_dataset=None):
         """
