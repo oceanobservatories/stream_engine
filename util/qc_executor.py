@@ -87,20 +87,27 @@ class QcExecutor(object):
             try:
                 module = importlib.import_module(ParameterFunction.query.filter_by(function=function_name).first().owner)
                 results = getattr(module, function_name)(**local_qc_args.get(function_name))
+
+                # Force all QC results to be 0/1 - log if non-binary results received
+                forced_results = (results == 1).astype(np.uint8)
+                if not (results == forced_results).all():
+                    log.error('Received QC non binary QC result from %s args %r',
+                              function_name, local_qc_args.get(function_name))
+
                 qc_count_name = '%s_qc_executed' % parameter.name
                 qc_results_name = '%s_qc_results' % parameter.name
 
                 if qc_count_name not in dataset:
-                    dataset[qc_count_name] = ('obs', np.zeros_like(dataset.time.values, dtype=np.int8), {})
+                    dataset[qc_count_name] = ('obs', np.zeros_like(dataset.time.values, dtype=np.uint8), {})
                 if qc_results_name not in dataset:
-                    dataset[qc_results_name] = ('obs', np.zeros_like(dataset.time.values, dtype=np.int8), {})
+                    dataset[qc_results_name] = ('obs', np.zeros_like(dataset.time.values, dtype=np.uint8), {})
 
                 qc_function = ParameterFunction.query.filter_by(function=function_name).first()
                 flag = int(qc_function.qc_flag, 2)
-                results *= flag
+                forced_results *= flag
 
                 dataset[qc_count_name].values |= flag
-                dataset[qc_results_name].values |= results
+                dataset[qc_results_name].values |= forced_results
 
             except (TypeError, ValueError) as e:
                 log.exception('<%s> Failed to execute QC %s %r', self.request_id, function_name, e)

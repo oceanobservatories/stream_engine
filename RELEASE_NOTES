@@ -1,5 +1,8 @@
 NEXT_RELEASE
 
+Issue #11861
+- QC executed and QC results variables are incorrectly typed
+
 Issue #10777
 - modify stream_engine to utilize deployment times to bound product generation requests
 
