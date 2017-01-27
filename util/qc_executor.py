@@ -87,13 +87,21 @@ class QcExecutor(object):
             try:
                 module = importlib.import_module(ParameterFunction.query.filter_by(function=function_name).first().owner)
                 results = getattr(module, function_name)(**local_qc_args.get(function_name))
+
+                # Force all QC results to be 0/1 - log if non-binary results received, set all out-of-range to fail(0)
+                mask = np.logical_not(np.logical_or(results == 1, results == 0))
+                if mask.any():
+                    log.error('Received QC non binary QC result from %s value_set %r',
+                              function_name, np.unique(results[mask]))
+                    results[mask] = 0
+
                 qc_count_name = '%s_qc_executed' % parameter.name
                 qc_results_name = '%s_qc_results' % parameter.name
 
                 if qc_count_name not in dataset:
-                    dataset[qc_count_name] = ('obs', np.zeros_like(dataset.time.values, dtype=np.int8), {})
+                    dataset[qc_count_name] = ('obs', np.zeros_like(dataset.time.values, dtype=np.uint8), {})
                 if qc_results_name not in dataset:
-                    dataset[qc_results_name] = ('obs', np.zeros_like(dataset.time.values, dtype=np.int8), {})
+                    dataset[qc_results_name] = ('obs', np.zeros_like(dataset.time.values, dtype=np.uint8), {})
 
                 qc_function = ParameterFunction.query.filter_by(function=function_name).first()
                 flag = int(qc_function.qc_flag, 2)
