@@ -38,12 +38,13 @@ def isfillvalue(a):
 
 def log_timing(logger):
     def _log_timing(func):
+        request_id = 'request_id'
         if logger.isEnabledFor('debug'):
             @wraps(func)
             def inner(*args, **kwargs):
-                reqid = None
-                if args:
-                    reqid = getattr(args[0], 'request_id', 'None')
+                reqid = kwargs.get(request_id)
+                if reqid is None and args:
+                    reqid = getattr(args[0], request_id, 'None')
                 logger.debug('<%s> Entered method: %s', reqid, func)
                 start = time.time()
                 results = func(*args, **kwargs)

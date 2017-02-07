@@ -1,5 +1,8 @@
 NEXT_RELEASE
 
+Issue #11952
+- Updated aggregation response to be JSON (was plain string)
+
 Issue #11861
 - QC executed and QC results variables are incorrectly typed
 

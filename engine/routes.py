@@ -351,9 +351,11 @@ def aggregate_async():
         util.aggregation.aggregate(async_job, request_id=request_id)
         et = time.time() - st
         log.info("<%s> Done performing aggregation on asynchronous job %s took %s seconds", request_id, async_job, et)
-        return "done"
+        message = "aggregation complete"
     else:
-        return "aggregation disabled"
+        message = "aggregation disabled"
+
+    return jsonify({'code': 200, 'message': message})
 
 
 @app.route('/san_offload', methods=['POST'])
