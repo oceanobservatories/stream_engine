@@ -139,18 +139,33 @@ class StreamDataset(object):
                         self._create_derived_product(dataset, self.stream_key, param, deployment,
                                                      source_dataset=source_dataset)
 
+    def _mask_datasets(self, masks):
+        deployments = list(self.datasets)
+        for deployment in deployments:
+            mask = masks.get(deployment)
+            dataset = self.datasets[deployment]
+            if mask is None or mask.all():
+                continue
+            if mask.any():
+                size = np.count_nonzero(np.logical_not(mask))
+                log.info('<%s> Masking %d datapoints from %s deployment %d',
+                         self.request_id, size, self.stream_key, deployment)
+                self.datasets[deployment] = dataset.isel(obs=mask)
+            else:
+                del self.datasets[deployment]
+
     def exclude_flagged_data(self):
+        masks = {}
         if self.annotation_store.has_exclusion():
-            deployments = list(self.datasets)
-            for deployment in deployments:
+            for deployment in self.datasets:
                 dataset = self.datasets[deployment]
                 mask = self.annotation_store.get_exclusion_mask(dataset.time.values)
-                if mask.any():
-                    self.datasets[deployment] = dataset.isel(obs=mask)
-                else:
-                    del self.datasets[deployment]
+                masks[deployment] = mask
+
+            self._mask_datasets(masks)
 
     def exclude_nondeployed_data(self):
+        masks = {}
         if self.events is not None:
             for deployment in self.datasets:
                 dataset = self.datasets[deployment]
@@ -158,10 +173,8 @@ class StreamDataset(object):
                     deployment_event = self.events.deps[deployment]
                     mask = (dataset.time.values >= deployment_event.ntp_start) & \
                            (dataset.time.values < deployment_event.ntp_stop)
-                    if mask.any():
-                        self.datasets[deployment] = dataset.isel(obs=mask)
-                    else:
-                        del self.datasets[deployment]
+                    masks[deployment] = mask
+            self._mask_datasets(masks)
 
     def _build_function_arguments(self, dataset, stream_key, funcmap, deployment, source_dataset=None):
         """
