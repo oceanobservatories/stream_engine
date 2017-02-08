@@ -1,4 +1,4 @@
-NEXT_RELEASE
+Release 1.2.4
 
 Issue #11952
 - Updated aggregation response to be JSON (was plain string)
