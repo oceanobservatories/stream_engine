@@ -151,6 +151,8 @@ class StreamDataset(object):
                          self.request_id, size, self.stream_key, deployment)
                 self.datasets[deployment] = self.datasets[deployment].isel(obs=mask)
             else:
+                log.info('<%s> Masking ALL datapoints from %s deployment %d',
+                         self.request_id, self.stream_key, deployment)
                 del self.datasets[deployment]
 
     def exclude_flagged_data(self):
