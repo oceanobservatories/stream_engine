@@ -45,7 +45,7 @@ class AnnotationServiceInterface(object):
 
 class AnnotationRecord(object):
     def __init__(self, id=None, subsite=None, node=None, sensor=None, method=None, stream=None, annotation=None,
-                 exclusionFlag=None, beginDT=None, endDT=None, source=None):
+                 exclusionFlag=None, beginDT=None, endDT=None, source=None, qcFlag=None, **kwargs):
         self.id = id
         self.subsite = subsite
         self.node = node
@@ -55,6 +55,7 @@ class AnnotationRecord(object):
         self.annotation = annotation
         self.exclusion_flag = exclusionFlag
         self.source = source
+        self.qc_flag = qcFlag
 
         self._start_millis = beginDT
         self._stop_millis = endDT

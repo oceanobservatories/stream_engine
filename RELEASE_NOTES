@@ -1,3 +1,8 @@
+NEXT RELEASE
+
+Issue #11783 Add QC Flag to annotations
+- Updated AnnotationRecord to include QCFlag
+
 Release 1.2.4
 
 Issue #11952
