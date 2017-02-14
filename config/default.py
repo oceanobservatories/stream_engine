@@ -152,6 +152,7 @@ SIZE_CONFIG = os.path.join(CONFIG_DIR, 'stream_nc_sizes.cfg')
 # default bytes/particle estimate (for a NetCDF file)
 PARTICLE_DENSITY = 1000
 SECONDS_PER_BYTE = 0.0000041
+MINIMUM_REPORTED_TIME = 60
 
 
 ############################
