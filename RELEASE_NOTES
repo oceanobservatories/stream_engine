@@ -1,5 +1,8 @@
 NEXT RELEASE
 
+Issue #11871
+- Don't consider out-of-range bins when computing particle count estimate
+
 Issue #11783 Add QC Flag to annotations
 - Updated AnnotationRecord to include QCFlag
 

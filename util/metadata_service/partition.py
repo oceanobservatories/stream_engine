@@ -182,6 +182,7 @@ def get_particle_count(stream_key, time_range):
     results = _query_partition_metadata(stream_key, time_range)
     particles = 0
     for row in results:
-        particles += row.count
+        if row.first < time_range.stop and row.last > time_range.start:
+            particles += row.count
 
     return particles

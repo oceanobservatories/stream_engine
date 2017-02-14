@@ -25,6 +25,7 @@ ASSET_HOST = app.config.get('ASSET_HOST')
 SIZE_ESTIMATES = read_size_config(app.config.get('SIZE_CONFIG'))
 DEFAULT_PARTICLE_DENSITY = app.config.get('PARTICLE_DENSITY', 1000)  # default bytes/particle estimate
 SECONDS_PER_BYTE = app.config.get('SECONDS_PER_BYTE', 0.0000041)  # default bytes/sec estimate
+MINIMUM_REPORTED_TIME = app.config.get('MINIMUM_REPORTED_TIME')
 
 
 class StreamRequest(object):
@@ -504,7 +505,7 @@ class StreamRequest(object):
                              util.metadata_service.get_particle_count(stream, self.time_range)
                              for stream in self.stream_parameters))
 
-        return int(math.ceil(size_estimate))
+        return max(MINIMUM_REPORTED_TIME, int(math.ceil(size_estimate)))
 
     @staticmethod
     def compute_request_time(file_size):
