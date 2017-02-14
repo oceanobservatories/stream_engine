@@ -182,6 +182,11 @@ def get_particle_count(stream_key, time_range):
     results = _query_partition_metadata(stream_key, time_range)
     particles = 0
     for row in results:
-        particles += row.count
+        # query_partition_metadata returns bins which are out of our time range
+        # only total those bins which actually match our request.
+        # NOTE: this may still overestimate as only a single data point must fall
+        # within a bin for the entire bin to be counted.
+        if row.first < time_range.stop and row.last > time_range.start:
+            particles += row.count
 
     return particles
