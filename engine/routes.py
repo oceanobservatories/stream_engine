@@ -484,5 +484,5 @@ def output_async_error(input_data, e, filename="failure.json"):
             output['message'], base_path)
         output['message'] = msg
     json_str = json.dumps(output, indent=2, separators=(',', ': '))
-    log.exception(json_str)
+    log.error(json_str)
     return json_str

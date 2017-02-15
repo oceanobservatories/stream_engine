@@ -129,7 +129,7 @@ def validate(input_data):
 
     if limit <= 0:
         limit = None
-    if limit >= app.config['UI_HARD_LIMIT']:
+    if limit > app.config['UI_HARD_LIMIT']:
         message = '<{:s}> Requested number of particles ({:,d}) larger than maximum allowed limit ({:,d})'
         message = message.format(request_id, limit, app.config['UI_HARD_LIMIT'])
         raise UIHardLimitExceededException(message=message)

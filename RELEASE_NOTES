@@ -1,3 +1,8 @@
+Release 1.2.6
+
+Issue #10777
+- Don't report all data masked when querying virtual streams
+
 Release 1.2.5
 
 Issue #11871

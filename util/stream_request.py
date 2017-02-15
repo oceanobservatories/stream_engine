@@ -134,15 +134,25 @@ class StreamRequest(object):
         self._exclude_nondeployed_data()
 
         # Verify data still exists after masking
-        primary_stream_dataset = self.datasets[self.stream_key]
-        if not primary_stream_dataset.datasets:
-            raise MissingDataException(
-                'Query returned no results for primary stream (due to deployment or annotation mask)')
+        # virtual
+        message = 'Query returned no results for %s stream (due to deployment or annotation mask)'
+        if self.stream_key.is_virtual:
+            found_streams = [stream.stream for stream in self.datasets
+                             if self.datasets[stream]]
+            for stream in self.stream_key.stream.source_streams:
+                if stream not in found_streams:
+                    raise MissingDataException(message % 'source')
+        # real
+        else:
+            primary_stream_dataset = self.datasets[self.stream_key]
+            if not primary_stream_dataset.datasets:
+                raise MissingDataException(message % 'primary')
 
-        # Remove any empty supporting datasets
+        # Remove any empty, non-virtual supporting datasets
         for stream_key in list(self.datasets):
-            if not self.datasets[stream_key].datasets:
-                del self.datasets[stream_key]
+            if not stream_key.is_virtual:
+                if not self.datasets[stream_key].datasets:
+                    del self.datasets[stream_key]
 
     def calculate_derived_products(self):
         # Calculate all internal-only data products
