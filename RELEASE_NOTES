@@ -1,4 +1,4 @@
-NEXT RELEASE
+Release 1.2.5
 
 Issue #11871
 - Don't consider out-of-range bins when computing particle count estimate
