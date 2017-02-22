@@ -7,12 +7,15 @@ import numpy as np
 from datetime import datetime
 
 import util.common as common
-from preload_database.database import initialize_connection, open_connection, PreloadDatabaseMode
+from ooi_data.postgres.model import MetadataBase
+from preload_database.database import create_engine_from_url, create_scoped_session
 
 
 TEST_DIR = os.path.dirname(__file__)
-initialize_connection(PreloadDatabaseMode.POPULATED_MEMORY)
-open_connection()
+
+engine = create_engine_from_url(None)
+session = create_scoped_session(engine)
+MetadataBase.query = session.query_property()
 
 
 class CommonTest(unittest.TestCase):

@@ -10,7 +10,7 @@ import ntplib
 
 import util.stream_request
 from jsonresponse import JsonResponse
-from preload_database.model.preload import Stream, Parameter
+from ooi_data.postgres.model import Stream, Parameter
 from util.common import (StreamKey, TimeRange, MalformedRequestException, InvalidStreamException,
                          InvalidParameterException, UIHardLimitExceededException)
 from util.csvresponse import CsvGenerator

@@ -13,8 +13,8 @@ import numpy as np
 import xarray as xr
 from ion_functions.data.ctd_functions import ctd_sbe16plus_tempwat, ctd_pracsal
 
-from preload_database.database import initialize_connection, open_connection, PreloadDatabaseMode
-from preload_database.model.preload import Parameter
+from preload_database.database import create_engine_from_url, create_scoped_session
+from ooi_data.postgres.model import Parameter, MetadataBase
 from util.advlogging import jdefault
 from util.annotation import AnnotationRecord
 from util.asset_management import AssetEvents
@@ -23,8 +23,10 @@ from util.stream_dataset import StreamDataset
 
 TEST_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.join(TEST_DIR, 'data')
-initialize_connection(PreloadDatabaseMode.POPULATED_MEMORY)
-open_connection()
+
+engine = create_engine_from_url(None)
+session = create_scoped_session(engine)
+MetadataBase.query = session.query_property()
 
 logging.basicConfig()
 log = logging.getLogger()

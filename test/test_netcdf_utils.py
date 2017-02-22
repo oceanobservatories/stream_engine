@@ -2,16 +2,18 @@ import logging
 import unittest
 
 import numpy as np
+from ooi_data.postgres.model import MetadataBase
 
-from preload_database.database import initialize_connection, open_connection, PreloadDatabaseMode
+from preload_database.database import create_engine_from_url, create_scoped_session
 from util.netcdf_utils import max_shape, max_dtype
 
 logging.basicConfig()
 log = logging.getLogger()
 log.setLevel(logging.DEBUG)
 
-initialize_connection(PreloadDatabaseMode.POPULATED_MEMORY)
-open_connection()
+sqla_engine = create_engine_from_url(None)
+session = create_scoped_session(sqla_engine)
+MetadataBase.query = session.query_property()
 
 
 class NetcdfUtilsTest(unittest.TestCase):

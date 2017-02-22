@@ -4,8 +4,9 @@ import unittest
 
 import ntplib
 import numpy as np
+from ooi_data.postgres.model import MetadataBase
 
-from preload_database.database import initialize_connection, open_connection, PreloadDatabaseMode
+from preload_database.database import create_engine_from_url, create_scoped_session
 from util.annotation import AnnotationServiceInterface, AnnotationStore, AnnotationRecord
 from util.common import StreamKey, TimeRange
 
@@ -13,8 +14,9 @@ logging.basicConfig()
 log = logging.getLogger()
 log.setLevel(logging.DEBUG)
 
-initialize_connection(PreloadDatabaseMode.POPULATED_MEMORY)
-open_connection()
+engine = create_engine_from_url(None)
+session = create_scoped_session(engine)
+MetadataBase.query = session.query_property()
 
 TEST_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.join(TEST_DIR, 'data')

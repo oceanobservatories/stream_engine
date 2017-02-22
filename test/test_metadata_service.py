@@ -5,14 +5,15 @@ import engine
 import mock
 import unittest
 import util.metadata_service
-from preload_database.database import initialize_connection, open_connection, PreloadDatabaseMode
+from preload_database.database import create_engine_from_url, create_scoped_session
+from ooi_data.postgres.model import MetadataBase
 from util.common import TimeRange, StreamKey, MissingStreamMetadataException
 from util.metadata_service import CASS_LOCATION_NAME, SAN_LOCATION_NAME
 
 
-# Make the StreamKey class usable
-initialize_connection(PreloadDatabaseMode.POPULATED_MEMORY)
-open_connection()
+sqla_engine = create_engine_from_url(None)
+session = create_scoped_session(sqla_engine)
+MetadataBase.query = session.query_property()
 
 
 class MockMetadataServiceAPI(object):

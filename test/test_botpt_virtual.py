@@ -9,15 +9,19 @@ import mock
 import pandas as pd
 import xarray as xr
 
-from preload_database.database import initialize_connection, open_connection, PreloadDatabaseMode
+from ooi_data.postgres.model import MetadataBase
+
+from preload_database.database import create_engine_from_url, create_scoped_session
 from util.common import StreamKey, TimeRange
 from util.stream_dataset import StreamDataset
 from util.stream_request import StreamRequest
 
 TEST_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.join(TEST_DIR, 'data')
-initialize_connection(PreloadDatabaseMode.POPULATED_MEMORY)
-open_connection()
+
+engine = create_engine_from_url(None)
+session = create_scoped_session(engine)
+MetadataBase.query = session.query_property()
 
 logging.basicConfig()
 log = logging.getLogger()
