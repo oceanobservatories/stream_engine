@@ -9,15 +9,16 @@ from unittest import TestCase
 import xarray as xr
 import numpy as np
 
-from preload_database.database import initialize_connection, PreloadDatabaseMode, open_connection
-from preload_database.model.preload import Stream, Parameter
+from preload_database.database import create_engine_from_url, create_scoped_session
+from ooi_data.postgres.model import Stream, Parameter, MetadataBase
 from util.common import StreamKey
 from util.datamodel import to_xray_dataset, _get_fill_value, _replace_values
 
 TEST_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.join(TEST_DIR, 'data')
-initialize_connection(PreloadDatabaseMode.POPULATED_MEMORY)
-open_connection()
+engine = create_engine_from_url(None)
+session = create_scoped_session(engine)
+MetadataBase.query = session.query_property()
 
 logging.basicConfig()
 log = logging.getLogger()

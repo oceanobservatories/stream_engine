@@ -6,7 +6,7 @@ import ion_functions
 import numexpr
 import numpy as np
 
-from preload_database.model.preload import Parameter, Stream
+from ooi_data.postgres.model import Parameter, Stream
 from util.advlogging import ParameterReport
 from util.annotation import AnnotationStore
 from util.cass import fetch_nth_data, get_full_cass_dataset, get_cass_lookback_dataset
