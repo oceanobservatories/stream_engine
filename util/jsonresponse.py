@@ -7,7 +7,7 @@ import numpy as np
 
 from common import log_timing
 from engine import app
-from preload_database.model.preload import Parameter, Stream
+from ooi_data.postgres.model import Parameter, Stream
 
 __author__ = 'Stephen Zakrewsky'
 

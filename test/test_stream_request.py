@@ -1,3 +1,4 @@
+
 import global_test_setup
 
 import json
@@ -13,8 +14,8 @@ import pandas as pd
 import xarray as xr
 import math
 
-from preload_database.database import initialize_connection, open_connection, PreloadDatabaseMode
-from preload_database.model.preload import Parameter
+from preload_database.database import create_engine_from_url, create_scoped_session
+from ooi_data.postgres.model import Parameter, MetadataBase
 from util.asset_management import AssetEvents
 from util.common import StreamKey, TimeRange, StreamEngineException, InvalidParameterException, read_size_config
 from util.csvresponse import CsvGenerator
@@ -27,8 +28,10 @@ from util.calc import execute_stream_request, validate
 
 TEST_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.join(TEST_DIR, 'data')
-initialize_connection(PreloadDatabaseMode.POPULATED_MEMORY)
-open_connection()
+
+engine = create_engine_from_url(None)
+session = create_scoped_session(engine)
+MetadataBase.query = session.query_property()
 
 logging.basicConfig()
 log = logging.getLogger()

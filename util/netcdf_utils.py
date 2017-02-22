@@ -5,7 +5,7 @@ import numpy as np
 
 from engine import app
 from xarray_overrides import UNLIMITED_DIMS, NETCDF_ENGINE, xr
-from preload_database.model.preload import Stream, Parameter
+from ooi_data.postgres.model import Stream, Parameter
 from util.common import MissingDataException, ntp_to_datestring, log_timing
 
 
