@@ -4,7 +4,7 @@ from collections import defaultdict
 
 import numpy as np
 
-from preload_database.model.preload import ParameterFunction
+from ooi_data.postgres.model import ParameterFunction
 from util.common import log_timing
 
 log = logging.getLogger(__name__)

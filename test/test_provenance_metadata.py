@@ -1,17 +1,20 @@
+from ooi_data.postgres.model import MetadataBase
+
 import global_test_setup
 
 import json
 import unittest
 
 
-from preload_database.database import initialize_connection, open_connection, PreloadDatabaseMode
-from preload_database.model.preload import Parameter
+from preload_database.database import create_engine_from_url, create_scoped_session
+from ooi_data.postgres.model import Parameter
 from util.jsonresponse import NumpyJSONEncoder
 from util.provenance_metadata_store import ProvenanceMetadataStore
 
 
-initialize_connection(PreloadDatabaseMode.POPULATED_MEMORY)
-open_connection()
+engine = create_engine_from_url(None)
+session = create_scoped_session(engine)
+MetadataBase.query = session.query_property()
 
 
 class ProvenanceMetadataTest(unittest.TestCase):

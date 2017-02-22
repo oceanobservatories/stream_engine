@@ -5,7 +5,7 @@ import util.annotation
 import util.metadata_service
 import util.provenance_metadata_store
 from engine import app
-from preload_database.model.preload import Parameter, Stream, NominalDepth
+from ooi_data.postgres.model import Parameter, Stream, NominalDepth
 from util.asset_management import AssetManagement
 from util.cass import fetch_l0_provenance
 from util.common import log_timing, StreamEngineException, StreamKey, MissingDataException, read_size_config

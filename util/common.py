@@ -9,7 +9,7 @@ import ntplib
 import numpy
 
 from engine import app
-from preload_database.model.preload import Stream
+from ooi_data.postgres.model import Stream
 
 log = logging.getLogger(__name__)
 
