@@ -158,14 +158,14 @@ class StreamRequest(object):
         # Calculate all internal-only data products
         for sk in self.datasets:
             if not sk.is_virtual:
-                self.datasets[sk].calculate_internal()
+                self.datasets[sk].calculate_all()
 
         # Allow each StreamDataset to interpolate any needed parameters from the other datasets
         # Then calculate any data products which required external input.
         for sk in self.datasets:
             if not sk.is_virtual:
                 self.datasets[sk].interpolate_needed(self.datasets)
-                self.datasets[sk].calculate_external()
+                self.datasets[sk].calculate_all()
 
         for sk in self.datasets:
             if sk.is_virtual:
@@ -173,6 +173,9 @@ class StreamRequest(object):
                     if poss_source.stream in sk.stream.source_streams:
                         self.datasets[sk].calculate_virtual(self.datasets[poss_source])
                         break
+
+        for sk in self.datasets:
+            self.datasets[sk].fill_missing()
 
     def execute_qc(self):
         self._run_qc()

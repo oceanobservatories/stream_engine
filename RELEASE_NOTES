@@ -1,3 +1,8 @@
+Release 1.2.8
+
+Issue #12035
+- Update resolution of L2 parameters that depend on other L2
+
 Release 1.2.7
 
 Migrate preload data model to ooi_data

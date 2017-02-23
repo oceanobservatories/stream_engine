@@ -1,0 +1,578 @@
+[
+	{
+		"@class": ".XDeployment",
+		"editPhase": "OPERATIONAL",
+		"node": null,
+		"referenceDesignator": "CE02SHSM-SBD11-04-VELPTA000",
+		"deploymentNumber": 1,
+		"versionNumber": 1,
+		"sensor": {
+			"@class": ".XInstrument",
+			"calibration": [
+				
+			],
+			"remoteResources": [
+				
+			],
+			"events": [
+				
+			],
+			"assetId": 2756,
+			"serialNumber": "AQD 11775",
+			"editPhase": "OPERATIONAL",
+			"description": "Single Point Velocity Meter: VELPT Series A",
+			"uid": "CGINS-VELPTA-11775",
+			"assetType": "Sensor",
+			"mobile": false,
+			"manufacturer": "Nortek",
+			"modelNumber": "Aquadopp",
+			"purchasePrice": 8650.0,
+			"purchaseDate": 1379289600000,
+			"deliveryDate": 1379289600000,
+			"depthRating": null,
+			"ooiPropertyNumber": null,
+			"ooiPartNumber": null,
+			"ooiSerialNumber": null,
+			"deliveryOrderNumber": null,
+			"institutionPropertyNumber": null,
+			"institutionPurchaseOrderNumber": null,
+			"shelfLifeExpirationDate": null,
+			"firmwareVersion": null,
+			"softwareVersion": null,
+			"powerRequirements": null,
+			"physicalInfo": {
+				"height": -1.0,
+				"width": -1.0,
+				"weight": -1.0,
+				"length": -1.0
+			},
+			"notes": null,
+			"name": "AQD 11775",
+			"location": null,
+			"owner": null,
+			"dataSource": "BulkLoad from [sensor_bulk_load-AssetRecord.csv]",
+			"lastModifiedTimestamp": 1485892016738
+		},
+		"mooring": {
+			"@class": ".XMooring",
+			"remoteResources": [
+				
+			],
+			"events": [
+				
+			],
+			"assetId": 2974,
+			"serialNumber": "CE02SHSM-00001",
+			"editPhase": "OPERATIONAL",
+			"description": "Oregon Shelf Surface Mooring",
+			"uid": "CGMCE-02SHSM-00001",
+			"assetType": "Mooring",
+			"mobile": false,
+			"manufacturer": "WHOI",
+			"modelNumber": "CE02SHSM",
+			"purchasePrice": null,
+			"purchaseDate": null,
+			"deliveryDate": null,
+			"depthRating": null,
+			"ooiPropertyNumber": null,
+			"ooiPartNumber": null,
+			"ooiSerialNumber": null,
+			"deliveryOrderNumber": null,
+			"institutionPropertyNumber": null,
+			"institutionPurchaseOrderNumber": null,
+			"shelfLifeExpirationDate": null,
+			"firmwareVersion": null,
+			"softwareVersion": null,
+			"powerRequirements": null,
+			"physicalInfo": {
+				"height": -1.0,
+				"width": -1.0,
+				"weight": -1.0,
+				"length": -1.0
+			},
+			"notes": null,
+			"name": "CE02SHSM-00001",
+			"location": null,
+			"owner": null,
+			"dataSource": "BulkLoad from [platform_bulk_load-AssetRecord.csv]",
+			"lastModifiedTimestamp": 1485892018590
+		},
+		"deployCruiseInfo": {
+			"@class": ".CruiseInfo",
+			"uniqueCruiseIdentifier": "OC1503D",
+			"cruiseIdentifier": null,
+			"shipName": "R/V Oceanus",
+			"editPhase": "OPERATIONAL",
+			"eventId": 29,
+			"assetUid": null,
+			"eventType": "CRUISE_INFO",
+			"eventName": "OC1503D",
+			"eventStartTime": 1427932800000,
+			"eventStopTime": 1428796800000,
+			"notes": null,
+			"tense": "UNKNOWN",
+			"dataSource": "Load from [CruiseInformation.xlsx]",
+			"lastModifiedTimestamp": 1485892023465
+		},
+		"recoverCruiseInfo": null,
+		"deployedBy": null,
+		"recoveredBy": null,
+		"inductiveId": null,
+		"waterDepth": null,
+		"ingestInfo": [
+			
+		],
+		"location": {
+			"depth": 1.0,
+			"longitude": -124.30388,
+			"latitude": 44.63833,
+			"orbitRadius": null,
+			"location": [
+				-124.30388,
+				44.63833
+			]
+		},
+		"eventId": 2838,
+		"assetUid": null,
+		"eventType": "DEPLOYMENT",
+		"eventName": "CE02SHSM-SBD11-04-VELPTA000",
+		"eventStartTime": 1428006540000,
+		"eventStopTime": 1444176000000,
+		"notes": null,
+		"tense": "UNKNOWN",
+		"dataSource": "Load from [CE02SHSM_Deploy.xlsx]",
+		"lastModifiedTimestamp": 1485892122125
+	},
+	{
+		"@class": ".XDeployment",
+		"editPhase": "OPERATIONAL",
+		"node": null,
+		"referenceDesignator": "CE02SHSM-SBD11-04-VELPTA000",
+		"deploymentNumber": 2,
+		"versionNumber": 1,
+		"sensor": {
+			"@class": ".XInstrument",
+			"calibration": [
+				
+			],
+			"remoteResources": [
+				
+			],
+			"events": [
+				
+			],
+			"assetId": 1803,
+			"serialNumber": "AQD 12737",
+			"editPhase": "OPERATIONAL",
+			"description": "Single Point Velocity Meter: VELPT Series A",
+			"uid": "CGINS-VELPTA-12737",
+			"assetType": "Sensor",
+			"mobile": false,
+			"manufacturer": "Nortek",
+			"modelNumber": "Aquadopp",
+			"purchasePrice": 9180.0,
+			"purchaseDate": 1440979200000,
+			"deliveryDate": 1440979200000,
+			"depthRating": null,
+			"ooiPropertyNumber": null,
+			"ooiPartNumber": null,
+			"ooiSerialNumber": null,
+			"deliveryOrderNumber": null,
+			"institutionPropertyNumber": null,
+			"institutionPurchaseOrderNumber": null,
+			"shelfLifeExpirationDate": null,
+			"firmwareVersion": null,
+			"softwareVersion": null,
+			"powerRequirements": null,
+			"physicalInfo": {
+				"height": -1.0,
+				"width": -1.0,
+				"weight": -1.0,
+				"length": -1.0
+			},
+			"notes": null,
+			"name": "AQD 12737",
+			"location": null,
+			"owner": null,
+			"dataSource": "BulkLoad from [sensor_bulk_load-AssetRecord.csv]",
+			"lastModifiedTimestamp": 1485892008658
+		},
+		"mooring": {
+			"@class": ".XMooring",
+			"remoteResources": [
+				
+			],
+			"events": [
+				
+			],
+			"assetId": 2983,
+			"serialNumber": "CE02SHSM-00002",
+			"editPhase": "OPERATIONAL",
+			"description": "Oregon Shelf Surface Mooring",
+			"uid": "CGMCE-02SHSM-00002",
+			"assetType": "Mooring",
+			"mobile": false,
+			"manufacturer": "WHOI",
+			"modelNumber": "CE02SHSM",
+			"purchasePrice": null,
+			"purchaseDate": null,
+			"deliveryDate": null,
+			"depthRating": null,
+			"ooiPropertyNumber": null,
+			"ooiPartNumber": null,
+			"ooiSerialNumber": null,
+			"deliveryOrderNumber": null,
+			"institutionPropertyNumber": null,
+			"institutionPurchaseOrderNumber": null,
+			"shelfLifeExpirationDate": null,
+			"firmwareVersion": null,
+			"softwareVersion": null,
+			"powerRequirements": null,
+			"physicalInfo": {
+				"height": -1.0,
+				"width": -1.0,
+				"weight": -1.0,
+				"length": -1.0
+			},
+			"notes": null,
+			"name": "CE02SHSM-00002",
+			"location": null,
+			"owner": null,
+			"dataSource": "BulkLoad from [platform_bulk_load-AssetRecord.csv]",
+			"lastModifiedTimestamp": 1485892018661
+		},
+		"deployCruiseInfo": {
+			"@class": ".CruiseInfo",
+			"uniqueCruiseIdentifier": "OC1510A",
+			"cruiseIdentifier": null,
+			"shipName": "R/V Oceanus",
+			"editPhase": "OPERATIONAL",
+			"eventId": 30,
+			"assetUid": null,
+			"eventType": "CRUISE_INFO",
+			"eventName": "OC1510A",
+			"eventStartTime": 1444176000000,
+			"eventStopTime": 1445126400000,
+			"notes": null,
+			"tense": "UNKNOWN",
+			"dataSource": "Load from [CruiseInformation.xlsx]",
+			"lastModifiedTimestamp": 1485892023467
+		},
+		"recoverCruiseInfo": null,
+		"deployedBy": null,
+		"recoveredBy": null,
+		"inductiveId": null,
+		"waterDepth": null,
+		"ingestInfo": [
+			
+		],
+		"location": {
+			"depth": 1.0,
+			"longitude": -124.30252,
+			"latitude": 44.63538,
+			"orbitRadius": null,
+			"location": [
+				-124.30252,
+				44.63538
+			]
+		},
+		"eventId": 2861,
+		"assetUid": null,
+		"eventType": "DEPLOYMENT",
+		"eventName": "CE02SHSM-SBD11-04-VELPTA000",
+		"eventStartTime": 1444252200000,
+		"eventStopTime": 1463356800000,
+		"notes": null,
+		"tense": "UNKNOWN",
+		"dataSource": "Load from [CE02SHSM_Deploy.xlsx]",
+		"lastModifiedTimestamp": 1485892122559
+	},
+	{
+		"@class": ".XDeployment",
+		"editPhase": "OPERATIONAL",
+		"node": null,
+		"referenceDesignator": "CE02SHSM-SBD11-04-VELPTA000",
+		"deploymentNumber": 3,
+		"versionNumber": 1,
+		"sensor": {
+			"@class": ".XInstrument",
+			"calibration": [
+				
+			],
+			"remoteResources": [
+				
+			],
+			"events": [
+				
+			],
+			"assetId": 2770,
+			"serialNumber": "AQD 11780",
+			"editPhase": "OPERATIONAL",
+			"description": "Single Point Velocity Meter: VELPT Series A",
+			"uid": "CGINS-VELPTA-11780",
+			"assetType": "Sensor",
+			"mobile": false,
+			"manufacturer": "Nortek",
+			"modelNumber": "Aquadopp",
+			"purchasePrice": 8650.0,
+			"purchaseDate": 1379289600000,
+			"deliveryDate": 1379289600000,
+			"depthRating": null,
+			"ooiPropertyNumber": null,
+			"ooiPartNumber": null,
+			"ooiSerialNumber": null,
+			"deliveryOrderNumber": null,
+			"institutionPropertyNumber": null,
+			"institutionPurchaseOrderNumber": null,
+			"shelfLifeExpirationDate": null,
+			"firmwareVersion": null,
+			"softwareVersion": null,
+			"powerRequirements": null,
+			"physicalInfo": {
+				"height": -1.0,
+				"width": -1.0,
+				"weight": -1.0,
+				"length": -1.0
+			},
+			"notes": null,
+			"name": "AQD 11780",
+			"location": null,
+			"owner": null,
+			"dataSource": "BulkLoad from [sensor_bulk_load-AssetRecord.csv]",
+			"lastModifiedTimestamp": 1485892016874
+		},
+		"mooring": {
+			"@class": ".XMooring",
+			"remoteResources": [
+				
+			],
+			"events": [
+				
+			],
+			"assetId": 2980,
+			"serialNumber": "CE02SHSM-00003",
+			"editPhase": "OPERATIONAL",
+			"description": "Oregon Shelf Surface Mooring",
+			"uid": "CGMCE-02SHSM-00003",
+			"assetType": "Mooring",
+			"mobile": false,
+			"manufacturer": "WHOI",
+			"modelNumber": "CE02SHSM",
+			"purchasePrice": null,
+			"purchaseDate": null,
+			"deliveryDate": null,
+			"depthRating": null,
+			"ooiPropertyNumber": null,
+			"ooiPartNumber": null,
+			"ooiSerialNumber": null,
+			"deliveryOrderNumber": null,
+			"institutionPropertyNumber": null,
+			"institutionPurchaseOrderNumber": null,
+			"shelfLifeExpirationDate": null,
+			"firmwareVersion": null,
+			"softwareVersion": null,
+			"powerRequirements": null,
+			"physicalInfo": {
+				"height": -1.0,
+				"width": -1.0,
+				"weight": -1.0,
+				"length": -1.0
+			},
+			"notes": null,
+			"name": "CE02SHSM-00003",
+			"location": null,
+			"owner": null,
+			"dataSource": "BulkLoad from [platform_bulk_load-AssetRecord.csv]",
+			"lastModifiedTimestamp": 1485892018638
+		},
+		"deployCruiseInfo": {
+			"@class": ".CruiseInfo",
+			"uniqueCruiseIdentifier": "TN-342",
+			"cruiseIdentifier": null,
+			"shipName": "R/V Thomas G. Thompson",
+			"editPhase": "OPERATIONAL",
+			"eventId": 50,
+			"assetUid": null,
+			"eventType": "CRUISE_INFO",
+			"eventName": "TN-342",
+			"eventStartTime": 1462492800000,
+			"eventStopTime": 1463788800000,
+			"notes": null,
+			"tense": "UNKNOWN",
+			"dataSource": "Load from [CruiseInformation.xlsx]",
+			"lastModifiedTimestamp": 1485892023517
+		},
+		"recoverCruiseInfo": null,
+		"deployedBy": null,
+		"recoveredBy": null,
+		"inductiveId": null,
+		"waterDepth": null,
+		"ingestInfo": [
+			
+		],
+		"location": {
+			"depth": 1.0,
+			"longitude": -124.30427,
+			"latitude": 44.63565,
+			"orbitRadius": null,
+			"location": [
+				-124.30427,
+				44.63565
+			]
+		},
+		"eventId": 2883,
+		"assetUid": null,
+		"eventType": "DEPLOYMENT",
+		"eventName": "CE02SHSM-SBD11-04-VELPTA000",
+		"eventStartTime": 1463520180000,
+		"eventStopTime": 1475077920000,
+		"notes": null,
+		"tense": "UNKNOWN",
+		"dataSource": "Load from [CE02SHSM_Deploy.xlsx]",
+		"lastModifiedTimestamp": 1485892122981
+	},
+	{
+		"@class": ".XDeployment",
+		"editPhase": "OPERATIONAL",
+		"node": null,
+		"referenceDesignator": "CE02SHSM-SBD11-04-VELPTA000",
+		"deploymentNumber": 4,
+		"versionNumber": 1,
+		"sensor": {
+			"@class": ".XInstrument",
+			"calibration": [
+				
+			],
+			"remoteResources": [
+				
+			],
+			"events": [
+				
+			],
+			"assetId": 2031,
+			"serialNumber": "AQD 12703",
+			"editPhase": "OPERATIONAL",
+			"description": "Single Point Velocity Meter: VELPT Series A",
+			"uid": "CGINS-VELPTA-12703",
+			"assetType": "Sensor",
+			"mobile": false,
+			"manufacturer": "Nortek",
+			"modelNumber": "Aquadopp",
+			"purchasePrice": 9180.0,
+			"purchaseDate": 1440979200000,
+			"deliveryDate": 1440979200000,
+			"depthRating": null,
+			"ooiPropertyNumber": null,
+			"ooiPartNumber": null,
+			"ooiSerialNumber": null,
+			"deliveryOrderNumber": null,
+			"institutionPropertyNumber": null,
+			"institutionPurchaseOrderNumber": null,
+			"shelfLifeExpirationDate": null,
+			"firmwareVersion": null,
+			"softwareVersion": null,
+			"powerRequirements": null,
+			"physicalInfo": {
+				"height": -1.0,
+				"width": -1.0,
+				"weight": -1.0,
+				"length": -1.0
+			},
+			"notes": null,
+			"name": "AQD 12703",
+			"location": null,
+			"owner": null,
+			"dataSource": "BulkLoad from [sensor_bulk_load-AssetRecord.csv]",
+			"lastModifiedTimestamp": 1485892010604
+		},
+		"mooring": {
+			"@class": ".XMooring",
+			"remoteResources": [
+				
+			],
+			"events": [
+				
+			],
+			"assetId": 2975,
+			"serialNumber": "CE02SHSM-00004",
+			"editPhase": "OPERATIONAL",
+			"description": "Oregon Shelf Surface Mooring",
+			"uid": "CGMCE-02SHSM-00004",
+			"assetType": "Mooring",
+			"mobile": false,
+			"manufacturer": "WHOI",
+			"modelNumber": "CE02SHSM",
+			"purchasePrice": null,
+			"purchaseDate": null,
+			"deliveryDate": null,
+			"depthRating": null,
+			"ooiPropertyNumber": null,
+			"ooiPartNumber": null,
+			"ooiSerialNumber": null,
+			"deliveryOrderNumber": null,
+			"institutionPropertyNumber": null,
+			"institutionPurchaseOrderNumber": null,
+			"shelfLifeExpirationDate": null,
+			"firmwareVersion": null,
+			"softwareVersion": null,
+			"powerRequirements": null,
+			"physicalInfo": {
+				"height": -1.0,
+				"width": -1.0,
+				"weight": -1.0,
+				"length": -1.0
+			},
+			"notes": null,
+			"name": "CE02SHSM-00004",
+			"location": null,
+			"owner": null,
+			"dataSource": "BulkLoad from [platform_bulk_load-AssetRecord.csv]",
+			"lastModifiedTimestamp": 1485892018598
+		},
+		"deployCruiseInfo": {
+			"@class": ".CruiseInfo",
+			"uniqueCruiseIdentifier": "AT37-03",
+			"cruiseIdentifier": null,
+			"shipName": "R/V Atlantis",
+			"editPhase": "OPERATIONAL",
+			"eventId": 54,
+			"assetUid": null,
+			"eventType": "CRUISE_INFO",
+			"eventName": "AT37-03",
+			"eventStartTime": 1474156800000,
+			"eventStopTime": 1475452800000,
+			"notes": null,
+			"tense": "UNKNOWN",
+			"dataSource": "Load from [CruiseInformation.xlsx]",
+			"lastModifiedTimestamp": 1485892023525
+		},
+		"recoverCruiseInfo": null,
+		"deployedBy": null,
+		"recoveredBy": null,
+		"inductiveId": null,
+		"waterDepth": null,
+		"ingestInfo": [
+			
+		],
+		"location": {
+			"depth": null,
+			"longitude": -124.30404,
+			"latitude": 44.63929,
+			"orbitRadius": null,
+			"location": [
+				-124.30404,
+				44.63929
+			]
+		},
+		"eventId": 2901,
+		"assetUid": null,
+		"eventType": "DEPLOYMENT",
+		"eventName": "CE02SHSM-SBD11-04-VELPTA000",
+		"eventStartTime": 1474925100000,
+		"eventStopTime": null,
+		"notes": null,
+		"tense": "UNKNOWN",
+		"dataSource": "Load from [CE02SHSM_Deploy.xlsx]",
+		"lastModifiedTimestamp": 1485892123322
+	}
+]
