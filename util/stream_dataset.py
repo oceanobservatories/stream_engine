@@ -38,12 +38,9 @@ class StreamDataset(object):
         self.datasets = {}
         self.events = None
 
-        self.internal_only = [p for p in stream_key.stream.derived if not stream_key.stream.needs_external([p])]
+        self.params = {}
+        self.missing = {}
         self.external = [p for p in stream_key.stream.derived if stream_key.stream.needs_external([p])]
-        self.l1_params = [p for p in self.internal_only if p.is_l1]
-        self.l2_params = [p for p in self.internal_only if p.is_l2]
-        self.external_l1 = [p for p in self.external if p.is_l1]
-        self.external_l2 = [p for p in self.external if p.is_l2]
 
         if self.stream_key.is_virtual:
             self.time_param = Parameter.query.get(self.stream_key.stream.time_parameter)
@@ -70,8 +67,26 @@ class StreamDataset(object):
 
             for deployment, group in dataset.groupby('deployment'):
                 self.datasets[deployment] = group
+                self.params[deployment] = [p for p in self.stream_key.stream.derived]
+
         else:
             raise MissingDataException("Query returned no results for stream %s" % self.stream_key)
+
+    def calculate_all(self):
+        """
+        Brute force resolution of parameters - continue to loop as long as we can progress
+        """
+        for deployment, dataset in self.datasets.iteritems():
+            while self.params[deployment]:
+                remaining = []
+                for param in self.params[deployment]:
+                    missing = self._try_create_derived_product(dataset, self.stream_key, param, deployment)
+                    if missing:
+                        remaining.append(param)
+                        self.missing.setdefault(deployment, {})[param] = missing
+                if len(remaining) == len(self.params[deployment]):
+                    break
+                self.params[deployment] = remaining
 
     def insert_instrument_attributes(self):
         """
@@ -92,23 +107,10 @@ class StreamDataset(object):
                         value = 'Not specified.'
                     ds.attrs[INSTRUMENT_ATTRIBUTE_MAP[attribute]] = value
 
-    def calculate_internal(self):
-        if not self.time_param:
-            # Calculate internal L1 and L2 parameters
-            for deployment, dataset in self.datasets.iteritems():
-                self._calculate_parameter_list(dataset, self.stream_key, self.l1_params, deployment, 'internal L1')
-                self._calculate_parameter_list(dataset, self.stream_key, self.l2_params, deployment, 'internal L2')
-
     def interpolate_needed(self, external_datasets):
         if not self.time_param:
             for param in self.external:
                 self._interpolate_and_import_needed(param, external_datasets)
-
-    def calculate_external(self):
-        if not self.time_param:
-            for deployment, dataset in self.datasets.iteritems():
-                self._calculate_parameter_list(dataset, self.stream_key, self.external_l1, deployment, 'external L1')
-                self._calculate_parameter_list(dataset, self.stream_key, self.external_l2, deployment, 'external L2')
 
     def add_location(self):
         log.debug('<%s> Inserting location data for %s datasets',
@@ -128,16 +130,17 @@ class StreamDataset(object):
                 dataset = create_empty_dataset(self.stream_key, self.request_id)
                 self.datasets[deployment] = dataset
                 # compute the time parameter
-                self._create_derived_product(dataset, self.stream_key, self.time_param, deployment,
-                                             source_dataset=source_dataset)
+                missing = self._try_create_derived_product(dataset, self.stream_key, self.time_param, deployment,
+                                                           source_dataset=source_dataset)
+                if missing:
+                    continue
+
                 dataset['time'] = dataset[self.time_param.name].copy()
                 deployments = np.empty_like(dataset.time.values, dtype='int32')
                 deployments[:] = deployment
                 dataset['deployment'] = ('obs', deployments, {'name': 'deployment'})
-                for param in self.stream_key.stream.parameters:
-                    if param != self.time_param:
-                        self._create_derived_product(dataset, self.stream_key, param, deployment,
-                                                     source_dataset=source_dataset)
+                self.params[deployment] = [p for p in self.stream_key.stream.derived if not p == self.time_param]
+        self.calculate_all()
 
     def _mask_datasets(self, masks):
         deployments = list(self.datasets)
@@ -252,8 +255,35 @@ class StreamDataset(object):
                      'arguments': arg_metadata}
         return calc_meta
 
+    def fill_missing(self):
+        for deployment, dataset in self.datasets.iteritems():
+            for param in self.params[deployment]:
+                missing = self.missing.get(deployment, {}).get(param, {})
+                try:
+                    self._insert_data(dataset, param, None,
+                                      provenance_metadata=self.provenance_metadata,
+                                      request_id=self.request_id)
+                except ValueError:
+                    # Swallow this raised error, it has already been logged.
+                    pass
+
+                error_info = {'derived_id': param.id, 'derived_name': param.name,
+                              'derived_display_name': param.display_name, 'missing': []}
+
+                for key in missing:
+                    source, value = missing[key]
+                    missing_dict = {
+                        'source': source,
+                        'value': value
+                    }
+                    error_info['missing'].append(missing_dict)
+                error_info = self._resolve_db_objects(error_info)
+                self.provenance_metadata.calculated_metadata.errors.append(error_info)
+                log.error('<%s> Unable to create derived product: %r missing: %r',
+                          self.request_id, param.name, error_info)
+
     @log_timing(log)
-    def _create_derived_product(self, dataset, stream_key, param, deployment, source_dataset=None):
+    def _try_create_derived_product(self, dataset, stream_key, param, deployment, source_dataset=None):
         """
         Extract the necessary args to create the derived product <param>, call _execute_algorithm
         and insert the result back into dataset.
@@ -261,60 +291,66 @@ class StreamDataset(object):
         :param stream_key: source stream
         :param param: derived parameter
         :param deployment: deployment number
-        :return:
+        :return:  dictionary {parameter: [sources]}
         """
         log.info('<%s> _create_derived_product %r %r', self.request_id, stream_key.as_refdes(), param)
         external_streams = [external.stream for external in self.external_streams]
 
         function_map, missing = stream_key.stream.create_function_map(param, external_streams)
-        kwargs = arg_metadata = None
 
-        if not missing:
-            kwargs, arg_metadata = self._build_function_arguments(dataset, stream_key, function_map,
-                                                                  deployment, source_dataset)
-            missing = {k: function_map[k] for k in set(function_map) - set(kwargs)}
+        if missing:
+            return missing
 
-        if not missing and kwargs:
-            result, version = self._execute_algorithm(param, kwargs)
-            if not isinstance(result, np.ndarray):
-                log.warn('<%s> Algorithm for %r returned non ndarray', self.request_id, param.name)
-                result = np.array([result])
+        kwargs, arg_metadata = self._build_function_arguments(dataset, stream_key, function_map,
+                                                              deployment, source_dataset)
+        missing = {k: function_map[k] for k in set(function_map) - set(kwargs)}
 
-            self._log_algorithm_inputs(param, kwargs, result, stream_key, dataset)
-            calc_metadata = self._create_calculation_metadata(param, version, arg_metadata)
-            self.provenance_metadata.calculated_metadata.insert_metadata(param, calc_metadata)
+        if missing:
+            return missing
 
-            try:
-                self._insert_data(dataset, param, result,
-                                  provenance_metadata=self.provenance_metadata,
-                                  request_id=self.request_id)
-            except ValueError:
-                self._insert_data(dataset, param, None,
-                                  provenance_metadata=self.provenance_metadata,
-                                  request_id=self.request_id)
+        result, version = self._execute_algorithm(param, kwargs)
+        if not isinstance(result, np.ndarray):
+            log.warn('<%s> Algorithm for %r returned non ndarray', self.request_id, param.name)
+            result = np.array([result])
 
-        else:
-            try:
-                self._insert_data(dataset, param, None,
-                                  provenance_metadata=self.provenance_metadata,
-                                  request_id=self.request_id)
-            except ValueError:
-                # Swallow this raised error, it has already been logged.
-                pass
+        self._log_algorithm_inputs(param, kwargs, result, stream_key, dataset)
+        calc_metadata = self._create_calculation_metadata(param, version, arg_metadata)
+        self.provenance_metadata.calculated_metadata.insert_metadata(param, calc_metadata)
 
-            error_info = {'derived_id': param.id, 'derived_name': param.name,
-                          'derived_display_name': param.display_name, 'missing': []}
-            for key in missing:
-                source, value = missing[key]
-                missing_dict = {
-                    'source': source,
-                    'value': value
-                }
-                error_info['missing'].append(missing_dict)
-            error_info = self._resolve_db_objects(error_info)
-            self.provenance_metadata.calculated_metadata.errors.append(error_info)
-            log.error('<%s> Unable to create derived product: %r missing: %r',
-                      self.request_id, param.name, error_info)
+        try:
+            self._insert_data(dataset, param, result,
+                              provenance_metadata=self.provenance_metadata,
+                              request_id=self.request_id)
+        except ValueError:
+            self._insert_data(dataset, param, None,
+                              provenance_metadata=self.provenance_metadata,
+                              request_id=self.request_id)
+
+    def _insert_missing(self, dataset, param, missing):
+        """
+        insert missing notification into provenance and fill values into the dataset
+        """
+        try:
+            self._insert_data(dataset, param, None,
+                              provenance_metadata=self.provenance_metadata,
+                              request_id=self.request_id)
+        except ValueError:
+            # Swallow this raised error, it has already been logged.
+            pass
+
+        error_info = {'derived_id': param.id, 'derived_name': param.name,
+                      'derived_display_name': param.display_name, 'missing': []}
+        for key in missing:
+            source, value = missing[key]
+            missing_dict = {
+                'source': source,
+                'value': value
+            }
+            error_info['missing'].append(missing_dict)
+        error_info = self._resolve_db_objects(error_info)
+        self.provenance_metadata.calculated_metadata.errors.append(error_info)
+        log.error('<%s> Unable to create derived product: %r missing: %r',
+                  self.request_id, param.name, error_info)
 
     @staticmethod
     def _insert_data(dataset, param, data, provenance_metadata=None, request_id=None):
@@ -454,13 +490,6 @@ class StreamDataset(object):
             return interp1d_data_array(ds.time.values,
                                        ds[name],
                                        time=target_times)
-
-    def _calculate_parameter_list(self, dataset, sk, params, deployment, name):
-        if params:
-            log.info('<%s> executing %s algorithms for %r deployment %d',
-                     self.request_id, name, sk.as_refdes(), deployment)
-            for param in params:
-                self._create_derived_product(dataset, sk, param, deployment)
 
     def _create_parameter_metadata(self, param, deployment, interpolated=False):
         """

@@ -38,17 +38,34 @@ class StreamDatasetTest(unittest.TestCase):
     def setUpClass(cls):
         cls.nutnr_sk = StreamKey('CE04OSPS', 'SF01B', '4A-NUTNRA102', 'streamed', 'nutnr_a_sample')
         cls.ctdpf_sk = StreamKey('CE04OSPS', 'SF01B', '2A-CTDPFA107', 'streamed', 'ctdpf_sbe43_sample')
+        cls.metbk_sk = StreamKey('CE02SHSM', 'SBD11', '06-METBKA000', 'telemetered', 'metbk_a_dcl_instrument')
+        cls.velpt_sk = StreamKey('CE02SHSM', 'SBD11', '04-VELPTA000', 'telemetered', 'velpt_ab_dcl_instrument')
         cls.nutnr_fn = 'nutnr_a_sample.nc'
         cls.ctdpf_fn = 'ctdpf_sbe43_sample.nc'
+        cls.metbk_fn = 'metbk_a_dcl_instrument.nc'
+        cls.velpt_fn = 'velpt_ab_dcl_instrument.nc'
         cls.ctd_events = AssetEvents(cls.ctdpf_sk.as_three_part_refdes(),
                                      json.load(open(os.path.join(DATA_DIR, 'CE04OSPS-SF01B-2A-CTDPFA107_events.json'))))
         cls.nut_events = AssetEvents(cls.nutnr_sk.as_three_part_refdes(),
                                      json.load(open(os.path.join(DATA_DIR, 'CE04OSPS-SF01B-4A-NUTNRA102_events.json'))))
+        cls.velpt_events = AssetEvents(cls.velpt_sk.as_three_part_refdes(),
+                                       json.load(open(os.path.join(DATA_DIR,
+                                                                   'CE02SHSM-SBD11-04-VELPTA000_events.json'))))
+        cls.metbk_events = AssetEvents(cls.metbk_sk.as_three_part_refdes(),
+                                       json.load(open(os.path.join(DATA_DIR,
+                                                                   'CE02SHSM-SBD11-06-METBKA000_events.json'))))
 
-    def assert_parameters_in_datasets(self, datasets, parameters):
+    # make sure the datasets were added and are not fill values
+    def assert_parameters_in_datasets(self, datasets, parameters, expect_fill=False):
         for dataset in datasets.itervalues():
             for parameter in parameters:
                 self.assertIn(parameter, dataset)
+                values = dataset[parameter].values
+                filled = (values == dataset[parameter]._FillValue).all()
+                if filled and not expect_fill:
+                    self.assertFalse(True, msg='parameter (%s) not computed - all fill values' % parameter)
+                if not filled and expect_fill:
+                    self.assertFalse(True, msg='parameter (%s) not filled (as expected)' % parameter)
 
     def _create_exclusion_anno(self, start, stop):
         return AnnotationRecord(beginDT=start, endDT=stop, exclusionFlag=True)
@@ -61,7 +78,7 @@ class StreamDatasetTest(unittest.TestCase):
         ctd_stream_dataset = StreamDataset(self.ctdpf_sk, {}, [], 'UNIT')
         ctd_stream_dataset.events = self.ctd_events
         ctd_stream_dataset._insert_dataset(ctd_ds)
-        ctd_stream_dataset.calculate_internal()
+        ctd_stream_dataset.calculate_all()
 
         for deployment in ctd_stream_dataset.datasets:
             ds = ctd_stream_dataset.datasets[deployment]
@@ -90,7 +107,7 @@ class StreamDatasetTest(unittest.TestCase):
         ctd_stream_dataset = StreamDataset(self.ctdpf_sk, {}, [], 'UNIT')
         ctd_stream_dataset.events = self.ctd_events
         ctd_stream_dataset._insert_dataset(ctd_ds)
-        ctd_stream_dataset.calculate_internal()
+        ctd_stream_dataset.calculate_all()
 
         for deployment in ctd_stream_dataset.datasets:
             ds = ctd_stream_dataset.datasets[deployment]
@@ -118,20 +135,76 @@ class StreamDatasetTest(unittest.TestCase):
         ctd_stream_dataset = StreamDataset(self.ctdpf_sk, {}, [], 'UNIT')
         ctd_stream_dataset.events = self.ctd_events
         ctd_stream_dataset._insert_dataset(ctd_ds)
-        ctd_stream_dataset.calculate_internal()
+        ctd_stream_dataset.calculate_all()
 
         nut_stream_dataset = StreamDataset(self.nutnr_sk, {}, [self.ctdpf_sk], 'UNIT')
         nut_stream_dataset.events = self.nut_events
         nut_stream_dataset._insert_dataset(nut_ds)
-        nut_stream_dataset.calculate_internal()
+        nut_stream_dataset.calculate_all()
 
         nut_stream_dataset.interpolate_needed({self.ctdpf_sk: ctd_stream_dataset})
-        nut_stream_dataset.calculate_external()
+        nut_stream_dataset.calculate_all()
 
         expected_params = ['ctdpf_sbe43_sample-seawater_temperature',
                            'ctdpf_sbe43_sample-practical_salinity',
                            'temp_sal_corrected_nitrate']
         self.assert_parameters_in_datasets(nut_stream_dataset.datasets, expected_params)
+
+    def test_fill_missing(self):
+        velpt_ds = xr.open_dataset(os.path.join(DATA_DIR, self.velpt_fn), decode_times=False)
+
+        velpt_ds = velpt_ds[['obs', 'time', 'deployment', 'velocity_beam1', 'velocity_beam2', 'velocity_beam3',
+                             'amplitude_beam1', 'amplitude_beam2', 'amplitude_beam3']]
+
+        velpt_stream_dataset = StreamDataset(self.velpt_sk, {}, [], 'UNIT')
+        velpt_stream_dataset.events = self.velpt_events
+        velpt_stream_dataset._insert_dataset(velpt_ds)
+        velpt_stream_dataset.fill_missing()
+
+        expected_params = ['eastward_velocity']
+
+        self.assert_parameters_in_datasets(velpt_stream_dataset.datasets, expected_params, expect_fill=True)
+
+    def test_calculate_external_12035(self):
+        velpt_ds = xr.open_dataset(os.path.join(DATA_DIR, self.velpt_fn), decode_times=False)
+        metbk_ds = xr.open_dataset(os.path.join(DATA_DIR, self.metbk_fn), decode_times=False)
+
+        velpt_ds = velpt_ds[['obs', 'time', 'deployment', 'velocity_beam1', 'velocity_beam2', 'velocity_beam3',
+                             'amplitude_beam1', 'amplitude_beam2', 'amplitude_beam3']]
+
+        metbk_ds = metbk_ds[['obs', 'time', 'deployment', 'barometric_pressure', 'relative_humidity',
+                             'air_temperature', 'longwave_irradiance', 'precipitation', 'sea_surface_temperature',
+                             'sea_surface_conductivity', 'shortwave_irradiance', 'eastward_wind_velocity',
+                             'northward_wind_velocity']]
+
+        velpt_stream_dataset = StreamDataset(self.velpt_sk, {}, [], 'UNIT')
+        velpt_stream_dataset.events = self.velpt_events
+        velpt_stream_dataset._insert_dataset(velpt_ds)
+        velpt_stream_dataset.calculate_all()
+
+        metbk_stream_dataset = StreamDataset(self.metbk_sk, {}, [self.velpt_sk], 'UNIT')
+        metbk_stream_dataset.events = self.metbk_events
+        metbk_stream_dataset._insert_dataset(metbk_ds)
+        metbk_stream_dataset.calculate_all()
+        metbk_stream_dataset.interpolate_needed({self.velpt_sk: velpt_stream_dataset})
+        metbk_stream_dataset.calculate_all()
+
+        expected_params = ['met_barpres',
+                           'met_windavg_mag_corr_east',
+                           'met_windavg_mag_corr_north',
+                           'met_current_direction',
+                           'met_current_speed',
+                           'met_relwind_direction',
+                           'met_relwind_speed',
+                           'met_netsirr',
+                           'met_salsurf',
+                           'met_spechum',
+                           'met_heatflx_minute',
+                           'met_latnflx_minute',
+                           'met_netlirr_minute',
+                           'met_sensflx_minute',
+                           ]
+        self.assert_parameters_in_datasets(metbk_stream_dataset.datasets, expected_params)
 
     def test_calculate_external_multiple_deployments(self):
         ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, self.ctdpf_fn), decode_times=False)
@@ -151,15 +224,15 @@ class StreamDatasetTest(unittest.TestCase):
         ctd_stream_dataset = StreamDataset(self.ctdpf_sk, {}, [], 'UNIT')
         ctd_stream_dataset.events = self.ctd_events
         ctd_stream_dataset._insert_dataset(ctd_ds)
-        ctd_stream_dataset.calculate_internal()
+        ctd_stream_dataset.calculate_all()
 
         nut_stream_dataset = StreamDataset(self.nutnr_sk, {}, [self.ctdpf_sk], 'UNIT')
         nut_stream_dataset.events = self.nut_events
         nut_stream_dataset._insert_dataset(nut_ds)
-        nut_stream_dataset.calculate_internal()
+        nut_stream_dataset.calculate_all()
 
         nut_stream_dataset.interpolate_needed({self.ctdpf_sk: ctd_stream_dataset})
-        nut_stream_dataset.calculate_external()
+        nut_stream_dataset.calculate_all()
 
         expected_params = ['ctdpf_sbe43_sample-seawater_temperature',
                            'ctdpf_sbe43_sample-practical_salinity',
