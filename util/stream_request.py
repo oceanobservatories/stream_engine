@@ -21,6 +21,7 @@ LATITUDE_PARAM_ID = app.config.get('LATITUDE_PARAM_ID')
 LONGITUDE_PARAM_ID = app.config.get('LONGITUDE_PARAM_ID')
 INT_PRESSURE_NAME = app.config.get('INT_PRESSURE_NAME')
 MAX_DEPTH_VARIANCE = app.config.get('MAX_DEPTH_VARIANCE')
+MAX_DEPTH_VARIANCE_METBK = app.config.get('MAX_DEPTH_VARIANCE_METBK')
 ASSET_HOST = app.config.get('ASSET_HOST')
 SIZE_ESTIMATES = read_size_config(app.config.get('SIZE_CONFIG'))
 DEFAULT_PARTICLE_DENSITY = app.config.get('PARTICLE_DENSITY', 1000)  # default bytes/particle estimate
@@ -133,8 +134,7 @@ class StreamRequest(object):
         self._exclude_flagged_data()
         self._exclude_nondeployed_data()
 
-        # Verify data still exists after masking
-        # virtual
+        # Verify data still exists after masking virtual
         message = 'Query returned no results for %s stream (due to deployment or annotation mask)'
         if self.stream_key.is_virtual:
             found_streams = [stream.stream for stream in self.datasets
@@ -287,6 +287,9 @@ class StreamRequest(object):
             # Pop an external from the list of externals to process
             external = external_to_process.pop()
             stream, poss_params = external
+            # all non-virtual streams define PD7, skip
+            if poss_params[0].id == 7:
+                continue
             log.debug('<%s> _locate_externals: STREAM: %r POSS_PARAMS: %r', self.request_id, stream, poss_params)
             found_sk, found_param = self.find_stream(self.stream_key, poss_params, stream=stream)
             if found_sk:
@@ -384,6 +387,7 @@ class StreamRequest(object):
 
     @log_timing(log)
     def find_stream(self, stream_key, poss_params, stream=None):
+        log.debug('find_stream(%r, %r, %r)', stream_key, poss_params, stream)
         subsite = stream_key.subsite
         node = stream_key.node
         sensor = stream_key.sensor
@@ -422,7 +426,8 @@ class StreamRequest(object):
         if not stream_key.is_mobile:
             nominal_depth = NominalDepth.get_nominal_depth(subsite, node, sensor)
             if nominal_depth is not None:
-                nearby = nominal_depth.get_depth_within(MAX_DEPTH_VARIANCE)
+                max_depth_var = MAX_DEPTH_VARIANCE_METBK if 'METBK' in sensor else MAX_DEPTH_VARIANCE
+                nearby = nominal_depth.get_depth_within(max_depth_var)
                 for param, search_streams in param_streams:
                     sk = self._find_stream_from_list(stream_key, search_streams, nearby, stream_dictionary)
                     if sk:
@@ -438,6 +443,7 @@ class StreamRequest(object):
         :param streams:
         :return:
         """
+        log.debug('_find_stream_same_sensor(%r, %r, STREAM_DICTIONARY)', stream_key, streams)
         method = stream_key.method
         subsite = stream_key.subsite
         node = stream_key.node
@@ -457,6 +463,7 @@ class StreamRequest(object):
 
     @staticmethod
     def _find_stream_from_list(stream_key, streams, sensors, stream_dictionary):
+        log.debug('_find_stream_from_list(%r, %r, %r, STREAM_DICTIONARY)', stream_key, streams, sensors)
         method = stream_key.method
         subsite = stream_key.subsite
         designators = [(c.subsite, c.node, c.sensor) for c in sensors]
@@ -484,6 +491,7 @@ class StreamRequest(object):
         :param streams: List - list of target streams
         :return: StreamKey if found, otherwise None
         """
+        log.debug('_find_stream_same_node(%r, %r, STREAM_DICTIONARY)', stream_key, streams)
         method = stream_key.method
         subsite = stream_key.subsite
         node = stream_key.node

@@ -12,6 +12,7 @@ LOGGING_CONFIG = 'logging.conf'
 REQUEST_TIMEOUT_SECONDS = 3600  # 60 minutes
 # Maximum depth difference between two instruments to be considered "near"
 MAX_DEPTH_VARIANCE = 6
+MAX_DEPTH_VARIANCE_METBK = 17
 METADATA_CACHE_SECONDS = 600
 PARAMETER_LOGGING = '/opendap_export/stream_engine'
 DPA_VERSION_VARIABLE = "version"
