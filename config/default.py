@@ -5,13 +5,13 @@ from collections import OrderedDict
 # General Settings         #
 ############################
 DEBUG = False
-STREAM_ENGINE_VERSION = "1.2.9"
+STREAM_ENGINE_VERSION = "1.2.10"
 # Cassandra process pool size
 POOL_SIZE = 4
 LOGGING_CONFIG = 'logging.conf'
 REQUEST_TIMEOUT_SECONDS = 3600  # 60 minutes
 # Maximum depth difference between two instruments to be considered "near"
-MAX_DEPTH_VARIANCE = 20
+MAX_DEPTH_VARIANCE = 7
 METADATA_CACHE_SECONDS = 600
 PARAMETER_LOGGING = '/opendap_export/stream_engine'
 DPA_VERSION_VARIABLE = "version"
