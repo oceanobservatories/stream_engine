@@ -20,7 +20,7 @@ MetadataBase.query = session.query_property()
 class ProvenanceMetadataTest(unittest.TestCase):
     def test_unknown_function(self):
         store = ProvenanceMetadataStore(None)
-        parameter = Parameter.query.get(911)
+        parameter = Parameter.query.get(13)
         to_attach = {'type': 'UnknownFunctionError',
                      "parameter": parameter,
                      'function': parameter.parameter_function.function_type}

@@ -252,7 +252,7 @@ class StreamDatasetTest(unittest.TestCase):
         ctd_stream_dataset.events = self.ctd_events
         ctd_stream_dataset._insert_dataset(ctd_ds)
 
-        parameter = Parameter.query.get(911)
+        parameter = Parameter.query.get(13)
         with mock.patch('util.stream_dataset.ParameterReport.write', new=mock_write):
             result = ctd_stream_dataset._log_algorithm_inputs(parameter, {}, np.array([1, 2, 3]), self.ctdpf_sk, ctd_ds)
             self.assertIsNotNone(result)
@@ -270,7 +270,7 @@ class StreamDatasetTest(unittest.TestCase):
         ctd_stream_dataset.events = self.ctd_events
         ctd_stream_dataset._insert_dataset(ctd_ds)
 
-        parameter = Parameter.query.get(911)
+        parameter = Parameter.query.get(13)
         with mock.patch('util.stream_dataset.ParameterReport.write', new=mock_write):
             result = ctd_stream_dataset._log_algorithm_inputs(parameter, {}, None, self.ctdpf_sk, ctd_ds)
             self.assertIsNotNone(result)
