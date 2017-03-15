@@ -74,12 +74,10 @@ def _query_partition_metadata(stream_key, time_range):
         ],
     ]
     """
-    start_bin = _get_first_possible_bin(time_range.start, stream_key.stream_name)
-    end_bin = _time_in_bin_units(time_range.stop, stream_key.stream_name)
     partition_metadata_record_list = metadata_service_api.get_partition_metadata_records(*stream_key.as_tuple())
     result = []
     for rec in partition_metadata_record_list:
-        if rec['bin'] >= start_bin and rec['bin'] <= end_bin:
+        if rec['first'] < time_range.stop and rec['last'] >= time_range.start:
             result.append(_RecordInfo(rec['bin'], rec['store'], rec['count'], rec['first'], rec['last']))
     return result
 
