@@ -203,33 +203,33 @@ class MetadataServiceTest(unittest.TestCase):
         ##############
         # Test Setup #
         ##############
-        bin_min = 10
-        bin_max = bin_min + 10
-        tr = TimeRange(bin_min + (engine.app.config['MAX_BIN_SIZE_MIN'] * 60), bin_max)
 
-        # Filtered - bad bin (too small), right store
-        sk = self.__partition_test_setup(bin_min - 1, CASS_LOCATION_NAME, 1.1, 6.6, 100)
-        # Filtered - bad bin (too big), right store
-        self.__partition_test_setup(bin_max + 1, CASS_LOCATION_NAME, 2.2, 5.5, 200)
-        # Filtered - good bin, wrong store
-        self.__partition_test_setup(bin_min + 1, SAN_LOCATION_NAME, 3.3, 4.4, 300)
+        test_data = [
+            (0, CASS_LOCATION_NAME, 1, 9, 100),        # Right store, wrong times
+            (100, CASS_LOCATION_NAME, 101, 109, 100),  # Right store, wrong times
+            (10, CASS_LOCATION_NAME, 11, 19, 11),      # Right store, right times
+            (20, CASS_LOCATION_NAME, 21, 29, 12),      # Right store, right times
+            (30, CASS_LOCATION_NAME, 31, 39, 13),      # Right store, right times
+            (0, SAN_LOCATION_NAME, 41, 49, 100),       # Wrong store, right times
+        ]
+        tr = TimeRange(10, 100)
 
-        # 3 good ones
-        self.__partition_test_setup(bin_min + 2, CASS_LOCATION_NAME, 4.4, 3.3, 11)
-        self.__partition_test_setup(bin_min + 3, CASS_LOCATION_NAME, 5.5, 2.2, 12)
-        self.__partition_test_setup(bin_min + 4, CASS_LOCATION_NAME, 6.6, 1.1, 13)
+        sk = None
+        for row in test_data:
+            sk = self.__partition_test_setup(*row)
+
         ########
         # Test #
         ########
         actual_result = util.metadata_service.get_location_metadata_by_store(sk, tr, CASS_LOCATION_NAME)
         self.assertEqual(actual_result.total, 36)
-        self.assertEqual(actual_result.start_time, 4.4)
-        self.assertEqual(actual_result.end_time, 3.3)
-        self.assertItemsEqual(actual_result.bin_list, [bin_min + 2, bin_min + 3, bin_min + 4])
+        self.assertEqual(actual_result.start_time, 11)
+        self.assertEqual(actual_result.end_time, 39)
+        self.assertItemsEqual(actual_result.bin_list, [10, 20, 30])
         bins = {
-            bin_min + 2: (11, 4.4, 3.3),
-            bin_min + 3: (12, 5.5, 2.2),
-            bin_min + 4: (13, 6.6, 1.1)
+            10: (11, 11, 19),
+            20: (12, 21, 29),
+            30: (13, 31, 39)
         }
         self.assertEqual(actual_result.bin_information, bins)
 
