@@ -72,15 +72,18 @@ class StreamDataset(object):
         else:
             raise MissingDataException("Query returned no results for stream %s" % self.stream_key)
 
-    def calculate_all(self):
+    def calculate_all(self, source_datasets=None):
         """
         Brute force resolution of parameters - continue to loop as long as we can progress
         """
+        source_datasets = source_datasets if source_datasets else {}
         for deployment, dataset in self.datasets.iteritems():
+            source_dataset = source_datasets.get(deployment)
             while self.params[deployment]:
                 remaining = []
                 for param in self.params[deployment]:
-                    missing = self._try_create_derived_product(dataset, self.stream_key, param, deployment)
+                    missing = self._try_create_derived_product(dataset, self.stream_key,
+                                                               param, deployment, source_dataset)
                     if missing:
                         remaining.append(param)
                         self.missing.setdefault(deployment, {})[param] = missing
@@ -141,7 +144,7 @@ class StreamDataset(object):
                 deployments[:] = deployment
                 dataset['deployment'] = ('obs', deployments, {'name': 'deployment'})
                 self.params[deployment] = [p for p in self.stream_key.stream.derived if not p == self.time_param]
-        self.calculate_all()
+        self.calculate_all(source_datasets=source_stream_dataset.datasets)
 
     def _mask_datasets(self, masks):
         deployments = list(self.datasets)

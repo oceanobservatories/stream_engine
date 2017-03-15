@@ -139,9 +139,8 @@ class StreamRequest(object):
         if self.stream_key.is_virtual:
             found_streams = [stream.stream for stream in self.datasets
                              if self.datasets[stream]]
-            for stream in self.stream_key.stream.source_streams:
-                if stream not in found_streams:
-                    raise MissingDataException(message % 'source')
+            if not any(stream in self.stream_key.stream.source_streams for stream in found_streams):
+                raise MissingDataException(message % 'source')
         # real
         else:
             primary_stream_dataset = self.datasets[self.stream_key]

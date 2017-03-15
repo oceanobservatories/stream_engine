@@ -1,5 +1,6 @@
 Release 1.2.10
 
+Fix bugs preventing virtual stream computation
 OOI Data version 0.0.5
 Preload database version 1.0.8
 
