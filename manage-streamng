@@ -1,6 +1,6 @@
 #!/bin/bash
 
-HERE=$(pwd)
+HERE="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 PIDFILE="$HERE/stream_engine.pid"
 NAME="Stream Engine"

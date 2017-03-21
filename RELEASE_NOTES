@@ -1,3 +1,15 @@
+Release 1.3.0
+
+Updated required packages
+- numpy
+- numexpr
+- scipy
+- ooi-data
+- flask
+- gunicorn
+- xarray
+- pandas
+
 Release 1.2.10
 
 Fix bugs preventing virtual stream computation
