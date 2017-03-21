@@ -108,7 +108,7 @@ class QcExecutor(object):
                 results *= flag
 
                 dataset[qc_count_name].values |= flag
-                dataset[qc_results_name].values |= results
+                dataset[qc_results_name].values |= results.astype(np.uint8)
 
             except (TypeError, ValueError) as e:
                 log.exception('<%s> Failed to execute QC %s %r', self.request_id, function_name, e)
