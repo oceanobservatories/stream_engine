@@ -147,7 +147,7 @@ class StreamDatasetTest(unittest.TestCase):
 
         expected_params = ['ctdpf_sbe43_sample-seawater_temperature',
                            'ctdpf_sbe43_sample-practical_salinity',
-                           'temp_sal_corrected_nitrate']
+                           'salinity_corrected_nitrate']
         self.assert_parameters_in_datasets(nut_stream_dataset.datasets, expected_params)
 
     def test_fill_missing(self):
@@ -236,7 +236,7 @@ class StreamDatasetTest(unittest.TestCase):
 
         expected_params = ['ctdpf_sbe43_sample-seawater_temperature',
                            'ctdpf_sbe43_sample-practical_salinity',
-                           'temp_sal_corrected_nitrate']
+                           'salinity_corrected_nitrate']
         self.assert_parameters_in_datasets(nut_stream_dataset.datasets, expected_params)
 
     def test_log_algorithm_inputs(self):

@@ -169,7 +169,7 @@ class StreamRequestTest(unittest.TestCase):
         qc = json.load(open(os.path.join(DATA_DIR, 'qc.json')))
 
         tr = TimeRange(3.65342400e+09, 3.65351040e+09)
-        sr = StreamRequest(self.nut_sk, [2443], tr, {}, qc_parameters=qc, request_id='UNIT')
+        sr = StreamRequest(self.nut_sk, [18], tr, {}, qc_parameters=qc, request_id='UNIT')
         nutnr_ds = xr.open_dataset(os.path.join(DATA_DIR, nutnr_fn), decode_times=False)
         ctdpf_ds = xr.open_dataset(os.path.join(DATA_DIR, ctdpf_fn), decode_times=False)
 
@@ -224,8 +224,8 @@ class StreamRequestTest(unittest.TestCase):
 
     def test_qc(self):
         sr = self.test_calculate()
-        expected_parameters = ['temp_sal_corrected_nitrate_qc_executed',
-                               'temp_sal_corrected_nitrate_qc_results']
+        expected_parameters = ['salinity_corrected_nitrate_qc_executed',
+                               'salinity_corrected_nitrate_qc_results']
         self.assert_parameters_in_datasets(sr.datasets[self.nut_sk].datasets, expected_parameters)
 
     def test_metbk_hourly_needs(self):
