@@ -4,6 +4,7 @@ channels:
 - ooi
 - conda-forge
 dependencies:
+- nomkl
 - cachetools=2.0.0
 - geoalchemy2=0.4.0
 - cassandra-driver=2.7.2
