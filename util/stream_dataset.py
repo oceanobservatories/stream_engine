@@ -452,6 +452,8 @@ class StreamDataset(object):
                       self.request_id, self.stream_key, source_key, parameter)
             new_name = '-'.join((source_key.stream.name, parameter.name))
             for deployment, ds in self.datasets.iteritems():
+                if new_name in ds:
+                    continue
                 try:
                     ds[new_name] = source_dataset.get_interpolated(ds.time.values, parameter)
                 except StreamEngineException as e:
