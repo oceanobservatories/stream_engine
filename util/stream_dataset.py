@@ -556,6 +556,8 @@ class StreamDataset(object):
             report.set_calculated_parameter(parameter.id, parameter.name, parameter.parameter_function.function)
             for key, value in kwargs.iteritems():
                 report.add_parameter_argument(parameter.id, key, value.tolist())
+            if 'time' not in kwargs:
+                report.add_parameter_argument(parameter.id, 'time', dataset.time.values.tolist())
             if result is not None:
                 report.add_result(result.tolist())
             else:
