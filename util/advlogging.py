@@ -33,6 +33,7 @@ class CalculatedParameter(object):
         self.arg_summary.append(query_parameter.argument)
         self.algorithm_arguments.append(query_parameter)
 
+
 class QueryData(object):
     def __init__(self, name):
         self.calculated_parameters = {}
@@ -81,8 +82,8 @@ class ParameterReport(object):
                     if not os.path.isdir(parent_dir):
                         raise WriteErrorException('Unable to create local output directory: %s' % parent_dir)
 
-                os.makedirs(os.path.dirname(self.m_path))
             with open(self.m_path, 'w') as fh:
+                log.info('Writing advanced logfile: %r', self.m_path)
                 json.dump(self.m_qdata, fh, default=jdefault, indent=2, separators=(',', ': '))
         except EnvironmentError as e:
             log.error('Failed to write advanced logfile: %s', e)
