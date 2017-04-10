@@ -144,7 +144,7 @@ INSTRUMENT_ATTRIBUTE_MAP['owner'] = 'Owner'
 INSTRUMENT_ATTRIBUTE_MAP['remoteResources'] = 'RemoteResources'
 INSTRUMENT_ATTRIBUTE_MAP['shelfLifeExpirationDate'] = 'ShelfLifeExpirationDate'
 INSTRUMENT_ATTRIBUTE_MAP['mobile'] = 'Mobile'
-INSTRUMENT_ATTRIBUTE_MAP['lastModifiedTimestamp'] = 'LastModifiedTimestamp'
+INSTRUMENT_ATTRIBUTE_MAP['lastModifiedTimestamp'] = 'AssetManagementRecordLastModified'
 
 ############################
 # Estimation Settings      #

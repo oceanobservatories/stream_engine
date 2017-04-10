@@ -110,15 +110,21 @@ def rename_glider_lat_lon(stream_key, dataset):
     return dataset
 
 
+def prep_classic(ds):
+    for data_array_name in ds.data_vars:
+        data_array = ds.get(data_array_name)
+        data_type = data_array.dtype
+        if data_type in [np.int64, np.uint32, np.uint64]:
+            ds[data_array_name] = force_data_array_type(data_array, data_type, np.str)
+        elif data_type == np.uint16:
+            ds[data_array_name] = force_data_array_type(data_array, data_type, np.int32)
+        elif data_type == np.uint8:
+            ds[data_array_name] = force_data_array_type(data_array, data_type, np.int16)
+
+
 def write_netcdf(ds, file_path, classic=False):
     if classic:
-        for data_array_name in ds.data_vars:
-            data_array = ds.get(data_array_name)
-            data_type = data_array.dtype
-            if data_type in [np.int64, np.uint32, np.uint64]:
-                ds[data_array_name] = force_data_array_type(data_array, data_type, np.str)
-            elif data_type == np.uint16:
-                ds[data_array_name] = force_data_array_type(data_array, data_type, np.int32)
+        prep_classic(ds)
         ds.to_netcdf(path=file_path, format="NETCDF4_CLASSIC")
     else:
         ensure_no_int64(ds)

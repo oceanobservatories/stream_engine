@@ -1,6 +1,7 @@
 import importlib
 import json
 import logging
+import datetime
 
 import ion_functions
 import numexpr
@@ -108,6 +109,10 @@ class StreamDataset(object):
                         value = json.dumps(value)
                     elif value is None:
                         value = 'Not specified.'
+
+                    if attribute == 'lastModifiedTimestamp':
+                        value = datetime.datetime.utcfromtimestamp(value / 1000.0).isoformat()
+
                     ds.attrs[INSTRUMENT_ATTRIBUTE_MAP[attribute]] = value
 
     def interpolate_needed(self, external_datasets):

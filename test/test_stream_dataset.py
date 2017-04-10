@@ -408,7 +408,7 @@ class StreamDatasetTest(unittest.TestCase):
             self.assertIn('RemoteResources', ds.attrs)
             self.assertIn('ShelfLifeExpirationDate', ds.attrs)
             self.assertIn('Mobile', ds.attrs)
-            self.assertIn('LastModifiedTimestamp', ds.attrs)
+            self.assertIn('AssetManagementRecordLastModified', ds.attrs)
 
             self.assertEqual(ds.attrs['Manufacturer'], 'Sea-Bird Electronics')
             self.assertEqual(ds.attrs['ModelNumber'], 'SBE 16plus V2')
@@ -416,7 +416,7 @@ class StreamDatasetTest(unittest.TestCase):
             self.assertEqual(ds.attrs['Description'], 'CTD Profiler: CTDPF Series A')
             self.assertEqual(ds.attrs['AssetUniqueID'], 'ATOSU-66662-00013')
             self.assertEqual(ds.attrs['Mobile'], 'False')
-            self.assertEqual(ds.attrs['LastModifiedTimestamp'], 1491263305650)
+            self.assertEqual(ds.attrs['AssetManagementRecordLastModified'], '2017-04-03T23:48:25.650000')
 
             self.assertEqual(ds.attrs['FirmwareVersion'], 'Not specified.')
             self.assertEqual(ds.attrs['SoftwareVersion'], 'Not specified.')

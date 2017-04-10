@@ -2,10 +2,11 @@ import logging
 import unittest
 
 import numpy as np
+import xarray as xr
 from ooi_data.postgres.model import MetadataBase
 
 from preload_database.database import create_engine_from_url, create_scoped_session
-from util.netcdf_utils import max_shape, max_dtype
+from util.netcdf_utils import max_shape, max_dtype, prep_classic
 
 logging.basicConfig()
 log = logging.getLogger()
@@ -77,3 +78,24 @@ class NetcdfUtilsTest(unittest.TestCase):
         self.assertEqual(max_dtype(string, f64), string)
         self.assertEqual(max_dtype(string, i32), string)
         self.assertEqual(max_dtype(string, u32), string)
+
+    def test_prep_classic(self):
+        ds = xr.Dataset()
+        time = np.array([1, 2, 3, 4]).astype('float64')
+        int64 = np.array([1, 2, 3, 4]).astype('int64')
+        uint32 = np.array([1, 2, 3, 4]).astype('uint32')
+        uint16 = np.array([1, 2, 3, 4]).astype('uint16')
+        uint8 = np.array([1, 2, 3, 4]).astype('uint8')
+
+        ds['time'] = (['obs'], time, {})
+        ds['int64'] = (['obs'], int64, {})
+        ds['uint32'] = (['obs'], uint32, {})
+        ds['uint16'] = (['obs'], uint16, {})
+        ds['uint8'] = (['obs'], uint8, {})
+        prep_classic(ds)
+
+        self.assertEqual(ds.time.dtype, np.float64)
+        self.assertEqual(ds.int64.dtype, np.dtype('S21'))
+        self.assertEqual(ds.uint32.dtype, np.dtype('S10'))
+        self.assertEqual(ds.uint16.dtype, np.int32)
+        self.assertEqual(ds.uint8.dtype, np.int16)
