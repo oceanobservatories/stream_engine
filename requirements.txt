@@ -1,5 +1,5 @@
 cachetools==2.0.0
-cassandra-driver==2.7.2
+cassandra-driver==3.9.0
 ConcurrentLogHandler==0.9.1
 Flask==0.12
 futures==2.2.0

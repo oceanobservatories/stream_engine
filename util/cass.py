@@ -8,7 +8,7 @@ from multiprocessing import BoundedSemaphore
 import msgpack
 import numpy
 from cassandra import ConsistencyLevel
-from cassandra.cluster import Cluster, PagedResult
+from cassandra.cluster import Cluster
 from cassandra.concurrent import execute_concurrent_with_args
 from cassandra.query import _clean_column_name, tuple_factory, BatchStatement
 
@@ -185,17 +185,6 @@ def query_full_bin(stream_key, bins_and_limit, cols):
 
 
 @log_timing(log)
-def fetch_concurrent(stream_key, cols, times, concurrency=50):  # TODO: remove - unused
-    query = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s' and time>=? and time<=?" % \
-            (','.join(cols), stream_key.stream.name, stream_key.subsite, stream_key.node, stream_key.sensor,
-             stream_key.method)
-    query = SessionManager.prepare(query)
-    results = execute_concurrent_with_args(SessionManager.session(), query, times, concurrency=concurrency)
-    results = [list(r[1]) if type(r[1]) == PagedResult else r[1] for r in results if r[0]]
-    return results
-
-
-@log_timing(log)
 def fetch_l0_provenance(stream_key, provenance_values, deployment):
     """
     Fetch the l0_provenance entry for the passed information.
@@ -219,7 +208,7 @@ def fetch_l0_provenance(stream_key, provenance_values, deployment):
 
     query = SessionManager.prepare(L0_DATASET)
     results = execute_concurrent_with_args(SessionManager.session(), query, provenance_arguments)
-    records = [ProvTuple(*rows[0]) for success, rows in results if success and len(rows) > 0]
+    records = [ProvTuple(*rows[0]) for success, rows in results if success and rows]
 
     if len(provenance_arguments) != len(records):
         log.warn("Could not find %d provenance entries", len(provenance_arguments) - len(records))

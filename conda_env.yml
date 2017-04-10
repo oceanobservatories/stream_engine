@@ -7,7 +7,7 @@ dependencies:
 - nomkl
 - cachetools=2.0.0
 - geoalchemy2=0.4.0
-- cassandra-driver=2.7.2
+- cassandra-driver=3.9.0
 - concurrentloghandler=0.9.1
 - flask=0.12
 - futures=2.2.0
