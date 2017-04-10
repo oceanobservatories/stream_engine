@@ -380,7 +380,7 @@ class StreamDataset(object):
 
         # IF data is missing and specified dimensions aren't already defined
         # we cannot determine the correct shape, limit dimensions to obs
-        missing = [d for d in dims if d not in dataset]
+        missing = [d for d in dims if d not in dataset.dims]
         if missing and data is None:
             log.error('Unable to resolve all dimensions for derived parameter: %r. Filling as scalar', missing)
             dims = ['obs']

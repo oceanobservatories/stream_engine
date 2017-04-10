@@ -6,28 +6,10 @@ import pandas as pd
 import xarray.backends.api
 import xarray as xr
 
-from xarray.backends import NetCDF4DataStore
 from xarray.conventions import (CharToStringArray, NativeEndiannessArray, DecodedCFTimedeltaArray, pop_to,
-                                DecodedCFDatetimeArray, TIME_UNITS, MaskedAndScaledArray)
+                                DecodedCFDatetimeArray, TIME_UNITS, MaskedAndScaledArray, BoolTypeArray)
 from xarray.core import indexing, utils
 from xarray.core.variable import as_variable, Variable
-
-
-UNLIMITED_DIMS = 'unlimited'
-NETCDF_ENGINE = 'netcdf4_unlimited'
-
-
-class NetCDF4DataStoreUnlimited(NetCDF4DataStore):
-    # Override set_necessary_dimensions to allow the 
-    # dimension defined in 'unlimited' list to be set 
-    # to unlimited
-    def set_necessary_dimensions(self, variable):
-        unlimited_dim = variable.encoding.pop(UNLIMITED_DIMS, [])
-        for d, l in zip(variable.dims, variable.shape):
-            if d in unlimited_dim:
-                l = None
-            if d not in self.dimensions:
-                self.set_dimension(d, l)
 
 
 # PATCH default XARRAY behavior when restoring string variables from netCDF
@@ -82,8 +64,8 @@ def decode_cf_variable(var, concat_characters=True, mask_and_scale=True,
             # missing_value is deprecated, but we still want to support it as
             # an alias for _FillValue.
             if ('_FillValue' in attributes and
-                    not utils.equivalent(attributes['_FillValue'],
-                                         attributes['missing_value'])):
+                not utils.equivalent(attributes['_FillValue'],
+                                     attributes['missing_value'])):
                 raise ValueError("Discovered conflicting _FillValue "
                                  "and missing_value.  Considering "
                                  "opening the offending dataset using "
@@ -100,7 +82,7 @@ def decode_cf_variable(var, concat_characters=True, mask_and_scale=True,
         scale_factor = pop_to(attributes, encoding, 'scale_factor')
         add_offset = pop_to(attributes, encoding, 'add_offset')
         if ((fill_value is not None and not np.any(pd.isnull(fill_value))) or
-                    scale_factor is not None or add_offset is not None):
+                scale_factor is not None or add_offset is not None):
             if fill_value.dtype.kind in ['U', 'S']:
                 dtype = object
             else:
@@ -130,11 +112,14 @@ def decode_cf_variable(var, concat_characters=True, mask_and_scale=True,
     else:
         encoding['dtype'] = original_dtype
 
+    if 'dtype' in attributes and attributes['dtype'] == 'bool':
+        del attributes['dtype']
+        data = BoolTypeArray(data)
+
     return Variable(dimensions, indexing.LazilyIndexedArray(data),
                     attributes, encoding=encoding)
 
 
 xarray.conventions.decode_cf_variable = decode_cf_variable
-xarray.backends.api.WRITEABLE_STORES[NETCDF_ENGINE] = NetCDF4DataStoreUnlimited
 
-__all__ = [xr, UNLIMITED_DIMS, NETCDF_ENGINE]
+__all__ = [xr]

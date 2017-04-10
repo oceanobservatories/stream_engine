@@ -16,7 +16,8 @@ from util.common import log_timing
 from util.datamodel import compile_datasets
 from util.gather import gather_files
 from util.netcdf_utils import write_netcdf, add_dynamic_attributes, analyze_datasets
-from .xarray_overrides import xr
+from util.xarray_overrides import xr
+
 
 log = logging.getLogger(__name__)
 
@@ -162,7 +163,7 @@ def shape_up(dataset, parameters, request_id=None):
     """
     temp_dims = []
 
-    if 'obs' in dataset:
+    if 'obs' in dataset.dims:
         for var in parameters:
             shape = (dataset.obs.size, ) + parameters[var]['shape']
             dtype = parameters[var]['dtype']
@@ -220,10 +221,6 @@ def shape_up(dataset, parameters, request_id=None):
                 # pad the data and re-insert
                 padded_data = np.pad(vals, pads, mode='constant', constant_values=fill)
                 dataset[var] = (dims, padded_data, dataset[var].attrs)
-
-        # delete any temporary dimensions created
-        for dim in temp_dims:
-            del dataset[dim]
 
 
 @log_timing(log)

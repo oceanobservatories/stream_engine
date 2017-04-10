@@ -4,7 +4,7 @@ import os
 import numpy as np
 
 from engine import app
-from xarray_overrides import UNLIMITED_DIMS, NETCDF_ENGINE, xr
+from util.xarray_overrides import xr
 from ooi_data.postgres.model import Stream, Parameter
 from util.common import MissingDataException, ntp_to_datestring, log_timing
 
@@ -13,6 +13,7 @@ GPS_STREAM_ID = app.config.get('GPS_STREAM_ID')
 LATITUDE_PARAM_ID = app.config.get('LATITUDE_PARAM_ID')
 LONGITUDE_PARAM_ID = app.config.get('LONGITUDE_PARAM_ID')
 FILL_VALUES = app.config['FILL_VALUES']
+NETCDF_UNLIMITED_DIMS = app.config.get('NETCDF_UNLIMITED_DIMS')
 
 
 log = logging.getLogger(__name__)
@@ -25,13 +26,12 @@ def make_encoding(ds):
     if comp_level <= 0:
         compress = False
     chunksize = app.config.get('NETCDF_CHUNKSIZES')
-    unlimited_dims = app.config.get('NETCDF_UNLIMITED_DIMS')
 
     for k in ds.data_vars:
         values = ds[k].values
         shape = values.shape
 
-        encoding[k] = {'zlib': compress, 'complevel': comp_level, UNLIMITED_DIMS: unlimited_dims}
+        encoding[k] = {'zlib': compress, 'complevel': comp_level}
 
         if 0 not in shape:
             if values.dtype.kind == 'O':
@@ -123,7 +123,7 @@ def write_netcdf(ds, file_path, classic=False):
     else:
         ensure_no_int64(ds)
         encoding = make_encoding(ds)
-        ds.to_netcdf(file_path, engine=NETCDF_ENGINE, encoding=encoding)
+        ds.to_netcdf(file_path, encoding=encoding, unlimited_dims=NETCDF_UNLIMITED_DIMS)
 
 
 def max_shape(shape1, shape2):

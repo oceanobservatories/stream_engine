@@ -270,7 +270,7 @@ class StreamRequestTest(unittest.TestCase):
         sr = self.create_metbk_hourly_sr()
         sr.calculate_derived_products()
         sr.insert_provenance()
-        expected_params = [p.name for p in hourly_sk.stream.parameters] + ['obs', 'time', 'deployment', 'lat', 'lon']
+        expected_params = [p.name for p in hourly_sk.stream.parameters] + ['time', 'deployment', 'lat', 'lon']
         self.assertListEqual(sorted(expected_params), sorted(sr.datasets[hourly_sk].datasets[1]))
 
     def create_echo_sounding_sr(self, parameters=None):

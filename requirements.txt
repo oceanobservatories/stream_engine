@@ -19,4 +19,4 @@ requests==2.13.0
 scipy==0.19.0
 simplejson==3.10.0
 SQLAlchemy==1.1.5
-xarray==0.8.2
+xarray==0.9.2
