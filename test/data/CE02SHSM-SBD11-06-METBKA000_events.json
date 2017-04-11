@@ -1,172 +1,187 @@
 [
 	{
 		"@class": ".XDeployment",
-		"editPhase": "OPERATIONAL",
-		"node": null,
-		"referenceDesignator": "CE02SHSM-SBD11-06-METBKA000",
-		"deploymentNumber": 1,
-		"versionNumber": 1,
+		"location": {
+			"depth": -3.0,
+			"location": [
+				-124.30388,
+				44.63833
+			],
+			"longitude": -124.30388,
+			"latitude": 44.63833,
+			"orbitRadius": null
+		},
 		"sensor": {
 			"@class": ".XInstrument",
 			"calibration": [
 				{
 					"@class": ".XCalibration",
+					"name": "CC_height_of_air_temperature_measurement_m",
 					"calData": [
 						{
 							"@class": ".XCalibrationData",
-							"comments": null,
 							"value": 4.09,
-							"eventId": 18228,
+							"comments": null,
+							"eventId": 18502,
 							"assetUid": "CGINS-METLGR-00011",
 							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1427932800000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
 							"eventName": "CC_height_of_air_temperature_measurement_m",
+							"dataSource": "CGINS-METLGR-00011__20150402_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263464333
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_jwarm",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 1.0,
+							"comments": "Constant",
+							"eventId": 18500,
+							"assetUid": "CGINS-METLGR-00011",
+							"eventType": "CALIBRATION_DATA",
 							"eventStartTime": 1427932800000,
 							"eventStopTime": null,
 							"notes": null,
 							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00011__20150402_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892191503
-						}
-					],
-					"name": "CC_height_of_air_temperature_measurement_m"
-				},
-				{
-					"@class": ".XCalibration",
-					"calData": [
-						{
-							"@class": ".XCalibrationData",
-							"comments": "Constant",
-							"value": 1.0,
-							"eventId": 18226,
-							"assetUid": "CGINS-METLGR-00011",
-							"eventType": "CALIBRATION_DATA",
 							"eventName": "CC_jwarm",
-							"eventStartTime": 1427932800000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
 							"dataSource": "CGINS-METLGR-00011__20150402_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892191503
+							"lastModifiedTimestamp": 1491263464333
 						}
-					],
-					"name": "CC_jwarm"
+					]
 				},
 				{
 					"@class": ".XCalibration",
+					"name": "CC_height_of_air_humidity_measurement_m",
 					"calData": [
 						{
 							"@class": ".XCalibrationData",
-							"comments": null,
 							"value": 4.09,
-							"eventId": 18230,
+							"comments": null,
+							"eventId": 18504,
 							"assetUid": "CGINS-METLGR-00011",
 							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1427932800000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
 							"eventName": "CC_height_of_air_humidity_measurement_m",
-							"eventStartTime": 1427932800000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
 							"dataSource": "CGINS-METLGR-00011__20150402_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892191503
+							"lastModifiedTimestamp": 1491263464333
 						}
-					],
-					"name": "CC_height_of_air_humidity_measurement_m"
+					]
 				},
 				{
 					"@class": ".XCalibration",
+					"name": "CC_zinvpbl",
 					"calData": [
 						{
 							"@class": ".XCalibrationData",
-							"comments": "Constant",
 							"value": 600.0,
-							"eventId": 18232,
-							"assetUid": "CGINS-METLGR-00011",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_zinvpbl",
-							"eventStartTime": 1427932800000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00011__20150402_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892191503
-						}
-					],
-					"name": "CC_zinvpbl"
-				},
-				{
-					"@class": ".XCalibration",
-					"calData": [
-						{
-							"@class": ".XCalibrationData",
-							"comments": null,
-							"value": 4.65,
-							"eventId": 18236,
-							"assetUid": "CGINS-METLGR-00011",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_height_of_windspeed_sensor_above_sealevel_m",
-							"eventStartTime": 1427932800000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00011__20150402_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892191503
-						}
-					],
-					"name": "CC_height_of_windspeed_sensor_above_sealevel_m"
-				},
-				{
-					"@class": ".XCalibration",
-					"calData": [
-						{
-							"@class": ".XCalibrationData",
-							"comments": null,
-							"value": 1.04,
-							"eventId": 18234,
-							"assetUid": "CGINS-METLGR-00011",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_depth_of_conductivity_and_temperature_measurements_m",
-							"eventStartTime": 1427932800000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00011__20150402_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892191503
-						}
-					],
-					"name": "CC_depth_of_conductivity_and_temperature_measurements_m"
-				},
-				{
-					"@class": ".XCalibration",
-					"calData": [
-						{
-							"@class": ".XCalibrationData",
 							"comments": "Constant",
-							"value": 1.0,
-							"eventId": 18238,
+							"eventId": 18506,
 							"assetUid": "CGINS-METLGR-00011",
 							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_jcool",
 							"eventStartTime": 1427932800000,
 							"eventStopTime": null,
 							"notes": null,
 							"tense": "UNKNOWN",
+							"eventName": "CC_zinvpbl",
 							"dataSource": "CGINS-METLGR-00011__20150402_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892191503
+							"lastModifiedTimestamp": 1491263464333
 						}
-					],
-					"name": "CC_jcool"
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_height_of_windspeed_sensor_above_sealevel_m",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 4.65,
+							"comments": null,
+							"eventId": 18510,
+							"assetUid": "CGINS-METLGR-00011",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1427932800000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_height_of_windspeed_sensor_above_sealevel_m",
+							"dataSource": "CGINS-METLGR-00011__20150402_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263464333
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_depth_of_conductivity_and_temperature_measurements_m",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 1.04,
+							"comments": null,
+							"eventId": 18508,
+							"assetUid": "CGINS-METLGR-00011",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1427932800000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_depth_of_conductivity_and_temperature_measurements_m",
+							"dataSource": "CGINS-METLGR-00011__20150402_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263464333
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_jcool",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 1.0,
+							"comments": "Constant",
+							"eventId": 18512,
+							"assetUid": "CGINS-METLGR-00011",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1427932800000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_jcool",
+							"dataSource": "CGINS-METLGR-00011__20150402_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263464333
+						}
+					]
 				}
 			],
-			"remoteResources": [
-				
-			],
 			"events": [
-				
+
 			],
-			"assetId": 348,
+			"assetId": 580,
+			"remoteResources": [
+
+			],
 			"serialNumber": "LGR011",
-			"editPhase": "OPERATIONAL",
+			"name": "LGR011",
+			"location": null,
+			"owner": null,
 			"description": "Bulk Meteorology Instrument Package: METBK LGR Module",
+			"notes": null,
+			"physicalInfo": {
+				"length": -1.0,
+				"height": -1.0,
+				"width": -1.0,
+				"weight": -1.0
+			},
+			"editPhase": "OPERATIONAL",
 			"uid": "CGINS-METLGR-00011",
 			"assetType": "Sensor",
 			"mobile": false,
@@ -186,31 +201,36 @@
 			"firmwareVersion": null,
 			"softwareVersion": null,
 			"powerRequirements": null,
-			"physicalInfo": {
-				"height": -1.0,
-				"width": -1.0,
-				"weight": -1.0,
-				"length": -1.0
-			},
-			"notes": null,
-			"name": "LGR011",
-			"location": null,
-			"owner": null,
 			"dataSource": "BulkLoad from [sensor_bulk_load-AssetRecord.csv]",
-			"lastModifiedTimestamp": 1485891995481
+			"lastModifiedTimestamp": 1491263283349
 		},
+		"node": null,
+		"referenceDesignator": "CE02SHSM-SBD11-06-METBKA000",
+		"editPhase": "OPERATIONAL",
+		"deploymentNumber": 1,
+		"versionNumber": 1,
 		"mooring": {
 			"@class": ".XMooring",
-			"remoteResources": [
-				
-			],
 			"events": [
-				
+
 			],
-			"assetId": 2974,
+			"assetId": 284,
+			"remoteResources": [
+
+			],
 			"serialNumber": "CE02SHSM-00001",
+			"name": "CE02SHSM-00001",
+			"location": null,
+			"owner": null,
+			"description": "Coastal Endurance Oregon Shelf Surface Mooring",
+			"notes": null,
+			"physicalInfo": {
+				"length": -1.0,
+				"height": -1.0,
+				"width": -1.0,
+				"weight": -1.0
+			},
 			"editPhase": "OPERATIONAL",
-			"description": "Oregon Shelf Surface Mooring",
 			"uid": "CGMCE-02SHSM-00001",
 			"assetType": "Mooring",
 			"mobile": false,
@@ -230,443 +250,438 @@
 			"firmwareVersion": null,
 			"softwareVersion": null,
 			"powerRequirements": null,
-			"physicalInfo": {
-				"height": -1.0,
-				"width": -1.0,
-				"weight": -1.0,
-				"length": -1.0
-			},
-			"notes": null,
-			"name": "CE02SHSM-00001",
-			"location": null,
-			"owner": null,
 			"dataSource": "BulkLoad from [platform_bulk_load-AssetRecord.csv]",
-			"lastModifiedTimestamp": 1485892018590
+			"lastModifiedTimestamp": 1491263279233
 		},
 		"deployCruiseInfo": {
 			"@class": ".CruiseInfo",
+			"editPhase": "OPERATIONAL",
 			"uniqueCruiseIdentifier": "OC1503D",
 			"cruiseIdentifier": null,
 			"shipName": "R/V Oceanus",
-			"editPhase": "OPERATIONAL",
-			"eventId": 29,
+			"eventId": 31,
 			"assetUid": null,
 			"eventType": "CRUISE_INFO",
-			"eventName": "OC1503D",
 			"eventStartTime": 1427932800000,
 			"eventStopTime": 1428796800000,
 			"notes": null,
 			"tense": "UNKNOWN",
+			"eventName": "OC1503D",
 			"dataSource": "Load from [CruiseInformation.xlsx]",
-			"lastModifiedTimestamp": 1485892023465
+			"lastModifiedTimestamp": 1491263136240
 		},
 		"recoverCruiseInfo": null,
 		"deployedBy": null,
 		"recoveredBy": null,
 		"inductiveId": null,
-		"waterDepth": null,
+		"waterDepth": 80.0,
 		"ingestInfo": [
-			
+
 		],
-		"location": {
-			"depth": -3.0,
-			"longitude": -124.30388,
-			"latitude": 44.63833,
-			"orbitRadius": null,
-			"location": [
-				-124.30388,
-				44.63833
-			]
-		},
-		"eventId": 2839,
+		"eventId": 2994,
 		"assetUid": null,
 		"eventType": "DEPLOYMENT",
-		"eventName": "CE02SHSM-SBD11-06-METBKA000",
 		"eventStartTime": 1428006540000,
 		"eventStopTime": 1444176000000,
 		"notes": null,
 		"tense": "UNKNOWN",
+		"eventName": "CE02SHSM-SBD11-06-METBKA000",
 		"dataSource": "Load from [CE02SHSM_Deploy.xlsx]",
-		"lastModifiedTimestamp": 1485892122144
+		"lastModifiedTimestamp": 1491263411933
 	},
 	{
 		"@class": ".XDeployment",
-		"editPhase": "OPERATIONAL",
-		"node": null,
-		"referenceDesignator": "CE02SHSM-SBD11-06-METBKA000",
-		"deploymentNumber": 2,
-		"versionNumber": 1,
+		"location": {
+			"depth": -3.0,
+			"location": [
+				-124.30252,
+				44.63538
+			],
+			"longitude": -124.30252,
+			"latitude": 44.63538,
+			"orbitRadius": null
+		},
 		"sensor": {
 			"@class": ".XInstrument",
 			"calibration": [
 				{
 					"@class": ".XCalibration",
+					"name": "CC_height_of_air_temperature_measurement_m",
 					"calData": [
 						{
 							"@class": ".XCalibrationData",
-							"comments": null,
-							"value": 4.293,
-							"eventId": 35969,
-							"assetUid": "CGINS-METLGR-00008",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_height_of_air_temperature_measurement_m",
-							"eventStartTime": 1464393600000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00008__20160528_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892266273
-						},
-						{
-							"@class": ".XCalibrationData",
-							"comments": "[m]",
 							"value": 3.63,
-							"eventId": 39006,
-							"assetUid": "CGINS-METLGR-00008",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_height_of_air_temperature_measurement_m",
-							"eventStartTime": 1444176000000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00008__20151007_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892286969
-						},
-						{
-							"@class": ".XCalibrationData",
-							"comments": null,
-							"value": 4.08,
-							"eventId": 22944,
-							"assetUid": "CGINS-METLGR-00008",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_height_of_air_temperature_measurement_m",
-							"eventStartTime": 1428192000000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00008__20150405_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892207352
-						}
-					],
-					"name": "CC_height_of_air_temperature_measurement_m"
-				},
-				{
-					"@class": ".XCalibration",
-					"calData": [
-						{
-							"@class": ".XCalibrationData",
-							"comments": "Constant.",
-							"value": 1.0,
-							"eventId": 22942,
-							"assetUid": "CGINS-METLGR-00008",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_jwarm",
-							"eventStartTime": 1428192000000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00008__20150405_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892207352
-						},
-						{
-							"@class": ".XCalibrationData",
-							"comments": "Constant",
-							"value": 1.0,
-							"eventId": 35970,
-							"assetUid": "CGINS-METLGR-00008",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_jwarm",
-							"eventStartTime": 1464393600000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00008__20160528_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892266273
-						},
-						{
-							"@class": ".XCalibrationData",
-							"comments": "Constant",
-							"value": 1.0,
-							"eventId": 39005,
-							"assetUid": "CGINS-METLGR-00008",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_jwarm",
-							"eventStartTime": 1444176000000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00008__20151007_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892286969
-						}
-					],
-					"name": "CC_jwarm"
-				},
-				{
-					"@class": ".XCalibration",
-					"calData": [
-						{
-							"@class": ".XCalibrationData",
-							"comments": null,
-							"value": 4.08,
-							"eventId": 22946,
-							"assetUid": "CGINS-METLGR-00008",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_height_of_air_humidity_measurement_m",
-							"eventStartTime": 1428192000000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00008__20150405_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892207352
-						},
-						{
-							"@class": ".XCalibrationData",
 							"comments": "[m]",
-							"value": 3.63,
-							"eventId": 39007,
+							"eventId": 39394,
 							"assetUid": "CGINS-METLGR-00008",
 							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_height_of_air_humidity_measurement_m",
 							"eventStartTime": 1444176000000,
 							"eventStopTime": null,
 							"notes": null,
 							"tense": "UNKNOWN",
+							"eventName": "CC_height_of_air_temperature_measurement_m",
 							"dataSource": "CGINS-METLGR-00008__20151007_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892286969
+							"lastModifiedTimestamp": 1491263560263
 						},
 						{
 							"@class": ".XCalibrationData",
+							"value": 4.08,
 							"comments": null,
+							"eventId": 23276,
+							"assetUid": "CGINS-METLGR-00008",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1428192000000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_height_of_air_temperature_measurement_m",
+							"dataSource": "CGINS-METLGR-00008__20150405_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263480483
+						},
+						{
+							"@class": ".XCalibrationData",
 							"value": 4.293,
-							"eventId": 35971,
+							"comments": null,
+							"eventId": 36349,
 							"assetUid": "CGINS-METLGR-00008",
 							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_height_of_air_humidity_measurement_m",
 							"eventStartTime": 1464393600000,
 							"eventStopTime": null,
 							"notes": null,
 							"tense": "UNKNOWN",
+							"eventName": "CC_height_of_air_temperature_measurement_m",
 							"dataSource": "CGINS-METLGR-00008__20160528_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892266273
+							"lastModifiedTimestamp": 1491263540359
 						}
-					],
-					"name": "CC_height_of_air_humidity_measurement_m"
+					]
 				},
 				{
 					"@class": ".XCalibration",
+					"name": "CC_jwarm",
 					"calData": [
 						{
 							"@class": ".XCalibrationData",
+							"value": 1.0,
 							"comments": "Constant",
-							"value": 600.0,
-							"eventId": 35972,
+							"eventId": 39393,
 							"assetUid": "CGINS-METLGR-00008",
 							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_zinvpbl",
-							"eventStartTime": 1464393600000,
+							"eventStartTime": 1444176000000,
 							"eventStopTime": null,
 							"notes": null,
 							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00008__20160528_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892266273
+							"eventName": "CC_jwarm",
+							"dataSource": "CGINS-METLGR-00008__20151007_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263560263
 						},
 						{
 							"@class": ".XCalibrationData",
+							"value": 1.0,
 							"comments": "Constant.",
-							"value": 600.0,
-							"eventId": 22948,
+							"eventId": 23274,
 							"assetUid": "CGINS-METLGR-00008",
 							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_zinvpbl",
 							"eventStartTime": 1428192000000,
 							"eventStopTime": null,
 							"notes": null,
 							"tense": "UNKNOWN",
+							"eventName": "CC_jwarm",
 							"dataSource": "CGINS-METLGR-00008__20150405_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892207352
+							"lastModifiedTimestamp": 1491263480483
 						},
 						{
 							"@class": ".XCalibrationData",
+							"value": 1.0,
 							"comments": "Constant",
-							"value": 600.0,
-							"eventId": 39008,
+							"eventId": 36350,
 							"assetUid": "CGINS-METLGR-00008",
 							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_zinvpbl",
-							"eventStartTime": 1444176000000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00008__20151007_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892286969
-						}
-					],
-					"name": "CC_zinvpbl"
-				},
-				{
-					"@class": ".XCalibration",
-					"calData": [
-						{
-							"@class": ".XCalibrationData",
-							"comments": "[m]",
-							"value": 4.19,
-							"eventId": 39010,
-							"assetUid": "CGINS-METLGR-00008",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_height_of_windspeed_sensor_above_sealevel_m",
-							"eventStartTime": 1444176000000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00008__20151007_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892286969
-						},
-						{
-							"@class": ".XCalibrationData",
-							"comments": null,
-							"value": 4.75,
-							"eventId": 35973,
-							"assetUid": "CGINS-METLGR-00008",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_height_of_windspeed_sensor_above_sealevel_m",
 							"eventStartTime": 1464393600000,
 							"eventStopTime": null,
 							"notes": null,
 							"tense": "UNKNOWN",
+							"eventName": "CC_jwarm",
 							"dataSource": "CGINS-METLGR-00008__20160528_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892266273
+							"lastModifiedTimestamp": 1491263540359
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_height_of_air_humidity_measurement_m",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 4.293,
+							"comments": null,
+							"eventId": 36351,
+							"assetUid": "CGINS-METLGR-00008",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1464393600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_height_of_air_humidity_measurement_m",
+							"dataSource": "CGINS-METLGR-00008__20160528_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263540359
 						},
 						{
 							"@class": ".XCalibrationData",
+							"value": 4.08,
 							"comments": null,
+							"eventId": 23278,
+							"assetUid": "CGINS-METLGR-00008",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1428192000000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_height_of_air_humidity_measurement_m",
+							"dataSource": "CGINS-METLGR-00008__20150405_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263480483
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": 3.63,
+							"comments": "[m]",
+							"eventId": 39395,
+							"assetUid": "CGINS-METLGR-00008",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1444176000000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_height_of_air_humidity_measurement_m",
+							"dataSource": "CGINS-METLGR-00008__20151007_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263560263
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_zinvpbl",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 600.0,
+							"comments": "Constant",
+							"eventId": 39396,
+							"assetUid": "CGINS-METLGR-00008",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1444176000000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_zinvpbl",
+							"dataSource": "CGINS-METLGR-00008__20151007_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263560263
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": 600.0,
+							"comments": "Constant.",
+							"eventId": 23280,
+							"assetUid": "CGINS-METLGR-00008",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1428192000000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_zinvpbl",
+							"dataSource": "CGINS-METLGR-00008__20150405_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263480483
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": 600.0,
+							"comments": "Constant",
+							"eventId": 36352,
+							"assetUid": "CGINS-METLGR-00008",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1464393600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_zinvpbl",
+							"dataSource": "CGINS-METLGR-00008__20160528_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263540359
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_height_of_windspeed_sensor_above_sealevel_m",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
 							"value": 4.64,
-							"eventId": 22952,
+							"comments": null,
+							"eventId": 23284,
 							"assetUid": "CGINS-METLGR-00008",
 							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1428192000000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
 							"eventName": "CC_height_of_windspeed_sensor_above_sealevel_m",
-							"eventStartTime": 1428192000000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
 							"dataSource": "CGINS-METLGR-00008__20150405_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892207352
-						}
-					],
-					"name": "CC_height_of_windspeed_sensor_above_sealevel_m"
-				},
-				{
-					"@class": ".XCalibration",
-					"calData": [
-						{
-							"@class": ".XCalibrationData",
-							"comments": null,
-							"value": 1.05,
-							"eventId": 22950,
-							"assetUid": "CGINS-METLGR-00008",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_depth_of_conductivity_and_temperature_measurements_m",
-							"eventStartTime": 1428192000000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00008__20150405_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892207352
+							"lastModifiedTimestamp": 1491263480483
 						},
 						{
 							"@class": ".XCalibrationData",
-							"comments": null,
-							"value": 1.067,
-							"eventId": 35974,
-							"assetUid": "CGINS-METLGR-00008",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_depth_of_conductivity_and_temperature_measurements_m",
-							"eventStartTime": 1464393600000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00008__20160528_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892266273
-						},
-						{
-							"@class": ".XCalibrationData",
+							"value": 4.19,
 							"comments": "[m]",
-							"value": 1.5,
-							"eventId": 39009,
+							"eventId": 39398,
 							"assetUid": "CGINS-METLGR-00008",
 							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_depth_of_conductivity_and_temperature_measurements_m",
 							"eventStartTime": 1444176000000,
 							"eventStopTime": null,
 							"notes": null,
 							"tense": "UNKNOWN",
+							"eventName": "CC_height_of_windspeed_sensor_above_sealevel_m",
 							"dataSource": "CGINS-METLGR-00008__20151007_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892286969
-						}
-					],
-					"name": "CC_depth_of_conductivity_and_temperature_measurements_m"
-				},
-				{
-					"@class": ".XCalibration",
-					"calData": [
-						{
-							"@class": ".XCalibrationData",
-							"comments": "Constant",
-							"value": 1.0,
-							"eventId": 39011,
-							"assetUid": "CGINS-METLGR-00008",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_jcool",
-							"eventStartTime": 1444176000000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00008__20151007_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892286969
+							"lastModifiedTimestamp": 1491263560263
 						},
 						{
 							"@class": ".XCalibrationData",
-							"comments": "Constant.",
-							"value": 1.0,
-							"eventId": 22954,
+							"value": 4.75,
+							"comments": null,
+							"eventId": 36353,
 							"assetUid": "CGINS-METLGR-00008",
 							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_jcool",
-							"eventStartTime": 1428192000000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00008__20150405_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892207352
-						},
-						{
-							"@class": ".XCalibrationData",
-							"comments": "Constant",
-							"value": 1.0,
-							"eventId": 35975,
-							"assetUid": "CGINS-METLGR-00008",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_jcool",
 							"eventStartTime": 1464393600000,
 							"eventStopTime": null,
 							"notes": null,
 							"tense": "UNKNOWN",
+							"eventName": "CC_height_of_windspeed_sensor_above_sealevel_m",
 							"dataSource": "CGINS-METLGR-00008__20160528_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892266273
+							"lastModifiedTimestamp": 1491263540359
 						}
-					],
-					"name": "CC_jcool"
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_depth_of_conductivity_and_temperature_measurements_m",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 1.05,
+							"comments": null,
+							"eventId": 23282,
+							"assetUid": "CGINS-METLGR-00008",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1428192000000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_depth_of_conductivity_and_temperature_measurements_m",
+							"dataSource": "CGINS-METLGR-00008__20150405_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263480483
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": 1.5,
+							"comments": "[m]",
+							"eventId": 39397,
+							"assetUid": "CGINS-METLGR-00008",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1444176000000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_depth_of_conductivity_and_temperature_measurements_m",
+							"dataSource": "CGINS-METLGR-00008__20151007_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263560263
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": 1.067,
+							"comments": null,
+							"eventId": 36354,
+							"assetUid": "CGINS-METLGR-00008",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1464393600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_depth_of_conductivity_and_temperature_measurements_m",
+							"dataSource": "CGINS-METLGR-00008__20160528_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263540359
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_jcool",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 1.0,
+							"comments": "Constant",
+							"eventId": 39399,
+							"assetUid": "CGINS-METLGR-00008",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1444176000000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_jcool",
+							"dataSource": "CGINS-METLGR-00008__20151007_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263560263
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": 1.0,
+							"comments": "Constant.",
+							"eventId": 23286,
+							"assetUid": "CGINS-METLGR-00008",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1428192000000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_jcool",
+							"dataSource": "CGINS-METLGR-00008__20150405_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263480483
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": 1.0,
+							"comments": "Constant",
+							"eventId": 36355,
+							"assetUid": "CGINS-METLGR-00008",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1464393600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_jcool",
+							"dataSource": "CGINS-METLGR-00008__20160528_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263540359
+						}
+					]
 				}
 			],
-			"remoteResources": [
-				
-			],
 			"events": [
-				
+
 			],
-			"assetId": 224,
+			"assetId": 452,
+			"remoteResources": [
+
+			],
 			"serialNumber": "LGR008",
-			"editPhase": "OPERATIONAL",
+			"name": "LGR008",
+			"location": null,
+			"owner": null,
 			"description": "Bulk Meteorology Instrument Package: METBK LGR Module",
+			"notes": null,
+			"physicalInfo": {
+				"length": -1.0,
+				"height": -1.0,
+				"width": -1.0,
+				"weight": -1.0
+			},
+			"editPhase": "OPERATIONAL",
 			"uid": "CGINS-METLGR-00008",
 			"assetType": "Sensor",
 			"mobile": false,
@@ -686,31 +701,36 @@
 			"firmwareVersion": null,
 			"softwareVersion": null,
 			"powerRequirements": null,
-			"physicalInfo": {
-				"height": -1.0,
-				"width": -1.0,
-				"weight": -1.0,
-				"length": -1.0
-			},
-			"notes": null,
-			"name": "LGR008",
-			"location": null,
-			"owner": null,
 			"dataSource": "BulkLoad from [sensor_bulk_load-AssetRecord.csv]",
-			"lastModifiedTimestamp": 1485891994299
+			"lastModifiedTimestamp": 1491263282136
 		},
+		"node": null,
+		"referenceDesignator": "CE02SHSM-SBD11-06-METBKA000",
+		"editPhase": "OPERATIONAL",
+		"deploymentNumber": 2,
+		"versionNumber": 1,
 		"mooring": {
 			"@class": ".XMooring",
-			"remoteResources": [
-				
-			],
 			"events": [
-				
+
 			],
-			"assetId": 2983,
+			"assetId": 293,
+			"remoteResources": [
+
+			],
 			"serialNumber": "CE02SHSM-00002",
+			"name": "CE02SHSM-00002",
+			"location": null,
+			"owner": null,
+			"description": "Coastal Endurance Oregon Shelf Surface Mooring",
+			"notes": null,
+			"physicalInfo": {
+				"length": -1.0,
+				"height": -1.0,
+				"width": -1.0,
+				"weight": -1.0
+			},
 			"editPhase": "OPERATIONAL",
-			"description": "Oregon Shelf Surface Mooring",
 			"uid": "CGMCE-02SHSM-00002",
 			"assetType": "Mooring",
 			"mobile": false,
@@ -730,233 +750,228 @@
 			"firmwareVersion": null,
 			"softwareVersion": null,
 			"powerRequirements": null,
-			"physicalInfo": {
-				"height": -1.0,
-				"width": -1.0,
-				"weight": -1.0,
-				"length": -1.0
-			},
-			"notes": null,
-			"name": "CE02SHSM-00002",
-			"location": null,
-			"owner": null,
 			"dataSource": "BulkLoad from [platform_bulk_load-AssetRecord.csv]",
-			"lastModifiedTimestamp": 1485892018661
+			"lastModifiedTimestamp": 1491263279326
 		},
 		"deployCruiseInfo": {
 			"@class": ".CruiseInfo",
+			"editPhase": "OPERATIONAL",
 			"uniqueCruiseIdentifier": "OC1510A",
 			"cruiseIdentifier": null,
 			"shipName": "R/V Oceanus",
-			"editPhase": "OPERATIONAL",
-			"eventId": 30,
+			"eventId": 32,
 			"assetUid": null,
 			"eventType": "CRUISE_INFO",
-			"eventName": "OC1510A",
 			"eventStartTime": 1444176000000,
 			"eventStopTime": 1445126400000,
 			"notes": null,
 			"tense": "UNKNOWN",
+			"eventName": "OC1510A",
 			"dataSource": "Load from [CruiseInformation.xlsx]",
-			"lastModifiedTimestamp": 1485892023467
+			"lastModifiedTimestamp": 1491263136241
 		},
 		"recoverCruiseInfo": null,
 		"deployedBy": null,
 		"recoveredBy": null,
 		"inductiveId": null,
-		"waterDepth": null,
+		"waterDepth": 82.0,
 		"ingestInfo": [
-			
+
 		],
-		"location": {
-			"depth": -3.0,
-			"longitude": -124.30252,
-			"latitude": 44.63538,
-			"orbitRadius": null,
-			"location": [
-				-124.30252,
-				44.63538
-			]
-		},
-		"eventId": 2862,
+		"eventId": 3017,
 		"assetUid": null,
 		"eventType": "DEPLOYMENT",
-		"eventName": "CE02SHSM-SBD11-06-METBKA000",
 		"eventStartTime": 1444252200000,
 		"eventStopTime": 1463356800000,
 		"notes": null,
 		"tense": "UNKNOWN",
+		"eventName": "CE02SHSM-SBD11-06-METBKA000",
 		"dataSource": "Load from [CE02SHSM_Deploy.xlsx]",
-		"lastModifiedTimestamp": 1485892122579
+		"lastModifiedTimestamp": 1491263412384
 	},
 	{
 		"@class": ".XDeployment",
-		"editPhase": "OPERATIONAL",
-		"node": null,
-		"referenceDesignator": "CE02SHSM-SBD11-06-METBKA000",
-		"deploymentNumber": 3,
-		"versionNumber": 1,
+		"location": {
+			"depth": -3.0,
+			"location": [
+				-124.30427,
+				44.63565
+			],
+			"longitude": -124.30427,
+			"latitude": 44.63565,
+			"orbitRadius": null
+		},
 		"sensor": {
 			"@class": ".XInstrument",
 			"calibration": [
 				{
 					"@class": ".XCalibration",
+					"name": "CC_height_of_air_temperature_measurement_m",
 					"calData": [
 						{
 							"@class": ".XCalibrationData",
-							"comments": "[m]",
 							"value": 3.63,
-							"eventId": 4842,
+							"comments": "[m]",
+							"eventId": 5029,
 							"assetUid": "CGINS-METLGR-00029",
 							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1463443200000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
 							"eventName": "CC_height_of_air_temperature_measurement_m",
+							"dataSource": "CGINS-METLGR-00029__20160517_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263434985
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_jwarm",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 1.0,
+							"comments": "Constant",
+							"eventId": 5027,
+							"assetUid": "CGINS-METLGR-00029",
+							"eventType": "CALIBRATION_DATA",
 							"eventStartTime": 1463443200000,
 							"eventStopTime": null,
 							"notes": null,
 							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00029__20160517_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892160554
-						}
-					],
-					"name": "CC_height_of_air_temperature_measurement_m"
-				},
-				{
-					"@class": ".XCalibration",
-					"calData": [
-						{
-							"@class": ".XCalibrationData",
-							"comments": "Constant",
-							"value": 1.0,
-							"eventId": 4840,
-							"assetUid": "CGINS-METLGR-00029",
-							"eventType": "CALIBRATION_DATA",
 							"eventName": "CC_jwarm",
-							"eventStartTime": 1463443200000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
 							"dataSource": "CGINS-METLGR-00029__20160517_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892160554
+							"lastModifiedTimestamp": 1491263434985
 						}
-					],
-					"name": "CC_jwarm"
+					]
 				},
 				{
 					"@class": ".XCalibration",
+					"name": "CC_height_of_air_humidity_measurement_m",
 					"calData": [
 						{
 							"@class": ".XCalibrationData",
-							"comments": "[m]",
 							"value": 3.63,
-							"eventId": 4844,
+							"comments": "[m]",
+							"eventId": 5031,
 							"assetUid": "CGINS-METLGR-00029",
 							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1463443200000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
 							"eventName": "CC_height_of_air_humidity_measurement_m",
-							"eventStartTime": 1463443200000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
 							"dataSource": "CGINS-METLGR-00029__20160517_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892160554
+							"lastModifiedTimestamp": 1491263434985
 						}
-					],
-					"name": "CC_height_of_air_humidity_measurement_m"
+					]
 				},
 				{
 					"@class": ".XCalibration",
+					"name": "CC_zinvpbl",
 					"calData": [
 						{
 							"@class": ".XCalibrationData",
-							"comments": "Constant",
 							"value": 600.0,
-							"eventId": 4846,
-							"assetUid": "CGINS-METLGR-00029",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_zinvpbl",
-							"eventStartTime": 1463443200000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00029__20160517_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892160554
-						}
-					],
-					"name": "CC_zinvpbl"
-				},
-				{
-					"@class": ".XCalibration",
-					"calData": [
-						{
-							"@class": ".XCalibrationData",
-							"comments": "[m]",
-							"value": 4.27,
-							"eventId": 4850,
-							"assetUid": "CGINS-METLGR-00029",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_height_of_windspeed_sensor_above_sealevel_m",
-							"eventStartTime": 1463443200000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00029__20160517_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892160554
-						}
-					],
-					"name": "CC_height_of_windspeed_sensor_above_sealevel_m"
-				},
-				{
-					"@class": ".XCalibration",
-					"calData": [
-						{
-							"@class": ".XCalibrationData",
-							"comments": "[m]",
-							"value": 1.42,
-							"eventId": 4848,
-							"assetUid": "CGINS-METLGR-00029",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_depth_of_conductivity_and_temperature_measurements_m",
-							"eventStartTime": 1463443200000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00029__20160517_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892160554
-						}
-					],
-					"name": "CC_depth_of_conductivity_and_temperature_measurements_m"
-				},
-				{
-					"@class": ".XCalibration",
-					"calData": [
-						{
-							"@class": ".XCalibrationData",
 							"comments": "Constant",
-							"value": 1.0,
-							"eventId": 4852,
+							"eventId": 5033,
 							"assetUid": "CGINS-METLGR-00029",
 							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_jcool",
 							"eventStartTime": 1463443200000,
 							"eventStopTime": null,
 							"notes": null,
 							"tense": "UNKNOWN",
+							"eventName": "CC_zinvpbl",
 							"dataSource": "CGINS-METLGR-00029__20160517_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892160554
+							"lastModifiedTimestamp": 1491263434985
 						}
-					],
-					"name": "CC_jcool"
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_height_of_windspeed_sensor_above_sealevel_m",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 4.27,
+							"comments": "[m]",
+							"eventId": 5037,
+							"assetUid": "CGINS-METLGR-00029",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1463443200000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_height_of_windspeed_sensor_above_sealevel_m",
+							"dataSource": "CGINS-METLGR-00029__20160517_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263434985
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_depth_of_conductivity_and_temperature_measurements_m",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 1.42,
+							"comments": "[m]",
+							"eventId": 5035,
+							"assetUid": "CGINS-METLGR-00029",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1463443200000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_depth_of_conductivity_and_temperature_measurements_m",
+							"dataSource": "CGINS-METLGR-00029__20160517_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263434985
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_jcool",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 1.0,
+							"comments": "Constant",
+							"eventId": 5039,
+							"assetUid": "CGINS-METLGR-00029",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1463443200000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_jcool",
+							"dataSource": "CGINS-METLGR-00029__20160517_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263434985
+						}
+					]
 				}
 			],
-			"remoteResources": [
-				
-			],
 			"events": [
-				
+
 			],
-			"assetId": 384,
+			"assetId": 616,
+			"remoteResources": [
+
+			],
 			"serialNumber": "LGR029",
-			"editPhase": "OPERATIONAL",
+			"name": "LGR029",
+			"location": null,
+			"owner": null,
 			"description": "Bulk Meteorology Instrument Package: METBK LGR Module",
+			"notes": null,
+			"physicalInfo": {
+				"length": -1.0,
+				"height": -1.0,
+				"width": -1.0,
+				"weight": -1.0
+			},
+			"editPhase": "OPERATIONAL",
 			"uid": "CGINS-METLGR-00029",
 			"assetType": "Sensor",
 			"mobile": false,
@@ -976,31 +991,36 @@
 			"firmwareVersion": null,
 			"softwareVersion": null,
 			"powerRequirements": null,
-			"physicalInfo": {
-				"height": -1.0,
-				"width": -1.0,
-				"weight": -1.0,
-				"length": -1.0
-			},
-			"notes": null,
-			"name": "LGR029",
-			"location": null,
-			"owner": null,
 			"dataSource": "BulkLoad from [sensor_bulk_load-AssetRecord.csv]",
-			"lastModifiedTimestamp": 1485891995777
+			"lastModifiedTimestamp": 1491263283739
 		},
+		"node": null,
+		"referenceDesignator": "CE02SHSM-SBD11-06-METBKA000",
+		"editPhase": "OPERATIONAL",
+		"deploymentNumber": 3,
+		"versionNumber": 1,
 		"mooring": {
 			"@class": ".XMooring",
-			"remoteResources": [
-				
-			],
 			"events": [
-				
+
 			],
-			"assetId": 2980,
+			"assetId": 290,
+			"remoteResources": [
+
+			],
 			"serialNumber": "CE02SHSM-00003",
+			"name": "CE02SHSM-00003",
+			"location": null,
+			"owner": null,
+			"description": "Coastal Endurance Oregon Shelf Surface Mooring",
+			"notes": null,
+			"physicalInfo": {
+				"length": -1.0,
+				"height": -1.0,
+				"width": -1.0,
+				"weight": -1.0
+			},
 			"editPhase": "OPERATIONAL",
-			"description": "Oregon Shelf Surface Mooring",
 			"uid": "CGMCE-02SHSM-00003",
 			"assetType": "Mooring",
 			"mobile": false,
@@ -1020,233 +1040,249 @@
 			"firmwareVersion": null,
 			"softwareVersion": null,
 			"powerRequirements": null,
-			"physicalInfo": {
-				"height": -1.0,
-				"width": -1.0,
-				"weight": -1.0,
-				"length": -1.0
-			},
-			"notes": null,
-			"name": "CE02SHSM-00003",
-			"location": null,
-			"owner": null,
 			"dataSource": "BulkLoad from [platform_bulk_load-AssetRecord.csv]",
-			"lastModifiedTimestamp": 1485892018638
+			"lastModifiedTimestamp": 1491263279298
 		},
 		"deployCruiseInfo": {
 			"@class": ".CruiseInfo",
+			"editPhase": "OPERATIONAL",
 			"uniqueCruiseIdentifier": "TN-342",
 			"cruiseIdentifier": null,
 			"shipName": "R/V Thomas G. Thompson",
-			"editPhase": "OPERATIONAL",
-			"eventId": 50,
+			"eventId": 54,
 			"assetUid": null,
 			"eventType": "CRUISE_INFO",
-			"eventName": "TN-342",
-			"eventStartTime": 1462492800000,
-			"eventStopTime": 1463788800000,
+			"eventStartTime": 1462320000000,
+			"eventStopTime": 1463529600000,
 			"notes": null,
 			"tense": "UNKNOWN",
+			"eventName": "TN-342",
 			"dataSource": "Load from [CruiseInformation.xlsx]",
-			"lastModifiedTimestamp": 1485892023517
+			"lastModifiedTimestamp": 1491263136277
 		},
 		"recoverCruiseInfo": null,
 		"deployedBy": null,
 		"recoveredBy": null,
 		"inductiveId": null,
-		"waterDepth": null,
+		"waterDepth": 80.0,
 		"ingestInfo": [
-			
+
 		],
-		"location": {
-			"depth": -3.0,
-			"longitude": -124.30427,
-			"latitude": 44.63565,
-			"orbitRadius": null,
-			"location": [
-				-124.30427,
-				44.63565
-			]
-		},
-		"eventId": 2884,
+		"eventId": 3039,
 		"assetUid": null,
 		"eventType": "DEPLOYMENT",
-		"eventName": "CE02SHSM-SBD11-06-METBKA000",
 		"eventStartTime": 1463520180000,
 		"eventStopTime": 1475077920000,
 		"notes": null,
 		"tense": "UNKNOWN",
+		"eventName": "CE02SHSM-SBD11-06-METBKA000",
 		"dataSource": "Load from [CE02SHSM_Deploy.xlsx]",
-		"lastModifiedTimestamp": 1485892123000
+		"lastModifiedTimestamp": 1491263412803
 	},
 	{
 		"@class": ".XDeployment",
-		"editPhase": "OPERATIONAL",
-		"node": null,
-		"referenceDesignator": "CE02SHSM-SBD11-06-METBKA000",
-		"deploymentNumber": 4,
-		"versionNumber": 1,
+		"location": {
+			"depth": null,
+			"location": [
+				-124.30404,
+				44.63929
+			],
+			"longitude": -124.30404,
+			"latitude": 44.63929,
+			"orbitRadius": null
+		},
 		"sensor": {
 			"@class": ".XInstrument",
 			"calibration": [
 				{
 					"@class": ".XCalibration",
+					"name": "CC_jwarm",
 					"calData": [
 						{
 							"@class": ".XCalibrationData",
-							"comments": "[m]",
-							"value": 4.034,
-							"eventId": 18336,
+							"value": 1.0,
+							"comments": "Constant",
+							"eventId": 18608,
 							"assetUid": "CGINS-METLGR-00006",
 							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_height_of_air_temperature_measurement_m",
 							"eventStartTime": 1474848000000,
 							"eventStopTime": null,
 							"notes": null,
 							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00006__20160926_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892191927
-						}
-					],
-					"name": "CC_height_of_air_temperature_measurement_m"
-				},
-				{
-					"@class": ".XCalibration",
-					"calData": [
-						{
-							"@class": ".XCalibrationData",
-							"comments": "Constant",
-							"value": 1.0,
-							"eventId": 18334,
-							"assetUid": "CGINS-METLGR-00006",
-							"eventType": "CALIBRATION_DATA",
 							"eventName": "CC_jwarm",
-							"eventStartTime": 1474848000000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
 							"dataSource": "CGINS-METLGR-00006__20160926_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892191927
+							"lastModifiedTimestamp": 1491263464762
 						}
-					],
-					"name": "CC_jwarm"
+					]
 				},
 				{
 					"@class": ".XCalibration",
+					"name": "CC_height_of_air_temperature_measurement_m",
 					"calData": [
 						{
 							"@class": ".XCalibrationData",
-							"comments": "[m]",
 							"value": 4.034,
-							"eventId": 18338,
+							"comments": "[m]",
+							"eventId": 18610,
 							"assetUid": "CGINS-METLGR-00006",
 							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1474848000000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_height_of_air_temperature_measurement_m",
+							"dataSource": "CGINS-METLGR-00006__20160926_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263464762
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_height_of_air_humidity_measurement_m",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 4.034,
+							"comments": "[m]",
+							"eventId": 18612,
+							"assetUid": "CGINS-METLGR-00006",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1474848000000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
 							"eventName": "CC_height_of_air_humidity_measurement_m",
-							"eventStartTime": 1474848000000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
 							"dataSource": "CGINS-METLGR-00006__20160926_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892191927
+							"lastModifiedTimestamp": 1491263464762
 						}
-					],
-					"name": "CC_height_of_air_humidity_measurement_m"
+					]
 				},
 				{
 					"@class": ".XCalibration",
+					"name": "CC_zinvpbl",
 					"calData": [
 						{
 							"@class": ".XCalibrationData",
-							"comments": "Constant",
 							"value": 600.0,
-							"eventId": 18340,
-							"assetUid": "CGINS-METLGR-00006",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_zinvpbl",
-							"eventStartTime": 1474848000000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00006__20160926_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892191927
-						}
-					],
-					"name": "CC_zinvpbl"
-				},
-				{
-					"@class": ".XCalibration",
-					"calData": [
-						{
-							"@class": ".XCalibrationData",
-							"comments": "[m]",
-							"value": 4.519,
-							"eventId": 18344,
-							"assetUid": "CGINS-METLGR-00006",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_height_of_windspeed_sensor_above_sealevel_m",
-							"eventStartTime": 1474848000000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00006__20160926_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892191927
-						}
-					],
-					"name": "CC_height_of_windspeed_sensor_above_sealevel_m"
-				},
-				{
-					"@class": ".XCalibration",
-					"calData": [
-						{
-							"@class": ".XCalibrationData",
-							"comments": "[m]",
-							"value": 1.168,
-							"eventId": 18342,
-							"assetUid": "CGINS-METLGR-00006",
-							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_depth_of_conductivity_and_temperature_measurements_m",
-							"eventStartTime": 1474848000000,
-							"eventStopTime": null,
-							"notes": null,
-							"tense": "UNKNOWN",
-							"dataSource": "CGINS-METLGR-00006__20160926_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892191927
-						}
-					],
-					"name": "CC_depth_of_conductivity_and_temperature_measurements_m"
-				},
-				{
-					"@class": ".XCalibration",
-					"calData": [
-						{
-							"@class": ".XCalibrationData",
 							"comments": "Constant",
-							"value": 1.0,
-							"eventId": 18346,
+							"eventId": 18614,
 							"assetUid": "CGINS-METLGR-00006",
 							"eventType": "CALIBRATION_DATA",
-							"eventName": "CC_jcool",
 							"eventStartTime": 1474848000000,
 							"eventStopTime": null,
 							"notes": null,
 							"tense": "UNKNOWN",
+							"eventName": "CC_zinvpbl",
 							"dataSource": "CGINS-METLGR-00006__20160926_Cal_Info.xlsx",
-							"lastModifiedTimestamp": 1485892191927
+							"lastModifiedTimestamp": 1491263464762
 						}
-					],
-					"name": "CC_jcool"
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_depth_of_conductivity_and_temperature_measurements_m",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 1.168,
+							"comments": "[m]",
+							"eventId": 18616,
+							"assetUid": "CGINS-METLGR-00006",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1474848000000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_depth_of_conductivity_and_temperature_measurements_m",
+							"dataSource": "CGINS-METLGR-00006__20160926_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263464762
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_height_of_windspeed_sensor_above_sealevel_m",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 4.519,
+							"comments": "[m]",
+							"eventId": 18618,
+							"assetUid": "CGINS-METLGR-00006",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1474848000000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_height_of_windspeed_sensor_above_sealevel_m",
+							"dataSource": "CGINS-METLGR-00006__20160926_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263464762
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_jcool",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 1.0,
+							"comments": "Constant",
+							"eventId": 18620,
+							"assetUid": "CGINS-METLGR-00006",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1474848000000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_jcool",
+							"dataSource": "CGINS-METLGR-00006__20160926_Cal_Info.xlsx",
+							"lastModifiedTimestamp": 1491263464762
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_use_velpt",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 1.0,
+							"comments": "test for #12060",
+							"eventId": 41830,
+							"assetUid": "CGINS-METLGR-00006",
+							"eventType": "CALIBRATION_DATA",
+							"eventStartTime": 1474848000000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"eventName": "CC_use_velpt",
+							"dataSource": "UI:user=admin@ooi.rutgers.edu",
+							"lastModifiedTimestamp": 1491343195168
+						}
+					]
 				}
 			],
-			"remoteResources": [
-				
-			],
 			"events": [
-				
+
 			],
-			"assetId": 227,
+			"assetId": 455,
+			"remoteResources": [
+
+			],
 			"serialNumber": "LGR006",
-			"editPhase": "OPERATIONAL",
+			"name": "LGR006",
+			"location": null,
+			"owner": null,
 			"description": "Bulk Meteorology Instrument Package: METBK LGR Module",
+			"notes": null,
+			"physicalInfo": {
+				"length": -1.0,
+				"height": -1.0,
+				"width": -1.0,
+				"weight": -1.0
+			},
+			"editPhase": "OPERATIONAL",
 			"uid": "CGINS-METLGR-00006",
 			"assetType": "Sensor",
 			"mobile": false,
@@ -1266,31 +1302,36 @@
 			"firmwareVersion": null,
 			"softwareVersion": null,
 			"powerRequirements": null,
-			"physicalInfo": {
-				"height": -1.0,
-				"width": -1.0,
-				"weight": -1.0,
-				"length": -1.0
-			},
-			"notes": null,
-			"name": "LGR006",
-			"location": null,
-			"owner": null,
 			"dataSource": "BulkLoad from [sensor_bulk_load-AssetRecord.csv]",
-			"lastModifiedTimestamp": 1485891994365
+			"lastModifiedTimestamp": 1491263282164
 		},
+		"node": null,
+		"referenceDesignator": "CE02SHSM-SBD11-06-METBKA000",
+		"editPhase": "OPERATIONAL",
+		"deploymentNumber": 4,
+		"versionNumber": 1,
 		"mooring": {
 			"@class": ".XMooring",
-			"remoteResources": [
-				
-			],
 			"events": [
-				
+
 			],
-			"assetId": 2975,
+			"assetId": 285,
+			"remoteResources": [
+
+			],
 			"serialNumber": "CE02SHSM-00004",
+			"name": "CE02SHSM-00004",
+			"location": null,
+			"owner": null,
+			"description": "Coastal Endurance Oregon Shelf Surface Mooring",
+			"notes": null,
+			"physicalInfo": {
+				"length": -1.0,
+				"height": -1.0,
+				"width": -1.0,
+				"weight": -1.0
+			},
 			"editPhase": "OPERATIONAL",
-			"description": "Oregon Shelf Surface Mooring",
 			"uid": "CGMCE-02SHSM-00004",
 			"assetType": "Mooring",
 			"mobile": false,
@@ -1310,63 +1351,43 @@
 			"firmwareVersion": null,
 			"softwareVersion": null,
 			"powerRequirements": null,
-			"physicalInfo": {
-				"height": -1.0,
-				"width": -1.0,
-				"weight": -1.0,
-				"length": -1.0
-			},
-			"notes": null,
-			"name": "CE02SHSM-00004",
-			"location": null,
-			"owner": null,
 			"dataSource": "BulkLoad from [platform_bulk_load-AssetRecord.csv]",
-			"lastModifiedTimestamp": 1485892018598
+			"lastModifiedTimestamp": 1491263279250
 		},
 		"deployCruiseInfo": {
 			"@class": ".CruiseInfo",
+			"editPhase": "OPERATIONAL",
 			"uniqueCruiseIdentifier": "AT37-03",
 			"cruiseIdentifier": null,
 			"shipName": "R/V Atlantis",
-			"editPhase": "OPERATIONAL",
-			"eventId": 54,
+			"eventId": 58,
 			"assetUid": null,
 			"eventType": "CRUISE_INFO",
-			"eventName": "AT37-03",
 			"eventStartTime": 1474156800000,
 			"eventStopTime": 1475452800000,
 			"notes": null,
 			"tense": "UNKNOWN",
+			"eventName": "AT37-03",
 			"dataSource": "Load from [CruiseInformation.xlsx]",
-			"lastModifiedTimestamp": 1485892023525
+			"lastModifiedTimestamp": 1491263136285
 		},
 		"recoverCruiseInfo": null,
 		"deployedBy": null,
 		"recoveredBy": null,
 		"inductiveId": null,
-		"waterDepth": null,
+		"waterDepth": 80.0,
 		"ingestInfo": [
-			
+
 		],
-		"location": {
-			"depth": null,
-			"longitude": -124.30404,
-			"latitude": 44.63929,
-			"orbitRadius": null,
-			"location": [
-				-124.30404,
-				44.63929
-			]
-		},
-		"eventId": 2902,
+		"eventId": 3062,
 		"assetUid": null,
 		"eventType": "DEPLOYMENT",
-		"eventName": "CE02SHSM-SBD11-06-METBKA000",
 		"eventStartTime": 1474925100000,
 		"eventStopTime": null,
 		"notes": null,
 		"tense": "UNKNOWN",
+		"eventName": "CE02SHSM-SBD11-06-METBKA000",
 		"dataSource": "Load from [CE02SHSM_Deploy.xlsx]",
-		"lastModifiedTimestamp": 1485892123341
+		"lastModifiedTimestamp": 1491263413248
 	}
 ]

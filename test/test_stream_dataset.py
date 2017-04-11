@@ -410,13 +410,13 @@ class StreamDatasetTest(unittest.TestCase):
             self.assertIn('Mobile', ds.attrs)
             self.assertIn('LastModifiedTimestamp', ds.attrs)
 
-            self.assertEqual(ds.attrs['Manufacturer'], 'SEA-BIRD ELECTRONICS')
-            self.assertEqual(ds.attrs['ModelNumber'], '16plusV2')
+            self.assertEqual(ds.attrs['Manufacturer'], 'Sea-Bird Electronics')
+            self.assertEqual(ds.attrs['ModelNumber'], 'SBE 16plus V2')
             self.assertEqual(ds.attrs['SerialNumber'], '16-50112')
-            self.assertEqual(ds.attrs['Description'], 'Shallow 16 Plus V2 CTD')
+            self.assertEqual(ds.attrs['Description'], 'CTD Profiler: CTDPF Series A')
             self.assertEqual(ds.attrs['AssetUniqueID'], 'ATOSU-66662-00013')
             self.assertEqual(ds.attrs['Mobile'], 'False')
-            self.assertEqual(ds.attrs['LastModifiedTimestamp'], 1474898847570)
+            self.assertEqual(ds.attrs['LastModifiedTimestamp'], 1491263305650)
 
             self.assertEqual(ds.attrs['FirmwareVersion'], 'Not specified.')
             self.assertEqual(ds.attrs['SoftwareVersion'], 'Not specified.')
