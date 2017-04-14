@@ -336,7 +336,9 @@ def sample_n_points(stream_key, time_range, num_points, metadata_bins, bin_infor
     current = bin_queue.popleft()
     for t in times:
         # Are we currently within the range of data in the bin if so add a sampling point
-        if current[1] <= t < current[2]:
+        if t < current[1]:
+            continue
+        if t < current[2]:
             queries.add((current[0], t, 1))
         else:
             # can we roll over to the next one?
