@@ -67,11 +67,19 @@ class StreamDataset(object):
                     dataset.deployment.values[mask] = deployment_number
 
             for deployment, group in dataset.groupby('deployment'):
-                self.datasets[deployment] = group
+                self.datasets[deployment] = self._prune_duplicate_times(group)
                 self.params[deployment] = [p for p in self.stream_key.stream.derived]
 
         else:
             raise MissingDataException("Query returned no results for stream %s" % self.stream_key)
+
+    @staticmethod
+    def _prune_duplicate_times(dataset):
+        mask = np.diff(np.insert(dataset.time.values, 0, 0.0)) != 0
+        if not mask.all():
+            dataset = dataset.isel(obs=mask)
+            dataset['obs'] = np.arange(dataset.obs.size)
+        return dataset
 
     def calculate_all(self, source_datasets=None):
         """
