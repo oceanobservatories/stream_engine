@@ -104,13 +104,6 @@ def to_xray_dataset(cols, data, stream_key, request_uuid, san=False):
     dataset = xr.Dataset(attrs=attrs)
     dataframe = pd.DataFrame(data=data, columns=cols)
 
-    # # sometimes we will get duplicate timestamps
-    # # INITIAL solution is to remove any duplicate timestamps
-    # # and the corresponding data by creating a mask to match
-    # # only valid INCREASING times
-    mask = np.diff(np.insert(dataframe.time.values, 0, 0.0)) != 0
-    dataframe = dataframe[mask]
-
     for column in dataframe.columns:
         if column in app.config['INTERNAL_OUTPUT_EXCLUDE_LIST']:
             continue

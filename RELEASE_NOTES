@@ -1,3 +1,7 @@
+NEXT RELEASE
+
+Issue #12238 - Don't drop duplicate timestamps from separate deployments
+
 Release 1.3.6
 
 Issue #9306 - Provide depth source for fixed ADCP instruments
