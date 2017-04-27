@@ -18,6 +18,7 @@ executor = ThreadPoolExecutor(max_workers=4)
 
 LATITUDE_NAMES = ['CC_lat', 'CC_latitude']
 LONGITUDE_NAMES = ['CC_lon', 'CC_longitude']
+DEPTH_NAMES = ['CC_depth']
 
 
 class TimeBoundsException(Exception):
@@ -190,6 +191,10 @@ class AssetEvents(object):
         elif name in LONGITUDE_NAMES:
             _, lon, _ = self.get_location_data(deployment)
             cal = [(0, 0, lon)]
+
+        elif name in DEPTH_NAMES:
+            _, _, depth = self.get_location_data(deployment)
+            cal = [(0, 0, depth)]
 
         else:
             cal = self.get_cal(name, deployment)
