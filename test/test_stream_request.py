@@ -24,7 +24,7 @@ from util.netcdf_generator import NetcdfGenerator
 from util.netcdf_utils import rename_glider_lat_lon
 from util.stream_dataset import StreamDataset
 from util.stream_request import StreamRequest, SIZE_ESTIMATES
-from util.calc import execute_stream_request, validate
+from util.calc import execute_stream_request, validate, get_particles, get_netcdf
 
 TEST_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.join(TEST_DIR, 'data')
@@ -86,9 +86,14 @@ class StreamRequestTest(unittest.TestCase):
                 self.assertIn(parameter, dataset)
 
     def test_basic_stream_request(self):
+        pid = 1527
+        pid_string = 'PD%d' % pid
         sk = StreamKey('CP05MOAS', 'GL388', '03-CTDGVM000', 'recovered_host', 'ctdgv_m_glider_instrument_recovered')
         tr = TimeRange(3.622409e+09, 3.627058e+09)
-        sr = StreamRequest(sk, [1527], {}, tr, {}, request_id='UNIT')
+        sr = StreamRequest(sk, [pid], {}, tr, {}, request_id='UNIT')
+
+        self.assertEqual(len(sr.requested_parameters), 1)
+        self.assertEqual(sr.requested_parameters[0].asdict()['pd_id'], pid_string)
 
     def test_glider_include_preswat_gps(self):
         do_sk = StreamKey('CP05MOAS', 'GL388', '04-DOSTAM000', 'recovered_host', 'dosta_abcdjm_glider_recovered')
@@ -185,6 +190,9 @@ class StreamRequestTest(unittest.TestCase):
         return sr
 
     def test_calculate(self):
+        """
+        Verify successful calculation of derived products, QC algorithms and provenance.
+        """
         sr = self.create_nut_sr()
         sr.calculate_derived_products()
         sr.execute_qc()
@@ -235,6 +243,18 @@ class StreamRequestTest(unittest.TestCase):
         tr = TimeRange(0, 99999999)
         sr = StreamRequest(hourly_sk, [], {}, tr, {}, request_id='UNIT')
         self.assertEqual(set(sr.stream_parameters), {hourly_sk, met_sk, vel_sk})
+        self.assertEqual(set(sr.unfulfilled), set([]))
+
+    def test_external_virtual(self):
+        """
+        make sure that external virtual stream parameters can be resolved  (c.f. PR # 9196)
+        """
+        # only endurance (CE**) has a colocated VELPT
+        # pco2_sk = StreamKey('GI01SUMO', 'SBD12', '04-PCO2AA000', 'telemetered', 'pco2a_a_dcl_instrument_air')
+        pco2_sk = StreamKey('CE07SHSM', 'SBD12', '04-PCO2AA000', 'telemetered', 'pco2a_a_dcl_instrument_air')
+        tr = TimeRange(0, 99999999)
+        sr = StreamRequest(pco2_sk, [], {}, tr, {}, request_id='UNIT')
+        self.assertEqual(set(sr.unfulfilled), set([]))
 
     def create_metbk_hourly_sr(self):
         metbk_fn = 'metbk_a_dcl_instrument_recovered.nc'
@@ -427,6 +447,8 @@ class StreamRequestTest(unittest.TestCase):
                 self.assertEqual(len(sr.external_includes), 1)
 
                 sr = execute_stream_request(validate(input_data))
+                # stream engine should only return requested parameters
+                self.assertEqual(len(sr.external_includes), len(input_data['streams']))
                 self.assertIn(self.echo_sk, sr.external_includes)
                 expected = {Parameter.query.get(2575)}
                 self.assertEqual(expected, sr.external_includes[self.echo_sk])

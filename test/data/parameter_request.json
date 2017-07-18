@@ -1,0 +1,16 @@
+{
+    "streams": [
+        {
+            "subsite": "CE04OSPS",
+            "node": "SF01B",
+            "sensor": "4A-NUTNRA102",
+            "method": "streamed",
+            "stream": "nutnr_a_sample",
+            "parameters": [2327, 2328, 2329]
+        }
+    ],
+    "coefficients": {},
+    "start": 3653423999.775322,
+    "stop": 3653424024.525519,
+    "limit": 100
+}
