@@ -1,6 +1,7 @@
 NEXT RELEASE
 Release 1.3.7
 
+Issue #12072 - enforce order on XDeployment JSON fields for readability
 Issue #12238 - Don't drop duplicate timestamps from separate deployments
 Issue #12456 - Source in conda engine environment when running via script
 
