@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# use the miniconda ooi/engine environment
-source activate engine
-
 HERE="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 PIDFILE="$HERE/stream_engine.pid"
