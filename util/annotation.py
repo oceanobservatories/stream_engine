@@ -1,3 +1,5 @@
+import os
+import json
 import logging
 from collections import namedtuple
 
@@ -7,6 +9,8 @@ import numpy as np
 import requests
 
 from engine import app
+from util.jsonresponse import NumpyJSONEncoder
+from util.common import WriteErrorException
 
 log = logging.getLogger(__name__)
 
@@ -17,6 +21,7 @@ NTP_OFFSET_SECS = 2208988800
 # ???         -       - ???     - Initial Commit
 # Sep 22 2017 - 11444 - jelkins - Prevent None endDT from crashing code
 #
+
 
 class AnnotationServiceInterface(object):
     def __init__(self, anno_host, port=12580):
@@ -53,7 +58,7 @@ class AnnotationServiceInterface(object):
 
 class AnnotationRecord(object):
     def __init__(self, id=None, subsite=None, node=None, sensor=None, method=None, stream=None, annotation=None,
-                 exclusionFlag=None, beginDT=None, endDT=None, source=None, qcFlag=None, **kwargs):
+                 exclusionFlag=None, beginDT=None, endDT=None, source=None, qcFlag=None, parameters=None, **kwargs):
         self.id = id
         self.subsite = subsite
         self.node = node
@@ -64,6 +69,7 @@ class AnnotationRecord(object):
         self.exclusion_flag = exclusionFlag
         self.source = source
         self.qc_flag = qcFlag
+        self.parameters = parameters
 
         self._start_millis = beginDT
         self._stop_millis = endDT
@@ -97,6 +103,21 @@ class AnnotationStore(object):
 
     def as_dict_list(self):
         return [x.as_dict() for x in self._store]
+    
+    def dump_json(self, filepath):
+        try:
+            parent_dir = os.path.dirname(filepath)
+            if not os.path.exists(parent_dir):
+                try:
+                    os.makedirs(parent_dir)
+                except OSError:
+                    if not os.path.isdir(parent_dir):
+                        raise WriteErrorException('Unable to create local output directory: %s' % parent_dir)
+            with open(filepath, 'a') as fh:
+                annotations = {'annotations': self.as_dict_list()}
+                json.dump(annotations, fh, indent=2, separators=(',', ': '), cls=NumpyJSONEncoder)
+        except EnvironmentError as e:
+            log.error('Failed to write annotation file: %s', e)
 
     @staticmethod
     def _update_mask(times, mask, anno):
@@ -115,6 +136,3 @@ class AnnotationStore(object):
 
 
 _service = AnnotationServiceInterface(app.config.get('ANNOTATION_HOST'))
-
-
-
