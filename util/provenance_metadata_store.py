@@ -44,9 +44,8 @@ class ProvenanceMetadataStore(object):
                     "eventStartTime", "eventStopTime", "waterDepth", "location", "location.location", "deployedBy", 
                     "deployCruiseInfo", "recoveredBy", "recoverCruiseInfo", "sensor", "sensor.location.location", 
                     "sensor.calibration"]
-        for i in range(len(events)):
-            # sorted_first = False so that sensor.calibration comes after the other sensor fields
-            events[i] = sort_dict(events[i], keyorder, sorted_first=False)
+        # sorted_first = False so that sensor.calibration comes after the other sensor fields
+        events = [sort_dict(e, keyorder, sorted_first=False) for e in events]
         self._instrument_provenance[stream_key.as_three_part_refdes()] = events
 
     def get_instrument_provenance(self):
