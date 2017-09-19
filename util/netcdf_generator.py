@@ -52,6 +52,34 @@ class NetcdfGenerator(object):
                 shutil.rmtree(temp_dir)
             return tzf.read()
 
+    def _filter_params(self, ds, params):
+        missing_params = []
+        params_to_filter = []
+        default_params = ['deployment', 'id', 'lat', 'lon', 'quality_flag']
+
+        for param in params:
+            if param not in ds.data_vars:
+                missing_params.append(param)
+            else:
+                params_to_filter.append(param)
+
+        if missing_params:
+            log.warning('one or more selected parameters (%s) not found in the dataset', missing_params)
+        if params_to_filter:
+            log.debug('filtering parameters: %s', params_to_filter)
+        else:
+            log.warning('no parameters to remove')
+            return ds
+
+        params_to_filter.extend(default_params)
+        if self.stream_request.include_provenance:
+            params_to_filter.append('provenance')
+
+        for key in ds.data_vars:
+            if key not in params_to_filter:
+                ds = ds.drop(key)
+        return ds
+
     def _create_files(self, base_path):
         file_paths = []
         for stream_key, stream_dataset in self.stream_request.datasets.iteritems():
@@ -68,6 +96,9 @@ class NetcdfGenerator(object):
                 file_name = 'deployment%04d_%s_%s-%s.nc' % (deployment, stream_key.as_dashed_refdes(), start, end)
                 file_path = os.path.join(base_path, file_name)
                 ds = rename_glider_lat_lon(stream_key, ds)
+                params = [p.name for p in self.stream_request.requested_parameters]
+                if params:
+                    ds = self._filter_params(ds, params)
                 write_netcdf(ds, file_path, classic=self.classic)
                 file_paths.append(file_path)
         return file_paths
