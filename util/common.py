@@ -4,6 +4,7 @@ import datetime
 import logging
 import time
 from functools import wraps
+from collections import OrderedDict
 
 import ntplib
 import numpy
@@ -385,3 +386,89 @@ def dict_equal(d1, d2):
     # check equality on other objects
     else:
         return d1 == d2
+
+
+def _sort_dicts_in_list(data_list, key_order, sorted_first, alphabetize, key_stack):
+    """
+    Helper function for sorting dictionaries; takes a list and if it contains any dictionaries, sorts those according
+    to the key_order passed in and returns the updated list.
+    
+    :param data_list: the list potentially containing dictionaries to be sorted
+    :param key_order: a list with dictionary keys, listed in desired order
+    :param sorted_first: whether key-value pairs whose keys are not found in key_order should come before or after the
+                         pairs that are represented - True indicates before (i.e. sorted pairs come before unsorted
+                         ones)
+    :param alphabetize: if True, key-value pairs without their keys in key_order will be sorted alphabetically
+    :param key_stack: a list acting as a stack to track what level of the dictionary is currently being sorted; used
+                      for recursive calls
+    :return: the list updated so that any embedded dictionaries are sorted
+    """
+    for index in range(len(data_list)):
+        item = data_list[index]
+        if isinstance(item, dict):
+            data_list[index] = sort_dict(item, key_order, sorted_first, alphabetize, key_stack)
+        elif isinstance(item, list):
+            # recursive call to keep looking for embedded dictionaries
+            data_list[index] = _sort_dicts_in_list(item, key_order, sorted_first, alphabetize, key_stack)
+    return data_list
+        
+
+def sort_dict(data_dict, key_order, sorted_first=False, alphabetize=True, key_stack=[]):
+    """
+    Create an OrderedDict from an unsorted dictionary using specified key ordering. The original dictionary is not
+    changed. Note: key-value pairs whose keys are not specified in key_order will still appear, but will not be sorted.
+    Nested dictionaries and nested lists containing dictionaries are handled.
+    
+    :param data_dict: the dictionary to be sorted
+    :param key_order: a list with keys from the dictionary, listed in desired order. in the case of nested dictionaries,
+                      the parent key(s) should be included as a prefix followed by a period (e.g. 'key1.key2.key3' to
+                      represent 'key3' in the dict {'key1': {'key2': {'key3' : 'foo'}}}). No prefix is added for a
+                      dictionary in a list (e.g. 'key1.key2.key3' to represent 'key3' in
+                      {'key1': [1, {'key2': {'key3'}, 'a']}.
+    :param sorted_first: whether key-value pairs whose keys are not found in key_order should come before or after the
+                         pairs that are represented - True indicates before (i.e. sorted pairs come before unsorted
+                         ones)
+    :param alphabetize: if True, key-value pairs without their keys in key_order will be sorted alphabetically
+    :param key_stack: a list acting as a stack to track what level of the dictionary is currently being sorted; used for
+                      recursive calls only - should be allowed to default to empty
+    :return: an OrderedDict representing the original dictionary after sorting
+    """
+    if alphabetize:
+        # sort data_dict by keys alphabetically
+        result = OrderedDict(sorted(data_dict.items()))
+    else:
+        result = OrderedDict(data_dict)
+
+    # recursively sort lower levels (nested dictionaries) first
+    for key, value in result.items():
+        # lower level detected - sort it and add back to result
+        if isinstance(value, dict):
+            # add key to a stack to track what level we are at - used to determine what elements in key_order are
+            # applicable at a given level of the dictionary
+            key_stack.append(key)
+            result[key] = sort_dict(value, key_order, sorted_first, alphabetize, key_stack)
+            # we are back up a level after the recursive call, so remove the key from the stack
+            key_stack.pop()
+        elif isinstance(value, list):
+            # recursively sort any dictionaries in the list
+            key_stack.append(key)
+            _sort_dicts_in_list(value, key_order, sorted_first, alphabetize, key_stack)
+            key_stack.pop()
+    
+    # sort current level
+    
+    # get the keys relevant to this "level" of the dictionary by looking at their prefix - prefix will show parent keys
+    # (i.e. parent objects in JSON)
+    prefix = ".".join(key_stack) + "."
+    # at the top level, there is no prefix
+    if prefix == ".":
+        new_order = [x for x in key_order if "." not in x]
+    else:
+        new_order = [x.replace(prefix, "") for x in key_order if prefix in x]
+    order_dict = {k: v for v, k in enumerate(new_order)}
+    
+    # use the default in order_dict.get() to control whether unsorted key-value pairs come before or after the sorted
+    # pairs
+    default = len(order_dict) if sorted_first else None
+    result = OrderedDict(sorted(result.items(), key=lambda j: order_dict.get(j[0], default)))
+    return result
