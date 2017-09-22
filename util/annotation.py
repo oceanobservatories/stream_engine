@@ -13,6 +13,10 @@ log = logging.getLogger(__name__)
 # Seconds from NTP epoch to UNIX epoch
 NTP_OFFSET_SECS = 2208988800
 
+#
+# ???         -       - ???     - Initial Commit
+# Sep 22 2017 - 11444 - jelkins - Prevent None endDT from crashing code
+#
 
 class AnnotationServiceInterface(object):
     def __init__(self, anno_host, port=12580):
@@ -35,7 +39,11 @@ class AnnotationServiceInterface(object):
             result = []
             for record in payload:
                 if record.pop('@class', None) == '.AnnotationRecord':
-                    result.append(AnnotationRecord(**record))
+                    annotation_record = AnnotationRecord(**record)
+                    if annotation_record.stop:
+                        # only store bounded annotations, skip open ended annotations
+                        # leave open ended annotation support for future enhacement work
+                        result.append(annotation_record)
             return result
 
         else:
@@ -60,9 +68,9 @@ class AnnotationRecord(object):
         self._start_millis = beginDT
         self._stop_millis = endDT
         self._start_ntp = ntplib.system_to_ntp_time(self._start_millis / 1000.0)
-        self._stop_ntp = ntplib.system_to_ntp_time(self._stop_millis / 1000.0)
+        self._stop_ntp = ntplib.system_to_ntp_time(self._stop_millis / 1000.0) if self._stop_millis else None
         self.start = datetime.datetime.utcfromtimestamp(self._start_millis / 1000.0)
-        self.stop = datetime.datetime.utcfromtimestamp(self._stop_millis / 1000.0)
+        self.stop = datetime.datetime.utcfromtimestamp(self._stop_millis / 1000.0) if self._stop_millis else None
 
     def as_dict(self):
         return {k: v for k, v in self.__dict__.iteritems() if not k.startswith('_')}
