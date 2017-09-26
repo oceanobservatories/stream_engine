@@ -18,6 +18,13 @@ stream_cache = {}
 parameter_cache = {}
 function_cache = {}
 
+PROVENANCE_KEYORDER = ["eventId", "editPhase", "eventName", "eventType", "referenceDesignator", "deploymentNumber",
+                       "versionNumber", "inductiveId", "assetUid", "dataSource", "lastModifiedTimestamp", "tense", 
+                       "ingestInfo", "notes", "mooring", "mooring.location.location", "node", "node.location.location", 
+                       "eventStartTime", "eventStopTime", "waterDepth", "location", "location.location", "deployedBy", 
+                       "deployCruiseInfo", "recoveredBy", "recoverCruiseInfo", "sensor", "sensor.location.location", 
+                       "sensor.calibration"]
+
 
 def isfillvalue(a):
     """

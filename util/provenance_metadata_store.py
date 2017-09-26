@@ -6,7 +6,7 @@ from collections import OrderedDict
 import requests
 
 from util.calculated_provenance_metadata_store import CalculatedProvenanceMetadataStore
-from util.common import ntp_to_datestring, WriteErrorException, sort_dict
+from util.common import ntp_to_datestring, WriteErrorException, sort_dict, PROVENANCE_KEYORDER
 from util.jsonresponse import NumpyJSONEncoder
 
 log = logging.getLogger(__name__)
@@ -38,14 +38,8 @@ class ProvenanceMetadataStore(object):
     def add_instrument_provenance(self, stream_key, events):
         # reorder the JSON fields for readability
         # The JSON spec is unordered - this ordering should not be relied upon by code!
-        keyorder = ["eventId", "editPhase", "eventName", "eventType", "referenceDesignator", "deploymentNumber",
-                    "versionNumber", "inductiveId", "assetUid", "dataSource", "lastModifiedTimestamp", "tense", 
-                    "ingestInfo", "notes", "mooring", "mooring.location.location", "node", "node.location.location", 
-                    "eventStartTime", "eventStopTime", "waterDepth", "location", "location.location", "deployedBy", 
-                    "deployCruiseInfo", "recoveredBy", "recoverCruiseInfo", "sensor", "sensor.location.location", 
-                    "sensor.calibration"]
         # sorted_first = False so that sensor.calibration comes after the other sensor fields
-        events = [sort_dict(e, keyorder, sorted_first=False) for e in events]
+        events = [sort_dict(e, PROVENANCE_KEYORDER, sorted_first=False) for e in events]
         self._instrument_provenance[stream_key.as_three_part_refdes()] = events
 
     def get_instrument_provenance(self):
