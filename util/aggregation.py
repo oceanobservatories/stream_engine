@@ -12,7 +12,7 @@ import jinja2
 import numpy as np
 
 from engine import app
-from util.common import log_timing
+from util.common import log_timing, sort_dict, PROVENANCE_KEYORDER
 from util.datamodel import compile_datasets
 from util.gather import gather_files
 from util.netcdf_utils import write_netcdf, add_dynamic_attributes, analyze_datasets
@@ -141,6 +141,9 @@ def aggregate_provenance(job_dir, output_dir, request_id=None):
     for group in groups:
         aggregate_dict = aggregate_provenance_group(job_dir, groups[group])
         with open(os.path.join(output_dir, '%s_aggregate_provenance.json' % group), 'w') as fh:
+            # json.load undoes the ordering of provenance_metadata - reapply correct order here
+            for key in aggregate_dict['instrument_provenance']:
+                aggregate_dict['instrument_provenance'][key] = [sort_dict(e, PROVENANCE_KEYORDER, sorted_first=False) for e in aggregate_dict['instrument_provenance'][key]]
             json.dump(aggregate_dict, fh, indent=2)
 
 
