@@ -1,13 +1,13 @@
 #!/bin/bash
 
-HERE="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+HERE=$(cd $(dirname $(readlink -f $BASH_SOURCE)) && pwd)
 
 PIDFILE="$HERE/stream_engine.pid"
 NAME="Stream Engine"
 timestamp=`date +%F-%H-%M-%S`
 
 start(){
-    echo "Starting Stream Engine..."
+    echo "Starting $NAME..."
     if [ -f $PIDFILE ]; then
         # PIDFILE exists, but the corresponding process does not
         if [ ! -f /proc/$(cat $PIDFILE)/status ]; then
@@ -21,11 +21,10 @@ start(){
     else
         echo "$NAME: Trying to start stream engine, but pid exists"
     fi
-
 }
 
 stop(){
-    echo "Stopping Stream Engine..."
+    echo "Stopping $NAME..."
     if [ -f $PIDFILE ]; then
         kill $(<$PIDFILE)
         rm $PIDFILE
@@ -36,7 +35,7 @@ stop(){
 }
 
 reload(){
-    echo "Reloading Stream Engine..."
+    echo "Reloading $NAME..."
     if [ -f $PIDFILE ]; then
         kill -HUP $(<$PIDFILE)
         rm $PIDFILE
@@ -61,7 +60,7 @@ case $1 in
         start
         ;;
     status)
-        [ -f $PIDFILE ] && echo "$NAME: "$(<$PIDFILE) || echo "Stream Engine:"
+        [ -f $PIDFILE ] && echo "$NAME: "$(<$PIDFILE) || echo "$NAME:"
         ;;
     *)
         echo "Usage: manage-streamng (start|stop|reload|restart|status)"
