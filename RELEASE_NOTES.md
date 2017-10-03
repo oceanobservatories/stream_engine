@@ -1,6 +1,6 @@
 # Stream Engine
 
-# In-Development 1.3.8 2017-09-XX
+# Release 1.3.8 2017-09-29
 
 Issue #11444 - Prevent crash on open ended annotations
 
