@@ -215,8 +215,8 @@ def csv():
     input_data = request.get_json()
     stream_name, csv_data = util.calc.get_csv(input_data, request.url, delimiter=',')
     return send_file(BytesIO(csv_data),
-                     attachment_filename='%s.csv' % stream_name,
-                     mimetype='application/csv')
+                     attachment_filename='%s.zip' % stream_name,
+                     mimetype='application/octet-stream')
 
 
 @app.route('/tab', methods=['POST'])
@@ -228,8 +228,8 @@ def tab():
     input_data = request.get_json()
     stream_name, csv_data = util.calc.get_csv(input_data, request.url, delimiter='\t')
     return send_file(BytesIO(csv_data),
-                     attachment_filename='%s.tsv' % stream_name,
-                     mimetype='application/tab-separated-values')
+                     attachment_filename='%s.zip' % stream_name,
+                     mimetype='application/octet-stream')
 
 
 @app.route('/netcdf-fs', methods=['POST'])

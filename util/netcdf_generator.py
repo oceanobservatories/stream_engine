@@ -74,6 +74,8 @@ class NetcdfGenerator(object):
         params_to_filter.extend(default_params)
         if self.stream_request.include_provenance:
             params_to_filter.append('provenance')
+        if self.stream_request.include_annotations:
+            params_to_filter.append('annotations')
 
         for key in ds.data_vars:
             if key not in params_to_filter:
@@ -87,12 +89,24 @@ class NetcdfGenerator(object):
                 add_dynamic_attributes(ds)
                 start = ds.attrs['time_coverage_start'].translate(None, '-:')
                 end = ds.attrs['time_coverage_end'].translate(None, '-:')
+                
                 # provenance types will be written to JSON files
-                prov_fname = 'deployment%04d_%s_provenance_%s-%s.json' % (deployment,
-                                                                          stream_key.as_dashed_refdes(), start, end)
-                prov_json = os.path.join(base_path, prov_fname)
-                file_paths.append(prov_json)
-                stream_dataset.provenance_metadata.dump_json(prov_json)
+                if self.stream_request.include_provenance:
+                    prov_fname = 'deployment%04d_%s_provenance_%s-%s.json' % (deployment,
+                                                                              stream_key.as_dashed_refdes(), start, end)
+                    prov_json = os.path.join(base_path, prov_fname)
+                    file_paths.append(prov_json)
+                    stream_dataset.provenance_metadata.dump_json(prov_json)
+                
+                # annotation data will be written to JSON files
+                if self.stream_request.include_annotations:
+                    anno_fname = 'deployment%04d_%s_annotations_%s-%s.json' % (deployment,
+                                                                               stream_key.as_dashed_refdes(),
+                                                                               start, end)
+                    anno_json = os.path.join(base_path, anno_fname)
+                    file_paths.append(anno_json)
+                    stream_dataset.annotation_store.dump_json(anno_json)
+                
                 file_name = 'deployment%04d_%s_%s-%s.nc' % (deployment, stream_key.as_dashed_refdes(), start, end)
                 file_path = os.path.join(base_path, file_name)
                 ds = rename_glider_lat_lon(stream_key, ds)
