@@ -143,7 +143,39 @@ def aggregate_provenance(job_dir, output_dir, request_id=None):
         with open(os.path.join(output_dir, '%s_aggregate_provenance.json' % group), 'w') as fh:
             # json.load undoes the ordering of provenance_metadata - reapply correct order here
             for key in aggregate_dict['instrument_provenance']:
-                aggregate_dict['instrument_provenance'][key] = [sort_dict(e, PROVENANCE_KEYORDER, sorted_first=False) for e in aggregate_dict['instrument_provenance'][key]]
+                aggregate_dict['instrument_provenance'][key] = [sort_dict(e, PROVENANCE_KEYORDER, sorted_first=False)
+                                                                for e in aggregate_dict['instrument_provenance'][key]]
+            json.dump(aggregate_dict, fh, indent=2)
+
+
+def aggregate_annotation_group(job_dir, files):
+    aggregate_dict = {'annotations': []}
+    recorded_annotation_ids = []
+    for f in sorted(files):
+        path = os.path.join(job_dir, f)
+        data = json.load(open(path))
+        for key in data:
+            if key == 'annotations':
+                new_annotations = [x for x in data[key] if x['id'] not in recorded_annotation_ids]
+                recorded_annotation_ids.extend([v['id'] for v in new_annotations])
+                aggregate_dict[key].extend(new_annotations)
+            else:
+                aggregate_dict.setdefault(key, {})[f] = data[key]
+    return aggregate_dict
+
+
+@log_timing(log)
+def aggregate_annotations(job_dir, output_dir, request_id=None):
+    groups = {}
+    anno_label = '_annotations_'
+    for f in os.listdir(job_dir):
+        if anno_label in f and f.endswith('json'):
+            group = f.split(anno_label)[0]
+            groups.setdefault(group, []).append(f)
+            
+    for group in groups:
+        aggregate_dict = aggregate_annotation_group(job_dir, groups[group])
+        with open(os.path.join(output_dir, '%s_aggregate_annotations.json' % group), 'w') as fh:
             json.dump(aggregate_dict, fh, indent=2)
 
 
@@ -366,6 +398,7 @@ def aggregate(async_job_dir, request_id=None):
     aggregate_csv(local_dir, final_dir, request_id=request_id)
     aggregate_netcdf(local_dir, final_dir, request_id=request_id)
     aggregate_provenance(local_dir, final_dir, request_id=request_id)
+    aggregate_annotations(local_dir, final_dir, request_id=request_id)
     generate_ncml(final_dir, final_dir, request_id=request_id)
     cleanup(local_dir, request_id=request_id)
     log_completion(final_dir)

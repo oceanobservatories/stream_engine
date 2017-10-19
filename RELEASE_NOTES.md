@@ -1,5 +1,9 @@
 # Stream Engine
 
+# In-Development 1.3.9 2017-10-19
+
+Issue #11543 - Add annotations to NetCDF and CSV requests
+
 # Release 1.3.8 2017-09-29
 
 Issue #11444 - Prevent crash on open ended annotations
