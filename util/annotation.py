@@ -17,13 +17,6 @@ log = logging.getLogger(__name__)
 # Seconds from NTP epoch to UNIX epoch
 NTP_OFFSET_SECS = 2208988800
 
-#
-# ???         -       - ???     - Initial Commit
-# Sep 22 2017 - 11444 - jelkins - Prevent None endDT from crashing code
-# Oct 19 2017 - 12784 - sgfoote - Added parameters to AnnotationRecord and created a dump_json method to facilitate 
-#                                 writing to files
-#
-
 
 class AnnotationServiceInterface(object):
     def __init__(self, anno_host, port=12580):
