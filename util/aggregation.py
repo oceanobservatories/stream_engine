@@ -18,10 +18,6 @@ from util.gather import gather_files
 from util.netcdf_utils import write_netcdf, add_dynamic_attributes, analyze_datasets
 from util.xarray_overrides import xr
 
-#
-# ???         -       - ???     - Initial Commit
-# Oct 19 2017 - 12784 - sgfoote - Added annotation aggregation logic
-#
 
 log = logging.getLogger(__name__)
 
