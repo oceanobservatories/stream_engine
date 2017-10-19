@@ -1,6 +1,6 @@
 # Stream Engine
 
-# Next Release
+# In-Development 1.3.9 2017-10-19
 
 Issue #11543 - Add annotations to NetCDF and CSV requests
 

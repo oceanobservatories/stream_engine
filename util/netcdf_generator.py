@@ -12,6 +12,10 @@ from util.netcdf_utils import rename_glider_lat_lon, add_dynamic_attributes, wri
 
 log = logging.getLogger(__name__)
 
+#
+# ???         -       - ???     - Initial Commit
+# Oct 19 2017 - 12784 - sgfoote - Added annotation data to responses
+#
 
 class NetcdfGenerator(object):
     def __init__(self, stream_request, classic, disk_path=None):

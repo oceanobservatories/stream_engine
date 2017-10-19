@@ -10,6 +10,11 @@ from util.common import ntp_to_datestring, WriteErrorException
 
 log = logging.getLogger(__name__)
 
+#
+# ???         -       - ???     - Initial Commit
+# Oct 19 2017 - 12784 - sgfoote - Reworked CsvGenerator to return zip file in synchronous case and added provenance 
+#                                 and annotation data to the responses
+#
 
 class CsvGenerator(object):
     """

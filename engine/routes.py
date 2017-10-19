@@ -17,6 +17,10 @@ from util.san import onload_netCDF, SAN_netcdf
 
 log = logging.getLogger(__name__)
 
+#
+# ???         -       - ???     - Initial Commit
+# Oct 19 2017 - 12784 - sgfoote - Updated CSV and TSV routes to expect zip file return
+#
 
 @app.errorhandler(Exception)
 def handle_exception(error):
