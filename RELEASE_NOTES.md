@@ -1,6 +1,8 @@
 # Stream Engine
 
-# In-Development 1.3.9 2017-10-19
+# In-Development 1.3.9 2017-11-01
+
+Issue #12828 - Prevent time parameter from being filtered so aggregation works
 
 Issue #11543 - Add annotations to NetCDF and CSV requests
 
