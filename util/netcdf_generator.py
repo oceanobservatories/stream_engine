@@ -55,7 +55,8 @@ class NetcdfGenerator(object):
     def _filter_params(self, ds, params):
         missing_params = []
         params_to_filter = []
-        default_params = ['deployment', 'id', 'lat', 'lon', 'quality_flag']
+        # aggregation logic assumes the presence of a 'time' parameter, so do not allow it to get removed
+        default_params = ['time', 'deployment', 'id', 'lat', 'lon', 'quality_flag']
 
         for param in params:
             if param not in ds.data_vars:
