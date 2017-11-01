@@ -1,6 +1,6 @@
 # Stream Engine
 
-# Release 1.3.8.1 2017-11-01
+# Release 1.3.9 2017-11-01
 
 Issue #12828 - Prevent time parameter from being filtered so aggregation works
 
