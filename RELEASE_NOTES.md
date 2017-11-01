@@ -1,5 +1,9 @@
 # Stream Engine
 
+# Release 1.3.9 2017-11-01
+
+Issue #12828 - Prevent time parameter from being filtered so aggregation works
+
 # Release 1.3.8 2017-09-29
 
 Issue #11444 - Prevent crash on open ended annotations
