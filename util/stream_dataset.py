@@ -254,7 +254,7 @@ class StreamDataset(object):
                 new_name = '-'.join((source.name, value.name))
                 if new_name in dataset:
                     kwargs[name] = dataset[new_name].values
-                    param_meta = self._create_parameter_metadata(value, deployment, True)
+                    param_meta = self._create_parameter_metadata(value, deployment, source.name)
 
             if param_meta is not None:
                 arg_metadata[name] = param_meta
@@ -510,14 +510,39 @@ class StreamDataset(object):
                                        ds[name],
                                        time=target_times)
 
-    def _create_parameter_metadata(self, param, deployment, interpolated=False):
+    def _get_external_stream_key(self, external_stream_name):
+        """
+        Get the external stream key that matches the given stream name.
+        :param external_stream_name: the name of the external stream
+        :return: the matching external stream key or None if no match was found
+        """
+        match = None
+        for external_stream_key in self.external_streams:
+            if external_stream_key.stream_name == external_stream_name:
+                match = external_stream_key
+                break
+        return match
+
+    def _create_parameter_metadata(self, param, deployment, interpolated_stream_name=None):
         """
         Given a source stream and parameter, generate the corresponding parameter metadata
         :param param: Parameter
-        :param interpolated: Boolean indicating if this data was interpolated
+        :param interpolated_stream_name: The stream name for an interpolated parameter
         :return: Dictionary containing metadata describing this Stream/Parameter
         """
+
         dataset = self.datasets[deployment]
+        source = self.stream_key.as_refdes()
+        interpolated = False
+
+        if interpolated_stream_name:
+            interpolated = True
+            external_stream_key = self._get_external_stream_key(interpolated_stream_name)
+            if external_stream_key:
+                source = external_stream_key.as_refdes()
+            else:
+                log.warn("Unable to locate external stream key for: "+interpolated_stream_name)
+                source = "Unknown"
 
         if self.time_param and self.time_param.name in dataset:
             # virtual stream
@@ -536,7 +561,7 @@ class StreamDataset(object):
             t1 = t2 = t1_dt = t2_dt = None
 
         return {'type': "parameter",
-                'source': self.stream_key.as_refdes(),
+                'source': source,
                 'parameter_id': param.id,
                 'name': param.name,
                 'data_product_identifier': param.data_product_identifier,
