@@ -2,6 +2,8 @@
 
 # In-Development 1.3.9 2017-11-07
 
+Issue #12544 - Add derived and external parameter attributes
+
 Issue #12886 - Fix missing external parameters
 
 Issue #12828 - Prevent time parameter from being filtered so aggregation works
