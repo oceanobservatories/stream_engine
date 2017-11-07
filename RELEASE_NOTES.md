@@ -8,6 +8,8 @@ Issue #11543 - Add annotations to NetCDF and CSV requests
 
 Issue #12796 - Fix incorrect provenance source for interpolated parameters
 
+Issue #12323 - Updated the preload_database pointer with the zplsc echogram changes.
+
 # Release 1.3.8 2017-09-29
 
 Issue #11444 - Prevent crash on open ended annotations
