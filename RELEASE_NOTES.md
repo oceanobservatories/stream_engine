@@ -1,6 +1,8 @@
 # Stream Engine
 
-# In-Development 1.3.9 2017-11-06
+# In-Development 1.3.9 2017-11-07
+
+Issue #12886 - Fix missing external parameters
 
 Issue #12828 - Prevent time parameter from being filtered so aggregation works
 
