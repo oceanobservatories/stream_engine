@@ -111,9 +111,36 @@ class NetcdfGenerator(object):
                 file_name = 'deployment%04d_%s_%s-%s.nc' % (deployment, stream_key.as_dashed_refdes(), start, end)
                 file_path = os.path.join(base_path, file_name)
                 ds = rename_glider_lat_lon(stream_key, ds)
-                params = [p.name for p in self.stream_request.requested_parameters]
-                if params:
-                    ds = self._filter_params(ds, params)
+
+                # include all directly requested_parameters
+                params_to_include = [p.name for p in self.stream_request.requested_parameters]
+
+                # include all external parameters associated with the directly requested parameters (12886)
+                for external_stream_key in self.stream_request.external_includes:
+                    for parameter in self.stream_request.external_includes[external_stream_key]:
+                        params_to_include.append(parameter.name)
+                        long_parameter_name = external_stream_key.stream_name+"-"+parameter.name
+                        if long_parameter_name in ds:
+                            # rename the parameter without the stream_name prefix (12544 AC1)
+                            ds = ds.rename({long_parameter_name : parameter.name})
+                            # record the instrument and stream (12544 AC2)
+                            ds[parameter.name].attrs['instrument'] = external_stream_key.as_three_part_refdes()
+                            ds[parameter.name].attrs['stream'] = external_stream_key.stream_name
+
+                # associated variables with their contributors (12544 AC3)
+                for requested_parameter in self.stream_request.requested_parameters:
+                    if requested_parameter.needs and requested_parameter.name in ds:
+                        for k, need_list in requested_parameter.needs:
+                            for need in need_list:
+                                if need.name in params_to_include:
+                                    if 'ancillary_variables' in ds[requested_parameter.name].attrs:
+                                        ds[requested_parameter.name].attrs['ancillary_variables'] += "," + need.name
+                                    else:
+                                        ds[requested_parameter.name].attrs['ancillary_variables'] = need.name
+                                    break
+
+                if params_to_include:
+                    ds = self._filter_params(ds, params_to_include)
                 write_netcdf(ds, file_path, classic=self.classic)
                 file_paths.append(file_path)
         return file_paths

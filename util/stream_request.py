@@ -343,6 +343,8 @@ class StreamRequest(object):
                 for sk in stream_parameters:
                     self.stream_parameters.setdefault(sk, set()).update(stream_parameters[sk])
                 self.unfulfilled = external_unfulfilled
+                for sk in found:
+                    self.external_includes.setdefault(sk, set()).update(found[sk])
 
             # Now identify any parameters needed for mobile assets
             external_to_process = self._get_mobile_externals()
@@ -351,7 +353,8 @@ class StreamRequest(object):
                 for sk in stream_parameters:
                     self.stream_parameters.setdefault(sk, set()).update(stream_parameters[sk])
                 self.unfulfilled = self.unfulfilled.union(external_unfulfilled)
-                self.external_includes.update(found)
+                for sk in found:
+                    self.external_includes.setdefault(sk, set()).update(found[sk])
 
             if self.unfulfilled:
                 log.warn('<%s> Unable to find sources for the following params: %r',
