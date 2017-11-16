@@ -1,6 +1,10 @@
 # Stream Engine
 
-# In-Development 1.3.9 2017-11-07
+# In-Development 1.3.10 2017-11-16
+
+Issue #12515 - Use preload data from postgres
+
+# Release 1.3.9 2017-11-07
 
 Issue #12544 - Add derived and external parameter attributes
 
