@@ -2,6 +2,8 @@
 
 # In-Development 1.3.10 2017-11-16
 
+Issue #12916 - Enable starting stream_engine from any folder
+
 Issue #12515 - Use preload data from postgres
 
 # Release 1.3.9 2017-11-07
