@@ -17,7 +17,7 @@ start(){
 
     if [ ! -f $PIDFILE ]; then
         export OOI_GUNICORN_LOG_LOC=$HERE
-        gunicorn --pythonpath $HERE --log-config $HERE/logging.conf --daemon -p $PIDFILE --config $HERE/gunicorn_config.py engine.routes:app
+        gunicorn --chdir $HERE --pythonpath $HERE --log-config $HERE/logging.conf --daemon -p $PIDFILE --config $HERE/gunicorn_config.py engine.routes:app
     else
         echo "$NAME: Trying to start stream engine, but pid exists"
     fi
