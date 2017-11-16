@@ -204,6 +204,6 @@ def post_fork(server, worker):
         worker.log.debug('Connecting worker to cassandra')
         _init()
         worker.log.debug('Connected worker to cassandra')
-        engine = create_engine_from_url(None)
+        engine = create_engine_from_url(r'postgresql://awips:awips@localhost/metadata')
         Session = create_scoped_session(engine)
         MetadataBase.query = Session.query_property()

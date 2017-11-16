@@ -7,7 +7,7 @@ from util.cass import _init
 from ooi_data.postgres.model import MetadataBase
 from preload_database.database import create_engine_from_url
 
-engine = create_engine_from_url(None)
+engine = create_engine_from_url(r'postgresql://awips:awips@localhost/metadata')
 Session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 MetadataBase.query = Session.query_property()
 
