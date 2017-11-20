@@ -1,0 +1,234 @@
+[
+	{
+		"@class": ".XDeployment",
+		"location": {
+			"depth": 0.0,
+			"location": [
+				-42.44093167,
+				-42.9204
+			],
+			"latitude": -42.9204,
+			"longitude": -42.44093167,
+			"orbitRadius": null
+		},
+		"node": null,
+		"referenceDesignator": "GA01SUMO-SBD11-04-DOSTAD000",
+		"sensor": {
+			"@class": ".XInstrument",
+			"calibration": [
+				{
+					"@class": ".XCalibration",
+					"name": "CC_csv",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": [
+								0.00286532,
+								1.223289E-4,
+								2.298823E-6,
+								230.0239,
+								-0.3630681,
+								-57.36654,
+								4.559015
+							],
+							"comments": null,
+							"assetUid": "CGINS-DOSTAD-00375",
+							"eventId": 45927,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_csv",
+							"eventStartTime": 1418342400000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1509627555960,
+							"dataSource": "CGINS-DOSTAD-00375__20141212_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": [
+								0.002744327,
+								1.1845E-4,
+								2.18579E-6,
+								230.8706,
+								-0.3318442,
+								-54.82022,
+								4.570412
+							],
+							"comments": null,
+							"assetUid": "CGINS-DOSTAD-00375",
+							"eventId": 18707,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_csv",
+							"eventStartTime": 1477526400000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1509627338980,
+							"dataSource": "CGINS-DOSTAD-00375__20161027_Cal_Info.xlsx"
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_conc_coef",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": [
+								0.0,
+								1.0
+							],
+							"comments": "default",
+							"assetUid": "CGINS-DOSTAD-00375",
+							"eventId": 45928,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_conc_coef",
+							"eventStartTime": 1418342400000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1509627555960,
+							"dataSource": "CGINS-DOSTAD-00375__20141212_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": [
+								0.0,
+								1.0
+							],
+							"comments": "default",
+							"assetUid": "CGINS-DOSTAD-00375",
+							"eventId": 18709,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_conc_coef",
+							"eventStartTime": 1477526400000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1509627338980,
+							"dataSource": "CGINS-DOSTAD-00375__20161027_Cal_Info.xlsx"
+						}
+					]
+				}
+			],
+			"assetId": 550,
+			"events": [
+			],
+			"remoteResources": [
+			],
+			"serialNumber": "375",
+			"name": "375",
+			"location": null,
+			"owner": null,
+			"notes": null,
+			"uid": "CGINS-DOSTAD-00375",
+			"description": "Dissolved Oxygen Stable Response: DOSTA Series D",
+			"manufacturer": "Aanderaa",
+			"physicalInfo": {
+				"height": -1.0,
+				"width": -1.0,
+				"length": -1.0,
+				"weight": -1.0
+			},
+			"editPhase": "OPERATIONAL",
+			"assetType": "Sensor",
+			"mobile": false,
+			"modelNumber": "Optode 4831",
+			"purchasePrice": 5258.25,
+			"purchaseDate": 1434326400000,
+			"deliveryDate": 1434326400000,
+			"depthRating": null,
+			"ooiPropertyNumber": null,
+			"ooiPartNumber": null,
+			"ooiSerialNumber": null,
+			"deliveryOrderNumber": null,
+			"institutionPropertyNumber": null,
+			"institutionPurchaseOrderNumber": null,
+			"shelfLifeExpirationDate": null,
+			"firmwareVersion": "4.7.1",
+			"softwareVersion": null,
+			"powerRequirements": null,
+			"lastModifiedTimestamp": 1509627218898,
+			"dataSource": "BulkLoad from [sensor_bulk_load-AssetRecord.csv]"
+		},
+		"deploymentNumber": 3,
+		"editPhase": "OPERATIONAL",
+		"versionNumber": 1,
+		"mooring": {
+			"@class": ".XMooring",
+			"assetId": 3137,
+			"events": [
+			],
+			"remoteResources": [
+			],
+			"serialNumber": "GA01SUMO-00003",
+			"name": "GA01SUMO-00003",
+			"location": null,
+			"owner": "Woods Hole Oceanographic Institution",
+			"notes": null,
+			"uid": "CGMGA-01SUMO-00003",
+			"description": "Global Argentine Basin Apex Surface Mooring",
+			"manufacturer": "WHOI",
+			"physicalInfo": {
+				"height": -1.0,
+				"width": -1.0,
+				"length": -1.0,
+				"weight": -1.0
+			},
+			"editPhase": "OPERATIONAL",
+			"assetType": "Mooring",
+			"mobile": false,
+			"modelNumber": "GA01SUMO",
+			"purchasePrice": null,
+			"purchaseDate": null,
+			"deliveryDate": null,
+			"depthRating": null,
+			"ooiPropertyNumber": null,
+			"ooiPartNumber": null,
+			"ooiSerialNumber": null,
+			"deliveryOrderNumber": null,
+			"institutionPropertyNumber": null,
+			"institutionPurchaseOrderNumber": null,
+			"shelfLifeExpirationDate": null,
+			"firmwareVersion": null,
+			"softwareVersion": null,
+			"powerRequirements": null,
+			"lastModifiedTimestamp": 1509627232441,
+			"dataSource": "BulkLoad from [platform_bulk_load-AssetRecord.csv]"
+		},
+		"deployCruiseInfo": {
+			"@class": ".CruiseInfo",
+			"uniqueCruiseIdentifier": "NBP16-09",
+			"cruiseIdentifier": null,
+			"shipName": "R/V Nathaniel B. Palmer",
+			"editPhase": "OPERATIONAL",
+			"assetUid": null,
+			"eventId": 65,
+			"eventType": "CRUISE_INFO",
+			"eventName": "NBP16-09",
+			"eventStartTime": 1476921600000,
+			"eventStopTime": 1479168000000,
+			"notes": null,
+			"tense": "UNKNOWN",
+			"lastModifiedTimestamp": 1509627215417,
+			"dataSource": "Load from [CruiseInformation.xlsx]"
+		},
+		"recoverCruiseInfo": null,
+		"deployedBy": null,
+		"recoveredBy": null,
+		"inductiveId": null,
+		"waterDepth": 5175.0,
+		"ingestInfo": [
+		],
+		"assetUid": null,
+		"eventId": 27488,
+		"eventType": "DEPLOYMENT",
+		"eventName": "GA01SUMO-SBD11-04-DOSTAD000",
+		"eventStartTime": 1477532820000,
+		"eventStopTime": null,
+		"notes": null,
+		"tense": "UNKNOWN",
+		"lastModifiedTimestamp": 1509627388203,
+		"dataSource": "Load from [GA01SUMO_Deploy.xlsx]"
+	}
+]

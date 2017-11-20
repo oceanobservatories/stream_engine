@@ -1,0 +1,860 @@
+[
+	{
+		"@class": ".XDeployment",
+		"location": {
+			"depth": 80.0,
+			"location": [
+				-124.30595,
+				44.63708
+			],
+			"latitude": 44.63708,
+			"longitude": -124.30595,
+			"orbitRadius": null
+		},
+		"node": null,
+		"referenceDesignator": "CE02SHBP-LJ01D-06-CTDBPN106",
+		"sensor": {
+			"@class": ".XInstrument",
+			"calibration": [
+				{
+					"@class": ".XCalibration",
+					"name": "CC_a0",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 0.001264763,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 15530,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_a0",
+							"eventStartTime": 1428537600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748671669,
+							"dataSource": "ATOSU-69827-00002__20150409_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": 0.00128,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 33917,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_a0",
+							"eventStartTime": 1485993600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748761128,
+							"dataSource": "ATOSU-69827-00002__20170202_Cal_Info.xlsx"
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_g",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": -0.9840000000000001,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 33918,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_g",
+							"eventStartTime": 1485993600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748761128,
+							"dataSource": "ATOSU-69827-00002__20170202_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": -0.9838809000000001,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 15532,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_g",
+							"eventStartTime": 1428537600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748671669,
+							"dataSource": "ATOSU-69827-00002__20150409_Cal_Info.xlsx"
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_h",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 0.151,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 33919,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_h",
+							"eventStartTime": 1485993600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748761128,
+							"dataSource": "ATOSU-69827-00002__20170202_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": 0.1512124,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 15534,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_h",
+							"eventStartTime": 1428537600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748671669,
+							"dataSource": "ATOSU-69827-00002__20150409_Cal_Info.xlsx"
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_i",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": -1.78E-4,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 33920,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_i",
+							"eventStartTime": 1485993600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748761128,
+							"dataSource": "ATOSU-69827-00002__20170202_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": -1.739072E-4,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 15536,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_i",
+							"eventStartTime": 1428537600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748671669,
+							"dataSource": "ATOSU-69827-00002__20150409_Cal_Info.xlsx"
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_a3",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 1.8E-7,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 33921,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_a3",
+							"eventStartTime": 1485993600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748761128,
+							"dataSource": "ATOSU-69827-00002__20170202_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": 2.038112E-7,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 15538,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_a3",
+							"eventStartTime": 1428537600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748671669,
+							"dataSource": "ATOSU-69827-00002__20150409_Cal_Info.xlsx"
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_a2",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": -1.13E-6,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 33922,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_a2",
+							"eventStartTime": 1485993600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748761128,
+							"dataSource": "ATOSU-69827-00002__20170202_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": -1.695028E-6,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 15540,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_a2",
+							"eventStartTime": 1428537600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748671669,
+							"dataSource": "ATOSU-69827-00002__20150409_Cal_Info.xlsx"
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_a1",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 2.72E-4,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 33923,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_a1",
+							"eventStartTime": 1485993600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748761128,
+							"dataSource": "ATOSU-69827-00002__20170202_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": 2.765747E-4,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 15542,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_a1",
+							"eventStartTime": 1428537600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748671669,
+							"dataSource": "ATOSU-69827-00002__20150409_Cal_Info.xlsx"
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_T5",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 0.0,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 33924,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_T5",
+							"eventStartTime": 1485993600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748761128,
+							"dataSource": "ATOSU-69827-00002__20170202_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": 0.0,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 15544,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_T5",
+							"eventStartTime": 1428537600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748671669,
+							"dataSource": "ATOSU-69827-00002__20150409_Cal_Info.xlsx"
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_T4",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 1.92026E-9,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 15546,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_T4",
+							"eventStartTime": 1428537600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748671669,
+							"dataSource": "ATOSU-69827-00002__20150409_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": 1.92E-9,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 33925,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_T4",
+							"eventStartTime": 1485993600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748761128,
+							"dataSource": "ATOSU-69827-00002__20170202_Cal_Info.xlsx"
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_T3",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 1.04E-6,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 33926,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_T3",
+							"eventStartTime": 1485993600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748761128,
+							"dataSource": "ATOSU-69827-00002__20170202_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": 1.04105E-6,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 15548,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_T3",
+							"eventStartTime": 1428537600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748671669,
+							"dataSource": "ATOSU-69827-00002__20150409_Cal_Info.xlsx"
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_T2",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": -1.12E-4,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 33927,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_T2",
+							"eventStartTime": 1485993600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748761128,
+							"dataSource": "ATOSU-69827-00002__20170202_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": -1.11676E-4,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 15550,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_T2",
+							"eventStartTime": 1428537600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748671669,
+							"dataSource": "ATOSU-69827-00002__20150409_Cal_Info.xlsx"
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_T1",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 27.75494,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 15552,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_T1",
+							"eventStartTime": 1428537600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748671669,
+							"dataSource": "ATOSU-69827-00002__20150409_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": 27.8,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 33928,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_T1",
+							"eventStartTime": 1485993600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748761128,
+							"dataSource": "ATOSU-69827-00002__20170202_Cal_Info.xlsx"
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_C1",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 1000.0,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 33929,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_C1",
+							"eventStartTime": 1485993600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748761128,
+							"dataSource": "ATOSU-69827-00002__20170202_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": 999.7449,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 15554,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_C1",
+							"eventStartTime": 1428537600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748671669,
+							"dataSource": "ATOSU-69827-00002__20150409_Cal_Info.xlsx"
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_C2",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": -0.00133547,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 15556,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_C2",
+							"eventStartTime": 1428537600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748671669,
+							"dataSource": "ATOSU-69827-00002__20150409_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": -0.00134,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 33932,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_C2",
+							"eventStartTime": 1485993600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748761128,
+							"dataSource": "ATOSU-69827-00002__20170202_Cal_Info.xlsx"
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_D1",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 0.032,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 33931,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_D1",
+							"eventStartTime": 1485993600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748761128,
+							"dataSource": "ATOSU-69827-00002__20170202_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": 0.032017,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 15558,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_D1",
+							"eventStartTime": 1428537600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748671669,
+							"dataSource": "ATOSU-69827-00002__20150409_Cal_Info.xlsx"
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_cpcor",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": -9.57E-8,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 33930,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_cpcor",
+							"eventStartTime": 1485993600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748761128,
+							"dataSource": "ATOSU-69827-00002__20170202_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": -9.57E-8,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 15560,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_cpcor",
+							"eventStartTime": 1428537600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748671669,
+							"dataSource": "ATOSU-69827-00002__20150409_Cal_Info.xlsx"
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_D2",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 0.0,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 33933,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_D2",
+							"eventStartTime": 1485993600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748761128,
+							"dataSource": "ATOSU-69827-00002__20170202_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": 0.0,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 15562,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_D2",
+							"eventStartTime": 1428537600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748671669,
+							"dataSource": "ATOSU-69827-00002__20150409_Cal_Info.xlsx"
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_C3",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": -1.27E-4,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 33934,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_C3",
+							"eventStartTime": 1485993600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748761128,
+							"dataSource": "ATOSU-69827-00002__20170202_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": -1.26915E-4,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 15564,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_C3",
+							"eventStartTime": 1428537600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748671669,
+							"dataSource": "ATOSU-69827-00002__20150409_Cal_Info.xlsx"
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_j",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 3.5E-5,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 33935,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_j",
+							"eventStartTime": 1485993600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748761128,
+							"dataSource": "ATOSU-69827-00002__20170202_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": 3.490614E-5,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 15566,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_j",
+							"eventStartTime": 1428537600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748671669,
+							"dataSource": "ATOSU-69827-00002__20150409_Cal_Info.xlsx"
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_ctcor",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": 3.25E-6,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 33936,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_ctcor",
+							"eventStartTime": 1485993600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748761128,
+							"dataSource": "ATOSU-69827-00002__20170202_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": 3.25E-6,
+							"comments": null,
+							"assetUid": "ATOSU-69827-00002",
+							"eventId": 15568,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_ctcor",
+							"eventStartTime": 1428537600000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748671669,
+							"dataSource": "ATOSU-69827-00002__20150409_Cal_Info.xlsx"
+						}
+					]
+				}
+			],
+			"assetId": 181,
+			"events": [
+			],
+			"remoteResources": [
+			],
+			"serialNumber": "16-50114",
+			"name": "16-50114",
+			"location": null,
+			"owner": null,
+			"notes": null,
+			"uid": "ATOSU-69827-00002",
+			"description": "CTD Pumped: CTDBP Series N",
+			"manufacturer": "Sea-Bird Electronics",
+			"physicalInfo": {
+				"height": -1.0,
+				"width": -1.0,
+				"length": -1.0,
+				"weight": -1.0
+			},
+			"editPhase": "OPERATIONAL",
+			"assetType": "Sensor",
+			"mobile": false,
+			"modelNumber": "SBE 16plus V2",
+			"purchasePrice": 19135.0,
+			"purchaseDate": 1431561600000,
+			"deliveryDate": 1431561600000,
+			"depthRating": null,
+			"ooiPropertyNumber": null,
+			"ooiPartNumber": null,
+			"ooiSerialNumber": null,
+			"deliveryOrderNumber": null,
+			"institutionPropertyNumber": null,
+			"institutionPurchaseOrderNumber": null,
+			"shelfLifeExpirationDate": null,
+			"firmwareVersion": null,
+			"softwareVersion": null,
+			"powerRequirements": null,
+			"lastModifiedTimestamp": 1510748584009,
+			"dataSource": "BulkLoad from [sensor_bulk_load-AssetRecord.csv]"
+		},
+		"deploymentNumber": 4,
+		"editPhase": "OPERATIONAL",
+		"versionNumber": 1,
+		"mooring": {
+			"@class": ".XMooring",
+			"assetId": 3132,
+			"events": [
+			],
+			"remoteResources": [
+			],
+			"serialNumber": "SN0009",
+			"name": "SN0009",
+			"location": null,
+			"owner": "University of Washington",
+			"notes": null,
+			"uid": "ATAPL-65310-820-0009",
+			"description": "Coastal Endurance Oregon Shelf Cabled Benthic Experiment Package: Low Power Junction Box",
+			"manufacturer": "WHOI",
+			"physicalInfo": {
+				"height": -1.0,
+				"width": -1.0,
+				"length": -1.0,
+				"weight": -1.0
+			},
+			"editPhase": "OPERATIONAL",
+			"assetType": "Mooring",
+			"mobile": false,
+			"modelNumber": "CE02SHBP-LJ01D",
+			"purchasePrice": null,
+			"purchaseDate": null,
+			"deliveryDate": null,
+			"depthRating": null,
+			"ooiPropertyNumber": null,
+			"ooiPartNumber": null,
+			"ooiSerialNumber": null,
+			"deliveryOrderNumber": null,
+			"institutionPropertyNumber": null,
+			"institutionPurchaseOrderNumber": null,
+			"shelfLifeExpirationDate": null,
+			"firmwareVersion": null,
+			"softwareVersion": null,
+			"powerRequirements": null,
+			"lastModifiedTimestamp": 1510748597261,
+			"dataSource": "BulkLoad from [platform_bulk_load-AssetRecord.csv]"
+		},
+		"deployCruiseInfo": {
+			"@class": ".CruiseInfo",
+			"uniqueCruiseIdentifier": "RR1717",
+			"cruiseIdentifier": null,
+			"shipName": "R/V Roger Revelle",
+			"editPhase": "OPERATIONAL",
+			"assetUid": null,
+			"eventId": 87,
+			"eventType": "CRUISE_INFO",
+			"eventName": "RR1717",
+			"eventStartTime": 1504915200000,
+			"eventStopTime": 1505001600000,
+			"notes": null,
+			"tense": "UNKNOWN",
+			"lastModifiedTimestamp": 1510748583128,
+			"dataSource": "Load from [CruiseInformation.xlsx]"
+		},
+		"recoverCruiseInfo": null,
+		"deployedBy": null,
+		"recoveredBy": null,
+		"inductiveId": null,
+		"waterDepth": 80.0,
+		"ingestInfo": [
+		],
+		"assetUid": null,
+		"eventId": 51788,
+		"eventType": "DEPLOYMENT",
+		"eventName": "CE02SHBP-LJ01D-06-CTDBPN106",
+		"eventStartTime": 1505053800000,
+		"eventStopTime": null,
+		"notes": null,
+		"tense": "UNKNOWN",
+		"lastModifiedTimestamp": 1510748921787,
+		"dataSource": "Load from [CE02SHBP_Deploy.xlsx]"
+	}
+]

@@ -57,6 +57,7 @@ def get_stream_metadata():
 @mock.patch('util.metadata_service.stream._get_stream_metadata', new=get_stream_metadata)
 class StreamRequestTest(unittest.TestCase):
     metadata = []
+    # Note - provenance is optional and not included in NetCDF download by default
     base_params = ['time', 'deployment', 'provenance']
     call_cnt = 0
 
@@ -66,19 +67,26 @@ class StreamRequestTest(unittest.TestCase):
         cls.nut_sk = StreamKey('CE04OSPS', 'SF01B', '4A-NUTNRA102', 'streamed', 'nutnr_a_sample')
         cls.echo_sk = StreamKey('RS01SLBS', 'LJ01A', '05-HPIESA101', 'streamed', 'echo_sounding')
         cls.hourly_sk = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_hourly')
-        cls.met_sk = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_a_dcl_instrument_recovered')
-        cls.vel_sk = StreamKey('GI01SUMO', 'RID16', '04-VELPTA000', 'recovered_host', 'velpt_ab_dcl_instrument_recovered')
+        cls.met_sk = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host',
+                               'metbk_a_dcl_instrument_recovered')
+        cls.vel_sk = StreamKey('GI01SUMO', 'RID16', '04-VELPTA000', 'recovered_host',
+                               'velpt_ab_dcl_instrument_recovered')
 
-        cls.ctd_events = AssetEvents(cls.ctd_sk.as_three_part_refdes(),
-                                     json.load(open(os.path.join(DATA_DIR, 'CE04OSPS-SF01B-2A-CTDPFA107_events.json'))))
-        cls.nut_events = AssetEvents(cls.nut_sk.as_three_part_refdes(),
-                                     json.load(open(os.path.join(DATA_DIR, 'CE04OSPS-SF01B-4A-NUTNRA102_events.json'))))
-        cls.hpies_events = AssetEvents(cls.echo_sk.as_three_part_refdes(),
-                                       json.load(open(os.path.join(DATA_DIR, 'RS01SLBS-LJ01A-05-HPIESA101_events.json'))))
-        cls.met_events = AssetEvents(cls.met_sk.as_three_part_refdes(),
-                                     json.load(open(os.path.join(DATA_DIR, 'GI01SUMO-SBD11-06-METBKA000_events.json'))))
-        cls.vel_events = AssetEvents(cls.vel_sk.as_three_part_refdes(),
-                                     json.load(open(os.path.join(DATA_DIR, 'GI01SUMO-RID16-04-VELPTA000_events.json'))))
+        cls.ctd_events = AssetEvents(
+            cls.ctd_sk.as_three_part_refdes(),
+            json.load(open(os.path.join(DATA_DIR, 'CE04OSPS-SF01B-2A-CTDPFA107_events.json'))))
+        cls.nut_events = AssetEvents(
+            cls.nut_sk.as_three_part_refdes(),
+            json.load(open(os.path.join(DATA_DIR, 'CE04OSPS-SF01B-4A-NUTNRA102_events.json'))))
+        cls.hpies_events = AssetEvents(
+            cls.echo_sk.as_three_part_refdes(),
+            json.load(open(os.path.join(DATA_DIR, 'RS01SLBS-LJ01A-05-HPIESA101_events.json'))))
+        cls.met_events = AssetEvents(
+            cls.met_sk.as_three_part_refdes(),
+            json.load(open(os.path.join(DATA_DIR, 'GI01SUMO-SBD11-06-METBKA000_events.json'))))
+        cls.vel_events = AssetEvents(
+            cls.vel_sk.as_three_part_refdes(),
+            json.load(open(os.path.join(DATA_DIR, 'GI01SUMO-RID16-04-VELPTA000_events.json'))))
 
     def assert_parameters_in_datasets(self, datasets, parameters):
         for dataset in datasets.itervalues():
@@ -169,14 +177,31 @@ class StreamRequestTest(unittest.TestCase):
         self.assertEqual(set(sr.stream_parameters), {sk1, sk2, sk3})
 
     def create_nut_sr(self):
+        """
+        Create NITRTSC_L2
+          PD18         salinity_corrected_nitrate
+          CC           CC_di
+          CC           CC_cal_temp
+          CC           CC_wl
+          CC           CC_eswa
+          CC           CC_lower_wavelength_limit_for_spectra_fit
+          CC           CC_upper_wavelength_limit_for_spectra_fit
+          CC           CC_eno3
+          PD311        frame_type
+          PD332        spectral_channels
+          TEMPWAT_L1   seawater_temperature
+          PRACSAL_L2   practical_salinity
+          PD330        sea_water_dark
+        """
         nutnr_fn = 'nutnr_a_sample.nc'
         ctdpf_fn = 'ctdpf_sbe43_sample.nc'
         qc = json.load(open(os.path.join(DATA_DIR, 'qc.json')))
 
-        tr = TimeRange(3.65342400e+09, 3.65351040e+09)
-        sr = StreamRequest(self.nut_sk, [18], tr, {}, qc_parameters=qc, request_id='UNIT')
         nutnr_ds = xr.open_dataset(os.path.join(DATA_DIR, nutnr_fn), decode_times=False)
         ctdpf_ds = xr.open_dataset(os.path.join(DATA_DIR, ctdpf_fn), decode_times=False)
+        tr = self.extract_time(ctdpf_ds)
+        NITRTSC_L2 = Parameter.query.get(18)  # salinity_corrected_nitrate
+        sr = StreamRequest(self.nut_sk, [18], tr, {}, qc_parameters=qc, request_id='UNIT')
 
         nutnr_ds = nutnr_ds[self.base_params + [p.name for p in sr.stream_parameters[self.nut_sk]]]
         ctdpf_ds = ctdpf_ds[self.base_params + [p.name for p in sr.stream_parameters[self.ctd_sk]]]
@@ -197,6 +222,122 @@ class StreamRequestTest(unittest.TestCase):
         sr.calculate_derived_products()
         sr.execute_qc()
         sr.insert_provenance()
+        return sr
+
+    @staticmethod
+    def extract_time(data_set):
+        return TimeRange(data_set['time'][0].data, data_set['time'][-1].data)
+
+    def test_doxygen(self):
+        """
+        Compute DOXYGEN_L2
+          PD14       dissolved_oxygen             GA01SUMO-SBD11-04-DOSTAD000 dosta_abcdjm_dcl_instrument
+            PD2843   dosta_abcdjm_cspp_tc_oxygen  GA01SUMO-SBD11-04-DOSTAD000 dosta_abcdjm_dcl_instrument
+              PD943  calibrated_phase             GA01SUMO-SBD11-04-DOSTAD000 dosta_abcdjm_dcl_instrument
+              PD942  optode_temperature           GA01SUMO-SBD11-04-DOSTAD000 dosta_abcdjm_dcl_instrument
+              CC     CC_csv
+            PD3077   met_salsurf                  GA01SUMO-SBD11-06-METBKA000 metbk_a_dcl_instrument
+            PD17     ct_depth                     GA01SUMO-SBD11-06-METBKA000 metbk_a_dcl_instrument
+            PD1056   sea_surface_temperature      GA01SUMO-SBD11-06-METBKA000 metbk_a_dcl_instrument
+        """
+        dosta_sk = StreamKey('GA01SUMO', 'SBD11', '04-DOSTAD000', 'telemetered', 'dosta_abcdjm_dcl_instrument')
+        metbk_sk = StreamKey('GA01SUMO', 'SBD11', '06-METBKA000', 'telemetered', 'metbk_a_dcl_instrument')
+        dosta_fn = 'dosta_sample.nc'
+        metbk_fn = 'dosta_metbk_sample.nc'
+        DOXYGEN_L2 = Parameter.query.get(14)
+
+        dosta_ds = xr.open_dataset(os.path.join(DATA_DIR, dosta_fn), decode_times=False)
+        metbk_ds = xr.open_dataset(os.path.join(DATA_DIR, metbk_fn), decode_times=False)
+        tr = self.extract_time(metbk_ds)
+        # sr = StreamRequest(dosta_sk, [DOXYGEN_L2.id], tr, {}, request_id='UNIT')
+        sr = StreamRequest(dosta_sk, [], tr, {}, request_id='UNIT')
+
+        prev_l2 = dosta_ds[DOXYGEN_L2.name].data
+
+        dosta_ds = dosta_ds[self.base_params + [p.name for p in sr.stream_parameters[dosta_sk]]]
+        metbk_ds = metbk_ds[self.base_params + [p.name for p in sr.stream_parameters[metbk_sk]]]
+
+        sr.datasets[metbk_sk] = StreamDataset(metbk_sk, sr.uflags, [dosta_sk], sr.request_id)
+        sr.datasets[dosta_sk] = StreamDataset(dosta_sk, sr.uflags, [metbk_sk], sr.request_id)
+        sr.datasets[metbk_sk]._insert_dataset(metbk_ds)
+        sr.datasets[dosta_sk]._insert_dataset(dosta_ds)
+
+        do_events = AssetEvents(
+            dosta_sk.as_three_part_refdes(),
+            json.load(open(os.path.join(DATA_DIR, 'GA01SUMO-SBD11-04-DOSTAD000_events.json'))))
+        sr.datasets[metbk_sk].events = self.met_events  # calibration data
+        sr.datasets[dosta_sk].events = do_events  # calibration data
+
+        sr.calculate_derived_products()
+        sr.import_extra_externals()
+
+        self.assertIn(DOXYGEN_L2.name, sorted(sr.datasets[dosta_sk].datasets.values()[0]))
+        cur_l2 = sr.datasets[dosta_sk].datasets.values()[0][DOXYGEN_L2.name].data
+        # TODO - not sure why the calculation is not nearly identical
+        np.testing.assert_allclose(prev_l2, cur_l2, rtol=1e-4)
+
+        return sr
+
+    def test_do_stable_old_data(self):
+        """
+        Compute DOXYGEN_L2 - uses old data (pre-split #12693)
+          PD14       dissolved_oxygen               CE02SHBP-LJ01D-06-DOSTAD106 do_stable_sample
+            CC       CC_lon, CC_lat
+            PD964    uncorrected_do (ctd_tc_oxygen) CE02SHBP-LJ01D-06-DOSTAD106 do_stable_sample
+              PD197  oxygen                         CE02SHBP-LJ01D-06-DOSTAD106 do_stable_sample
+            PD13     practical_salinity             CE02SHBP-LJ01D-06-CTDBPN106 ctdbp_no_sample
+            PD3647   ctdbp_no_seawater_pressure     CE02SHBP-LJ01D-06-CTDBPN106 ctdbp_no_sample
+            PD908    seawater_temperature           CE02SHBP-LJ01D-06-CTDBPN106 ctdbp_no_sample
+
+        Approach: Downloaded data from the CTDBPN106 and looked at the first value for PD14.
+        Load that dataset as both CTD and DOSTA datasets, renaming DOCONCS_L1 from PD964 to PD952
+        (ctd_tc_oxygen to uncorrected_do). Clip the streams to CTD and DO streams and compare the
+        first element of output to the value from the netcdf file.
+        """
+        ctdbp_sk = StreamKey('CE02SHBP', 'LJ01D', '06-CTDBPN106', 'streamed', 'ctdbp_no_sample')
+        dosta_sk = StreamKey('CE02SHBP', 'LJ01D', '06-DOSTAD106', 'streamed', 'do_stable_sample')
+        ctdbp_fn = 'ctdbp_no_sample.nc'
+        # dosta_fn = 'dosta_sample.nc'
+        dosta_fn = ctdbp_fn  # read all data from the ctd file, split into separate streams
+        DOXYGEN_L2 = Parameter.query.get(14)
+
+        dosta_ds = xr.open_dataset(os.path.join(DATA_DIR, dosta_fn), decode_times=False)
+        ctdbp_ds = xr.open_dataset(os.path.join(DATA_DIR, ctdbp_fn), decode_times=False)
+        tr = self.extract_time(ctdbp_ds)
+        sr = StreamRequest(dosta_sk, [DOXYGEN_L2.id], tr, {}, request_id='UNIT')
+
+        # save the NetCDF DOXYGEN_L2 parameter for later compare
+        prev_l2 = dosta_ds[DOXYGEN_L2.name].data
+
+        # correct the name for PD964 (old data)
+        dosta_ds = dosta_ds.rename({'ctd_tc_oxygen': 'uncorrected_do'})
+
+        # filter data to stream parameters
+        dosta_ds = dosta_ds[self.base_params + [p.name for p in sr.stream_parameters[dosta_sk]]]
+        ctdbp_ds = ctdbp_ds[self.base_params + [p.name for p in sr.stream_parameters[ctdbp_sk]]]
+
+        sr.datasets[ctdbp_sk] = StreamDataset(ctdbp_sk, sr.uflags, [dosta_sk], sr.request_id)
+        sr.datasets[dosta_sk] = StreamDataset(dosta_sk, sr.uflags, [ctdbp_sk], sr.request_id)
+        sr.datasets[dosta_sk]._insert_dataset(dosta_ds)
+        sr.datasets[ctdbp_sk]._insert_dataset(ctdbp_ds)
+
+        # load calibration data
+        ctd_events = AssetEvents(
+            ctdbp_sk.as_three_part_refdes(),
+            json.load(open(os.path.join(DATA_DIR, 'CE02SHBP-LJ01D-06-CTDBPN106_events.json'))))
+        sr.datasets[ctdbp_sk].events = ctd_events
+        do_events = AssetEvents(
+            dosta_sk.as_three_part_refdes(),
+            json.load(open(os.path.join(DATA_DIR, 'CE02SHBP-LJ01D-06-DOSTAD106_events.json'))))
+        sr.datasets[dosta_sk].events = do_events
+
+        sr.calculate_derived_products()
+        sr.import_extra_externals()
+
+        self.assertIn(DOXYGEN_L2.name, sorted(sr.datasets[dosta_sk].datasets.values()[0]))
+        cur_l2 = sr.datasets[dosta_sk].datasets.values()[0][DOXYGEN_L2.name].data
+        np.testing.assert_allclose(prev_l2, cur_l2)
+
         return sr
 
     def test_netcdf_raw_files(self):
@@ -286,12 +427,11 @@ class StreamRequestTest(unittest.TestCase):
         return sr
 
     def test_metbk_hourly(self):
-        hourly_sk = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_hourly')
         sr = self.create_metbk_hourly_sr()
         sr.calculate_derived_products()
         sr.insert_provenance()
-        expected_params = [p.name for p in hourly_sk.stream.parameters] + ['time', 'deployment', 'lat', 'lon']
-        self.assertListEqual(sorted(expected_params), sorted(sr.datasets[hourly_sk].datasets[1]))
+        expected_params = [p.name for p in self.hourly_sk.stream.parameters] + ['time', 'deployment', 'lat', 'lon']
+        self.assertListEqual(sorted(expected_params), sorted(sr.datasets[self.hourly_sk].datasets[1]))
 
     def create_echo_sounding_sr(self, parameters=None):
         parameters = [] if parameters is None else parameters

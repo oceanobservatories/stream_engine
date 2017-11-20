@@ -1,0 +1,234 @@
+[
+	{
+		"@class": ".XDeployment",
+		"location": {
+			"depth": 80.0,
+			"location": [
+				-124.30595,
+				44.63708
+			],
+			"latitude": 44.63708,
+			"longitude": -124.30595,
+			"orbitRadius": null
+		},
+		"node": null,
+		"referenceDesignator": "CE02SHBP-LJ01D-06-DOSTAD106",
+		"sensor": {
+			"@class": ".XInstrument",
+			"calibration": [
+				{
+					"@class": ".XCalibration",
+					"name": "CC_csv",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": [
+								0.002853459,
+								1.204889E-4,
+								2.388215E-6,
+								230.8258,
+								-0.3418438,
+								-55.70005,
+								4.565417
+							],
+							"comments": null,
+							"assetUid": "ATOSU-58320-00019",
+							"eventId": 10941,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_csv",
+							"eventStartTime": 1412899200000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748661781,
+							"dataSource": "ATOSU-58320-00019__20141010_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": [
+								0.00285346,
+								1.20489E-4,
+								2.38822E-6,
+								230.826,
+								-0.341844,
+								-55.7001,
+								4.56542
+							],
+							"comments": "SUVFoilCoef? No temp coef?",
+							"assetUid": "ATOSU-58320-00019",
+							"eventId": 27987,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_csv",
+							"eventStartTime": 1389484800000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748715356,
+							"dataSource": "ATOSU-58320-00019__20140112_Cal_Info.xlsx"
+						}
+					]
+				},
+				{
+					"@class": ".XCalibration",
+					"name": "CC_conc_coef",
+					"calData": [
+						{
+							"@class": ".XCalibrationData",
+							"value": [
+								0.0,
+								1.0
+							],
+							"comments": "default",
+							"assetUid": "ATOSU-58320-00019",
+							"eventId": 27988,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_conc_coef",
+							"eventStartTime": 1389484800000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748715356,
+							"dataSource": "ATOSU-58320-00019__20140112_Cal_Info.xlsx"
+						},
+						{
+							"@class": ".XCalibrationData",
+							"value": [
+								0.0,
+								1.0
+							],
+							"comments": "default",
+							"assetUid": "ATOSU-58320-00019",
+							"eventId": 10943,
+							"eventType": "CALIBRATION_DATA",
+							"eventName": "CC_conc_coef",
+							"eventStartTime": 1412899200000,
+							"eventStopTime": null,
+							"notes": null,
+							"tense": "UNKNOWN",
+							"lastModifiedTimestamp": 1510748661781,
+							"dataSource": "ATOSU-58320-00019__20141010_Cal_Info.xlsx"
+						}
+					]
+				}
+			],
+			"assetId": 160,
+			"events": [
+			],
+			"remoteResources": [
+			],
+			"serialNumber": "311",
+			"name": "311",
+			"location": null,
+			"owner": null,
+			"notes": null,
+			"uid": "ATOSU-58320-00019",
+			"description": "Dissolved Oxygen Stable Response: DOSTA Series D",
+			"manufacturer": "Aanderaa",
+			"physicalInfo": {
+				"height": -1.0,
+				"width": -1.0,
+				"length": -1.0,
+				"weight": -1.0
+			},
+			"editPhase": "OPERATIONAL",
+			"assetType": "Sensor",
+			"mobile": false,
+			"modelNumber": "Optode 4831",
+			"purchasePrice": 5258.25,
+			"purchaseDate": 1391040000000,
+			"deliveryDate": 1391040000000,
+			"depthRating": null,
+			"ooiPropertyNumber": null,
+			"ooiPartNumber": null,
+			"ooiSerialNumber": null,
+			"deliveryOrderNumber": null,
+			"institutionPropertyNumber": null,
+			"institutionPurchaseOrderNumber": null,
+			"shelfLifeExpirationDate": null,
+			"firmwareVersion": null,
+			"softwareVersion": null,
+			"powerRequirements": null,
+			"lastModifiedTimestamp": 1510748583915,
+			"dataSource": "BulkLoad from [sensor_bulk_load-AssetRecord.csv]"
+		},
+		"deploymentNumber": 4,
+		"editPhase": "OPERATIONAL",
+		"versionNumber": 1,
+		"mooring": {
+			"@class": ".XMooring",
+			"assetId": 3132,
+			"events": [
+			],
+			"remoteResources": [
+			],
+			"serialNumber": "SN0009",
+			"name": "SN0009",
+			"location": null,
+			"owner": "University of Washington",
+			"notes": null,
+			"uid": "ATAPL-65310-820-0009",
+			"description": "Coastal Endurance Oregon Shelf Cabled Benthic Experiment Package: Low Power Junction Box",
+			"manufacturer": "WHOI",
+			"physicalInfo": {
+				"height": -1.0,
+				"width": -1.0,
+				"length": -1.0,
+				"weight": -1.0
+			},
+			"editPhase": "OPERATIONAL",
+			"assetType": "Mooring",
+			"mobile": false,
+			"modelNumber": "CE02SHBP-LJ01D",
+			"purchasePrice": null,
+			"purchaseDate": null,
+			"deliveryDate": null,
+			"depthRating": null,
+			"ooiPropertyNumber": null,
+			"ooiPartNumber": null,
+			"ooiSerialNumber": null,
+			"deliveryOrderNumber": null,
+			"institutionPropertyNumber": null,
+			"institutionPurchaseOrderNumber": null,
+			"shelfLifeExpirationDate": null,
+			"firmwareVersion": null,
+			"softwareVersion": null,
+			"powerRequirements": null,
+			"lastModifiedTimestamp": 1510748597261,
+			"dataSource": "BulkLoad from [platform_bulk_load-AssetRecord.csv]"
+		},
+		"deployCruiseInfo": {
+			"@class": ".CruiseInfo",
+			"uniqueCruiseIdentifier": "RR1717",
+			"cruiseIdentifier": null,
+			"shipName": "R/V Roger Revelle",
+			"editPhase": "OPERATIONAL",
+			"assetUid": null,
+			"eventId": 87,
+			"eventType": "CRUISE_INFO",
+			"eventName": "RR1717",
+			"eventStartTime": 1504915200000,
+			"eventStopTime": 1505001600000,
+			"notes": null,
+			"tense": "UNKNOWN",
+			"lastModifiedTimestamp": 1510748583128,
+			"dataSource": "Load from [CruiseInformation.xlsx]"
+		},
+		"recoverCruiseInfo": null,
+		"deployedBy": null,
+		"recoveredBy": null,
+		"inductiveId": null,
+		"waterDepth": 80.0,
+		"ingestInfo": [
+		],
+		"assetUid": null,
+		"eventId": 51789,
+		"eventType": "DEPLOYMENT",
+		"eventName": "CE02SHBP-LJ01D-06-DOSTAD106",
+		"eventStartTime": 1505053800000,
+		"eventStopTime": null,
+		"notes": null,
+		"tense": "UNKNOWN",
+		"lastModifiedTimestamp": 1510748921908,
+		"dataSource": "Load from [CE02SHBP_Deploy.xlsx]"
+	}
+]
