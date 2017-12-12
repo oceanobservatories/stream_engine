@@ -1,6 +1,8 @@
 # Stream Engine
 
-# Development Release 1.4.00 2018-01-16
+# Development Release 1.4.00 2018-01-18
+
+Issue #12001 - Do not open provenance/annotation files in append mode
 
 Issue #13025 - Add support for custom dimensioned data
 - add support for custom dimensional data sets
