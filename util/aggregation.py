@@ -378,6 +378,16 @@ def log_completion(job_dir):
         fh.write('complete\n')
 
 
+def log_failure(e, job_dir):
+    output = {
+        "code": 500,
+        "message": "Aggregation failed for the following reason: %s" % e.message
+    }
+    json_str = json.dumps(output, indent=2, separators=(',', ': '))
+    with open(os.path.join(job_dir, 'status.txt'), 'w') as fh:
+        fh.write(json_str)
+
+
 @log_timing(log)
 def aggregate(async_job_dir, request_id=None):
     local_dir = os.path.join(app.config['LOCAL_ASYNC_DIR'], async_job_dir)
@@ -394,11 +404,15 @@ def aggregate(async_job_dir, request_id=None):
     if not os.path.exists(final_dir):
         os.makedirs(final_dir)
 
-    aggregate_status(local_dir, final_dir, request_id=request_id)
-    aggregate_csv(local_dir, final_dir, request_id=request_id)
-    aggregate_netcdf(local_dir, final_dir, request_id=request_id)
-    aggregate_provenance(local_dir, final_dir, request_id=request_id)
-    aggregate_annotations(local_dir, final_dir, request_id=request_id)
-    generate_ncml(final_dir, final_dir, request_id=request_id)
-    cleanup(local_dir, request_id=request_id)
-    log_completion(final_dir)
+    try:
+        aggregate_status(local_dir, final_dir, request_id=request_id)
+        aggregate_csv(local_dir, final_dir, request_id=request_id)
+        aggregate_netcdf(local_dir, final_dir, request_id=request_id)
+        aggregate_provenance(local_dir, final_dir, request_id=request_id)
+        aggregate_annotations(local_dir, final_dir, request_id=request_id)
+        generate_ncml(final_dir, final_dir, request_id=request_id)
+        cleanup(local_dir, request_id=request_id)
+        log_completion(final_dir)
+    except Exception as e:
+        log.exception("Exception occured during aggregation! Marking status as failed.")
+        log_failure(e, final_dir)
