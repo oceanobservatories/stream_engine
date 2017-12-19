@@ -87,6 +87,20 @@ def add_location_data(ds, lat, lon):
     ds['lon'] = ('obs', lon_array, {'axis': 'X', 'units': 'degrees_east', 'standard_name': 'longitude'})
 
 
+def find_depth_variable(variable_list):
+    """
+    Find the depth variable in the variable_list
+    :param variable_list: the list of variable names
+    :return: the depth variable, or None if the variable_list contains no known depth variable
+    """
+    depth_variable=None
+    # iterate through the config variables to ensure variables are found in order of preference
+    for variable in app.config['NETCDF_DEPTH_VARIABLES']:
+        if variable in variable_list:
+            depth_variable = variable
+            break
+    return depth_variable
+
 def to_xray_dataset(cols, data, stream_key, request_uuid, san=False):
     """
     Make an xray dataset from the raw cassandra data

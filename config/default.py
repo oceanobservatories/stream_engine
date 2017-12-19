@@ -87,6 +87,36 @@ NETCDF_LICENSE = ""
 NETCDF_CALENDAR_TYPE = "gregorian"
 NETCDF_UNLIMITED_DIMS = ['obs']
 NETCDF_CHUNKSIZES = 10000
+NETCDF_NONSCI_VARIABLES = [
+    # variables that shouldn't have a coordinates attribute added
+    # #10745 AC 2
+    'id',
+    'obs',
+    'deployment'
+]
+NETCDF_DEPTH_VARIABLES = [
+    # variables that when present in a stream are to be used for depth
+    # #10745 AC 1
+    'sci_water_pressure_dbar',
+    'seawater_pressure',
+    'pressure_depth',
+    'pressure',
+    'sci_water_pressure',
+    'ctdpf_ckl_seawater_pressure',
+    'ctdbp_seawater_pressure',
+    'ctdmo_seawater_pressure',
+    'ctdbp_no_seawater_pressure',
+    'ctdmo_seawater_pressure',
+    'ct_depth',
+    'seawater_pressure_mbar',
+    'pressure_mbar',
+    'm_depth',
+    'm_pressure',
+    'm_water_pressure',
+    'm_water_depth',
+    'barometric_pressure',
+    'adcps_jln_pressure'
+]
 
 Z_AXIS_NAME = "depth"
 Z_POSITIVE = "down"

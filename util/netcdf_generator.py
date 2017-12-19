@@ -8,7 +8,7 @@ import zipfile
 from engine import app
 from util.common import log_timing, WriteErrorException
 from util.netcdf_utils import rename_glider_lat_lon, add_dynamic_attributes, write_netcdf
-
+from util.datamodel import find_depth_variable
 
 log = logging.getLogger(__name__)
 
@@ -83,6 +83,37 @@ class NetcdfGenerator(object):
                 ds = ds.drop(key)
         return ds
 
+    def _setup_coordinate_variables(self, ds):
+        """
+        Find the depth variable in the dataset and set assocciated coordinate attributes (10745)
+        :param ds: the dataset on which to operate
+        :return: the dataset with the coordinate variables and associated attributes setup
+        """
+        # find the depth_variable (10745 AC1)
+        depth_variable = find_depth_variable(ds.data_vars)
+        coordinates_key = 'coordinates'
+        coordinate_variables = "time lat lon"
+        if depth_variable:
+            coordinate_variables += " " + depth_variable
+        for var in ds.data_vars:
+            # coordinate variable shouldn't have coordinate attribute (10745 AC3)
+            # only scientific variables should have coordinate attribute (10745 AC2)
+            if var not in coordinate_variables \
+                and var not in app.config["NETCDF_NONSCI_VARIABLES"]:
+                ds[var].attrs[coordinates_key] = coordinate_variables
+            elif coordinates_key in ds[var].attrs:
+                del ds[var].attrs[coordinates_key]
+            # make sure coordinate variables have axis defined (10745 AC4)
+            if var == 'lat':
+                ds[var].attrs['axis'] = 'Y'
+            elif var == 'lon':
+                ds[var].attrs['axis'] = 'X'
+            elif var == depth_variable:
+                ds[var].attrs['axis'] = 'Z'
+
+        return ds
+
+
     def _create_files(self, base_path):
         file_paths = []
         for stream_key, stream_dataset in self.stream_request.datasets.iteritems():
@@ -138,6 +169,9 @@ class NetcdfGenerator(object):
                                     else:
                                         ds[requested_parameter.name].attrs['ancillary_variables'] = need.name
                                     break
+
+                # setup coordinate variables (10745)
+                ds = self._setup_coordinate_variables(ds)
 
                 if params_to_include:
                     ds = self._filter_params(ds, params_to_include)
