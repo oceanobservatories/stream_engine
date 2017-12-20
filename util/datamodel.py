@@ -95,7 +95,7 @@ def find_depth_variable(variable_list):
     """
     depth_variable=None
     # iterate through the config variables to ensure variables are found in order of preference
-    for variable in app.config['NETCDF_DEPTH_VARIABLES']:
+    for variable in app.config.get('NETCDF_DEPTH_VARIABLES',[]):
         if variable in variable_list:
             depth_variable = variable
             break
