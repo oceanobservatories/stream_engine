@@ -5,7 +5,7 @@ from collections import OrderedDict
 # General Settings         #
 ############################
 DEBUG = False
-STREAM_ENGINE_VERSION = "1.3.7"
+STREAM_ENGINE_VERSION = "1.3.11"
 # Cassandra process pool size
 POOL_SIZE = 4
 LOGGING_CONFIG = 'logging.conf'
@@ -95,7 +95,9 @@ NETCDF_NONSCI_VARIABLES = [
     'deployment'
 ]
 NETCDF_DEPTH_VARIABLES = [
-    # variables that when present in a stream are to be used for depth
+    # Variables that when present in a stream are to be used for depth.
+    # The order of the list determines the preferred variable to use in
+    # streams containing multiple matching depth variables.
     # #10745 AC 1
     'sci_water_pressure_dbar',
     'seawater_pressure',
@@ -106,7 +108,6 @@ NETCDF_DEPTH_VARIABLES = [
     'ctdbp_seawater_pressure',
     'ctdmo_seawater_pressure',
     'ctdbp_no_seawater_pressure',
-    'ctdmo_seawater_pressure',
     'ct_depth',
     'seawater_pressure_mbar',
     'pressure_mbar',
