@@ -99,7 +99,7 @@ class NetcdfGenerator(object):
             # coordinate variable shouldn't have coordinate attribute (10745 AC3)
             # only scientific variables should have coordinate attribute (10745 AC2)
             if var not in coordinate_variables \
-                and var not in app.config["NETCDF_NONSCI_VARIABLES"]:
+                    and var not in app.config.get('NETCDF_NONSCI_VARIABLES',[]):
                 ds[var].attrs[coordinates_key] = coordinate_variables
             elif coordinates_key in ds[var].attrs:
                 del ds[var].attrs[coordinates_key]
