@@ -248,7 +248,6 @@ def netcdf_save_to_filesystem():
         json_str = output_async_error(input_data, e, filename=json_efile)
 
     status_filename = time_prefix_filename(input_data.get('start'), input_data.get('stop'), "status.txt")
-
     write_status(base_path, filename=status_filename)
     return Response(json_str, mimetype='application/json')
 
@@ -293,8 +292,8 @@ def particles_save_to_filesystem():
                   % (message + ". " if code == 500 else "", base_path)
         code = 500
 
-    write_status(base_path)
-
+    status_filename = time_prefix_filename(input_data.get('start'), input_data.get('stop'), "status.txt")
+    write_status(base_path, filename=status_filename)
     return Response(json.dumps({'code': code, 'message': message}, indent=2), mimetype='application/json')
 
 
@@ -326,12 +325,15 @@ def _delimited_fs(delimiter):
     """
     input_data = request.get_json()
     base_path = get_local_dir(input_data)
+
     try:
         json_str = util.calc.get_csv_fs(input_data, request.url, base_path, delimiter=delimiter)
     except Exception as e:
-        json_str = output_async_error(input_data, e)
+        json_efile = time_prefix_filename(input_data.get('start'), input_data.get('stop'), "failure.json")
+        json_str = output_async_error(input_data, e, filename=json_efile)
 
-    write_status(base_path)
+    status_filename = time_prefix_filename(input_data.get('start'), input_data.get('stop'), "status.txt")
+    write_status(base_path, filename=status_filename)
     return Response(json_str, mimetype='application/json')
 
 
