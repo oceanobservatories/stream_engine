@@ -2,6 +2,8 @@
 
 # Development Release 1.3.11 2017-12-19
 
+Issue #12004 - Add aggregation exception handling
+
 Issue #10745 - Add NetCDF depth coordinate and associated attributes
 
 # Release 1.3.10 2017-12-14
