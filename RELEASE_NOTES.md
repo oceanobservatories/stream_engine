@@ -1,6 +1,8 @@
 # Stream Engine
 
-# Development Release 1.3.11 2017-12-19
+# Development Release 1.3.11 2018-01-04
+
+Issue #12715 - Standardize status file naming
 
 Issue #12004 - Add aggregation exception handling
 
