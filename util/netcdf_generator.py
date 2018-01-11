@@ -59,13 +59,16 @@ class NetcdfGenerator(object):
         default_params = ['time', 'deployment', 'id', 'lat', 'lon', 'quality_flag']
 
         for param in params:
-            if param not in ds.data_vars:
+            # look for param in both data_vars and coords (13025 AC2)
+            if param not in ds.data_vars and param not in ds.coords:
                 missing_params.append(param)
             else:
                 params_to_filter.append(param)
 
-        if missing_params:
+        # only complain about missing parameters for directly requested data stream
+        if missing_params and ds.stream == self.stream_request.stream_key.stream_name:
             log.warning('one or more selected parameters (%s) not found in the dataset', missing_params)
+
         if params_to_filter:
             log.debug('filtering parameters: %s', params_to_filter)
         else:

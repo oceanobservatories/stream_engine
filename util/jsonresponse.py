@@ -108,6 +108,11 @@ class JsonResponse(object):
                     if qc_key in data:
                         params.append(qc_key)
 
+            # don't look for dimensional coordinate variables in data (13025 AC2)
+            for dim in ds.coords:
+                if dim in params:
+                    params.remove(dim)
+
             # Warn for any missing parameters
             missing = [p for p in params if p not in data]
             if missing:
@@ -117,12 +122,17 @@ class JsonResponse(object):
 
             for index in xrange(len(ds.time)):
                 # Create our particle from the list of parameters
-                particle = {p: data[p][index] for p in params}
+                particle = {}
+                for p in params:
+                    if 'obs' in ds[p].dims:
+                        particle[p] = data[p][index]
+                    else:
+                        # data doesn't have obs dimension (13025 AC2)
+                        particle[p] = data[p]
                 particle['pk'] = stream_key.as_dict()
                 particle['pk']['time'] = data['time'][index]
                 if 'deployment' in data:
                     particle['pk']['deployment'] = data['deployment'][index]
-
                 particles.append(particle)
         return particles
 

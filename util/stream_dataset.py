@@ -2,6 +2,7 @@ import importlib
 import json
 import logging
 import datetime
+import sys
 
 import ion_functions
 import numexpr
@@ -24,6 +25,7 @@ from engine import app
 
 log = logging.getLogger(__name__)
 
+PYTHON_VERSION = '.'.join(map(str,(sys.version_info[0:3])))
 ION_VERSION = getattr(ion_functions, '__version__', 'unversioned')
 INSTRUMENT_ATTRIBUTE_MAP = app.config.get('INSTRUMENT_ATTRIBUTE_MAP')
 
@@ -383,12 +385,22 @@ class StreamDataset(object):
         """
         dims = ['obs']
 
-        # IF dimensions are defined in preload, use those
-        # otherwise, create dimensions dynamically based on the
-        # shape of the data
+        # the preload defined parameter dimensions
+        param_dimensions = []
         if param.dimensions:
-            dims += [d.value for d in param.dimensions]
+            param_dimensions = [d.value for d in param.dimensions]
+
+        if '-obs' in param_dimensions:
+            # remove obs dimension from parameter's dimensions and data (13025 AC2)
+            param_dimensions.remove('-obs')
+            dims = param_dimensions
+            data = data[0]
+        elif param_dimensions:
+            # append parameter dimensions onto obs
+            dims += param_dimensions
         else:
+            # create dimensions dynamically based on the
+            # shape of the data
             if data is not None:
                 for index, _ in enumerate(data.shape[1:]):
                     name = '%s_dim_%d' % (param.name, index)
@@ -618,10 +630,16 @@ class StreamDataset(object):
         log.debug('<%s> _execute_algorithm Keyword Args %r', self.request_id, sorted(kwargs))
 
         try:
-            if func.function_type == 'PythonFunction':
+            if func.function_type == 'PythonFunction' and func.owner != '__builtin__':
                 module = importlib.import_module(func.owner)
                 version = ION_VERSION
                 result = getattr(module, func.function)(**kwargs)
+
+            elif func.function_type == 'PythonFunction' and func.owner == '__builtin__':
+                version = 'Python ' + PYTHON_VERSION
+                # evaluate the function in an empty global namespace
+                # using the provided func.args as the local namespace
+                result = np.array(eval(func.function,{},kwargs))
 
             elif func.function_type == 'NumexprFunction':
                 version = 'unversioned'

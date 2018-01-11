@@ -1,6 +1,10 @@
 # Stream Engine
 
-# Development Release 1.3.11 2018-01-04
+# Development Release 1.3.11 2018-01-11
+
+Issue #13025 - Add support for custom dimensioned data
+- add support for custom dimensional data sets
+- add support for __builtin__ PythonFunction in preload database
 
 Issue #12715 - Standardize status file naming
 
