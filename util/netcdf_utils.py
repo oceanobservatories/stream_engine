@@ -236,10 +236,15 @@ def analyze_datasets(dir_path, files, request_id=None):
         path = os.path.join(dir_path, f)
         with xr.open_dataset(path, decode_times=False, mask_and_scale=False, decode_coords=False) as ds:
             for var in ds.data_vars:
-                # drop the obs dimension
+                # most variables are dimensioned on obs, drop the obs dimension
                 shape = ds[var].shape[1:]
                 dims = ds[var].dims[1:]
                 dtype = ds[var].dtype
+
+                # handle variables not dimensioned on obs (13025 AC2)
+                if 'obs' not in ds[var].dims:
+                    shape = ds[var].shape
+                    dims = ds[var].dims
 
                 if dtype.kind == 'S':
                     fill = ds[var].attrs.get('_FillValue', FILL_VALUES.get('string'))

@@ -213,6 +213,11 @@ def shape_up(dataset, parameters, request_id=None):
                 dataset[var] = (dims, fv, {'_FillValue': fill})
 
             else:
+                # support data without an observation dimension (13025 AC2)
+                if 'obs' not in dataset[var].dims:
+                    dims = parameters[var]['dims']
+                    shape = parameters[var]['shape']
+
                 if dataset[var].dims == dims and dataset[var].shape == shape:
                     # Nothing to do here
                     continue
@@ -260,7 +265,18 @@ def shape_up(dataset, parameters, request_id=None):
 
 @log_timing(log)
 def concatenate_and_write(datasets, out_dir, group_name, request_id=None):
+    # keep track of data not dimensioned along obs (13025 AC2)
+    non_obs_data = []
+    for ds in datasets:
+        non_obs_data = [var for var in ds.data_vars if 'obs' not in ds[var].dims]
+
+    # compiled data sets will compile all data along the obs dimension
     ds = compile_datasets(datasets)
+
+    # remove obs dimension from non_obs data (13025 AC2)
+    for non_obs in non_obs_data:
+        ds[non_obs] = ds[non_obs][0]
+
     add_dynamic_attributes(ds)
     write_netcdf(ds, os.path.join(out_dir, get_name(ds, group_name)))
 
