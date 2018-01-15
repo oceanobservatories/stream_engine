@@ -124,11 +124,12 @@ class JsonResponse(object):
                 # Create our particle from the list of parameters
                 particle = {}
                 for p in params:
-                    if 'obs' in ds[p].dims:
-                        particle[p] = data[p][index]
-                    else:
-                        # data doesn't have obs dimension (13025 AC2)
+                    if p in ds and 'obs' not in ds[p].dims:
+                        # data has no obs dimension (13025 AC2)
                         particle[p] = data[p]
+		    else:
+                        # data is bound by obs dimensino
+                        particle[p] = data[p][index]
                 particle['pk'] = stream_key.as_dict()
                 particle['pk']['time'] = data['time'][index]
                 if 'deployment' in data:
