@@ -65,7 +65,7 @@ class NetcdfGenerator(object):
             else:
                 params_to_filter.append(param)
 
-        # only complain about missing parameters for directly requested data stream
+        # only warn about missing parameters for directly requested data stream
         if missing_params and 'stream' in ds and ds.stream == self.stream_request.stream_key.stream_name:
             log.warning('one or more selected parameters (%s) not found in the dataset', missing_params)
 
