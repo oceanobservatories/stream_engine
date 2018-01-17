@@ -1,6 +1,25 @@
 # Stream Engine
 
-# Development Release 1.3.11 2018-01-04
+# Development Release 1.4.00 2018-01-16
+
+Issue #13025 - Add support for custom dimensioned data
+- add support for custom dimensional data sets
+- add support for __builtin__ PythonFunction in preload database,
+
+  functions should expect inputs in 2d arrays of [obs,data]
+  and output data as 2d array of [obs,data]
+
+  functions should be valid Python syntax and use only standard
+  Python built-in functions
+
+  for example, see the enumerate function in preload database
+  ParameterFunctions.csv:
+
+  functiontype: PythonFunction
+  name: enumerate
+  owner: __builtin__
+  function: [[idx for idx, _ in enumerate(x[0])]]
+  args: ['x']
 
 Issue #12715 - Standardize status file naming
 
