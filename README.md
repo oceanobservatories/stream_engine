@@ -15,8 +15,8 @@ asynchronously as NetCDF4, CSV or TSV.
 2. Clone all submodules (git submodule update --init)
 3. Create a conda virtual environment with the necessary packages:
 
-```
-$ conda env create -f conda_env.yml
+```shell
+conda env create -f conda_env.yml
 ```
 
 ## Configuration
@@ -32,10 +32,10 @@ Stream Engine. The reload option will send a HUP signal to gunicorn which
 will terminate all *idle* workers and restart them. Any busy worker will
  continue until the current request is complete.
 
-```
-$ ./manage-streamng start
-$ ./manage-streamng stop
-$ ./manage-streamng reload
+```shell
+./manage-streamng start
+./manage-streamng stop
+./manage-streamng reload
 ```
 
 Note that the stop behavior is similar to the reload behavior. Any active
@@ -43,6 +43,16 @@ workers will continue until their current task is complete. Any new
 requests will be rejected but the master gunicorn process will continue
 running until all workers are shutdown. Stopping Stream Engine should
 generally be avoided unless necessary.
+
+### Running on Test Server
+
+Our current test server is `uframe-3-test` under user `asadev`. Source the 
+stream engine conda environment `engine` and start the service:
+
+```shell
+source activate engine
+manage-streamng start
+```
 
 ## Logs
 
@@ -57,11 +67,11 @@ Updating to a new release of Stream Engine is simple, just grab the update,
 update your conda environment and the preload database submodule then
 reload Stream Engine.
 
-```
-$ git pull # or git fetch / git checkout <tag>
-$ git submodule update
-$ conda env update -f conda_env.yml
-$ ./manage-streamng reload
+```shell
+git pull # or git fetch / git checkout <tag>
+git submodule update
+conda env update -f conda_env.yml
+./manage-streamng reload
 ```
 
 
@@ -74,13 +84,13 @@ $ ./manage-streamng reload
 5. Commit the above changes
 6. Tag the commit with the new version
 
-```
-$ git tag -a vX.X.X
+```shell
+git tag -a vX.X.X
 ```
 
 You can then push the commit and the tag to the upstream repo(s):
 
-```
-$ git push gerrit master
-$ git push gerrit master --tags
+```shell
+git push gerrit master
+git push gerrit master --tags
 ```
