@@ -78,7 +78,7 @@ class ProvenanceMetadataStore(object):
                     if not os.path.isdir(parent_dir):
                         raise WriteErrorException('Unable to create local output directory: %s' % parent_dir)
 
-            with open(filepath, 'a') as fh:
+            with open(filepath, 'w') as fh:
                 json.dump(self.get_json(), fh, indent=2, separators=(',', ': '), cls=NumpyJSONEncoder)
         except EnvironmentError as e:
             log.error('Failed to write provenance file: %s', e)
