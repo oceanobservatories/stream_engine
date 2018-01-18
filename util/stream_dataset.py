@@ -196,10 +196,7 @@ class StreamDataset(object):
                     deployment_event = self.events.deps[deployment]
                     mask = (dataset.time.values >= deployment_event.ntp_start) & \
                            (dataset.time.values < deployment_event.ntp_stop)
-                else:
-                    mask = np.zeros_like(dataset.time.values).astype('bool')
-                masks[deployment] = mask
-
+                    masks[deployment] = mask
             self._mask_datasets(masks)
 
     def _build_function_arguments(self, dataset, stream_key, funcmap, deployment, source_dataset=None):
