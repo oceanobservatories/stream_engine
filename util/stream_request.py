@@ -261,7 +261,7 @@ class StreamRequest(object):
                 for deployment in self.datasets[self.stream_key].datasets:
                     if pressure_name in self.datasets[self.stream_key].datasets[deployment].data_vars:
                         pressure_value = self.datasets[self.stream_key].datasets[deployment].data_vars[pressure_name]
-                        self.datasets[self.stream_key].datasets[deployment].__delitem__(pressure_name)
+                        del self.datasets[self.stream_key].datasets[deployment][pressure_name]
                         pressure_value.name = INT_PRESSURE_NAME
                         self.datasets[self.stream_key].datasets[deployment][INT_PRESSURE_NAME] = pressure_value
 

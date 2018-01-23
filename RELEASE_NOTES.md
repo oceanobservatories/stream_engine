@@ -1,10 +1,10 @@
 # Stream Engine
 
-# Development Release 1.4.1 2018-02-08
+# Development Release 1.4.1 2018-02-09
 
 Issue #9328 - Make interpolated ctd pressure available
 - add interpolated ctd pressure to the data request
-- ensure interpolated ctd pressure is included in NetCDF
+- ensure interpolated ctd pressure is included in NetCDF and CSV
 
 # Release 1.4.00 2018-02-02
 
