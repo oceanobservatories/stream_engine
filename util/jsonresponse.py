@@ -124,7 +124,7 @@ class JsonResponse(object):
                     if p in ds and 'obs' not in ds[p].dims:
                         # data has no obs dimension (13025 AC2)
                         particle[p] = data[p]
-		    else:
+                    else:
                         # data is bound by obs dimension
                         particle[p] = data[p][index]
                 particle['pk'] = stream_key.as_dict()
