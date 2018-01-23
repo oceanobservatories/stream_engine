@@ -344,7 +344,9 @@ class StreamRequestTest(unittest.TestCase):
         sr.calculate_derived_products()
         sr.import_extra_externals()
 
-        self.assertIn('ctdpf_sbe43_sample-seawater_pressure', sr.datasets[nutnr_sk].datasets[2])
+        # Ticket 9328: int_ctd_pressure is now set in stream_request.import_extra_externals()
+        self.assertNotIn('ctdpf_sbe43_sample-seawater_pressure', sr.datasets[nutnr_sk].datasets[2])
+        self.assertIn('int_ctd_pressure', sr.datasets[nutnr_sk].datasets[2])
         self.assertNotIn('ctdpf_sbe43_sample-seawater_pressure', sr.datasets[ctdpf_sk].datasets[2])
 
         data = json.loads(JsonResponse(sr).json())
@@ -394,7 +396,9 @@ class StreamRequestTest(unittest.TestCase):
         sr.calculate_derived_products()
         sr.import_extra_externals()
 
-        self.assertIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[par_sk].datasets[3])
+        # Ticket 9328: int_ctd_pressure is now set in stream_request.import_extra_externals()
+        self.assertNotIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[par_sk].datasets[3])
+        self.assertIn('int_ctd_pressure', sr.datasets[par_sk].datasets[3])
         self.assertNotIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[ctd_sk].datasets[3])
 
         data = json.loads(JsonResponse(sr).json())

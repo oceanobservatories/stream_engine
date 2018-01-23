@@ -252,16 +252,18 @@ class StreamRequest(object):
             pressure_key, pressure_param = pressure_params.pop()
             pressure_name = '-'.join((pressure_key.stream.name, pressure_param.name))
 
-            self.datasets[self.stream_key].interpolate_into(pressure_key,
-                                                            self.datasets.get(pressure_key),
-                                                            pressure_param)
+            if pressure_key in self.datasets:
+                self.datasets[self.stream_key].interpolate_into(pressure_key,
+                                                                self.datasets.get(pressure_key),
+                                                                pressure_param)
 
-            # Add the appropriate pressure_value to each deployment
-            for deployment in self.datasets[self.stream_key].datasets:
-                pressure_value = self.datasets[self.stream_key].datasets[deployment].data_vars[pressure_name]
-                self.datasets[self.stream_key].datasets[deployment].__delitem__(pressure_name)
-                pressure_value.name = INT_PRESSURE_NAME
-                self.datasets[self.stream_key].datasets[deployment][INT_PRESSURE_NAME] = pressure_value
+                # Add the appropriate pressure_value to each deployment
+                for deployment in self.datasets[self.stream_key].datasets:
+                    if pressure_name in self.datasets[self.stream_key].datasets[deployment].data_vars:
+                        pressure_value = self.datasets[self.stream_key].datasets[deployment].data_vars[pressure_name]
+                        self.datasets[self.stream_key].datasets[deployment].__delitem__(pressure_name)
+                        pressure_value.name = INT_PRESSURE_NAME
+                        self.datasets[self.stream_key].datasets[deployment][INT_PRESSURE_NAME] = pressure_value
 
     def _add_location(self):
         log.debug('<%s> Inserting location data for all datasets', self.request_id)
