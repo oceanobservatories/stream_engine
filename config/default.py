@@ -116,7 +116,8 @@ NETCDF_DEPTH_VARIABLES = [
     'm_water_pressure',
     'm_water_depth',
     'barometric_pressure',
-    'adcps_jln_pressure'
+    'adcps_jln_pressure',
+    'int_ctd_pressure'
 ]
 
 Z_AXIS_NAME = "depth"

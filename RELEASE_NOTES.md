@@ -1,6 +1,10 @@
 # Stream Engine
 
-# Development Release 1.4.00 2018-01-18
+# Development Release 1.4.00 2018-01-23
+
+Issue #9328 - Make interpolated ctd pressure available
+- add interpolated ctd pressure to the data request
+- ensure interpolated ctd pressure is included in NetCDF
 
 Issue #12001 - Do not open provenance/annotation files in append mode
 

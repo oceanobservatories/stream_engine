@@ -12,6 +12,9 @@ from util.datamodel import find_depth_variable
 
 log = logging.getLogger(__name__)
 
+# get pressure parameters (9328)
+PRESSURE_DPI = app.config.get('PRESSURE_DPI')
+INT_PRESSURE_NAME = app.config.get('INT_PRESSURE_NAME')
 
 class NetcdfGenerator(object):
     def __init__(self, stream_request, classic, disk_path=None):
@@ -148,6 +151,13 @@ class NetcdfGenerator(object):
 
                 # include all directly requested_parameters
                 params_to_include = [p.name for p in self.stream_request.requested_parameters]
+
+                # also include any indirectly derived pressure parameter (9328)
+                pressure_params = [(sk, param) for sk in self.stream_request.external_includes
+                                   for param in self.stream_request.external_includes[sk]
+                                   if param.data_product_identifier == PRESSURE_DPI]
+                if pressure_params:
+                    params_to_include.append(INT_PRESSURE_NAME)
 
                 # include all external parameters associated with the directly requested parameters (12886)
                 for external_stream_key in self.stream_request.external_includes:
