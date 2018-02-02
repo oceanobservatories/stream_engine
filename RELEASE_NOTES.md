@@ -1,6 +1,6 @@
 # Stream Engine
 
-# Development Release 1.4.00 2018-01-18
+# Release 1.4.00 2018-02-02
 
 Issue #12001 - Do not open provenance/annotation files in append mode
 
