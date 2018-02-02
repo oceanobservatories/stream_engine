@@ -1,6 +1,6 @@
 # Stream Engine
 
-# Development Release 1.4.1 2018-02-06
+# Development Release 1.4.1 2018-02-08
 
 Issue #9328 - Make interpolated ctd pressure available
 - add interpolated ctd pressure to the data request
