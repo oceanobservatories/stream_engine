@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 RequestParameters = namedtuple('RequestParameters', ['id', 'streams', 'coefficients', 'uflags', 'start', 'stop',
                                                      'limit', 'include_provenance', 'include_annotations',
                                                      'qc_parameters', 'strict_range', 'location_information',
-                                                     'execute_dpa'])
+                                                     'execute_dpa', 'require_deployment'])
 
 
 def execute_stream_request(request_parameters, needs_only=False):
@@ -48,7 +48,8 @@ def execute_stream_request(request_parameters, needs_only=False):
             strict_range=request_parameters.strict_range,
             request_id=request_parameters.id,
             collapse_times=collapse_times,
-            execute_dpa=request_parameters.execute_dpa))
+            execute_dpa=request_parameters.execute_dpa,
+            require_deployment=request_parameters.require_deployment))
 
         if not needs_only:
             stream_request[index].fetch_raw_data()
@@ -146,9 +147,10 @@ def validate(input_data):
     strict = input_data.get('strict_range', False)
     locs = input_data.get('locations', {})
     execute_dpa = input_data.get('execute_dpa', True)
+    require_deployment = input_data.get('require_deployment', app.config["REQUIRE_DEPLOYMENT"])
 
     return RequestParameters(request_id, streams, coefficients, user_flags, start,
-                             stop, limit, prov, annotate, qc, strict, locs, execute_dpa)
+                             stop, limit, prov, annotate, qc, strict, locs, execute_dpa, require_deployment)
 
 
 def _validate_coefficients(input_data):

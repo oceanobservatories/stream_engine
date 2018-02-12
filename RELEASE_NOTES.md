@@ -1,6 +1,15 @@
 # Stream Engine
 
-# Development Release 1.4.1 2018-02-09
+# Development Release 1.5.0 2018-02-12
+
+Issue #12879 - Prevent data without deployment info from returning
+- add require_deployment query parameter and default configuration setting
+
+By default, data without deployments will not be returned via data requests.
+The default behavior is configured via the REQUIRE_DEPLOYMENT variable in default.py
+
+To override the default behavior on a per request basis, set the query parameter
+require_deployment=false when making a data request.
 
 Issue #9328 - Make interpolated ctd pressure available
 - add interpolated ctd pressure to the data request

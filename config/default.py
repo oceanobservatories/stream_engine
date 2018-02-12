@@ -213,6 +213,11 @@ AGGREGATION_TIMEOUT_SECONDS = 7200
 ############################
 # Query Settings           #
 ############################
+# If require_deployment isn't specified during a data request, this sets the default behavior (12879)
+# True: data must have a deployment event defined to be returned
+# False: data without deployment events are allowed to return
+REQUIRE_DEPLOYMENT = True
+
 COLLAPSE_TIMES = True
 # If the ratio of total data to requested points is less than this value all of the data is returned
 UI_FULL_RETURN_RATIO = 2.0
