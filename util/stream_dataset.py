@@ -400,7 +400,7 @@ class StreamDataset(object):
             # remove obs dimension from parameter's dimensions and data (13025 AC2)
             param_dimensions.remove('-obs')
             dims = param_dimensions
-            data = data[0]
+            data = data[0] if data else None
         elif param_dimensions:
             # append parameter dimensions onto obs
             dims += param_dimensions
