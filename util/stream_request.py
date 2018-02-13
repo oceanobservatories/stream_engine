@@ -37,7 +37,7 @@ class StreamRequest(object):
 
     def __init__(self, stream_key, parameters, time_range, uflags, qc_parameters=None,
                  limit=None, include_provenance=False, include_annotations=False, strict_range=False,
-                 request_id='', collapse_times=False, execute_dpa=True):
+                 request_id='', collapse_times=False, execute_dpa=True, require_deployment=True):
 
         if not isinstance(stream_key, StreamKey):
             raise StreamEngineException('Received no stream key', status_code=400)
@@ -54,6 +54,7 @@ class StreamRequest(object):
         self.include_annotations = include_annotations
         self.strict_range = strict_range
         self.execute_dpa = execute_dpa
+        self.require_deployment = require_deployment
 
         # Internals
         self.asset_management = AssetManagement(ASSET_HOST, request_id=self.request_id)
@@ -233,7 +234,7 @@ class StreamRequest(object):
         :return:
         """
         for stream_key, stream_dataset in self.datasets.iteritems():
-            stream_dataset.exclude_nondeployed_data()
+            stream_dataset.exclude_nondeployed_data(self.require_deployment)
 
     def import_extra_externals(self):
         # import any other required "externals" into all datasets

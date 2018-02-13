@@ -187,16 +187,25 @@ class StreamDataset(object):
 
             self._mask_datasets(masks)
 
-    def exclude_nondeployed_data(self):
+    def exclude_nondeployed_data(self, require_deployment=True):
+        """
+        Exclude data outside of deployment times.
+        :param require_deployment: True to exclude all data without deployment information,
+                                   False to include data without deployment info.
+        :return: Nothing, this function directly modifies the underlying dataset.
+        """
         masks = {}
         if self.events is not None:
             for deployment in self.datasets:
                 dataset = self.datasets[deployment]
                 if deployment in self.events.deps:
+                    # if a deployment exists use it to restrict the range of values
                     deployment_event = self.events.deps[deployment]
-                    mask = (dataset.time.values >= deployment_event.ntp_start) & \
+                    masks[deployment] = (dataset.time.values >= deployment_event.ntp_start) & \
                            (dataset.time.values < deployment_event.ntp_stop)
-                    masks[deployment] = mask
+                elif require_deployment:
+                    # if a deployment doesn't exist and we require_deployment, restrict all values
+                    masks[deployment] = np.zeros_like(dataset.time.values).astype('bool')
             self._mask_datasets(masks)
 
     def _build_function_arguments(self, dataset, stream_key, funcmap, deployment, source_dataset=None):
