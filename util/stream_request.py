@@ -243,6 +243,28 @@ class StreamRequest(object):
                     for target_sk in self.datasets:
                         self.datasets[target_sk].interpolate_into(source_sk, self.datasets[source_sk], param)
 
+        # determine if there is a pressure parameter available (9328)
+        pressure_params = [(sk, param) for sk in self.external_includes for param in self.external_includes[sk]
+                           if param.data_product_identifier == PRESSURE_DPI]
+
+        if pressure_params:
+            # if there is a pressure parameter, integrate it into the stream
+            pressure_key, pressure_param = pressure_params.pop()
+            pressure_name = '-'.join((pressure_key.stream.name, pressure_param.name))
+
+            if pressure_key in self.datasets:
+                self.datasets[self.stream_key].interpolate_into(pressure_key,
+                                                                self.datasets.get(pressure_key),
+                                                                pressure_param)
+
+                # Add the appropriate pressure_value to each deployment
+                for deployment in self.datasets[self.stream_key].datasets:
+                    if pressure_name in self.datasets[self.stream_key].datasets[deployment].data_vars:
+                        pressure_value = self.datasets[self.stream_key].datasets[deployment].data_vars[pressure_name]
+                        del self.datasets[self.stream_key].datasets[deployment][pressure_name]
+                        pressure_value.name = INT_PRESSURE_NAME
+                        self.datasets[self.stream_key].datasets[deployment][INT_PRESSURE_NAME] = pressure_value
+
     def _add_location(self):
         log.debug('<%s> Inserting location data for all datasets', self.request_id)
         for stream_dataset in self.datasets.itervalues():

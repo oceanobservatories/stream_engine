@@ -74,12 +74,9 @@ class JsonResponse(object):
             if stream_key.is_mobile:
                 pressure_params = [(sk, param) for sk in external_includes for param in external_includes[sk]
                                    if param.data_product_identifier == PRESSURE_DPI]
+                # only need to append pressure name (9328)
                 if pressure_params:
-                    pressure_key, pressure_param = pressure_params.pop()
-                    pressure_name = '-'.join((pressure_key.stream.name, pressure_param.name))
-                    if pressure_name in data:
-                        data[INT_PRESSURE_NAME] = data.pop(pressure_name)
-                        params.append(INT_PRESSURE_NAME)
+                    params.append(INT_PRESSURE_NAME)
 
             # check if we should include and have positional data
             if stream_key.is_glider:
