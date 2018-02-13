@@ -1,5 +1,9 @@
 # Stream Engine
 
+# Release 1.4.1 2018-02-13
+
+Issue #13195 - Fix empty datasets with custom dims not being handled correctly
+
 # Release 1.4.00 2018-02-02
 
 Issue #12001 - Do not open provenance/annotation files in append mode
