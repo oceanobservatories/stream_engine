@@ -86,6 +86,13 @@ def ntp_to_datestring(ntp_time):
     return dt.isoformat()
 
 
+def ntp_to_short_iso_datestring(ntp_time):
+    dt = ntp_to_datetime(ntp_time)
+    if dt is None:
+        return str(ntp_time)
+    return dt.strftime("%Y%m%dT%H%M%S")
+
+
 class TimeRange(object):
     def __init__(self, start, stop):
         self.start = start

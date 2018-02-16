@@ -148,34 +148,28 @@ def aggregate_provenance(job_dir, output_dir, request_id=None):
             json.dump(aggregate_dict, fh, indent=2)
 
 
-def aggregate_annotation_group(job_dir, files):
-    aggregate_dict = {'annotations': []}
-    recorded_annotation_ids = []
-    for f in sorted(files):
-        path = os.path.join(job_dir, f)
-        data = json.load(open(path))
-        for key in data:
-            if key == 'annotations':
-                new_annotations = [x for x in data[key] if x['id'] not in recorded_annotation_ids]
-                recorded_annotation_ids.extend([v['id'] for v in new_annotations])
-                aggregate_dict[key].extend(new_annotations)
-            else:
-                aggregate_dict.setdefault(key, {})[f] = data[key]
-    return aggregate_dict
-
-
 @log_timing(log)
 def aggregate_annotations(job_dir, output_dir, request_id=None):
-    groups = {}
-    anno_label = '_annotations_'
+    anno_label = 'annotations_'
+    aggregate_dict = {'annotations': []}
+    recorded_annotation_ids = []
+    anno_file_count = 0
     for f in os.listdir(job_dir):
         if anno_label in f and f.endswith('json'):
-            group = f.split(anno_label)[0]
-            groups.setdefault(group, []).append(f)
-            
-    for group in groups:
-        aggregate_dict = aggregate_annotation_group(job_dir, groups[group])
-        with open(os.path.join(output_dir, '%s_aggregate_annotations.json' % group), 'w') as fh:
+            anno_file_count += 1
+            path = os.path.join(job_dir, f)
+            data = json.load(open(path))
+            for key in data:
+                if key == 'annotations':
+                    new_annotations = [x for x in data[key] if x['id'] not in recorded_annotation_ids]
+                    recorded_annotation_ids.extend([v['id'] for v in new_annotations])
+                    aggregate_dict[key].extend(new_annotations)
+                else:
+                    aggregate_dict.setdefault(key, {})[f] = data[key]
+    
+    # only write aggregate file if we encountered sub-job annotation files
+    if anno_file_count > 0:
+        with open(os.path.join(output_dir, 'annotations.json'), 'w') as fh:
             json.dump(aggregate_dict, fh, indent=2)
 
 
@@ -359,6 +353,16 @@ def aggregate_csv(job_dir, out_dir, request_id=None):
 
 
 @log_timing(log)
+def aggregate_json(job_dir, out_dir, request_id=None):
+    # TODO -- aggregate JSON files
+    for f in fnmatch.filter(os.listdir(job_dir), '*.json'):
+        # only process particle data files
+        if 'deployment' in f and not ('annotation' in f or 'provenance' in f):
+            shutil.move(os.path.join(job_dir, f),
+                        os.path.join(out_dir, f))
+
+
+@log_timing(log)
 def cleanup(job_dir, request_id=None):
     """
     All files have been aggregated, remove the pre-aggregation files
@@ -422,6 +426,7 @@ def aggregate(async_job_dir, request_id=None):
 
     try:
         aggregate_status(local_dir, final_dir, request_id=request_id)
+        aggregate_json(local_dir, final_dir, request_id=request_id)
         aggregate_csv(local_dir, final_dir, request_id=request_id)
         aggregate_netcdf(local_dir, final_dir, request_id=request_id)
         aggregate_provenance(local_dir, final_dir, request_id=request_id)

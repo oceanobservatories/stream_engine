@@ -16,6 +16,7 @@ log = logging.getLogger(__name__)
 PRESSURE_DPI = app.config.get('PRESSURE_DPI')
 INT_PRESSURE_NAME = app.config.get('INT_PRESSURE_NAME')
 
+
 class NetcdfGenerator(object):
     def __init__(self, stream_request, classic, disk_path=None):
         self.stream_request = stream_request
@@ -119,9 +120,17 @@ class NetcdfGenerator(object):
 
         return ds
 
-
     def _create_files(self, base_path):
         file_paths = []
+        
+        # annotation data will be written to a JSON file
+        if self.stream_request.include_annotations:
+            time_range_string = str(self.stream_request.time_range).replace(" ", "")
+            anno_fname = 'annotations_%s.json' % (time_range_string)
+            anno_json = os.path.join(base_path, anno_fname)
+            file_paths.append(anno_json)
+            self.stream_request.annotation_store.dump_json(anno_json)
+        
         for stream_key, stream_dataset in self.stream_request.datasets.iteritems():
             for deployment, ds in stream_dataset.datasets.iteritems():
                 add_dynamic_attributes(ds)
@@ -135,15 +144,6 @@ class NetcdfGenerator(object):
                     prov_json = os.path.join(base_path, prov_fname)
                     file_paths.append(prov_json)
                     stream_dataset.provenance_metadata.dump_json(prov_json)
-                
-                # annotation data will be written to JSON files
-                if self.stream_request.include_annotations:
-                    anno_fname = 'deployment%04d_%s_annotations_%s-%s.json' % (deployment,
-                                                                               stream_key.as_dashed_refdes(),
-                                                                               start, end)
-                    anno_json = os.path.join(base_path, anno_fname)
-                    file_paths.append(anno_json)
-                    stream_dataset.annotation_store.dump_json(anno_json)
                 
                 file_name = 'deployment%04d_%s_%s-%s.nc' % (deployment, stream_key.as_dashed_refdes(), start, end)
                 file_path = os.path.join(base_path, file_name)

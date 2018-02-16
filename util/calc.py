@@ -12,7 +12,7 @@ import util.stream_request
 from jsonresponse import JsonResponse
 from ooi_data.postgres.model import Stream, Parameter
 from util.common import (StreamKey, TimeRange, MalformedRequestException, InvalidStreamException,
-                         InvalidParameterException, UIHardLimitExceededException)
+                         InvalidParameterException, UIHardLimitExceededException, MissingDataException)
 from util.csvresponse import CsvGenerator
 from util.netcdf_generator import NetcdfGenerator
 from engine import app
@@ -30,7 +30,7 @@ RequestParameters = namedtuple('RequestParameters', ['id', 'streams', 'coefficie
                                                      'execute_dpa', 'require_deployment'])
 
 
-def execute_stream_request(request_parameters, needs_only=False):
+def execute_stream_request(request_parameters, needs_only=False, base_path=None):
     stream_request = []
 
     for index, stream in enumerate(request_parameters.streams):
@@ -52,7 +52,14 @@ def execute_stream_request(request_parameters, needs_only=False):
             require_deployment=request_parameters.require_deployment))
 
         if not needs_only:
-            stream_request[index].fetch_raw_data()
+            # compute annotations before fetching data so they are available if a MissingDataException is thrown
+            stream_request[index].insert_annotations()
+            try:
+                stream_request[index].fetch_raw_data()
+            except MissingDataException:
+                _write_annotations(stream_request[index], base_path)
+                # reraise the MissingDataException for handling elsewhere (e.g. reporting to user)
+                raise
             if request_parameters.execute_dpa:
                 stream_request[index].calculate_derived_products()
                 stream_request[index].import_extra_externals()
@@ -80,6 +87,7 @@ def time_request(func):
         return response
     return inner
 
+
 @time_request
 def get_estimate(input_data, url):
     stream_request = execute_stream_request(validate(input_data), needs_only=True)
@@ -89,6 +97,7 @@ def get_estimate(input_data, url):
         'time': stream_request.compute_request_time(filesize)
     }
 
+
 @time_request
 def get_particles(input_data, url):
     stream_request = execute_stream_request(validate(input_data))
@@ -96,10 +105,16 @@ def get_particles(input_data, url):
 
 
 @time_request
-def get_netcdf(input_data, url):
+def get_particles_fs(input_data, url, base_path=None):
+    stream_request = execute_stream_request(validate(input_data), base_path=base_path)
+    return JsonResponse(stream_request).write_json(base_path)
+
+
+@time_request
+def get_netcdf(input_data, url, base_path=None):
     disk_path = input_data.get('directory', 'unknown')
     classic = input_data.get('classic', False)
-    stream_request = execute_stream_request(validate(input_data))
+    stream_request = execute_stream_request(validate(input_data), base_path=base_path)
     return stream_request.stream_key.stream.name, NetcdfGenerator(stream_request, classic, disk_path).write()
 
 
@@ -111,7 +126,7 @@ def get_csv(input_data, url, delimiter=','):
 
 @time_request
 def get_csv_fs(input_data, url, base_path, delimiter=','):
-    stream_request = execute_stream_request(validate(input_data))
+    stream_request = execute_stream_request(validate(input_data), base_path=base_path)
     return CsvGenerator(stream_request, delimiter).to_csv_files(base_path)
 
 
@@ -202,6 +217,25 @@ def _validate_stream(stream, empty_param_check=False):
         if pid not in stream_parameters:
             raise InvalidParameterException('The requested parameter does not exist in this stream',
                                             payload={'id': pid, 'stream': stream})
+
+
+def _write_annotations(stream_request, base_path):
+    """
+    Write stream request annotation data to a JSON file. This function will do nothing for synchronous requests 
+    (i.e. if 'limit' is not None).
+    
+    WARNING: This function should only be used when a MissingDataException prevents the execution of a normal 
+    file writing class (netcdf_generator, csvresponse, or jsonresponse).
+    """
+    # don't process synchronous requests or those with unspecified output paths
+    if stream_request.limit is not None or base_path is None:
+        return
+    
+    if stream_request.include_annotations:
+        time_range_string = str(stream_request.time_range).replace(" ", "")
+        anno_fname = 'annotations_%s.json' % (time_range_string)
+        anno_json = os.path.join(base_path, anno_fname)
+        stream_request.annotation_store.dump_json(anno_json)
 
 
 def _get_userflags(input_data):
