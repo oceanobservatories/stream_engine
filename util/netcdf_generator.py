@@ -106,7 +106,7 @@ class NetcdfGenerator(object):
             # coordinate variable shouldn't have coordinate attribute (10745 AC3)
             # only scientific variables should have coordinate attribute (10745 AC2)
             if var not in coordinate_variables \
-                    and var not in app.config.get('NETCDF_NONSCI_VARIABLES',[]):
+                    and var not in app.config.get('NETCDF_NONSCI_VARIABLES', []):
                 ds[var].attrs[coordinates_key] = coordinate_variables
             elif coordinates_key in ds[var].attrs:
                 del ds[var].attrs[coordinates_key]
@@ -126,7 +126,7 @@ class NetcdfGenerator(object):
         # annotation data will be written to a JSON file
         if self.stream_request.include_annotations:
             time_range_string = str(self.stream_request.time_range).replace(" ", "")
-            anno_fname = 'annotations_%s.json' % (time_range_string)
+            anno_fname = 'annotations_%s.json' % time_range_string
             anno_json = os.path.join(base_path, anno_fname)
             file_paths.append(anno_json)
             self.stream_request.annotation_store.dump_json(anno_json)
@@ -166,7 +166,7 @@ class NetcdfGenerator(object):
                         long_parameter_name = external_stream_key.stream_name+"-"+parameter.name
                         if long_parameter_name in ds:
                             # rename the parameter without the stream_name prefix (12544 AC1)
-                            ds = ds.rename({long_parameter_name : parameter.name})
+                            ds = ds.rename({long_parameter_name: parameter.name})
                             # record the instrument and stream (12544 AC2)
                             ds[parameter.name].attrs['instrument'] = external_stream_key.as_three_part_refdes()
                             ds[parameter.name].attrs['stream'] = external_stream_key.stream_name

@@ -69,7 +69,7 @@ class JsonResponse(object):
         # annotation data will be written to a JSON file
         if self.stream_request.include_annotations:
             time_range_string = str(self.stream_request.time_range).replace(" ", "")
-            anno_fname = 'annotations_%s.json' % (time_range_string)
+            anno_fname = 'annotations_%s.json' % time_range_string
             anno_json = os.path.join(base_path, anno_fname)
             file_paths.append(anno_json)
             self.stream_request.annotation_store.dump_json(anno_json)
@@ -79,7 +79,6 @@ class JsonResponse(object):
         parameters = self.stream_request.requested_parameters
         external_includes = self.stream_request.external_includes
         for deployment, ds in stream_dataset.datasets.iteritems():
-            refdes = stream_key.as_dashed_refdes()
             times = ds.time.values
             start = ntp_to_short_iso_datestring(times[0])
             end = ntp_to_short_iso_datestring(times[-1])
@@ -92,7 +91,7 @@ class JsonResponse(object):
                 file_paths.append(prov_json)
                 stream_dataset.provenance_metadata.dump_json(prov_json)
 
-            filename = 'deployment%04d_%s_%s-%s.json' % (deployment, refdes, start, end)
+            filename = 'deployment%04d_%s_%s-%s.json' % (deployment, stream_key.as_dashed_refdes(), start, end)
             file_path = os.path.join(base_path, filename)
             
             with open(file_path, 'w') as filehandle:
@@ -118,12 +117,9 @@ class JsonResponse(object):
         if stream_key.is_mobile:
             pressure_params = [(sk, param) for sk in external_includes for param in external_includes[sk]
                                if param.data_product_identifier == PRESSURE_DPI]
+            # only need to append pressure name (9328)
             if pressure_params:
-                pressure_key, pressure_param = pressure_params.pop()
-                pressure_name = '-'.join((pressure_key.stream.name, pressure_param.name))
-                if pressure_name in data:
-                    data[INT_PRESSURE_NAME] = data.pop(pressure_name)
-                    params.append(INT_PRESSURE_NAME)
+                params.append(INT_PRESSURE_NAME)
 
         # check if we should include and have positional data
         if stream_key.is_glider:

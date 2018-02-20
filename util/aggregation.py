@@ -87,9 +87,7 @@ def output_ncml(mapping, request_id=None):
         }
 
         with codecs.open(combined_file, 'wb', 'utf-8') as ncml_file:
-            ncml_file.write(
-                    ncml_template.render(coord_dict=info_dict, attr_dict=attr_dict,
-                                         var_dict=variable_dict))
+            ncml_file.write(ncml_template.render(coord_dict=info_dict, attr_dict=attr_dict, var_dict=variable_dict))
 
 
 def generate_combination_map(out_dir, subjob_info):
@@ -150,8 +148,9 @@ def aggregate_provenance(job_dir, output_dir, request_id=None):
 
 @log_timing(log)
 def aggregate_annotations(job_dir, output_dir, request_id=None):
-    anno_label = 'annotations_'
-    aggregate_dict = {'annotations': []}
+    anno_string = 'annotations'
+    anno_label = anno_string + '_'
+    aggregate_dict = {anno_string: []}
     recorded_annotation_ids = []
     anno_file_count = 0
     for f in os.listdir(job_dir):
@@ -160,7 +159,7 @@ def aggregate_annotations(job_dir, output_dir, request_id=None):
             path = os.path.join(job_dir, f)
             data = json.load(open(path))
             for key in data:
-                if key == 'annotations':
+                if key == anno_string:
                     new_annotations = [x for x in data[key] if x['id'] not in recorded_annotation_ids]
                     recorded_annotation_ids.extend([v['id'] for v in new_annotations])
                     aggregate_dict[key].extend(new_annotations)
@@ -169,7 +168,7 @@ def aggregate_annotations(job_dir, output_dir, request_id=None):
     
     # only write aggregate file if we encountered sub-job annotation files
     if anno_file_count > 0:
-        with open(os.path.join(output_dir, 'annotations.json'), 'w') as fh:
+        with open(os.path.join(output_dir, anno_string + '.json'), 'w') as fh:
             json.dump(aggregate_dict, fh, indent=2)
 
 

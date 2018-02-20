@@ -205,7 +205,7 @@ def _validate_stream(stream, empty_param_check=False):
 
     if empty_param_check and len(parameters) == 0:
         raise InvalidParameterException('The parameter list for the secondary stream is empty',
-                                            payload={'stream': stream})
+                                        payload={'stream': stream})
 
     stream_parameters = [p.id for p in preload_stream.parameters]
     for pid in parameters:
@@ -233,7 +233,7 @@ def _write_annotations(stream_request, base_path):
     
     if stream_request.include_annotations:
         time_range_string = str(stream_request.time_range).replace(" ", "")
-        anno_fname = 'annotations_%s.json' % (time_range_string)
+        anno_fname = 'annotations_%s.json' % time_range_string
         anno_json = os.path.join(base_path, anno_fname)
         stream_request.annotation_store.dump_json(anno_json)
 

@@ -330,7 +330,7 @@ class StreamRequest(object):
         if self.stream_key.is_mobile:
             dpi = PRESSURE_DPI
             external_to_process.add((None, tuple(Parameter.query.filter(
-                    Parameter.data_product_identifier == dpi).all())))
+                Parameter.data_product_identifier == dpi).all())))
 
         if self.stream_key.is_glider:
             gps_stream = Stream.query.get(GPS_STREAM_ID)

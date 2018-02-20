@@ -200,7 +200,7 @@ class StreamDataset(object):
                     # if a deployment exists use it to restrict the range of values
                     deployment_event = self.events.deps[deployment]
                     masks[deployment] = (dataset.time.values >= deployment_event.ntp_start) & \
-                           (dataset.time.values < deployment_event.ntp_stop)
+                        (dataset.time.values < deployment_event.ntp_stop)
                 elif require_deployment:
                     # if a deployment doesn't exist and we require_deployment, restrict all values
                     masks[deployment] = np.zeros_like(dataset.time.values).astype('bool')
@@ -244,8 +244,8 @@ class StreamDataset(object):
                     if cal is not None:
                         kwargs[name] = cal
                         if np.any(np.isnan(cal)):
-                            msg = '<{:s}> There was not coefficient data for {:s} for all times in deployment ' \
-                                  '{:d} in range ({:s} {:s})'.format(self.request_id, name, deployment, begin_dt, end_dt)
+                            msg = '<{:s}> There was not coefficient data for {:s} for all times in deployment {:d} ' \
+                                  'in range ({:s} {:s})'.format(self.request_id, name, deployment, begin_dt, end_dt)
                             log.warn(msg)
 
             # Internal Parameter
@@ -643,7 +643,7 @@ class StreamDataset(object):
                 version = 'Python ' + PYTHON_VERSION
                 # evaluate the function in an empty global namespace
                 # using the provided func.args as the local namespace
-                result = np.array(eval(func.function,{},kwargs))
+                result = np.array(eval(func.function, {}, kwargs))
 
             elif func.function_type == 'NumexprFunction':
                 version = 'unversioned'
