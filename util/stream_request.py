@@ -4,6 +4,7 @@ import math
 import util.annotation
 import util.metadata_service
 import util.provenance_metadata_store
+from util.annotation import AnnotationStore
 from engine import app
 from ooi_data.postgres.model import Parameter, Stream, NominalDepth
 from util.asset_management import AssetManagement
@@ -62,6 +63,7 @@ class StreamRequest(object):
         self.unfulfilled = set()
         self.datasets = {}
         self.external_includes = {}
+        self.annotation_store = AnnotationStore()
 
         self._initialize()
 
@@ -130,8 +132,6 @@ class StreamRequest(object):
                 sd.events = am_events[stream_key]
                 self.datasets[stream_key] = sd
 
-        # Fetch annotations
-        self._insert_annotations()
         self._exclude_flagged_data()
         self._exclude_nondeployed_data()
 
@@ -211,13 +211,12 @@ class StreamRequest(object):
                             prov = fetch_l0_provenance(stream_key, provenance, deployment)
                             prov_metadata.update_provenance(prov)
 
-    def _insert_annotations(self):
+    def insert_annotations(self):
         """
-        Insert all annotations for this request. This is dependent on the data already having been fetched.
-        :return:
+        Insert all annotations for this request.
         """
-        for stream_key, stream_dataset in self.datasets.iteritems():
-            stream_dataset.annotation_store.query_annotations(stream_key, self.time_range)
+        for stream_key in self.stream_parameters:
+            self.annotation_store.add_query_annotations(stream_key, self.time_range)
 
     def _exclude_flagged_data(self):
         """
@@ -226,7 +225,7 @@ class StreamRequest(object):
         :return:
         """
         for stream_key, stream_dataset in self.datasets.iteritems():
-            stream_dataset.exclude_flagged_data()
+            stream_dataset.exclude_flagged_data(self.annotation_store)
 
     def _exclude_nondeployed_data(self):
         """
@@ -331,7 +330,7 @@ class StreamRequest(object):
         if self.stream_key.is_mobile:
             dpi = PRESSURE_DPI
             external_to_process.add((None, tuple(Parameter.query.filter(
-                    Parameter.data_product_identifier == dpi).all())))
+                Parameter.data_product_identifier == dpi).all())))
 
         if self.stream_key.is_glider:
             gps_stream = Stream.query.get(GPS_STREAM_ID)

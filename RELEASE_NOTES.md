@@ -2,6 +2,12 @@
 
 # Development Release 1.5.0 2018-02-12
 
+Issue #13126 - Include open ended and data gap annotations
+- async requests write annotation files even if no particle data is found
+- annotation data is aggregated to a single annotation.json file
+- open ended annotation are included in annotation.json file
+- async JSON responses return particle and annotation data
+
 Issue #12879 - Prevent data without deployment info from returning
 - add require_deployment query parameter and default configuration setting
 

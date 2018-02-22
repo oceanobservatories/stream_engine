@@ -1,7 +1,6 @@
 import os
 import json
 import logging
-from collections import namedtuple
 
 import datetime
 import ntplib
@@ -40,10 +39,7 @@ class AnnotationServiceInterface(object):
             for record in payload:
                 if record.pop('@class', None) == '.AnnotationRecord':
                     annotation_record = AnnotationRecord(**record)
-                    if annotation_record.stop:
-                        # only store bounded annotations, skip open ended annotations
-                        # leave open ended annotation support for future enhacement work
-                        result.append(annotation_record)
+                    result.append(annotation_record)
             return result
 
         else:
@@ -90,6 +86,9 @@ class AnnotationStore(object):
     def add_annotations(self, annotations):
         self._store.extend(annotations)
 
+    def add_query_annotations(self, stream_key, time_range):
+        self._store.extend(_service.find_annotations(stream_key, time_range))
+
     def query_annotations(self, stream_key, time_range):
         self._store = _service.find_annotations(stream_key, time_range)
 
@@ -118,9 +117,19 @@ class AnnotationStore(object):
     def _update_mask(times, mask, anno):
         return mask & ((times < anno._start_ntp) | (times > anno._stop_ntp))
 
-    def get_exclusion_mask(self, times):
+    def get_exclusion_mask(self, stream_key, times):
+        key = stream_key.as_dict()
+        
+        def filter_by_key(annotation):
+            return annotation.subsite == key['subsite'] and \
+                (annotation.node == key['node'] or annotation.node is None) and \
+                (annotation.sensor == key['sensor'] or annotation.sensor is None) and \
+                (annotation.method == key['method'] or annotation.method is None) and \
+                (annotation.stream == key['stream'] or annotation.stream is None)
+    
         mask = np.ones_like(times).astype('bool')
-        for anno in self._store:
+        # filter by stream key so that only data applicable to the stream dataset is used in the mask
+        for anno in filter(filter_by_key, self._store):
             if anno.exclusion_flag:
                 mask = self._update_mask(times, mask, anno)
 

@@ -10,7 +10,6 @@ import numpy as np
 
 from ooi_data.postgres.model import Parameter, Stream
 from util.advlogging import ParameterReport
-from util.annotation import AnnotationStore
 from util.cass import fetch_nth_data, get_full_cass_dataset, get_cass_lookback_dataset
 from util.common import (log_timing, ntp_to_datestring, ntp_to_datetime, UnknownFunctionTypeException,
                          StreamEngineException, TimeRange, MissingDataException)
@@ -34,7 +33,6 @@ class StreamDataset(object):
     def __init__(self, stream_key, uflags, external_streams, request_id):
         self.stream_key = stream_key
         self.provenance_metadata = ProvenanceMetadataStore(request_id)
-        self.annotation_store = AnnotationStore()
         self.uflags = uflags
         self.external_streams = external_streams
         self.request_id = request_id
@@ -177,12 +175,12 @@ class StreamDataset(object):
                          self.request_id, self.stream_key, deployment)
                 del self.datasets[deployment]
 
-    def exclude_flagged_data(self):
+    def exclude_flagged_data(self, annotation_store):
         masks = {}
-        if self.annotation_store.has_exclusion():
+        if annotation_store.has_exclusion():
             for deployment in self.datasets:
                 dataset = self.datasets[deployment]
-                mask = self.annotation_store.get_exclusion_mask(dataset.time.values)
+                mask = annotation_store.get_exclusion_mask(self.stream_key, dataset.time.values)
                 masks[deployment] = mask
 
             self._mask_datasets(masks)
@@ -202,7 +200,7 @@ class StreamDataset(object):
                     # if a deployment exists use it to restrict the range of values
                     deployment_event = self.events.deps[deployment]
                     masks[deployment] = (dataset.time.values >= deployment_event.ntp_start) & \
-                           (dataset.time.values < deployment_event.ntp_stop)
+                        (dataset.time.values < deployment_event.ntp_stop)
                 elif require_deployment:
                     # if a deployment doesn't exist and we require_deployment, restrict all values
                     masks[deployment] = np.zeros_like(dataset.time.values).astype('bool')
@@ -246,8 +244,8 @@ class StreamDataset(object):
                     if cal is not None:
                         kwargs[name] = cal
                         if np.any(np.isnan(cal)):
-                            msg = '<{:s}> There was not coefficient data for {:s} for all times in deployment ' \
-                                  '{:d} in range ({:s} {:s})'.format(self.request_id, name, deployment, begin_dt, end_dt)
+                            msg = '<{:s}> There was not coefficient data for {:s} for all times in deployment {:d} ' \
+                                  'in range ({:s} {:s})'.format(self.request_id, name, deployment, begin_dt, end_dt)
                             log.warn(msg)
 
             # Internal Parameter
@@ -645,7 +643,7 @@ class StreamDataset(object):
                 version = 'Python ' + PYTHON_VERSION
                 # evaluate the function in an empty global namespace
                 # using the provided func.args as the local namespace
-                result = np.array(eval(func.function,{},kwargs))
+                result = np.array(eval(func.function, {}, kwargs))
 
             elif func.function_type == 'NumexprFunction':
                 version = 'unversioned'
