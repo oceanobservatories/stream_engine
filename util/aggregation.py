@@ -345,7 +345,8 @@ def aggregate_status(job_dir, out_dir, request_id=None):
 
 @log_timing(log)
 def aggregate_csv(job_dir, out_dir, request_id=None):
-    # TODO -- aggregate CSV/TSV files
+    # TODO -- aggregate CSV/TSV files - current logic copies files over
+    # as is instead of combining them when applicable
     for f in fnmatch.filter(os.listdir(job_dir), '*.[ct]sv'):
         shutil.move(os.path.join(job_dir, f),
                     os.path.join(out_dir, f))
@@ -353,7 +354,8 @@ def aggregate_csv(job_dir, out_dir, request_id=None):
 
 @log_timing(log)
 def aggregate_json(job_dir, out_dir, request_id=None):
-    # TODO -- aggregate JSON files
+    # TODO -- aggregate JSON files - current logic copies files over
+    # as is instead of combining them when applicable
     for f in fnmatch.filter(os.listdir(job_dir), '*.json'):
         # only process particle data files
         if 'deployment' in f and not ('annotation' in f or 'provenance' in f):
