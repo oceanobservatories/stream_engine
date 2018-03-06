@@ -1,6 +1,11 @@
 # Stream Engine
 
-# Development Release 1.5.0 2018-02-12
+# Development Release 1.5.0 2018-03-06
+
+Issue #13185 - Correct interpolation with virtual source
+- Interpolate needed parameters twice: once for parameters from non-virtual
+  sources and again later for parameters from virtual sources after those
+  virtual sources are calculated
 
 Issue #13126 - Include open ended and data gap annotations
 - async requests write annotation files even if no particle data is found
