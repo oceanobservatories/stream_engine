@@ -128,10 +128,11 @@ class StreamDataset(object):
         Given a set of external Datasets, calculate the parameters which need to be interpolated into
         those datasets
         :param external_datasets: The Datasets which need parameters interpolated into them
-        :param interpolate_virtual: Whether only virtual or only non-virtual stream data should be interpolated. Used
-        so that interpolation can occur both before and after calculation of virtual streams without duplication of
-        computations. If this flag is set True before virtual datasets are calculated, the system may try interpolating
-        data dependent on a virtual dataset before that dataset is populated.
+        :param interpolate_virtual: A flag for whether or not virtual stream data should be interpolated. If set to 
+        True, interpolation will be performed for virtual streams only. If set to False, interpolation will be
+        performed for non-virtual streams only. This allows interpolation before and after calculation of virtual
+        streams without duplication of effort. If virtual streams are interpolated before the virtual streams are
+        calculated, the system will be attempting to interpolate on a dataset that is not yet populated.
         :return:
         """
         if not self.time_param:
@@ -472,7 +473,9 @@ class StreamDataset(object):
         the dataset defined by StreamKey for Parameter
         :param param: Parameter defining the L2 parameter which requires data from an external dataset
         :param external_datasets: The Datasets which need parameters interpolated into them
-        :param interpolate_virtual: Whether only virtual or only non-virtual stream data should be interpolated
+        :param interpolate_virtual: A flag for whether or not virtual stream data should be interpolated. If set to 
+        True, interpolation will be performed for virtual streams only. If set to False, interpolation will be
+        performed for non-virtual streams only.
         :return:
         """
         log.debug('<%s> _interpolate_and_import_needed for: %r %r', self.request_id, self.stream_key.as_refdes(), param)
