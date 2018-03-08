@@ -24,7 +24,7 @@ from engine import app
 
 log = logging.getLogger(__name__)
 
-PYTHON_VERSION = '.'.join(map(str,(sys.version_info[0:3])))
+PYTHON_VERSION = '.'.join(map(str, (sys.version_info[0:3])))
 ION_VERSION = getattr(ion_functions, '__version__', 'unversioned')
 INSTRUMENT_ATTRIBUTE_MAP = app.config.get('INSTRUMENT_ATTRIBUTE_MAP')
 
@@ -123,10 +123,21 @@ class StreamDataset(object):
 
                     ds.attrs[INSTRUMENT_ATTRIBUTE_MAP[attribute]] = value
 
-    def interpolate_needed(self, external_datasets):
+    def interpolate_needed(self, external_datasets, interpolate_virtual=False):
+        """
+        Given a set of external Datasets, calculate the parameters which need to be interpolated into
+        those datasets
+        :param external_datasets: The Datasets which need parameters interpolated into them
+        :param interpolate_virtual: A flag for whether or not virtual stream data should be interpolated. If set to 
+        True, interpolation will be performed for virtual streams only. If set to False, interpolation will be
+        performed for non-virtual streams only. This allows interpolation before and after calculation of virtual
+        streams without duplication of effort. If virtual streams are interpolated before the virtual streams are
+        calculated, the system will be attempting to interpolate on a dataset that is not yet populated.
+        :return:
+        """
         if not self.time_param:
             for param in self.external:
-                self._interpolate_and_import_needed(param, external_datasets)
+                self._interpolate_and_import_needed(param, external_datasets, interpolate_virtual)
 
     def add_location(self):
         log.debug('<%s> Inserting location data for %s datasets',
@@ -456,11 +467,15 @@ class StreamDataset(object):
         return obj
 
     @log_timing(log)
-    def _interpolate_and_import_needed(self, param, external_datasets):
+    def _interpolate_and_import_needed(self, param, external_datasets, interpolate_virtual=False):
         """
         Given a StreamKey and Parameter, calculate the parameters which need to be interpolated into
         the dataset defined by StreamKey for Parameter
         :param param: Parameter defining the L2 parameter which requires data from an external dataset
+        :param external_datasets: The Datasets which need parameters interpolated into them
+        :param interpolate_virtual: A flag for whether or not virtual stream data should be interpolated. If set to 
+        True, interpolation will be performed for virtual streams only. If set to False, interpolation will be
+        performed for non-virtual streams only.
         :return:
         """
         log.debug('<%s> _interpolate_and_import_needed for: %r %r', self.request_id, self.stream_key.as_refdes(), param)
@@ -471,8 +486,12 @@ class StreamDataset(object):
                 source, value = funcmap[name]
                 if source not in ['CAL', self.stream_key.stream]:
                     source_key = streams.get(source)
-                    if source_key in external_datasets:
-                        self.interpolate_into(source_key, external_datasets[source_key], value)
+                    # prevent trying to interpolate with unpopulated virtual streams
+                    # if interpolating virtual streams, skip other parameters
+                    if (interpolate_virtual and source_key.is_virtual) or not (
+                            interpolate_virtual or source_key.is_virtual):
+                        if source_key in external_datasets:
+                            self.interpolate_into(source_key, external_datasets[source_key], value)
 
         else:
             log.error('<%s> Unable to interpolate data: %r, error locating data',

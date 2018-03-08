@@ -5,7 +5,7 @@ from collections import OrderedDict
 # General Settings         #
 ############################
 DEBUG = False
-STREAM_ENGINE_VERSION = "1.4.0"
+STREAM_ENGINE_VERSION = "1.5.0"
 # Cassandra process pool size
 POOL_SIZE = 4
 LOGGING_CONFIG = 'logging.conf'
