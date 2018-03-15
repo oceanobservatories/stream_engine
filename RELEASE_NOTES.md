@@ -1,6 +1,10 @@
 # Stream Engine
 
-# Development Release 1.5.0 2018-03-06
+# Development Release 1.5.0 2018-03-15
+
+Issue #13234 - Stop filtering qc parameters from NetCDF files
+- Add logic to prevent 'qc_executed' and 'qc_results' suffixed parameters from being
+  filtered out of NetCDF file data despite their absence from request parameter list
 
 Issue #13185 - Correct interpolation with virtual source
 - Interpolate needed parameters twice: once for parameters from non-virtual

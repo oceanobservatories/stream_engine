@@ -86,9 +86,13 @@ class NetcdfGenerator(object):
             params_to_filter.append('annotations')
 
         for key in ds.data_vars:
-            if key not in params_to_filter:
+            # do not remove qc parameters '%s_qc_executed' and '%s_qc_results'
+            if key not in params_to_filter and not self._is_qc_parameter(key):
                 ds = ds.drop(key)
         return ds
+        
+    def _is_qc_parameter(self, param):
+        return 'qc_executed' in param or 'qc_results' in param
 
     def _setup_coordinate_variables(self, ds):
         """
