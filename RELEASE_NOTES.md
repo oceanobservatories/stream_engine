@@ -1,6 +1,10 @@
 # Stream Engine
 
-# Development Release 1.5.0 2018-03-15
+# Development Release 1.5.0 2018-03-22
+
+Issue #13153 - Fix return code for No Data to be 404 - Not Found
+- This fix should also fix other errors that were always getting
+  returned under 500 code instead of a more appropriate code.
 
 Issue #13234 - Stop filtering qc parameters from NetCDF files
 - Add logic to prevent 'qc_executed' and 'qc_results' suffixed parameters from being
