@@ -33,7 +33,7 @@ def handle_exception(error):
     response = jsonify(error_dict)
     response.status_code = status_code
     log.info("Returning exception: %s", error_dict)
-    return response, 500
+    return response, status_code
 
 
 @app.before_request

@@ -297,7 +297,7 @@ class MissingDataException(StreamEngineException):
     """
     Internal error. Cassandra returned no data for this time range
     """
-    status_code = 400
+    status_code = 404
 
 
 class MissingStreamMetadataException(StreamEngineException):
