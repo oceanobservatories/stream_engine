@@ -108,15 +108,9 @@ NETCDF_DEPTH_VARIABLES = [
     'ctdbp_seawater_pressure',
     'ctdmo_seawater_pressure',
     'ctdbp_no_seawater_pressure',
-    'ct_depth',
     'seawater_pressure_mbar',
     'pressure_mbar',
     'm_depth',
-    'm_pressure',
-    'm_water_pressure',
-    'm_water_depth',
-    'barometric_pressure',
-    'adcps_jln_pressure',
     'int_ctd_pressure'
 ]
 
