@@ -2,6 +2,8 @@
 
 # Development Release 1.5.0 2018-03-22
 
+Issue #13264 - Removed the unused depth variables from NetCDF list
+
 Issue #13153 - Fix return code for No Data to be 404 - Not Found
 - This fix should also fix other errors that were always getting
   returned under 500 code instead of a more appropriate code.
