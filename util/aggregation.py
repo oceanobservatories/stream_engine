@@ -146,29 +146,34 @@ def aggregate_provenance(job_dir, output_dir, request_id=None):
             json.dump(aggregate_dict, fh, indent=2)
 
 
+def aggregate_annotation_group(job_dir, files):
+    aggregate_dict = {'annotations': []}
+    for f in sorted(files):
+        path = os.path.join(job_dir, f)
+        data = json.load(open(path))
+        for key in data:
+            if key == 'annotations':
+                annotation_list = aggregate_dict[key]
+                new_annotations = [x for x in data[key] if x not in annotation_list]
+                annotation_list.extend(new_annotations)
+            else:
+                aggregate_dict.setdefault(key, {})[f] = data[key]
+
+    return aggregate_dict
+
+
 @log_timing(log)
 def aggregate_annotations(job_dir, output_dir, request_id=None):
-    anno_string = 'annotations'
-    anno_label = anno_string + '_'
-    aggregate_dict = {anno_string: []}
-    recorded_annotation_ids = []
-    anno_file_count = 0
+    groups = {}
+    anno_label = '_annotations_'
     for f in os.listdir(job_dir):
         if anno_label in f and f.endswith('json'):
-            anno_file_count += 1
-            path = os.path.join(job_dir, f)
-            data = json.load(open(path))
-            for key in data:
-                if key == anno_string:
-                    new_annotations = [x for x in data[key] if x['id'] not in recorded_annotation_ids]
-                    recorded_annotation_ids.extend([v['id'] for v in new_annotations])
-                    aggregate_dict[key].extend(new_annotations)
-                else:
-                    aggregate_dict.setdefault(key, {})[f] = data[key]
+            group = f.split(anno_label)[0]
+            groups.setdefault(group, []).append(f)
     
-    # only write aggregate file if we encountered sub-job annotation files
-    if anno_file_count > 0:
-        with open(os.path.join(output_dir, anno_string + '.json'), 'w') as fh:
+    for group in groups:
+        aggregate_dict = aggregate_annotation_group(job_dir, groups[group])
+        with open(os.path.join(output_dir, '%s_annotations.json' % group), 'w') as fh:
             json.dump(aggregate_dict, fh, indent=2)
 
 

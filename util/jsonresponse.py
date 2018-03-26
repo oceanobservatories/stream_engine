@@ -66,15 +66,15 @@ class JsonResponse(object):
                 if not os.path.isdir(base_path):
                     raise WriteErrorException('Unable to create local output directory: %s' % path)
 
+        stream_key = self.stream_request.stream_key
         # annotation data will be written to a JSON file
         if self.stream_request.include_annotations:
             time_range_string = str(self.stream_request.time_range).replace(" ", "")
-            anno_fname = 'annotations_%s.json' % time_range_string
+            anno_fname = '%s_annotations_%s.json' % (stream_key.as_dashed_refdes(), time_range_string)
             anno_json = os.path.join(base_path, anno_fname)
             file_paths.append(anno_json)
             self.stream_request.annotation_store.dump_json(anno_json)
 
-        stream_key = self.stream_request.stream_key
         stream_dataset = self.stream_request.datasets[stream_key]
         parameters = self.stream_request.requested_parameters
         external_includes = self.stream_request.external_includes

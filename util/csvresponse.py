@@ -63,15 +63,15 @@ class CsvGenerator(object):
     def _create_files(self, base_path):
         file_paths = []
         
+        stream_key = self.stream_request.stream_key
         # annotation data will be written to a JSON file
         if self.stream_request.include_annotations:
             time_range_string = str(self.stream_request.time_range).replace(" ", "")
-            anno_fname = 'annotations_%s.json' % time_range_string
+            anno_fname = '%s_annotations_%s.json' % (stream_key.as_dashed_refdes(), time_range_string)
             anno_json = os.path.join(base_path, anno_fname)
             file_paths.append(anno_json)
             self.stream_request.annotation_store.dump_json(anno_json)
         
-        stream_key = self.stream_request.stream_key
         stream_dataset = self.stream_request.datasets[stream_key]
         for deployment, ds in stream_dataset.datasets.iteritems():
             times = ds.time.values

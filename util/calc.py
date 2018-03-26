@@ -232,8 +232,9 @@ def _write_annotations(stream_request, base_path):
         return
     
     if stream_request.include_annotations:
+        stream_key = stream_request.stream_key
         time_range_string = str(stream_request.time_range).replace(" ", "")
-        anno_fname = 'annotations_%s.json' % time_range_string
+        anno_fname = '%s_annotations_%s.json' % (stream_key.as_dashed_refdes(), time_range_string)
         anno_json = os.path.join(base_path, anno_fname)
         stream_request.annotation_store.dump_json(anno_json)
 
