@@ -1,6 +1,8 @@
 # Stream Engine
 
-# Development Release 1.5.0 2018-03-26
+# Development Release 1.5.0 2018-03-30
+
+Issue #13284 - Exclude parser quality_flag from NetCDF files
 
 Issue #13264 - Removed the unused depth variables from NetCDF list
 
