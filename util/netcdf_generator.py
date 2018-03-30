@@ -192,9 +192,6 @@ class NetcdfGenerator(object):
 
                 if params_to_include:
                     ds = self._filter_params(ds, params_to_include)
-                # filter the parser set quality_flag parameter (see discussion in ticket 13284)
-                if 'quality_flag' in ds.data_vars:
-                    ds = ds.drop('quality_flag')
                 write_netcdf(ds, file_path, classic=self.classic)
                 file_paths.append(file_path)
         return file_paths

@@ -16,7 +16,7 @@ MAX_DEPTH_VARIANCE_METBK = 17
 METADATA_CACHE_SECONDS = 600
 PARAMETER_LOGGING = '/opendap_export/stream_engine'
 DPA_VERSION_VARIABLE = "version"
-INTERNAL_OUTPUT_EXCLUDE_LIST = ['bin', ]
+INTERNAL_OUTPUT_EXCLUDE_LIST = ['bin', 'quality_flag']
 CONFIG_DIR = os.path.dirname(__file__)
 
 
