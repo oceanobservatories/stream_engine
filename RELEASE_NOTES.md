@@ -1,6 +1,10 @@
 # Stream Engine
 
-# Development Release 1.5.0 2018-03-30
+# Development Release 1.5.0 2018-04-11
+
+Issue #13126 - Restore stream key data to annotation filenames
+- Add stream key back to annotation filenames and prevent duplicate annotations
+  for request with multiple streams
 
 Issue #13284 - Exclude parser quality_flag from NetCDF files
 

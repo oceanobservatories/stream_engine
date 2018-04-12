@@ -72,6 +72,9 @@ class AnnotationRecord(object):
     def as_dict(self):
         return {k: v for k, v in self.__dict__.iteritems() if not k.startswith('_')}
 
+    def __eq__(self, item):
+        return isinstance(item, AnnotationRecord) and item.id == self.id
+
 
 class AnnotationStore(object):
     """
@@ -84,10 +87,13 @@ class AnnotationStore(object):
         self._ntpstop = None
 
     def add_annotations(self, annotations):
-        self._store.extend(annotations)
+        new_annotations = [x for x in annotations if x not in self._store]
+        self._store.extend(new_annotations)
 
     def add_query_annotations(self, stream_key, time_range):
-        self._store.extend(_service.find_annotations(stream_key, time_range))
+        new_annotations = _service.find_annotations(stream_key, time_range)
+        new_annotations = [x for x in new_annotations if x not in self._store]
+        self._store.extend(new_annotations)
 
     def query_annotations(self, stream_key, time_range):
         self._store = _service.find_annotations(stream_key, time_range)

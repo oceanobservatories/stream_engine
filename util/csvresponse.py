@@ -6,7 +6,7 @@ import tempfile
 import zipfile
 
 from engine import app
-from util.common import ntp_to_short_iso_datestring, WriteErrorException
+from util.common import ntp_to_short_iso_datestring, get_annotation_filename, WriteErrorException
 
 log = logging.getLogger(__name__)
 
@@ -65,8 +65,7 @@ class CsvGenerator(object):
         
         # annotation data will be written to a JSON file
         if self.stream_request.include_annotations:
-            time_range_string = str(self.stream_request.time_range).replace(" ", "")
-            anno_fname = 'annotations_%s.json' % time_range_string
+            anno_fname = get_annotation_filename(self.stream_request)
             anno_json = os.path.join(base_path, anno_fname)
             file_paths.append(anno_json)
             self.stream_request.annotation_store.dump_json(anno_json)
