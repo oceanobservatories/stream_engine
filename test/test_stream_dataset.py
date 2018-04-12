@@ -54,6 +54,8 @@ class StreamDatasetTest(unittest.TestCase):
         cls.metbk_events = AssetEvents(cls.metbk_sk.as_three_part_refdes(),
                                        json.load(open(os.path.join(DATA_DIR,
                                                                    'CE02SHSM-SBD11-06-METBKA000_events.json'))))
+        # AnnotationStore will only add one AnnotationRecord with a given id - use this to increment id
+        cls.annotation_id_counter = 0
 
     # make sure the datasets were added and are not fill values
     def assert_parameters_in_datasets(self, datasets, parameters, expect_fill=False):
@@ -68,9 +70,12 @@ class StreamDatasetTest(unittest.TestCase):
                     self.assertFalse(True, msg='parameter (%s) not filled (as expected)' % parameter)
 
     def _create_exclusion_anno(self, streamkey, start, stop):
+        # increment id
+        self.annotation_id_counter += 1
         key = streamkey.as_dict()
-        return AnnotationRecord(beginDT=start, endDT=stop, subsite=key['subsite'], node=key['node'],
-                                sensor=key['sensor'], method=key['method'], stream=key['stream'], exclusionFlag=True)
+        return AnnotationRecord(id=self.annotation_id_counter, beginDT=start, endDT=stop, subsite=key['subsite'],
+                                node=key['node'], sensor=key['sensor'], method=key['method'], stream=key['stream'],
+                                exclusionFlag=True)
 
     def test_calculate_internal_single_deployment(self):
         ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, self.ctdpf_fn), decode_times=False)

@@ -27,6 +27,8 @@ class AnnotationTest(unittest.TestCase):
         self.amhost = 'localhost'
         self.refdes = 'CE04OSPS-SF01B-2A-CTDPFA107'
         self.sk = StreamKey('CP01CNSM', 'MFD37', '04-DOSTAD000', 'telemetered', 'dosta_abcdjm_dcl_instrument')
+        # AnnotationStore will only add one AnnotationRecord with a given id - use this to increment id
+        self.annotation_id_counter = 0
 
     def test_create_interface(self):
         return AnnotationServiceInterface(self.amhost)
@@ -40,9 +42,12 @@ class AnnotationTest(unittest.TestCase):
             print anno._tuple
 
     def _create_exclusion_anno(self, streamkey, start, stop):
+        # increment id
+        self.annotation_id_counter += 1
         key = streamkey.as_dict()
-        return AnnotationRecord(beginDT=start, endDT=stop, subsite=key['subsite'], node=key['node'],
-            sensor=key['sensor'], method=key['method'], stream=key['stream'], exclusionFlag=True)
+        return AnnotationRecord(id=self.annotation_id_counter, beginDT=start, endDT=stop, subsite=key['subsite'],
+                                node=key['node'], sensor=key['sensor'], method=key['method'], stream=key['stream'],
+                                exclusionFlag=True)
 
     def _test_single_exclusion(self, streamkey, tstart, tstop, astart, astop, expected):
         return self._test_multiple_exclusions(streamkey, tstart, tstop, [(astart, astop)], expected)
