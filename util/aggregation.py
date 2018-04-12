@@ -152,10 +152,14 @@ def aggregate_annotation_group(job_dir, files):
         path = os.path.join(job_dir, f)
         data = json.load(open(path))
         for key in data:
+            # value is an annotation list, so add entries to aggregated annotation list
             if key == 'annotations':
                 annotation_list = aggregate_dict[key]
                 new_annotations = [x for x in data[key] if x not in annotation_list]
                 annotation_list.extend(new_annotations)
+            # encountered extraneous data
+            # copy the JSON to the aggregate JSON but add a filename 'sub-key'
+            # i.e. key: {filename: value} for key: value in the source
             else:
                 aggregate_dict.setdefault(key, {})[f] = data[key]
 

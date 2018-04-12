@@ -6,7 +6,7 @@ import tempfile
 import zipfile
 
 from engine import app
-from util.common import log_timing, WriteErrorException
+from util.common import log_timing, get_annotation_filename, WriteErrorException
 from util.netcdf_utils import rename_glider_lat_lon, add_dynamic_attributes, write_netcdf
 from util.datamodel import find_depth_variable
 
@@ -127,11 +127,9 @@ class NetcdfGenerator(object):
     def _create_files(self, base_path):
         file_paths = []
         
-        stream_key = self.stream_request.stream_key
         # annotation data will be written to a JSON file
         if self.stream_request.include_annotations:
-            time_range_string = str(self.stream_request.time_range).replace(" ", "")
-            anno_fname = '%s_annotations_%s.json' % (stream_key.as_dashed_refdes(), time_range_string)
+            anno_fname = get_annotation_filename(self.stream_request)
             anno_json = os.path.join(base_path, anno_fname)
             file_paths.append(anno_json)
             self.stream_request.annotation_store.dump_json(anno_json)
