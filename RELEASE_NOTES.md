@@ -1,6 +1,6 @@
 # Stream Engine
 
-# Development Release 1.5.0 2018-04-11
+# Release 1.5.0 2018-04-16
 
 Issue #13126 - Restore stream key data to annotation filenames
 - Add stream key back to annotation filenames and prevent duplicate annotations
