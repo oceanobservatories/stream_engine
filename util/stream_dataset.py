@@ -10,7 +10,6 @@ import numpy as np
 
 from ooi_data.postgres.model import Parameter, Stream
 from util.advlogging import ParameterReport
-from util.annotation import AnnotationStore
 from util.cass import fetch_nth_data, get_full_cass_dataset, get_cass_lookback_dataset
 from util.common import (log_timing, ntp_to_datestring, ntp_to_datetime, UnknownFunctionTypeException,
                          StreamEngineException, TimeRange, MissingDataException)
@@ -25,7 +24,7 @@ from engine import app
 
 log = logging.getLogger(__name__)
 
-PYTHON_VERSION = '.'.join(map(str,(sys.version_info[0:3])))
+PYTHON_VERSION = '.'.join(map(str, (sys.version_info[0:3])))
 ION_VERSION = getattr(ion_functions, '__version__', 'unversioned')
 INSTRUMENT_ATTRIBUTE_MAP = app.config.get('INSTRUMENT_ATTRIBUTE_MAP')
 
@@ -34,7 +33,6 @@ class StreamDataset(object):
     def __init__(self, stream_key, uflags, external_streams, request_id):
         self.stream_key = stream_key
         self.provenance_metadata = ProvenanceMetadataStore(request_id)
-        self.annotation_store = AnnotationStore()
         self.uflags = uflags
         self.external_streams = external_streams
         self.request_id = request_id
@@ -125,10 +123,21 @@ class StreamDataset(object):
 
                     ds.attrs[INSTRUMENT_ATTRIBUTE_MAP[attribute]] = value
 
-    def interpolate_needed(self, external_datasets):
+    def interpolate_needed(self, external_datasets, interpolate_virtual=False):
+        """
+        Given a set of external Datasets, calculate the parameters which need to be interpolated into
+        those datasets
+        :param external_datasets: The Datasets which need parameters interpolated into them
+        :param interpolate_virtual: A flag for whether or not virtual stream data should be interpolated. If set to 
+        True, interpolation will be performed for virtual streams only. If set to False, interpolation will be
+        performed for non-virtual streams only. This allows interpolation before and after calculation of virtual
+        streams without duplication of effort. If virtual streams are interpolated before the virtual streams are
+        calculated, the system will be attempting to interpolate on a dataset that is not yet populated.
+        :return:
+        """
         if not self.time_param:
             for param in self.external:
-                self._interpolate_and_import_needed(param, external_datasets)
+                self._interpolate_and_import_needed(param, external_datasets, interpolate_virtual)
 
     def add_location(self):
         log.debug('<%s> Inserting location data for %s datasets',
@@ -177,26 +186,35 @@ class StreamDataset(object):
                          self.request_id, self.stream_key, deployment)
                 del self.datasets[deployment]
 
-    def exclude_flagged_data(self):
+    def exclude_flagged_data(self, annotation_store):
         masks = {}
-        if self.annotation_store.has_exclusion():
+        if annotation_store.has_exclusion():
             for deployment in self.datasets:
                 dataset = self.datasets[deployment]
-                mask = self.annotation_store.get_exclusion_mask(dataset.time.values)
+                mask = annotation_store.get_exclusion_mask(self.stream_key, dataset.time.values)
                 masks[deployment] = mask
 
             self._mask_datasets(masks)
 
-    def exclude_nondeployed_data(self):
+    def exclude_nondeployed_data(self, require_deployment=True):
+        """
+        Exclude data outside of deployment times.
+        :param require_deployment: True to exclude all data without deployment information,
+                                   False to include data without deployment info.
+        :return: Nothing, this function directly modifies the underlying dataset.
+        """
         masks = {}
         if self.events is not None:
             for deployment in self.datasets:
                 dataset = self.datasets[deployment]
                 if deployment in self.events.deps:
+                    # if a deployment exists use it to restrict the range of values
                     deployment_event = self.events.deps[deployment]
-                    mask = (dataset.time.values >= deployment_event.ntp_start) & \
-                           (dataset.time.values < deployment_event.ntp_stop)
-                    masks[deployment] = mask
+                    masks[deployment] = (dataset.time.values >= deployment_event.ntp_start) & \
+                        (dataset.time.values < deployment_event.ntp_stop)
+                elif require_deployment:
+                    # if a deployment doesn't exist and we require_deployment, restrict all values
+                    masks[deployment] = np.zeros_like(dataset.time.values).astype('bool')
             self._mask_datasets(masks)
 
     def _build_function_arguments(self, dataset, stream_key, funcmap, deployment, source_dataset=None):
@@ -237,8 +255,8 @@ class StreamDataset(object):
                     if cal is not None:
                         kwargs[name] = cal
                         if np.any(np.isnan(cal)):
-                            msg = '<{:s}> There was not coefficient data for {:s} for all times in deployment ' \
-                                  '{:d} in range ({:s} {:s})'.format(self.request_id, name, deployment, begin_dt, end_dt)
+                            msg = '<{:s}> There was not coefficient data for {:s} for all times in deployment {:d} ' \
+                                  'in range ({:s} {:s})'.format(self.request_id, name, deployment, begin_dt, end_dt)
                             log.warn(msg)
 
             # Internal Parameter
@@ -391,7 +409,7 @@ class StreamDataset(object):
             # remove obs dimension from parameter's dimensions and data (13025 AC2)
             param_dimensions.remove('-obs')
             dims = param_dimensions
-            data = data[0]
+            data = data[0] if data else None
         elif param_dimensions:
             # append parameter dimensions onto obs
             dims += param_dimensions
@@ -449,11 +467,15 @@ class StreamDataset(object):
         return obj
 
     @log_timing(log)
-    def _interpolate_and_import_needed(self, param, external_datasets):
+    def _interpolate_and_import_needed(self, param, external_datasets, interpolate_virtual=False):
         """
         Given a StreamKey and Parameter, calculate the parameters which need to be interpolated into
         the dataset defined by StreamKey for Parameter
         :param param: Parameter defining the L2 parameter which requires data from an external dataset
+        :param external_datasets: The Datasets which need parameters interpolated into them
+        :param interpolate_virtual: A flag for whether or not virtual stream data should be interpolated. If set to 
+        True, interpolation will be performed for virtual streams only. If set to False, interpolation will be
+        performed for non-virtual streams only.
         :return:
         """
         log.debug('<%s> _interpolate_and_import_needed for: %r %r', self.request_id, self.stream_key.as_refdes(), param)
@@ -464,8 +486,12 @@ class StreamDataset(object):
                 source, value = funcmap[name]
                 if source not in ['CAL', self.stream_key.stream]:
                     source_key = streams.get(source)
-                    if source_key in external_datasets:
-                        self.interpolate_into(source_key, external_datasets[source_key], value)
+                    # prevent trying to interpolate with unpopulated virtual streams
+                    # if interpolating virtual streams, skip other parameters
+                    if (interpolate_virtual and source_key.is_virtual) or not (
+                            interpolate_virtual or source_key.is_virtual):
+                        if source_key in external_datasets:
+                            self.interpolate_into(source_key, external_datasets[source_key], value)
 
         else:
             log.error('<%s> Unable to interpolate data: %r, error locating data',
@@ -636,7 +662,7 @@ class StreamDataset(object):
                 version = 'Python ' + PYTHON_VERSION
                 # evaluate the function in an empty global namespace
                 # using the provided func.args as the local namespace
-                result = np.array(eval(func.function,{},kwargs))
+                result = np.array(eval(func.function, {}, kwargs))
 
             elif func.function_type == 'NumexprFunction':
                 version = 'unversioned'

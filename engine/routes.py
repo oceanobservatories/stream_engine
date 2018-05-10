@@ -33,7 +33,7 @@ def handle_exception(error):
     response = jsonify(error_dict)
     response.status_code = status_code
     log.info("Returning exception: %s", error_dict)
-    return response, 500
+    return response, status_code
 
 
 @app.before_request
@@ -242,7 +242,7 @@ def netcdf_save_to_filesystem():
     base_path = get_local_dir(input_data)
 
     try:
-        _, json_str = util.calc.get_netcdf(input_data, request.url)
+        _, json_str = util.calc.get_netcdf(input_data, request.url, base_path)
     except Exception as e:
         json_efile = time_prefix_filename(input_data.get('start'), input_data.get('stop'), "failure.json")
         json_str = output_async_error(input_data, e, filename=json_efile)
@@ -261,40 +261,16 @@ def particles_save_to_filesystem():
     """
     input_data = request.get_json()
     base_path = get_local_dir(input_data)
-    filename = '{:s}.json'.format(StreamKey.from_dict(input_data.get('streams')[0]).as_dashed_refdes())
-    file_path = os.path.join(base_path, filename)
-
-    code = 200
-    message = str([file_path])
 
     try:
-        json_output = util.calc.get_particles(input_data, request.url)
-    except (MissingDataException, MissingTimeException) as e:
-        # treat as empty
-        log.warning(e)
-        # set contents of stream.json to empty
-        json_output = json.dumps({})
+        json_str = util.calc.get_particles_fs(input_data, request.url, base_path)
     except Exception as e:
-        # set code to error
-        code = 500
-        # make message be the error code
-        message = "Request for particles failed for the following reason: " + e.message
-        # set the contents of failure.json
-        json_output = json.dumps({'code': 500, 'message': message, 'requestUUID': input_data.get('requestUUID', '')})
-        filename = time_prefix_filename(input_data.get('start'), input_data.get('stop'), "failure.json")
-        file_path = os.path.join(base_path, filename)
-        log.exception(json_output)
-
-    # try to write file, if it does not succeed then return an error
-    if not write_file_with_content(base_path, file_path, json_output):
-        # if the code is 500, append message, otherwise replace it with this error
-        message = "%sSupplied directory '%s' is invalid. Path specified exists but is not a directory." \
-                  % (message + ". " if code == 500 else "", base_path)
-        code = 500
+        json_efile = time_prefix_filename(input_data.get('start'), input_data.get('stop'), "failure.json")
+        json_str = output_async_error(input_data, e, filename=json_efile)
 
     status_filename = time_prefix_filename(input_data.get('start'), input_data.get('stop'), "status.txt")
     write_status(base_path, filename=status_filename)
-    return Response(json.dumps({'code': code, 'message': message}, indent=2), mimetype='application/json')
+    return Response(json_str, mimetype='application/json')
 
 
 @app.route('/csv-fs', methods=['POST'])

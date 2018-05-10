@@ -25,6 +25,8 @@ PROVENANCE_KEYORDER = ["eventId", "editPhase", "eventName", "eventType", "refere
                        "deployCruiseInfo", "recoveredBy", "recoverCruiseInfo", "sensor", "sensor.location.location", 
                        "sensor.calibration"]
 
+ANNOTATION_FILE_FORMAT = '%s_annotations_%s.json'
+
 
 def isfillvalue(a):
     """
@@ -42,6 +44,12 @@ def isfillvalue(a):
     else:
         raise ValueError('Fill value not known for dtype %s' % a.dtype)
     return mask
+
+
+def get_annotation_filename(stream_request):
+    time_range = str(stream_request.time_range).replace(" ", "")
+    stream_key = stream_request.stream_key.as_dashed_refdes()
+    return ANNOTATION_FILE_FORMAT % (stream_key, time_range)
 
 
 def log_timing(logger):
@@ -84,6 +92,13 @@ def ntp_to_datestring(ntp_time):
     if dt is None:
         return str(ntp_time)
     return dt.isoformat()
+
+
+def ntp_to_short_iso_datestring(ntp_time):
+    dt = ntp_to_datetime(ntp_time)
+    if dt is None:
+        return str(ntp_time)
+    return dt.strftime("%Y%m%dT%H%M%S")
 
 
 class TimeRange(object):
@@ -290,7 +305,7 @@ class MissingDataException(StreamEngineException):
     """
     Internal error. Cassandra returned no data for this time range
     """
-    status_code = 400
+    status_code = 404
 
 
 class MissingStreamMetadataException(StreamEngineException):

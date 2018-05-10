@@ -6,7 +6,7 @@ import tempfile
 import zipfile
 
 from engine import app
-from util.common import log_timing, WriteErrorException
+from util.common import log_timing, get_annotation_filename, WriteErrorException
 from util.netcdf_utils import rename_glider_lat_lon, add_dynamic_attributes, write_netcdf
 from util.datamodel import find_depth_variable
 
@@ -15,6 +15,7 @@ log = logging.getLogger(__name__)
 # get pressure parameters (9328)
 PRESSURE_DPI = app.config.get('PRESSURE_DPI')
 INT_PRESSURE_NAME = app.config.get('INT_PRESSURE_NAME')
+
 
 class NetcdfGenerator(object):
     def __init__(self, stream_request, classic, disk_path=None):
@@ -85,9 +86,13 @@ class NetcdfGenerator(object):
             params_to_filter.append('annotations')
 
         for key in ds.data_vars:
-            if key not in params_to_filter:
+            # do not remove qc parameters '%s_qc_executed' and '%s_qc_results'
+            if key not in params_to_filter and not self._is_qc_parameter(key):
                 ds = ds.drop(key)
         return ds
+        
+    def _is_qc_parameter(self, param):
+        return 'qc_executed' in param or 'qc_results' in param
 
     def _setup_coordinate_variables(self, ds):
         """
@@ -105,7 +110,7 @@ class NetcdfGenerator(object):
             # coordinate variable shouldn't have coordinate attribute (10745 AC3)
             # only scientific variables should have coordinate attribute (10745 AC2)
             if var not in coordinate_variables \
-                    and var not in app.config.get('NETCDF_NONSCI_VARIABLES',[]):
+                    and var not in app.config.get('NETCDF_NONSCI_VARIABLES', []):
                 ds[var].attrs[coordinates_key] = coordinate_variables
             elif coordinates_key in ds[var].attrs:
                 del ds[var].attrs[coordinates_key]
@@ -119,9 +124,16 @@ class NetcdfGenerator(object):
 
         return ds
 
-
     def _create_files(self, base_path):
         file_paths = []
+        
+        # annotation data will be written to a JSON file
+        if self.stream_request.include_annotations:
+            anno_fname = get_annotation_filename(self.stream_request)
+            anno_json = os.path.join(base_path, anno_fname)
+            file_paths.append(anno_json)
+            self.stream_request.annotation_store.dump_json(anno_json)
+        
         for stream_key, stream_dataset in self.stream_request.datasets.iteritems():
             for deployment, ds in stream_dataset.datasets.iteritems():
                 add_dynamic_attributes(ds)
@@ -135,15 +147,6 @@ class NetcdfGenerator(object):
                     prov_json = os.path.join(base_path, prov_fname)
                     file_paths.append(prov_json)
                     stream_dataset.provenance_metadata.dump_json(prov_json)
-                
-                # annotation data will be written to JSON files
-                if self.stream_request.include_annotations:
-                    anno_fname = 'deployment%04d_%s_annotations_%s-%s.json' % (deployment,
-                                                                               stream_key.as_dashed_refdes(),
-                                                                               start, end)
-                    anno_json = os.path.join(base_path, anno_fname)
-                    file_paths.append(anno_json)
-                    stream_dataset.annotation_store.dump_json(anno_json)
                 
                 file_name = 'deployment%04d_%s_%s-%s.nc' % (deployment, stream_key.as_dashed_refdes(), start, end)
                 file_path = os.path.join(base_path, file_name)
@@ -166,7 +169,7 @@ class NetcdfGenerator(object):
                         long_parameter_name = external_stream_key.stream_name+"-"+parameter.name
                         if long_parameter_name in ds:
                             # rename the parameter without the stream_name prefix (12544 AC1)
-                            ds = ds.rename({long_parameter_name : parameter.name})
+                            ds = ds.rename({long_parameter_name: parameter.name})
                             # record the instrument and stream (12544 AC2)
                             ds[parameter.name].attrs['instrument'] = external_stream_key.as_three_part_refdes()
                             ds[parameter.name].attrs['stream'] = external_stream_key.stream_name

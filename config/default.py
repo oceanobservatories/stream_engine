@@ -5,7 +5,7 @@ from collections import OrderedDict
 # General Settings         #
 ############################
 DEBUG = False
-STREAM_ENGINE_VERSION = "1.4.0"
+STREAM_ENGINE_VERSION = "1.5.0"
 # Cassandra process pool size
 POOL_SIZE = 4
 LOGGING_CONFIG = 'logging.conf'
@@ -16,7 +16,7 @@ MAX_DEPTH_VARIANCE_METBK = 17
 METADATA_CACHE_SECONDS = 600
 PARAMETER_LOGGING = '/opendap_export/stream_engine'
 DPA_VERSION_VARIABLE = "version"
-INTERNAL_OUTPUT_EXCLUDE_LIST = ['bin', ]
+INTERNAL_OUTPUT_EXCLUDE_LIST = ['bin', 'quality_flag']
 CONFIG_DIR = os.path.dirname(__file__)
 
 
@@ -108,15 +108,9 @@ NETCDF_DEPTH_VARIABLES = [
     'ctdbp_seawater_pressure',
     'ctdmo_seawater_pressure',
     'ctdbp_no_seawater_pressure',
-    'ct_depth',
     'seawater_pressure_mbar',
     'pressure_mbar',
     'm_depth',
-    'm_pressure',
-    'm_water_pressure',
-    'm_water_depth',
-    'barometric_pressure',
-    'adcps_jln_pressure',
     'int_ctd_pressure'
 ]
 
@@ -213,6 +207,11 @@ AGGREGATION_TIMEOUT_SECONDS = 7200
 ############################
 # Query Settings           #
 ############################
+# If require_deployment isn't specified during a data request, this sets the default behavior (12879)
+# True: data must have a deployment event defined to be returned
+# False: data without deployment events are allowed to return
+REQUIRE_DEPLOYMENT = True
+
 COLLAPSE_TIMES = True
 # If the ratio of total data to requested points is less than this value all of the data is returned
 UI_FULL_RETURN_RATIO = 2.0

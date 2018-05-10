@@ -16,7 +16,7 @@ from ion_functions.data.ctd_functions import ctd_sbe16plus_tempwat, ctd_pracsal
 from preload_database.database import create_engine_from_url, create_scoped_session
 from ooi_data.postgres.model import Parameter, MetadataBase
 from util.advlogging import jdefault
-from util.annotation import AnnotationRecord
+from util.annotation import AnnotationRecord, AnnotationStore
 from util.asset_management import AssetEvents
 from util.common import StreamKey
 from util.stream_dataset import StreamDataset
@@ -54,6 +54,8 @@ class StreamDatasetTest(unittest.TestCase):
         cls.metbk_events = AssetEvents(cls.metbk_sk.as_three_part_refdes(),
                                        json.load(open(os.path.join(DATA_DIR,
                                                                    'CE02SHSM-SBD11-06-METBKA000_events.json'))))
+        # AnnotationStore will only add one AnnotationRecord with a given id - use this to increment id
+        cls.annotation_id_counter = 0
 
     # make sure the datasets were added and are not fill values
     def assert_parameters_in_datasets(self, datasets, parameters, expect_fill=False):
@@ -67,8 +69,13 @@ class StreamDatasetTest(unittest.TestCase):
                 if not filled and expect_fill:
                     self.assertFalse(True, msg='parameter (%s) not filled (as expected)' % parameter)
 
-    def _create_exclusion_anno(self, start, stop):
-        return AnnotationRecord(beginDT=start, endDT=stop, exclusionFlag=True)
+    def _create_exclusion_anno(self, streamkey, start, stop):
+        # increment id
+        self.annotation_id_counter += 1
+        key = streamkey.as_dict()
+        return AnnotationRecord(id=self.annotation_id_counter, beginDT=start, endDT=stop, subsite=key['subsite'],
+                                node=key['node'], sensor=key['sensor'], method=key['method'], stream=key['stream'],
+                                exclusionFlag=True)
 
     def test_calculate_internal_single_deployment(self):
         ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, self.ctdpf_fn), decode_times=False)
@@ -281,30 +288,31 @@ class StreamDatasetTest(unittest.TestCase):
                          'pressure_temp', 'conductivity', 'ext_volt0']]
 
         times = ctd_ds.time.values
+        store = AnnotationStore()
 
         ctd_stream_dataset = StreamDataset(self.ctdpf_sk, {}, [], 'UNIT')
         ctd_stream_dataset.events = self.ctd_events
         ctd_stream_dataset._insert_dataset(ctd_ds)
-
-        ctd_stream_dataset.exclude_flagged_data()
+        
+        ctd_stream_dataset.exclude_flagged_data(store)
         np.testing.assert_array_equal(times, ctd_stream_dataset.datasets[2].time.values)
 
         # exclude a bit
         start = ntplib.ntp_to_system_time(times[0]) * 1000
         stop = ntplib.ntp_to_system_time(times[100]) * 1000
-        anno = self._create_exclusion_anno(start, stop)
-        ctd_stream_dataset.annotation_store.add_annotations([anno])
+        anno = self._create_exclusion_anno(self.ctdpf_sk, start, stop)
+        store.add_annotations([anno])
 
-        ctd_stream_dataset.exclude_flagged_data()
+        ctd_stream_dataset.exclude_flagged_data(store)
         np.testing.assert_array_equal(times[101:], ctd_stream_dataset.datasets[2].time.values)
 
         # exclude everything
         start = ntplib.ntp_to_system_time(times[0]) * 1000
         stop = ntplib.ntp_to_system_time(times[-1]) * 1000
-        anno = self._create_exclusion_anno(start, stop)
-        ctd_stream_dataset.annotation_store.add_annotations([anno])
+        anno = self._create_exclusion_anno(self.ctdpf_sk, start, stop)
+        store.add_annotations([anno])
 
-        ctd_stream_dataset.exclude_flagged_data()
+        ctd_stream_dataset.exclude_flagged_data(store)
         self.assertNotIn(2, ctd_stream_dataset.datasets)
 
     def test_insert_valid_scalar_data(self):

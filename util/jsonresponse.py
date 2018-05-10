@@ -1,3 +1,4 @@
+import os
 import json
 import logging
 from collections import OrderedDict
@@ -5,7 +6,7 @@ from datetime import datetime
 
 import numpy as np
 
-from common import log_timing
+from util.common import log_timing, ntp_to_short_iso_datestring, get_annotation_filename, WriteErrorException
 from engine import app
 from ooi_data.postgres.model import Parameter, Stream
 
@@ -39,7 +40,7 @@ class JsonResponse(object):
         if self.stream_request.include_provenance:
             prov = self._provenance(stream_dataset.provenance_metadata)
         if self.stream_request.include_annotations:
-            anno = self._annotations(stream_dataset.annotation_store)
+            anno = self._annotations(self.stream_request.annotation_store)
 
         if prov or anno:
             out = OrderedDict()
@@ -54,6 +55,129 @@ class JsonResponse(object):
         return json.dumps(out, indent=2, cls=NumpyJSONEncoder)
 
     @log_timing(log)
+    def write_json(self, path):
+        file_paths = []
+        base_path = os.path.join(app.config['LOCAL_ASYNC_DIR'], path)
+
+        if not os.path.isdir(base_path):
+            try:
+                os.makedirs(base_path)
+            except OSError:
+                if not os.path.isdir(base_path):
+                    raise WriteErrorException('Unable to create local output directory: %s' % path)
+
+        # annotation data will be written to a JSON file
+        if self.stream_request.include_annotations:
+            anno_fname = get_annotation_filename(self.stream_request)
+            anno_json = os.path.join(base_path, anno_fname)
+            file_paths.append(anno_json)
+            self.stream_request.annotation_store.dump_json(anno_json)
+
+        stream_key = self.stream_request.stream_key
+        stream_dataset = self.stream_request.datasets[stream_key]
+        parameters = self.stream_request.requested_parameters
+        external_includes = self.stream_request.external_includes
+        for deployment, ds in stream_dataset.datasets.iteritems():
+            times = ds.time.values
+            start = ntp_to_short_iso_datestring(times[0])
+            end = ntp_to_short_iso_datestring(times[-1])
+
+            # provenance types will be written to JSON files
+            if self.stream_request.include_provenance:
+                prov_fname = 'deployment%04d_%s_provenance_%s-%s.json' % (deployment,
+                                                                          stream_key.as_dashed_refdes(), start, end)
+                prov_json = os.path.join(base_path, prov_fname)
+                file_paths.append(prov_json)
+                stream_dataset.provenance_metadata.dump_json(prov_json)
+
+            filename = 'deployment%04d_%s_%s-%s.json' % (deployment, stream_key.as_dashed_refdes(), start, end)
+            file_path = os.path.join(base_path, filename)
+            
+            with open(file_path, 'w') as filehandle:
+                data = self._deployment_particles(ds, stream_key, parameters, external_includes)
+                json.dump(data, filehandle, indent=2, separators=(',', ': '), cls=NumpyJSONEncoder)
+            file_paths.append(file_path)
+
+        return json.dumps({"code": 200, "message": str(file_paths)}, indent=2)
+
+    @log_timing(log)
+    def _deployment_particles(self, ds, stream_key, parameters, external_includes):
+        particles = []
+        
+        # extract the underlying numpy arrays from the dataset (indexing into the dataset is expensive)
+        data = {}
+        for p in ds.data_vars:
+            data[p] = ds[p].values
+
+        # Extract the parameter names from the parameter objects
+        params = [p.name for p in parameters]
+
+        # check if we should include and have pressure data
+        if stream_key.is_mobile:
+            pressure_params = [(sk, param) for sk in external_includes for param in external_includes[sk]
+                               if param.data_product_identifier == PRESSURE_DPI]
+            # only need to append pressure name (9328)
+            if pressure_params:
+                params.append(INT_PRESSURE_NAME)
+
+        # check if we should include and have positional data
+        if stream_key.is_glider:
+            lat_data = data.pop('glider_gps_position-m_gps_lat', None)
+            lon_data = data.pop('glider_gps_position-m_gps_lon', None)
+            if lat_data is not None and lon_data is not None:
+                data['lat'] = lat_data
+                data['lon'] = lon_data
+                params.extend(('lat', 'lon'))
+
+        # remaining externals
+        for sk in external_includes:
+            for param in external_includes[sk]:
+                name = '-'.join((sk.stream_name, param.name))
+                if name in data:
+                    params.append(name)
+
+        if self.stream_request.include_provenance:
+            params.append('provenance')
+
+        # add any QC if it exists
+        for param in params:
+            qc_postfixes = ['qc_results', 'qc_executed']
+            for qc_postfix in qc_postfixes:
+                qc_key = '%s_%s' % (param, qc_postfix)
+                if qc_key in data:
+                    params.append(qc_key)
+
+        # don't look for dimensional coordinate variables in data (13025 AC2)
+        for dim in ds.coords:
+            if dim in params:
+                params.remove(dim)
+
+        # Warn for any missing parameters
+        missing = [p for p in params if p not in data]
+        if missing:
+            log.warn('<%s> Failed to get data for %r: Not in Dataset', self.request_id, missing)
+
+        params = [p for p in params if p in data]
+
+        for index in xrange(len(ds.time)):
+            # Create our particle from the list of parameters
+            particle = {}
+            for p in params:
+                if p in ds and 'obs' not in ds[p].dims:
+                    # data has no obs dimension (13025 AC2)
+                    particle[p] = data[p]
+                else:
+                    # data is bound by obs dimension
+                    particle[p] = data[p][index]
+            particle['pk'] = stream_key.as_dict()
+            particle['pk']['time'] = data['time'][index]
+            if 'deployment' in data:
+                particle['pk']['deployment'] = data['deployment'][index]
+            particles.append(particle)
+            
+        return particles
+
+    @log_timing(log)
     def _particles(self, stream_data, stream_key, parameters, external_includes):
         """
         Convert an xray Dataset into a list of dictionaries, each representing a single point in time
@@ -62,76 +186,8 @@ class JsonResponse(object):
 
         for deployment in sorted(stream_data.datasets):
             ds = stream_data.datasets[deployment]
-            # extract the underlying numpy arrays from the dataset (indexing into the dataset is expensive)
-            data = {}
-            for p in ds.data_vars:
-                data[p] = ds[p].values
-
-            # Extract the parameter names from the parameter objects
-            params = [p.name for p in parameters]
-
-            # check if we should include and have pressure data
-            if stream_key.is_mobile:
-                pressure_params = [(sk, param) for sk in external_includes for param in external_includes[sk]
-                                   if param.data_product_identifier == PRESSURE_DPI]
-                # only need to append pressure name (9328)
-                if pressure_params:
-                    params.append(INT_PRESSURE_NAME)
-
-            # check if we should include and have positional data
-            if stream_key.is_glider:
-                lat_data = data.pop('glider_gps_position-m_gps_lat', None)
-                lon_data = data.pop('glider_gps_position-m_gps_lon', None)
-                if lat_data is not None and lon_data is not None:
-                    data['lat'] = lat_data
-                    data['lon'] = lon_data
-                    params.extend(('lat', 'lon'))
-
-            # remaining externals
-            for sk in external_includes:
-                for param in external_includes[sk]:
-                    name = '-'.join((sk.stream_name, param.name))
-                    if name in data:
-                        params.append(name)
-
-            if self.stream_request.include_provenance:
-                params.append('provenance')
-
-            # add any QC if it exists
-            for param in params:
-                qc_postfixes = ['qc_results', 'qc_executed']
-                for qc_postfix in qc_postfixes:
-                    qc_key = '%s_%s' % (param, qc_postfix)
-                    if qc_key in data:
-                        params.append(qc_key)
-
-            # don't look for dimensional coordinate variables in data (13025 AC2)
-            for dim in ds.coords:
-                if dim in params:
-                    params.remove(dim)
-
-            # Warn for any missing parameters
-            missing = [p for p in params if p not in data]
-            if missing:
-                log.warn('<%s> Failed to get data for %r: Not in Dataset', self.request_id, missing)
-
-            params = [p for p in params if p in data]
-
-            for index in xrange(len(ds.time)):
-                # Create our particle from the list of parameters
-                particle = {}
-                for p in params:
-                    if p in ds and 'obs' not in ds[p].dims:
-                        # data has no obs dimension (13025 AC2)
-                        particle[p] = data[p]
-                    else:
-                        # data is bound by obs dimension
-                        particle[p] = data[p][index]
-                particle['pk'] = stream_key.as_dict()
-                particle['pk']['time'] = data['time'][index]
-                if 'deployment' in data:
-                    particle['pk']['deployment'] = data['deployment'][index]
-                particles.append(particle)
+            deployment_particles = self._deployment_particles(ds, stream_key, parameters, external_includes)
+            particles.extend(deployment_particles)
         return particles
 
     @staticmethod

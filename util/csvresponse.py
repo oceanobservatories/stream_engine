@@ -6,7 +6,7 @@ import tempfile
 import zipfile
 
 from engine import app
-from util.common import ntp_to_datestring, WriteErrorException
+from util.common import ntp_to_short_iso_datestring, get_annotation_filename, WriteErrorException
 
 log = logging.getLogger(__name__)
 
@@ -62,13 +62,20 @@ class CsvGenerator(object):
         
     def _create_files(self, base_path):
         file_paths = []
+        
+        # annotation data will be written to a JSON file
+        if self.stream_request.include_annotations:
+            anno_fname = get_annotation_filename(self.stream_request)
+            anno_json = os.path.join(base_path, anno_fname)
+            file_paths.append(anno_json)
+            self.stream_request.annotation_store.dump_json(anno_json)
+        
         stream_key = self.stream_request.stream_key
         stream_dataset = self.stream_request.datasets[stream_key]
         for deployment, ds in stream_dataset.datasets.iteritems():
-            refdes = stream_key.as_dashed_refdes()
             times = ds.time.values
-            start = ntp_to_datestring(times[0])
-            end = ntp_to_datestring(times[-1])
+            start = ntp_to_short_iso_datestring(times[0])
+            end = ntp_to_short_iso_datestring(times[-1])
             
             # provenance types will be written to JSON files
             if self.stream_request.include_provenance:
@@ -77,16 +84,9 @@ class CsvGenerator(object):
                 prov_json = os.path.join(base_path, prov_fname)
                 file_paths.append(prov_json)
                 stream_dataset.provenance_metadata.dump_json(prov_json)
-            
-            # annotation data will be written to JSON files
-            if self.stream_request.include_annotations:
-                anno_fname = 'deployment%04d_%s_annotations_%s-%s.json' % (deployment,
-                                                                           stream_key.as_dashed_refdes(), start, end)
-                anno_json = os.path.join(base_path, anno_fname)
-                file_paths.append(anno_json)
-                stream_dataset.annotation_store.dump_json(anno_json)
 
-            filename = 'deployment%04d_%s_%s-%s%s' % (deployment, refdes, start, end, self._get_suffix())
+            filename = 'deployment%04d_%s_%s-%s%s' % (deployment, stream_key.as_dashed_refdes(), start, end,
+                                                      self._get_suffix())
             file_path = os.path.join(base_path, filename)
 
             with open(file_path, 'w') as filehandle:

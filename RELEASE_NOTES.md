@@ -1,10 +1,50 @@
 # Stream Engine
 
-# Development Release 1.4.1 2018-02-09
+# Release 1.5.0 2018-04-16
+
+Issue #13126 - Restore stream key data to annotation filenames
+- Add stream key back to annotation filenames and prevent duplicate annotations
+  for request with multiple streams
+
+Issue #13284 - Exclude parser quality_flag from NetCDF files
+
+Issue #13264 - Removed the unused depth variables from NetCDF list
+
+Issue #13153 - Fix return code for No Data to be 404 - Not Found
+- This fix should also fix other errors that were always getting
+  returned under 500 code instead of a more appropriate code.
+
+Issue #13234 - Stop filtering qc parameters from NetCDF files
+- Add logic to prevent 'qc_executed' and 'qc_results' suffixed parameters from being
+  filtered out of NetCDF file data despite their absence from request parameter list
+
+Issue #13185 - Correct interpolation with virtual source
+- Interpolate needed parameters twice: once for parameters from non-virtual
+  sources and again later for parameters from virtual sources after those
+  virtual sources are calculated
+
+Issue #13126 - Include open ended and data gap annotations
+- async requests write annotation files even if no particle data is found
+- annotation data is aggregated to a single annotation.json file
+- open ended annotation are included in annotation.json file
+- async JSON responses return particle and annotation data
+
+Issue #12879 - Prevent data without deployment info from returning
+- add require_deployment query parameter and default configuration setting
+
+By default, data without deployments will not be returned via data requests.
+The default behavior is configured via the REQUIRE_DEPLOYMENT variable in default.py
+
+To override the default behavior on a per request basis, set the query parameter
+require_deployment=false when making a data request.
 
 Issue #9328 - Make interpolated ctd pressure available
 - add interpolated ctd pressure to the data request
 - ensure interpolated ctd pressure is included in NetCDF and CSV
+
+# Release 1.4.1 2018-02-13
+
+Issue #13195 - Fix empty datasets with custom dims not being handled correctly
 
 # Release 1.4.00 2018-02-02
 
