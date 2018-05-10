@@ -1,6 +1,9 @@
+import sys
+import traceback
 import importlib
 import logging
 from collections import defaultdict
+from multiprocessing import Process, Pipe
 
 import numpy as np
 
@@ -47,6 +50,17 @@ class QcExecutor(object):
             qc_dict.setdefault(stream_p, {}).setdefault(qcid, {})[param] = val
         return qc_dict
 
+    def qc_process_wrapper(self, conn, method, arguments):
+            try:
+                results = method(**arguments)
+                conn.send(results)
+            except Exception:
+                # sys.exc_info cannot be sent through pipe, so send info as string
+                # write to pipe to prevent EOFError and misleading error message 
+                conn.send(Exception("".join(traceback.format_exception(*sys.exc_info()))))
+            finally:
+                conn.close()
+
     def qc_check(self, parameter, dataset):
         qcs = self.qc_params.get(parameter.name)
         if qcs is None:
@@ -84,9 +98,24 @@ class QcExecutor(object):
             if 'strict_validation' not in qcs[function_name]:
                 local_qc_args[function_name]['strict_validation'] = False
 
+            qc_process = None
             try:
-                module = importlib.import_module(ParameterFunction.query.filter_by(function=function_name).first().owner)
-                results = getattr(module, function_name)(**local_qc_args.get(function_name))
+                # call qc function in a separate process to deal with crashes, e.g. segfaults
+                module = importlib.import_module(ParameterFunction.query.filter_by(function=function_name)
+                                                 .first().owner)
+                parent_conn, child_conn = Pipe()
+                qc_process = Process(target=self.qc_process_wrapper, args=(child_conn, getattr(module, function_name),
+                                                                           local_qc_args.get(function_name)))
+                qc_process.start()
+                # close unused end of duplex pipe
+                child_conn.close()
+                results = parent_conn.recv()
+                qc_process.join()
+
+                # if qc function threw an exception, log it and try the next function
+                if isinstance(results, Exception):
+                    log.error('<%s> Failed to execute QC %s \n%s', self.request_id, function_name, results)
+                    continue
 
                 # Force all QC results to be 0/1 - log if non-binary results received, set all out-of-range to fail(0)
                 mask = np.logical_not(np.logical_or(results == 1, results == 0))
@@ -109,6 +138,8 @@ class QcExecutor(object):
 
                 dataset[qc_count_name].values |= flag
                 dataset[qc_results_name].values |= results.astype(np.uint8)
-
-            except (TypeError, ValueError) as e:
-                log.exception('<%s> Failed to execute QC %s %r', self.request_id, function_name, e)
+            # EOFError occurs if qc process dies, therefore failing to write to pipe
+            except EOFError:
+                log.error('<%s> Failed to execute QC %s - qc process died unexpectedly', self.request_id, function_name)
+                if qc_process:
+                    qc_process.join()

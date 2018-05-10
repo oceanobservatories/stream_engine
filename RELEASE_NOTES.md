@@ -1,5 +1,13 @@
 # Stream Engine
 
+Development Release 1.6.0 2018-05-11
+
+Issue #13276 - Run qc in separate processes and detect empty directory aggregation
+- Handle qc errors like segfaults by running qc in process and detecting if the
+  process dies without writting results to pipe
+- Add checks in aggregation so that status.json file records attempts to aggregate
+  a directory with no files in it or a directory with no status files
+
 # Release 1.5.0 2018-04-16
 
 Issue #13126 - Restore stream key data to annotation filenames
