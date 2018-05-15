@@ -353,7 +353,7 @@ def aggregate_status(job_dir, out_dir, request_id=None):
     if not out:
         out = {
             "code": 500,
-            "message": "Internal server error. Aggregation found no status files (status.txt/failure.json)!"
+            "message": "Aggregation found no status files (status.txt/failure.json)!"
         }
 
     with open(os.path.join(out_dir, 'status.json'), 'w') as fh:
@@ -444,15 +444,7 @@ def aggregate(async_job_dir, request_id=None):
 
     try:
         # check for empty local_dir
-        if not os.listdir(local_dir):
-            output = {
-                "code": 500,
-                "message": "Internal server error. Aggregation called on empty directory!"
-            }
-            with open(os.path.join(final_dir, 'status.json'), 'w') as fh:
-                json.dump(output, fh, indent=2)
-        # local_dir not empty - aggregate files
-        else:
+        if os.listdir(local_dir):
             aggregate_status(local_dir, final_dir, request_id=request_id)
             aggregate_json(local_dir, final_dir, request_id=request_id)
             aggregate_csv(local_dir, final_dir, request_id=request_id)
@@ -460,6 +452,14 @@ def aggregate(async_job_dir, request_id=None):
             aggregate_provenance(local_dir, final_dir, request_id=request_id)
             aggregate_annotations(local_dir, final_dir, request_id=request_id)
             generate_ncml(final_dir, final_dir, request_id=request_id)
+        # local_dir not empty - aggregate files
+        else:
+            output = {
+                "code": 500,
+                "message": "Aggregation called on empty directory!"
+            }
+            with open(os.path.join(final_dir, 'status.json'), 'w') as fh:
+                json.dump(output, fh, indent=2)
         cleanup(local_dir, request_id=request_id)
         log_completion(final_dir)
     except Exception as e:

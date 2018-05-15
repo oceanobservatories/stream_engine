@@ -1,6 +1,6 @@
 # Stream Engine
 
-Development Release 1.6.0 2018-05-11
+# Development Release 1.6.0 2018-05-15
 
 Issue #13276 - Run qc in separate processes and detect empty directory aggregation
 - Handle qc errors like segfaults by running qc in process and detecting if the
