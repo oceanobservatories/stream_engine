@@ -347,6 +347,14 @@ def aggregate_status(job_dir, out_dir, request_id=None):
     out = OrderedDict()
     for key in sorted(results):
         out[key] = results[key]
+       
+    # completely empty job_dir checked in aggregate()
+    # non-empty job_dir, but no status files 
+    if not out:
+        out = {
+            "code": 500,
+            "message": "Aggregation found no status files (status.txt/failure.json)!"
+        }
 
     with open(os.path.join(out_dir, 'status.json'), 'w') as fh:
         json.dump(out, fh, indent=2)
@@ -435,13 +443,23 @@ def aggregate(async_job_dir, request_id=None):
         os.makedirs(final_dir)
 
     try:
-        aggregate_status(local_dir, final_dir, request_id=request_id)
-        aggregate_json(local_dir, final_dir, request_id=request_id)
-        aggregate_csv(local_dir, final_dir, request_id=request_id)
-        aggregate_netcdf(local_dir, final_dir, request_id=request_id)
-        aggregate_provenance(local_dir, final_dir, request_id=request_id)
-        aggregate_annotations(local_dir, final_dir, request_id=request_id)
-        generate_ncml(final_dir, final_dir, request_id=request_id)
+        # check for empty local_dir
+        if os.listdir(local_dir):
+            aggregate_status(local_dir, final_dir, request_id=request_id)
+            aggregate_json(local_dir, final_dir, request_id=request_id)
+            aggregate_csv(local_dir, final_dir, request_id=request_id)
+            aggregate_netcdf(local_dir, final_dir, request_id=request_id)
+            aggregate_provenance(local_dir, final_dir, request_id=request_id)
+            aggregate_annotations(local_dir, final_dir, request_id=request_id)
+            generate_ncml(final_dir, final_dir, request_id=request_id)
+        # local_dir not empty - aggregate files
+        else:
+            output = {
+                "code": 500,
+                "message": "Aggregation called on empty directory!"
+            }
+            with open(os.path.join(final_dir, 'status.json'), 'w') as fh:
+                json.dump(output, fh, indent=2)
         cleanup(local_dir, request_id=request_id)
         log_completion(final_dir)
     except Exception as e:
