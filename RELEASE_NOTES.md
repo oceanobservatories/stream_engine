@@ -1,6 +1,8 @@
 # Stream Engine
 
-# Development Release 1.6.0 2018-05-15
+# Development Release 1.6.0 2018-05-30
+
+Issue #13311 - Apply annotation masks in case of open-ended annotations
 
 Issue #13276 - Run qc in separate processes and detect empty directory aggregation
 - Handle qc errors like segfaults by running qc in process and detecting if the
