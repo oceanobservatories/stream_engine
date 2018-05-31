@@ -1,6 +1,10 @@
 # Stream Engine
 
-# Development Release 1.6.0 2018-05-30
+# Development Release 1.6.0 2018-05-31
+
+Issue #13063 - Parse the stream engine version from the release notes
+- Read the version from the release notes at runtime, use this for output to netcdf
+  also display version in log when starting up
 
 Issue #13311 - Apply annotation masks in case of open-ended annotations
 

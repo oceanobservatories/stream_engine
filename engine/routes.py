@@ -17,6 +17,7 @@ from util.san import onload_netCDF, SAN_netcdf
 
 log = logging.getLogger(__name__)
 
+log.info("Stream Engine v"+app.config.get('STREAM_ENGINE_VERSION'))
 
 @app.errorhandler(Exception)
 def handle_exception(error):

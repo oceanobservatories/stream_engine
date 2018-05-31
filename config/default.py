@@ -1,11 +1,12 @@
 import os
+from util.releasenotes import ReleaseNotes
 from collections import OrderedDict
 
 ############################
 # General Settings         #
 ############################
 DEBUG = False
-STREAM_ENGINE_VERSION = "1.6.0"
+STREAM_ENGINE_VERSION = ReleaseNotes().latest_version()
 # Cassandra process pool size
 POOL_SIZE = 4
 LOGGING_CONFIG = 'logging.conf'
