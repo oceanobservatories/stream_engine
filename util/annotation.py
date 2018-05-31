@@ -121,7 +121,9 @@ class AnnotationStore(object):
 
     @staticmethod
     def _update_mask(times, mask, anno):
-        return mask & ((times < anno._start_ntp) | (times > anno._stop_ntp))
+        if anno._stop_ntp is None:
+            return mask & (times < anno._start_ntp)
+        return mask & ((times < anno._start_ntp) | (times > anno._stop_ntp ))
 
     def get_exclusion_mask(self, stream_key, times):
         key = stream_key.as_dict()
