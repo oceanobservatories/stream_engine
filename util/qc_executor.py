@@ -1,3 +1,5 @@
+import os
+import io
 import sys
 import traceback
 import importlib
@@ -12,6 +14,7 @@ from util.common import log_timing
 
 log = logging.getLogger(__name__)
 
+EXCEPTION_MESSAGE = "Logged Exception"
 
 class QcExecutor(object):
     """
@@ -50,17 +53,6 @@ class QcExecutor(object):
             qc_dict.setdefault(stream_p, {}).setdefault(qcid, {})[param] = val
         return qc_dict
 
-    def qc_process_wrapper(self, conn, method, arguments):
-            try:
-                results = method(**arguments)
-                conn.send(results)
-            except Exception:
-                # sys.exc_info cannot be sent through pipe, so send info as string
-                # write to pipe to prevent EOFError and misleading error message 
-                conn.send(Exception("".join(traceback.format_exception(*sys.exc_info()))))
-            finally:
-                conn.close()
-
     def qc_check(self, parameter, dataset):
         qcs = self.qc_params.get(parameter.name)
         if qcs is None:
@@ -98,48 +90,65 @@ class QcExecutor(object):
             if 'strict_validation' not in qcs[function_name]:
                 local_qc_args[function_name]['strict_validation'] = False
 
-            qc_process = None
-            try:
-                # call qc function in a separate process to deal with crashes, e.g. segfaults
-                module = importlib.import_module(ParameterFunction.query.filter_by(function=function_name)
-                                                 .first().owner)
-                parent_conn, child_conn = Pipe()
-                qc_process = Process(target=self.qc_process_wrapper, args=(child_conn, getattr(module, function_name),
-                                                                           local_qc_args.get(function_name)))
-                qc_process.start()
-                # close unused end of duplex pipe
-                child_conn.close()
-                results = parent_conn.recv()
-                qc_process.join()
-
-                # if qc function threw an exception, log it and try the next function
-                if isinstance(results, Exception):
-                    log.error('<%s> Failed to execute QC %s \n%s', self.request_id, function_name, results)
+            module = importlib.import_module(ParameterFunction.query.filter_by(function=function_name)
+                                             .first().owner)
+            # call qc function in a separate process to deal with crashes, e.g. segfaults
+            r, w = os.pipe()
+            processid = os.fork()
+            if processid == 0:
+                # child process
+                try:
+                    os.close(r)
+                    w = os.fdopen(w, 'w')
+                    # run the qc function
+                    results = getattr(module, function_name)(**local_qc_args.get(function_name))
+                    # convert the np.ndarray into a string for sending over pipe
+                    bytes = io.BytesIO()
+                    np.savez(bytes, x=results)
+                    results_string = bytes.getvalue()
+                    w.write(results_string)
+                except (TypeError, ValueError) as e:
+                    log.exception('<%s> Failed to execute QC %s %r', self.request_id, function_name, e)
+                    w.write(EXCEPTION_MESSAGE)
+                finally:
+                    w.close()
+                    os._exit(0)
+            else:
+                # parent process
+                os.close(w)
+                r = os.fdopen(r)
+                results_string = r.read()
+                # check for failure to produce results
+                if not results_string or results_string == "":
+                    # an error, e.g. segfault, prevented proper qc execution, proceed with trying the next qc function
+                    log.error('<%s> Failed to execute QC %s: QC process failed to return any data', self.request_id, function_name)
                     continue
+                elif results_string == EXCEPTION_MESSAGE:
+                    # an exception has already been logged, proceed with trying the next qc function
+                    continue
+                else:
+                    # load the np.ndarray from the sent results string
+                    data = np.load(io.BytesIO(results_string))
+                    results = data['x']
 
-                # Force all QC results to be 0/1 - log if non-binary results received, set all out-of-range to fail(0)
-                mask = np.logical_not(np.logical_or(results == 1, results == 0))
-                if mask.any():
-                    log.error('Received QC non binary QC result from %s value_set %r',
-                              function_name, np.unique(results[mask]))
-                    results[mask] = 0
+            # Force all QC results to be 0/1 - log if non-binary results received, set all out-of-range to fail(0)
+            mask = np.logical_not(np.logical_or(results == 1, results == 0))
+            if mask.any():
+                log.error('Received QC non binary QC result from %s value_set %r',
+                          function_name, np.unique(results[mask]))
+                results[mask] = 0
 
-                qc_count_name = '%s_qc_executed' % parameter.name
-                qc_results_name = '%s_qc_results' % parameter.name
+            qc_count_name = '%s_qc_executed' % parameter.name
+            qc_results_name = '%s_qc_results' % parameter.name
 
-                if qc_count_name not in dataset:
-                    dataset[qc_count_name] = ('obs', np.zeros_like(dataset.time.values, dtype=np.uint8), {})
-                if qc_results_name not in dataset:
-                    dataset[qc_results_name] = ('obs', np.zeros_like(dataset.time.values, dtype=np.uint8), {})
+            if qc_count_name not in dataset:
+                dataset[qc_count_name] = ('obs', np.zeros_like(dataset.time.values, dtype=np.uint8), {})
+            if qc_results_name not in dataset:
+                dataset[qc_results_name] = ('obs', np.zeros_like(dataset.time.values, dtype=np.uint8), {})
 
-                qc_function = ParameterFunction.query.filter_by(function=function_name).first()
-                flag = int(qc_function.qc_flag, 2)
-                results *= flag
+            qc_function = ParameterFunction.query.filter_by(function=function_name).first()
+            flag = int(qc_function.qc_flag, 2)
+            results *= flag
 
-                dataset[qc_count_name].values |= flag
-                dataset[qc_results_name].values |= results.astype(np.uint8)
-            # EOFError occurs if qc process dies, therefore failing to write to pipe
-            except EOFError:
-                log.error('<%s> Failed to execute QC %s - qc process died unexpectedly', self.request_id, function_name)
-                if qc_process:
-                    qc_process.join()
+            dataset[qc_count_name].values |= flag
+            dataset[qc_results_name].values |= results.astype(np.uint8)

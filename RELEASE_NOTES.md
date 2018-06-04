@@ -1,6 +1,8 @@
 # Stream Engine
 
-# Development Release 1.6.0 2018-05-30
+# Development Release 1.6.0 2018-06-04
+
+Issue #13276 - Fix gunicorn compatibility issue with previous change
 
 Issue #13311 - Apply annotation masks in case of open-ended annotations
 
