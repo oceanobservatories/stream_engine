@@ -1,6 +1,9 @@
 # Stream Engine
 
-# Development Release 1.6.0 2018-05-30
+# Development Release 1.6.0 2018-06-05
+
+Issue #13299 - Asychronous download of specific parameters to CSV and NetCDF is Inconsistent
+- implemented parameter filtering as part of CVS packaging of data requests.
 
 Issue #13311 - Apply annotation masks in case of open-ended annotations
 

@@ -7,9 +7,13 @@ import zipfile
 
 from engine import app
 from util.common import ntp_to_short_iso_datestring, get_annotation_filename, WriteErrorException
+from jsonresponse import JsonResponse
 
 log = logging.getLogger(__name__)
 
+# get pressure parameters -- used for filtering
+PRESSURE_DPI = app.config.get('PRESSURE_DPI')
+INT_PRESSURE_NAME = app.config.get('INT_PRESSURE_NAME')
 
 class CsvGenerator(object):
     """
@@ -48,18 +52,58 @@ class CsvGenerator(object):
         file_paths = self._create_files(base_path)
         return json.dumps({"code": 200, "message": str(file_paths)}, indent=2)
 
-    def _create_csv(self, dataset, filehandle):
-        # Drop fields we never want to output
+    def _create_filter_list(self,keys):
+        ''' generates a set of parameters to filter (remove) from the package
+            :param keys: list of keys from the dataset.
+            :return: set containing keys to filter from th dataset.
+        '''
+        # default parameters -- move to class variable?
+        default = ['time', 'deployment', 'id', 'lat', 'lon', 'qualify_flag']
+
+        # get the list of requested parameters from the request
+        requested = self.stream_request.requested_parameters
+
+        # initialize param list to include requested and default parameters
+        params_to_include = [p.name for p in self.stream_request.requested_parameters]
+        params_to_include.extend(default)
+
+        # Determine if there is interpolated pressure parameter. if so include it
+        pressure_params = [(sk,param) for sk in self.stream_request.external_includes
+                            for param in self.stream_request.external_includes[sk]
+                            if param.data_product_identifier == PRESSURE_DPI]
+        if pressure_params:
+            params_to_include.append(INT_PRESSURE_NAME)
+
+        # create the list of fields to remove from the dataset
+        # start with fields we never want to include
         drop = {'bin', 'id', 'annotations'}
+        for key in keys:
+            # remove keys "extra" keys
+            if key not in params_to_include:
+                drop.add(key)
+            # remove any 'provenance' keys
+            if 'provenance' in key:
+                drop.add(key)
+
+        return drop
+
+    def _create_csv(self, dataset, filehandle):
+        ''' Performs the steps needed to filter the dataset and
+            write the filtered dataset to a CSV file for packaging.
+            :param dataset: data set to filter and write to file
+            :param filehandle: filehandle of CDV file
+            :return: None
+        '''
+        # generate the filtering list
+        drop = self._create_filter_list(dataset.data_vars.keys())
+
+        # filter the dataset
         dataset = dataset.drop(drop.intersection(dataset))
 
-        # Drop all data with provenance in the name
-        drop_prov = {k for k in dataset if 'provenance' in k}
-        dataset = dataset.drop(drop_prov)
+        # write the CSV -- note to_csv() returns none
+        dataset.to_dataframe().to_csv(path_or_buf=filehandle, sep=self.delimiter)
+        return
 
-        # Write as CSV
-        return dataset.to_dataframe().to_csv(path_or_buf=filehandle, sep=self.delimiter)
-        
     def _create_files(self, base_path):
         file_paths = []
         
@@ -91,6 +135,7 @@ class CsvGenerator(object):
 
             with open(file_path, 'w') as filehandle:
                 self._create_csv(ds, filehandle)
+                filehandle.close()
             file_paths.append(file_path)
         return file_paths
         
