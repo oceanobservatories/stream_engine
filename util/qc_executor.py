@@ -55,7 +55,7 @@ class QcExecutor(object):
 
     def qc_check(self, parameter, dataset):
         qcs = self.qc_params.get(parameter.name)
-        if qcs is None:
+        if not qcs:
             return
 
         if parameter.name not in dataset:
@@ -97,29 +97,31 @@ class QcExecutor(object):
             processid = os.fork()
             if processid == 0:
                 # child process
-                try:
-                    os.close(r)
-                    w = os.fdopen(w, 'w')
-                    # run the qc function
-                    results = getattr(module, function_name)(**local_qc_args.get(function_name))
-                    # convert the np.ndarray into a string for sending over pipe
-                    bytes = io.BytesIO()
-                    np.savez(bytes, x=results)
-                    results_string = bytes.getvalue()
-                    w.write(results_string)
-                except (TypeError, ValueError) as e:
-                    log.exception('<%s> Failed to execute QC %s %r', self.request_id, function_name, e)
-                    w.write(EXCEPTION_MESSAGE)
-                finally:
-                    w.close()
-                    os._exit(0)
+                with os.fdopen(w, 'w') as w:
+                    try:
+                        os.close(r)
+                        # run the qc function
+                        results = getattr(module, function_name)(**local_qc_args.get(function_name))
+                        # convert the np.ndarray into a string for sending over pipe
+                        bytes = io.BytesIO()
+                        np.savez(bytes, x=results)
+                        results_string = bytes.getvalue()
+                        w.write(results_string)
+                    except (TypeError, ValueError) as e:
+                        log.exception('<%s> Failed to execute QC %s %r', self.request_id, function_name, e)
+                        w.write(EXCEPTION_MESSAGE)
+                    finally:
+                        # if w.flush() is not called (or w.close()), the parent will not get data for results_string 
+                        w.flush()
+                        # child process is done, don't let it stick around
+                        os._exit(0)
             else:
                 # parent process
                 os.close(w)
-                r = os.fdopen(r)
-                results_string = r.read()
+                with os.fdopen(r) as r:
+                    results_string = r.read()
                 # check for failure to produce results
-                if not results_string or results_string == "":
+                if not results_string:
                     # an error, e.g. segfault, prevented proper qc execution, proceed with trying the next qc function
                     log.error('<%s> Failed to execute QC %s: QC process failed to return any data', self.request_id, function_name)
                     continue
