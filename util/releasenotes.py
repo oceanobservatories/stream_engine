@@ -3,7 +3,7 @@ Copyright (C) 2018 Ocean Observatories Initiative.
 """
 
 import re
-
+import os
 
 class ReleaseNotes:
     """
@@ -11,27 +11,26 @@ class ReleaseNotes:
     """
 
     # default value for the Release Notes file
-    DEFAULT_FILE = "RELEASE_NOTES.md"
+    DEFAULT_FILE = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)), "../",
+        "RELEASE_NOTES.md")
 
     # value for when the version cannot be determined
     UNKNOWN_VERSION = "0.0.1-unknown"
 
     # Matches the component name that should be the first header of the release notes
     # for example: "# Stream Engine"
-    _COMPONENT_NAME_PATTERN = re.compile("#\s+(?P<name>.*)");
+    _COMPONENT_NAME_PATTERN = re.compile(r'#\s+(?P<name>.*)');
 
     # Matches Patterns such as: "# Development Release 1.0.0 2018-11-01"
-    _VERSION_PATTERN = re.compile("#\s+(?P<descriptor>[\w\s]+)\s+(?P<version>\S+)\s+(?P<date>\S*)\s*")
+    _VERSION_PATTERN = re.compile(r'#\s+(?P<descriptor>[\w\s]+)\s+(?P<version>\S+)\s+(?P<date>\S*)\s*')
 
     # singleton instance to use so that file isn't double parsed
     __instance = None
 
     @staticmethod
     def instance(file=DEFAULT_FILE):
-        """
-        :return: a single instance of this class
-        """
-        if ReleaseNotes.__instance == None:
+        if not ReleaseNotes.__instance:
             ReleaseNotes.__instance = ReleaseNotes(file)
         return ReleaseNotes.__instance
 
@@ -40,7 +39,7 @@ class ReleaseNotes:
         self._contents = None
         self._component_name = None
         self._latest_descriptor = None
-        self._latest_version = ReleaseNotes.UNKNOWN_VERSION
+        self._latest_version = None
         self._latest_date = None
         self._parsed = False
 
@@ -50,7 +49,7 @@ class ReleaseNotes:
         be read
         """
         if not self._contents:
-            with open(self.file, "r") as file_handle:
+            with open(self.file, 'r') as file_handle:
                 self._contents = file_handle.readlines()
         return self._contents
 
@@ -62,21 +61,23 @@ class ReleaseNotes:
             for line in self.contents():
 
                 # find component name
-                match = re.search(ReleaseNotes._COMPONENT_NAME_PATTERN, line)
-                if match and not self._component_name:
-                    self._component_name = match.group("name")
-                    continue
+                if not self._component_name:
+                    match = re.search(ReleaseNotes._COMPONENT_NAME_PATTERN, line)
+                    if match:
+                        self._component_name = match.group("name")
+                        continue
 
                 # find latest version
-                match = re.search(ReleaseNotes._VERSION_PATTERN, line)
-                if match and self._component_name and self._latest_version == ReleaseNotes.UNKNOWN_VERSION:
-                    self._latest_version = match.group("version")
-                    self._latest_descriptor = match.group("descriptor")
-                    self._latest_date = match.group("date")
-                    continue
+                if not self._latest_version:
+                    match = re.search(ReleaseNotes._VERSION_PATTERN, line)
+                    if match:
+                        self._latest_version = match.group("version")
+                        self._latest_descriptor = match.group("descriptor")
+                        self._latest_date = match.group("date")
+                        continue
 
                 # parsed all we want to know right now, perform quick return
-                if self._component_name and self._latest_version != ReleaseNotes.UNKNOWN_VERSION:
+                if self._component_name and self._latest_version:
                     break
 
             self._parsed = True
@@ -94,11 +95,11 @@ class ReleaseNotes:
         :return: the latest version or UNKNOWN_VERSION if no version is found
         """
         self._parse()
-        return self._latest_version
+        return self._latest_version if self._latest_version else ReleaseNotes.UNKNOWN_VERSION
 
     def latest_date(self):
         """
-        :return: the latest date of None is no date is found
+        :return: the latest date or None is no date is found
         """
         self._parse()
         return self._latest_date
