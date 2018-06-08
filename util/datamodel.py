@@ -291,7 +291,18 @@ def compile_datasets(datasets):
     if not datasets:
         return None
 
-    dataset = xr.concat(datasets, dim='obs')
+    try:
+        dataset = xr.concat(datasets, dim='obs')
+    except ValueError:
+        # concatenation failed to run normally and the ValueError suggests an index might be at fault
+        # for each index except 'obs', set the index values to the sequence 0, 1, 2, ...
+        for dataset in datasets:
+            non_obs_indices = [key for key in dataset.indexes if key != u'obs']
+            for key in non_obs_indices:
+                dataset[key] = (key, np.arange(dataset.dims[key]), dataset[key].attrs)
+        # with the indices reset, try the concatenation again
+        dataset = xr.concat(datasets, dim='obs')
+    
     # recreate the obs dimension
     dataset['obs'] = np.arange(dataset.obs.size)
     # sort the dataset by time
