@@ -7,7 +7,6 @@ import zipfile
 
 from engine import app
 from util.common import ntp_to_short_iso_datestring, get_annotation_filename, WriteErrorException
-from jsonresponse import JsonResponse
 
 log = logging.getLogger(__name__)
 
@@ -58,13 +57,21 @@ class CsvGenerator(object):
             :return: set containing keys to filter from th dataset.
         '''
         # default parameters -- move to class variable?
-        default = ['time', 'deployment', 'id', 'lat', 'lon', 'qualify_flag']
-
-        # get the list of requested parameters from the request
-        requested = self.stream_request.requested_parameters
+        default = ['time', 'deployment', 'lat', 'lon']
 
         # initialize param list to include requested and default parameters
-        params_to_include = [p.name for p in self.stream_request.requested_parameters]
+        missing_params = []
+        params_to_include = []
+        # check for and remove any missing params from the requested list
+        for param in self.stream_request.requested_parameters:
+            if param.name not in keys:
+                missing_params.append(param.name)
+            else:
+                params_to_include.append(param.name)
+        if missing_params:
+            log.warning('one or more selected parameters (%s) not found in the dataset',missing_params)
+
+        # add the default params to the inclusion list
         params_to_include.extend(default)
 
         # Determine if there is interpolated pressure parameter. if so include it
@@ -76,16 +83,15 @@ class CsvGenerator(object):
 
         # create the list of fields to remove from the dataset
         # start with fields we never want to include
-        drop = {'bin', 'id', 'annotations'}
+        drop = {'id', 'annotations'}
         for key in keys:
-            # remove keys "extra" keys
-            if key not in params_to_include:
+            # remove any "extra" keys while keeping qc params and removing 'provenance' params
+            if (key not in params_to_include and not self._is_qc_param(key)) or 'provenance' in key:
                 drop.add(key)
-            # remove any 'provenance' keys
-            if 'provenance' in key:
-                drop.add(key)
-
         return drop
+
+    def _is_qc_param(self,param):
+        return 'qc_executed' in param or 'qc_results' in param
 
     def _create_csv(self, dataset, filehandle):
         ''' Performs the steps needed to filter the dataset and
@@ -102,7 +108,6 @@ class CsvGenerator(object):
 
         # write the CSV -- note to_csv() returns none
         dataset.to_dataframe().to_csv(path_or_buf=filehandle, sep=self.delimiter)
-        return
 
     def _create_files(self, base_path):
         file_paths = []
