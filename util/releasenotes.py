@@ -65,7 +65,7 @@ class ReleaseNotes:
                     match = re.search(ReleaseNotes._COMPONENT_NAME_PATTERN, line)
                     if match:
                         self._component_name = match.group("name")
-                        continue
+                    continue
 
                 # find latest version
                 if not self._latest_version:
@@ -74,11 +74,10 @@ class ReleaseNotes:
                         self._latest_version = match.group("version")
                         self._latest_descriptor = match.group("descriptor")
                         self._latest_date = match.group("date")
-                        continue
+                    continue
 
-                # parsed all we want to know right now, perform quick return
-                if self._component_name and self._latest_version:
-                    break
+                # finished parsing what's needed
+                break
 
             self._parsed = True
         return self._parsed
