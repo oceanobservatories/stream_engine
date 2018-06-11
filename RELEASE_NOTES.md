@@ -1,6 +1,10 @@
 # Stream Engine
 
-# Development Release 1.6.0 2018-06-06
+# Development Release 1.6.0 2018-06-07
+
+Issue #13063 - Parse the stream engine version from the release notes
+- Read the version from the release notes at runtime, use this for output to netcdf
+  also display version in log when starting up
 
 Issue #13276 - Fix gunicorn compatibility issue with previous change
 

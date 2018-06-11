@@ -14,9 +14,16 @@ from engine import app
 from util.common import (StreamEngineException, TimedOutException, MissingDataException,
                          MissingTimeException, ntp_to_datestring, StreamKey, InvalidPathException)
 from util.san import onload_netCDF, SAN_netcdf
+from util.releasenotes import ReleaseNotes
 
 log = logging.getLogger(__name__)
 
+release = ReleaseNotes.instance()
+log.info('Starting {} v{} {} ({})'.format(
+    release.component_name(),
+    release.latest_version(),
+    release.latest_descriptor(),
+    release.latest_date()))
 
 @app.errorhandler(Exception)
 def handle_exception(error):
