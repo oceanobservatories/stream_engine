@@ -52,9 +52,10 @@ class CsvGenerator(object):
         return json.dumps({"code": 200, "message": str(file_paths)}, indent=2)
 
     def _create_filter_list(self,keys):
-        ''' generates a set of parameters to filter (remove) from the package
-            :param keys: list of keys from the dataset.
-            :return: set containing keys to filter from th dataset.
+        '''
+        generates a set of parameters to filter (remove) from the package
+        :param keys: list of keys from the dataset.
+        :return: set containing keys to filter from the dataset.
         '''
         # default parameters -- move to class variable?
         default = ['time', 'deployment', 'lat', 'lon']
@@ -94,11 +95,12 @@ class CsvGenerator(object):
         return 'qc_executed' in param or 'qc_results' in param
 
     def _create_csv(self, dataset, filehandle):
-        ''' Performs the steps needed to filter the dataset and
-            write the filtered dataset to a CSV file for packaging.
-            :param dataset: data set to filter and write to file
-            :param filehandle: filehandle of CDV file
-            :return: None
+        '''
+        Performs the steps needed to filter the dataset and
+        write the filtered dataset to a CSV file for packaging.
+        :param dataset: data set to filter and write to file
+        :param filehandle: filehandle of CSV file
+        :return: None
         '''
         # generate the filtering list
         drop = self._create_filter_list(dataset.data_vars.keys())

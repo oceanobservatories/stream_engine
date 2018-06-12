@@ -1,9 +1,15 @@
 # Stream Engine
 
-# Development Release 1.6.0 2018-06-08
+# Development Release 1.6.0 2018-06-12
 
 Issue #13299 - Asychronous download of specific parameters to CSV and NetCDF is Inconsistent
 - Implemented parameter filtering as part of CVS packaging of data requests.
+
+Issue #13063 - Parse the stream engine version from the release notes
+- Read the version from the release notes at runtime, use this for output to netcdf
+  also display version in log when starting up
+
+Issue #13276 - Fix gunicorn compatibility issue with previous change
 
 Issue #13311 - Apply annotation masks in case of open-ended annotations
 
