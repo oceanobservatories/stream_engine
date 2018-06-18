@@ -10,10 +10,30 @@ _RecordInfo = namedtuple('_RecordInfo', ['subsite', 'node', 'sensor', 'method', 
 
 
 @log_timing(_log)
+def _get_stream_metadata_list():
+    return metadata_service_api.get_stream_metadata_records()
+
+
 def _get_stream_metadata():
-    stream_metadata_record_list = metadata_service_api.get_stream_metadata_records()
     return [_RecordInfo(method=rec['method'], stream=rec['stream'], **rec['referenceDesignator'])
-            for rec in stream_metadata_record_list]
+            for rec in _get_stream_metadata_list()]
+
+
+def get_refdes_streams_for_subsite_node(subsite, node):
+    return [(Dict['referenceDesignator']['subsite']+'-'+Dict['referenceDesignator']['node'] +
+             '-'+Dict['referenceDesignator']['sensor'], Dict['stream']) for Dict in _get_stream_metadata_list()
+            if Dict['referenceDesignator']['subsite'] == subsite and Dict['referenceDesignator']['node'] == node]
+
+
+def get_streams_for_subsite_node_sensor(subsite, node, sensor):
+    return [Dict['stream'] for Dict in _get_stream_metadata_list()
+            if Dict['referenceDesignator']['subsite'] == subsite and Dict['referenceDesignator']['node'] == node
+            and Dict['referenceDesignator']['sensor'] == sensor]
+
+
+def get_streams_for_refdes(refdes):
+    subsite, node, sensor = refdes.split('-', 2)
+    return get_streams_for_subsite_node_sensor(subsite, node, sensor)
 
 
 @timed_cache(engine.app.config['METADATA_CACHE_SECONDS'])
