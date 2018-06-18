@@ -1,6 +1,13 @@
 # Stream Engine
 
-# Development Release 1.6.0 2018-06-12
+# Development Release 1.6.0 2018-06-18
+
+Issue #12189 - Add mechanism to propagate tripped QC test flags to all affected parameters
+- Modified StreamRequest._run_qc to recognize failed QC tests for a parameter in a dataset,
+  determine related and nearby sensors and affected streams, and propagate those failures to
+  the corresponding particles in the affected parameters in the appropriate datasets
+- Modified stream metadata service to provide calls to obtain streams for a reference
+  designator and to obtain reference designators and streams for a subsite and node
 
 Issue #13299 - Asychronous download of specific parameters to CSV and NetCDF is Inconsistent
 - Implemented parameter filtering as part of CVS packaging of data requests.
