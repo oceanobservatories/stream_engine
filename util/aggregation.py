@@ -274,7 +274,8 @@ def shape_up(dataset, parameters, request_id=None):
                 # create a new data variable representing the corrected coordinate data
                 # reuse the attrs from the renamed coordinate
                 dataset[original_dim] = ((original_dim), np.arange(new_dim_length), dataset[dim].attrs)
-            dataset.drop(labels=dim, dim=None, inplace=True)
+            if dim in dataset.variables:
+                dataset.drop(labels=dim, dim=None, inplace=True)
         
 
 @log_timing(log)
