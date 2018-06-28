@@ -198,7 +198,7 @@ def shape_up(dataset, parameters, request_id=None):
     :param shapes: map of expected shapes
     :return:
     """
-    temp_dims = []
+    temp_dims = {}
 
     if 'obs' in dataset.dims:
         for var in parameters:
@@ -258,12 +258,25 @@ def shape_up(dataset, parameters, request_id=None):
                     if dim_name == dims[index]:
                         temp_name = 'TEMP_DIM_%s_%d' % (var, index)
                         dataset.rename({dim_name: temp_name}, inplace=True)
-                        temp_dims.append(temp_name)
+                        temp_dims[temp_name] = dim_name
 
                 # pad the data and re-insert
                 padded_data = np.pad(vals, pads, mode='constant', constant_values=fill)
                 dataset[var] = (dims, padded_data, dataset[var].attrs)
 
+        # delete any temporary dimensions created
+        for dim in temp_dims.keys():
+            # The rename and drop strategy can mess up coordinates
+            # Go ahead and drop the renamed variable, but only after a correct coordinate has been created
+            if dim in dataset.coords:
+                original_dim = temp_dims[dim]
+                new_dim_length = dataset.dims[original_dim]
+                # create a new data variable representing the corrected coordinate data
+                # reuse the attrs from the renamed coordinate
+                dataset[original_dim] = ((original_dim), np.arange(new_dim_length), dataset[dim].attrs)
+            if dim in dataset.variables:
+                dataset.drop(labels=dim, dim=None, inplace=True)
+        
 
 @log_timing(log)
 def concatenate_and_write(datasets, out_dir, group_name, request_id=None):

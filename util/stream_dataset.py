@@ -296,28 +296,7 @@ class StreamDataset(object):
         for deployment, dataset in self.datasets.iteritems():
             for param in self.params[deployment]:
                 missing = self.missing.get(deployment, {}).get(param, {})
-                try:
-                    self._insert_data(dataset, param, None,
-                                      provenance_metadata=self.provenance_metadata,
-                                      request_id=self.request_id)
-                except ValueError:
-                    # Swallow this raised error, it has already been logged.
-                    pass
-
-                error_info = {'derived_id': param.id, 'derived_name': param.name,
-                              'derived_display_name': param.display_name, 'missing': []}
-
-                for key in missing:
-                    source, value = missing[key]
-                    missing_dict = {
-                        'source': source,
-                        'value': value
-                    }
-                    error_info['missing'].append(missing_dict)
-                error_info = self._resolve_db_objects(error_info)
-                self.provenance_metadata.calculated_metadata.errors.append(error_info)
-                log.error('<%s> Unable to create derived product: %r missing: %r',
-                          self.request_id, param.name, error_info)
+                self._insert_missing(dataset, param, missing)
 
     @log_timing(log)
     def _try_create_derived_product(self, dataset, stream_key, param, deployment, source_dataset=None):
@@ -409,7 +388,7 @@ class StreamDataset(object):
             # remove obs dimension from parameter's dimensions and data (13025 AC2)
             param_dimensions.remove('-obs')
             dims = param_dimensions
-            data = data[0] if data else None
+            data = data[0] if data is not None else None
         elif param_dimensions:
             # append parameter dimensions onto obs
             dims += param_dimensions
