@@ -10,6 +10,9 @@ from util.common import log_timing, ntp_to_short_iso_datestring, get_annotation_
 from engine import app
 from ooi_data.postgres.model import Parameter, Stream
 
+# QC parameter identification patterns
+from util.qc_executor import QC_EXECUTED, QC_RESULTS
+
 __author__ = 'Stephen Zakrewsky'
 
 
@@ -141,7 +144,7 @@ class JsonResponse(object):
 
         # add any QC if it exists
         for param in params:
-            qc_postfixes = ['qc_results', 'qc_executed']
+            qc_postfixes = [QC_RESULTS, QC_EXECUTED]
             for qc_postfix in qc_postfixes:
                 qc_key = '%s_%s' % (param, qc_postfix)
                 if qc_key in data:

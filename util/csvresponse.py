@@ -4,19 +4,19 @@ import os
 import shutil
 import tempfile
 import zipfile
+import re
 
 from engine import app
 from util.common import ntp_to_short_iso_datestring, get_annotation_filename, WriteErrorException
+
+# QC parameter identification patterns
+from util.qc_executor import QC_EXECUTED, QC_RESULTS
 
 log = logging.getLogger(__name__)
 
 # get pressure parameters -- used for filtering
 PRESSURE_DPI = app.config.get('PRESSURE_DPI')
 INT_PRESSURE_NAME = app.config.get('INT_PRESSURE_NAME')
-
-# constants for filtering QC Parameters
-QC_EXECUTED = 'qc_executed'
-QC_RESULTS = 'qc_results'
 
 # defeult parameters to request
 DEFAULT_PARAMETERS = ['time', 'deployment', 'lat', 'lon']
@@ -66,7 +66,7 @@ class CsvGenerator(object):
         """
         # initialize param list to include requested and default parameters
         missing_params = []
-        params_to_include = DEFAULT_PARAMETERS
+        params_to_include = list(DEFAULT_PARAMETERS)
 
         # check for and remove any missing params from the requested list
         for param in self.stream_request.requested_parameters:
@@ -75,7 +75,7 @@ class CsvGenerator(object):
             else:
                 params_to_include.append(param.name)
         if missing_params:
-            log.warning('one or more selected parameters (%s) not found in the dataset',missing_params)
+            log.warning('one or more selected parameters (%s) not found in the dataset', missing_params)
 
         # Determine if there is interpolated pressure parameter. if so include it
         pressure_params = [(sk,param) for sk in self.stream_request.external_includes
@@ -91,24 +91,23 @@ class CsvGenerator(object):
             # remove any "extra" keys while keeping relevant qc params and removing 'provenance' params
             if self._is_qc_param(key):
                 # only include if a requested param matches the QC Key
-                if not self._needs_qc_param(key,params_to_include):
+                if not self._needs_qc_param(key, params_to_include):
                     drop.add(key)
             elif key not in params_to_include or 'provenance' in key:
                 drop.add(key)
         return drop
 
     @staticmethod
-    def _needs_qc_param(qc_param,params_to_include):
+    def _needs_qc_param(qc_param, params_to_include):
         """
         Determines if the specified param key corresponds to one of the requested parameters.
         :param qc_param: the QC
         :param params_to_include: list containing requested parameters
         :return: True if the QC param should be included, False otherwise
         """
-        # the qc param ends with either 'qc_executed' or 'qc_results', but not both...
-        # find the position of the '_' preceding the 'qc'
-        position = max(qc_param.rfind(QC_EXECUTED),qc_param.rfind(QC_RESULTS)) - 1
-        assoc_param = qc_param[0:position]
+        # the qc param ends with either '_qc_executed' or '_qc_results'
+        # split on '_qc_' to find the associated parameter
+        assoc_param = re.split('_qc_', qc_param)[0]
         return assoc_param in params_to_include
 
     @staticmethod

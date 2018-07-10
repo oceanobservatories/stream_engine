@@ -16,6 +16,10 @@ log = logging.getLogger(__name__)
 
 EXCEPTION_MESSAGE = "Logged Exception"
 
+# QC Parameter identification patterns
+QC_EXECUTED = 'qc_executed'
+QC_RESULTS = 'qc_results'
+
 class QcExecutor(object):
     """
     Class to manage the execution of all necessary QC for a request
@@ -140,8 +144,8 @@ class QcExecutor(object):
                           function_name, np.unique(results[mask]))
                 results[mask] = 0
 
-            qc_count_name = '%s_qc_executed' % parameter.name
-            qc_results_name = '%s_qc_results' % parameter.name
+            qc_count_name = '_'.join([parameter.name, QC_EXECUTED])
+            qc_results_name = '_'.join([parameter.name, QC_RESULTS])
 
             if qc_count_name not in dataset:
                 dataset[qc_count_name] = ('obs', np.zeros_like(dataset.time.values, dtype=np.uint8), {})

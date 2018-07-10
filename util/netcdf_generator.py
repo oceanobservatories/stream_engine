@@ -10,6 +10,9 @@ from util.common import log_timing, get_annotation_filename, WriteErrorException
 from util.netcdf_utils import rename_glider_lat_lon, add_dynamic_attributes, write_netcdf
 from util.datamodel import find_depth_variable
 
+# QC parameter identification patterns
+from util.qc_executor import QC_EXECUTED, QC_RESULTS
+
 log = logging.getLogger(__name__)
 
 # get pressure parameters (9328)
@@ -92,7 +95,7 @@ class NetcdfGenerator(object):
         return ds
         
     def _is_qc_parameter(self, param):
-        return 'qc_executed' in param or 'qc_results' in param
+        return QC_EXECUTED in param or QC_RESULTS in param
 
     def _setup_coordinate_variables(self, ds):
         """
