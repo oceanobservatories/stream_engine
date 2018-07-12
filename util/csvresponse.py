@@ -8,11 +8,22 @@ import zipfile
 from engine import app
 from util.common import ntp_to_short_iso_datestring, get_annotation_filename, WriteErrorException
 
+# QC parameter identification patterns
+from util.qc_executor import QC_EXECUTED, QC_RESULTS
+
 log = logging.getLogger(__name__)
 
 # get pressure parameters -- used for filtering
 PRESSURE_DPI = app.config.get('PRESSURE_DPI')
 INT_PRESSURE_NAME = app.config.get('INT_PRESSURE_NAME')
+
+# default parameters to request
+DEFAULT_PARAMETERS = ['time', 'deployment', 'lat', 'lon']
+
+# Glider GPS based lat/lon strings - for filtering
+GLIDER_GPS_BASED_LAT = 'glider_gps_position-m_gps_lat'
+GLIDER_GPS_BASED_LON = 'glider_gps_position-m_gps_lon'
+
 
 class CsvGenerator(object):
     """
@@ -51,18 +62,16 @@ class CsvGenerator(object):
         file_paths = self._create_files(base_path)
         return json.dumps({"code": 200, "message": str(file_paths)}, indent=2)
 
-    def _create_filter_list(self,keys):
+    def _create_filter_list(self, keys):
         """
-        generates a set of parameters to filter (remove) from the package
+        Generates a set of parameters to filter (remove) from the package
         :param keys: list of keys from the dataset.
         :return: set containing keys to filter from the dataset.
         """
-        # default parameters -- move to class variable?
-        default = ['time', 'deployment', 'lat', 'lon']
-
         # initialize param list to include requested and default parameters
         missing_params = []
-        params_to_include = []
+        params_to_include = list(DEFAULT_PARAMETERS)
+
         # check for and remove any missing params from the requested list
         for param in self.stream_request.requested_parameters:
             if param.name not in keys:
@@ -70,30 +79,38 @@ class CsvGenerator(object):
             else:
                 params_to_include.append(param.name)
         if missing_params:
-            log.warning('one or more selected parameters (%s) not found in the dataset',missing_params)
-
-        # add the default params to the inclusion list
-        params_to_include.extend(default)
+            log.warning('one or more selected parameters (%s) not found in the dataset', missing_params)
 
         # Determine if there is interpolated pressure parameter. if so include it
-        pressure_params = [(sk,param) for sk in self.stream_request.external_includes
+        pressure_params = [(sk, param) for sk in self.stream_request.external_includes
                             for param in self.stream_request.external_includes[sk]
                             if param.data_product_identifier == PRESSURE_DPI]
         if pressure_params:
             params_to_include.append(INT_PRESSURE_NAME)
 
+        # include any externals
+        for extern in self.stream_request.external_includes:
+            for param in self.stream_request.external_includes[extern]:
+                name = '-'.join((extern.stream_name, param.name))
+                params_to_include.append(name)
+
         # create the list of fields to remove from the dataset
         # start with fields we never want to include
         drop = {'id', 'annotations'}
         for key in keys:
-            # remove any "extra" keys while keeping qc params and removing 'provenance' params
-            if (key not in params_to_include and not self._is_qc_param(key)) or 'provenance' in key:
+            # remove any "extra" keys while keeping relevant qc params and removing 'provenance' params
+            if self._is_qc_param(key):
+                # drop QC param if not related to requested param
+                if not key.split('_qc_')[0] in params_to_include:
+                    drop.add(key)
+            elif key not in params_to_include or 'provenance' in key:
+                # drop "extra" params and "provenance" params
                 drop.add(key)
         return drop
 
     @staticmethod
     def _is_qc_param(param):
-        return 'qc_executed' in param or 'qc_results' in param
+        return QC_EXECUTED in param or QC_RESULTS in param
 
     def _create_csv(self, dataset, filehandle):
         """
@@ -103,6 +120,17 @@ class CsvGenerator(object):
         :param filehandle: filehandle of CSV file
         :return: None
         """
+        # for a glider, get the lat lon
+        if self.stream_request.stream_key.is_glider:
+            if GLIDER_GPS_BASED_LAT in dataset.data_vars.keys():
+                lat_data = dataset.data_vars[GLIDER_GPS_BASED_LAT]
+                dataset = dataset.drop(GLIDER_GPS_BASED_LAT)
+                dataset['lat'] = lat_data
+            if GLIDER_GPS_BASED_LON in dataset.data_vars.keys():
+                lon_data = dataset.data_vars[GLIDER_GPS_BASED_LON]
+                dataset = dataset.drop(GLIDER_GPS_BASED_LON)
+                dataset['lon'] = lon_data
+
         # generate the filtering list
         drop = self._create_filter_list(dataset.data_vars.keys())
 
