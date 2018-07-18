@@ -1,6 +1,6 @@
 # Stream Engine
 
-# Development Release 1.6.0 2018-06-26
+# Development Release 1.6.0 2018-07-18
 
 Issue #13448 - Prevent getting fill values for wavelength coordinate
 - Correct code error that led to NaNs for wavelength values
@@ -13,8 +13,6 @@ Issue #13063 - Parse the stream engine version from the release notes
 - Read the version from the release notes at runtime, use this for output to netcdf
   also display version in log when starting up
 
-Issue #13276 - Fix gunicorn compatibility issue with previous change
-
 Issue #13311 - Apply annotation masks in case of open-ended annotations
 
 Issue #13276 - Run qc in separate processes and detect empty directory aggregation
@@ -22,6 +20,9 @@ Issue #13276 - Run qc in separate processes and detect empty directory aggregati
   process dies without writting results to pipe
 - Add checks in aggregation so that status.json file records attempts to aggregate
   a directory with no files in it or a directory with no status files
+- Fix gunicorn compatibility issue with the above changes by using os.fork instead
+  of the python multiprocessing module
+- Make parent process wait for child to prevent zombie processes
 
 # Release 1.5.0 2018-04-16
 

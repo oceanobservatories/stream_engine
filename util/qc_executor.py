@@ -20,6 +20,7 @@ EXCEPTION_MESSAGE = "Logged Exception"
 QC_EXECUTED = 'qc_executed'
 QC_RESULTS = 'qc_results'
 
+
 class QcExecutor(object):
     """
     Class to manage the execution of all necessary QC for a request
@@ -97,14 +98,14 @@ class QcExecutor(object):
             module = importlib.import_module(ParameterFunction.query.filter_by(function=function_name)
                                              .first().owner)
             # call qc function in a separate process to deal with crashes, e.g. segfaults
-            r, w = os.pipe()
+            read_fd, write_fd = os.pipe()
             processid = os.fork()
             if processid == 0:
                 # child process
-                with os.fdopen(w, 'w') as w:
+                with os.fdopen(write_fd, 'w') as w:
+                    os.close(read_fd)
+                    # run the qc function
                     try:
-                        os.close(r)
-                        # run the qc function
                         results = getattr(module, function_name)(**local_qc_args.get(function_name))
                         # convert the np.ndarray into a string for sending over pipe
                         bytes = io.BytesIO()
@@ -114,20 +115,20 @@ class QcExecutor(object):
                     except (TypeError, ValueError) as e:
                         log.exception('<%s> Failed to execute QC %s %r', self.request_id, function_name, e)
                         w.write(EXCEPTION_MESSAGE)
-                    finally:
-                        # if w.flush() is not called (or w.close()), the parent will not get data for results_string 
-                        w.flush()
-                        # child process is done, don't let it stick around
-                        os._exit(0)
+                # child process is done, don't let it stick around
+                os._exit(0)
             else:
                 # parent process
-                os.close(w)
-                with os.fdopen(r) as r:
+                os.close(write_fd)
+                with os.fdopen(read_fd) as r:
                     results_string = r.read()
+                # wait for the child process to prevent zombies - second argument of 0 means default behavior of waitpid
+                os.waitpid(processid, 0)
                 # check for failure to produce results
                 if not results_string:
                     # an error, e.g. segfault, prevented proper qc execution, proceed with trying the next qc function
-                    log.error('<%s> Failed to execute QC %s: QC process failed to return any data', self.request_id, function_name)
+                    log.error('<%s> Failed to execute QC %s: QC process failed to return any data', self.request_id,
+                              function_name)
                     continue
                 elif results_string == EXCEPTION_MESSAGE:
                     # an exception has already been logged, proceed with trying the next qc function
