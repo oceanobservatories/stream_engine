@@ -1,6 +1,6 @@
 # Stream Engine
 
-# Development Release 1.6.0 2018-07-18
+# Development Release 1.6.0 2018-07-20
 
 Issue #13448 - Prevent getting fill values for wavelength coordinate
 - Correct code error that led to NaNs for wavelength values
@@ -8,6 +8,7 @@ Issue #13448 - Prevent getting fill values for wavelength coordinate
 
 Issue #13299 - Asychronous download of specific parameters to CSV and NetCDF is Inconsistent
 - Implemented parameter filtering as part of CVS packaging of data requests.
+- Implemented QC parameter filtering in NetCDF packaging of data requests.
 
 Issue #13063 - Parse the stream engine version from the release notes
 - Read the version from the release notes at runtime, use this for output to netcdf

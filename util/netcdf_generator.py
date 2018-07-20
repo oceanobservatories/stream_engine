@@ -89,8 +89,11 @@ class NetcdfGenerator(object):
             params_to_filter.append('annotations')
 
         for key in ds.data_vars:
-            # do not remove qc parameters '%s_qc_executed' and '%s_qc_results'
-            if key not in params_to_filter and not self._is_qc_parameter(key):
+            if self._is_qc_parameter(key):
+                # drop any QC param not based on a param we are keeping
+                if not key.split('_qc_')[0] in params_to_filter:
+                    ds = ds.drop(key)
+            elif key not in params_to_filter:
                 ds = ds.drop(key)
         return ds
         
