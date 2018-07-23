@@ -5,6 +5,8 @@ import json
 import logging
 import os
 import re
+import time
+import signal
 import shutil
 from collections import defaultdict, OrderedDict
 
@@ -12,7 +14,7 @@ import jinja2
 import numpy as np
 
 from engine import app
-from util.common import log_timing, sort_dict, PROVENANCE_KEYORDER
+from util.common import log_timing, sort_dict, PROVENANCE_KEYORDER, TimedOutException
 from util.datamodel import compile_datasets
 from util.gather import gather_files
 from util.netcdf_utils import write_netcdf, add_dynamic_attributes, analyze_datasets
@@ -439,21 +441,37 @@ def log_failure(e, job_dir):
         fh.write(json_str)
 
 
+def is_aggregation_progressing(**kwargs):
+    async_job_dir = kwargs['async_job_dir']
+    poll_period = kwargs['poll_period']
+    local_dir = os.path.join(app.config['LOCAL_ASYNC_DIR'], async_job_dir)
+    final_dir = os.path.join(app.config['FINAL_ASYNC_DIR'], async_job_dir)
+    return has_updated_within(local_dir, poll_period) or has_updated_within(final_dir, poll_period)
+
+
+def has_updated_within(directory, seconds):
+    files = [fle for rt, _, f in os.walk(directory) for fle in f if time.time() - os.stat(os.path.join(rt, fle)).st_mtime < seconds]
+    if files:
+        return True
+    return False
+
+
 @log_timing(log)
 def aggregate(async_job_dir, request_id=None):
     local_dir = os.path.join(app.config['LOCAL_ASYNC_DIR'], async_job_dir)
     final_dir = os.path.join(app.config['FINAL_ASYNC_DIR'], async_job_dir)
     se_nodes = app.config['STREAM_ENGINE_NODES']
-
+    
     if not os.path.exists(local_dir):
         os.makedirs(local_dir)
-
-    # Fetch all files from remote nodes
-    gather_files(se_nodes, local_dir)
-
+    
     # new aggregation
     if not os.path.exists(final_dir):
         os.makedirs(final_dir)
+
+
+     # Fetch all files from remote nodes
+        gather_files(se_nodes, local_dir)
 
     try:
         # check for empty local_dir

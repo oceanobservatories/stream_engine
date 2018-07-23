@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import signal
 import time
 from functools import wraps
 from io import BytesIO
@@ -11,10 +10,11 @@ from flask import request, Response, jsonify, send_file
 import util.aggregation
 import util.calc
 from engine import app
-from util.common import (StreamEngineException, TimedOutException, MissingDataException,
-                         MissingTimeException, ntp_to_datestring, StreamKey, InvalidPathException)
+from util.common import (StreamEngineException, MissingDataException, MissingTimeException,
+                         ntp_to_datestring, StreamKey, InvalidPathException)
 from util.san import onload_netCDF, SAN_netcdf
 from util.releasenotes import ReleaseNotes
+from util.timeout import set_timeout, set_inactivity_timeout
 
 log = logging.getLogger(__name__)
 
@@ -52,36 +52,6 @@ def log_request():
         log.debug('<%s> Incoming request url=%r data=%r', request_id, request.url, data)
     else:
         log.info('<%s> Handling request to %r - %r', request_id, request.url, streams)
-
-
-# noinspection PyUnusedLocal
-def signal_handler(signum, frame):
-    raise TimedOutException("Data processing timed out after %s seconds")
-
-
-def set_timeout(timeout=None):
-    # If timeout is a supplied argument to the wrapped function
-    # use it, otherwise use the default timeout
-    if timeout is None or not isinstance(timeout, int):
-        timeout = app.config['REQUEST_TIMEOUT_SECONDS']
-
-    def inner(func):
-        @wraps(func)
-        def decorated_function(*args, **kwargs):
-            signal.signal(signal.SIGALRM, signal_handler)
-            signal.alarm(timeout)
-            try:
-                result = func(*args, **kwargs)
-            except TimedOutException:
-                raise StreamEngineException("Data processing timed out after %s seconds" %
-                                            timeout, status_code=408)
-            finally:
-                signal.alarm(0)
-
-            return result
-
-        return decorated_function
-    return inner
 
 
 def write_file_with_content(base_path, file_path, content):
@@ -321,26 +291,32 @@ def _delimited_fs(delimiter):
 
 
 @app.route('/aggregate', methods=['POST'])
-@set_timeout(timeout=app.config.get('AGGREGATION_TIMEOUT_SECONDS'))
-def aggregate_async():
+# timeout set on _aggregation_helper so that async job dir is accessible to decorator
+def aggregation_wrapper():
     if app.config['AGGREGATE']:
         input_data = request.get_json()
         async_job = input_data.get("async_job")
         request_id = input_data.get("requestUUID")
-
-        # Verify the supplied path is valid before proceeding
-        raise_invalid_path(app.config['FINAL_ASYNC_DIR'], async_job)
-
-        log.info("<%s> Performing aggregation on asynchronous job %s", request_id, async_job)
-        st = time.time()
-        util.aggregation.aggregate(async_job, request_id=request_id)
-        et = time.time() - st
-        log.info("<%s> Done performing aggregation on asynchronous job %s took %s seconds", request_id, async_job, et)
+        _aggregation_helper(async_job, request_id)
         message = "aggregation complete"
     else:
         message = "aggregation disabled"
 
     return jsonify({'code': 200, 'message': message})
+
+
+@set_inactivity_timeout(is_active=util.aggregation.is_aggregation_progressing,
+                        poll_period=app.config.get('AGGREGATION_ACTIVITY_POLL_PERIOD'),
+                        max_runtime=app.config.get('AGGREGATION_MAX_RUNTIME'))
+def _aggregation_helper(async_job_dir, request_id):
+    # Verify the supplied path is valid before proceeding
+    raise_invalid_path(app.config['FINAL_ASYNC_DIR'], async_job_dir)
+
+    log.info("<%s> Performing aggregation on asynchronous job %s", request_id, async_job_dir)
+    st = time.time()
+    util.aggregation.aggregate(async_job_dir, request_id=request_id)
+    et = time.time() - st
+    log.info("<%s> Done performing aggregation on asynchronous job %s took %s seconds", request_id, async_job_dir, et)
 
 
 @app.route('/san_offload', methods=['POST'])
