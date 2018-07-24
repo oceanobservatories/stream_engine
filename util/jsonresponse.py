@@ -130,14 +130,18 @@ class JsonResponse(object):
             if lat_data is not None and lon_data is not None:
                 data['lat'] = lat_data
                 data['lon'] = lon_data
-                params.extend(('lat', 'lon'))
+        # always include lat/lon
+        params.extend(('lat', 'lon'))
 
-        # remaining externals
+
+        # remaining externals. rename the parameter without the stream_name prefix (12544 AC1)
         for sk in external_includes:
             for param in external_includes[sk]:
                 name = '-'.join((sk.stream_name, param.name))
                 if name in data:
-                    params.append(name)
+                    extern_data = data.pop(name)
+                    data[param.name] = extern_data
+                    params.append(param.name)
 
         if self.stream_request.include_provenance:
             params.append('provenance')
