@@ -137,13 +137,6 @@ class CsvGenerator(object):
         # filter the dataset
         dataset = dataset.drop(drop.intersection(dataset))
 
-        # rename the parameter without the stream_name prefix (12544 AC1)
-        for extern in self.stream_request.external_includes:
-            for param in self.stream_request.external_includes[extern]:
-                long_name = '-'.join((extern.stream_name, param.name))
-                if long_name in dataset.data_vars:
-                    dataset = dataset.rename({long_name : param.name})
-
         # write the CSV -- note to_csv() returns none
         dataset.to_dataframe().to_csv(path_or_buf=filehandle, sep=self.delimiter)
 

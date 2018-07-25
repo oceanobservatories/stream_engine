@@ -134,14 +134,12 @@ class JsonResponse(object):
         params.extend(('lat', 'lon'))
 
 
-        # remaining externals. rename the parameter without the stream_name prefix (12544 AC1)
+        # remaining externals.
         for sk in external_includes:
             for param in external_includes[sk]:
                 name = '-'.join((sk.stream_name, param.name))
                 if name in data:
-                    extern_data = data.pop(name)
-                    data[param.name] = extern_data
-                    params.append(param.name)
+                    params.append(name)
 
         if self.stream_request.include_provenance:
             params.append('provenance')
