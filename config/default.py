@@ -11,6 +11,12 @@ STREAM_ENGINE_VERSION = ReleaseNotes.instance().latest_version()
 POOL_SIZE = 4
 LOGGING_CONFIG = 'logging.conf'
 REQUEST_TIMEOUT_SECONDS = 3600  # 60 minutes
+# Default time, in seconds, before set_inactivity_timeout decorator terminates decorated function regardless of
+# activity. Function runtime is only compared against max runtime at the end of each poll period, so this should be a
+# multiple of the poll period
+DEFAULT_MAX_RUNTIME = 7200 # 2 hours
+# Default period in seconds between checks for function activity by set_inactivity_timeout decorator
+DEFAULT_ACTIVITY_POLL_PERIOD = 1200 # 20 minutes
 # Maximum depth difference between two instruments to be considered "near"
 MAX_DEPTH_VARIANCE = 6
 MAX_DEPTH_VARIANCE_METBK = 17
@@ -201,8 +207,12 @@ MAX_RSYNC_WORKERS = 4
 MAX_RETRY_COUNT = 3
 # Maximum single file size for aggregation, in Bytes
 MAX_AGGREGATION_SIZE = 500e6
-# Maximum time spent in aggregation, in seconds
-AGGREGATION_TIMEOUT_SECONDS = 7200
+# Maximum time aggregation can run, in seconds, before being forcibly terminated - use value of 'None' (without the 
+# quotes) for no max runtime limit. This limit is only checked once every poll period, so it should be a multiple of 
+# AGGREGATION_ACTIVITY_POLL_PERIOD.
+AGGREGATION_MAX_RUNTIME = None
+# Frequency at which to check aggregation for inactivity (i.e. crashed or stuck).
+AGGREGATION_ACTIVITY_POLL_PERIOD = 1200 # 20 minutes
 
 
 ############################

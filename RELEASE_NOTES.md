@@ -1,5 +1,12 @@
 # Stream Engine
 
+# Development Release 1.7.0 2018-07-26
+Issue #13101 - Replace simple aggregation timeout with inactivity timeout
+- Remove AGGREGATION_TIMEOUT_SECONDS config value
+- Add DEFAULT_MAX_RUNTIME, DEFAULT_ACTIVITY_POLL_PERIOD, AGGREGATION_MAX_RUNTIME, and 
+  AGGREGATION_ACTIVITY_POLL_PERIOD config values
+- Create set_inactivity_timeout decorator and apply to aggregation function
+
 # Development Release 1.6.0 2018-07-20
 
 Issue #13448 - Prevent getting fill values for wavelength coordinate
