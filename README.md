@@ -27,15 +27,19 @@ configuration parameters are set in gunicorn_config.py.
 
 ## Running
 
-The script `manage-streamng` allows for starting, stopping and reloading
-Stream Engine. The reload option will send a HUP signal to gunicorn which
-will terminate all *idle* workers and restart them. Any busy worker will
- continue until the current request is complete.
+The script `manage-streamng` allows for starting, stopping, reloading and
+checking the status of Stream Engine. The restart option combines the stop 
+and start options. The reload option will send a HUP signal to gunicorn 
+which will terminate all *idle* workers and restart them. Any busy worker 
+will continue until the current request is complete. The status option 
+returns the process id (PID) of the gunicorn parent process.
 
 ```shell
 ./manage-streamng start
 ./manage-streamng stop
+./manage-streamng restart
 ./manage-streamng reload
+./manage-streamng status
 ```
 
 Note that the stop behavior is similar to the reload behavior. Any active
