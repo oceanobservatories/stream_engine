@@ -312,7 +312,8 @@ def aggregate_netcdf_group(job_dir, output_dir, files, group_name, request_id=No
             accum_size = size
             datasets = []
 
-        with xr.open_dataset(path, decode_times=False, mask_and_scale=False, decode_coords=False) as ds:
+        # coordinates must be decoded to gracefully handle mismatched coordinates during dataset concatenation
+        with xr.open_dataset(path, decode_times=False, mask_and_scale=False, decode_coords=True) as ds:
             ds.load()
             shape_up(ds, parameters, request_id=request_id)
             datasets.append(ds)
@@ -450,7 +451,8 @@ def is_aggregation_progressing(**kwargs):
 
 
 def has_updated_within(directory, seconds):
-    files = [fle for rt, _, f in os.walk(directory) for fle in f if time.time() - os.stat(os.path.join(rt, fle)).st_mtime < seconds]
+    files = [fle for rt, _, f in os.walk(directory) for fle in f if
+             time.time() - os.stat(os.path.join(rt, fle)).st_mtime < seconds]
     if files:
         return True
     return False
@@ -469,8 +471,7 @@ def aggregate(async_job_dir, request_id=None):
     if not os.path.exists(final_dir):
         os.makedirs(final_dir)
 
-
-     # Fetch all files from remote nodes
+        # Fetch all files from remote nodes
         gather_files(se_nodes, local_dir)
 
     try:
