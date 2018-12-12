@@ -194,8 +194,6 @@ def _dataset_concat_coord_patch(datasets, dim, data_vars, coords, compat, positi
         if k not in concat_over:
             insert_result_variable(k, v)
 
-    #raise Exception(repr(datasets[0]) + '\n\n' + repr(datasets[1]))
-
     # check that global attributes and non-concatenated variables are fixed
     # across all datasets
     for ds in datasets[1:]:
@@ -312,12 +310,10 @@ def _dataarray_concat_coord_patch(arrays, dim, data_vars, coords, compat,
 
 
 def concat_coord_patch(objs, dim=None, data_vars='all', coords='different',
-                       compat='equals', positions=None, indexers=None, mode=None,
-                       concat_over=None):
+                       compat='equals', positions=None):
     """Concatenate xarray objects along a new or existing dimension.
-    This version is identical to xarray.core.combine.concat except that it calls patched versions of _dataset_concat
-    and _dataarray_concat in order to handle coordinate mismatches and the import statements were removed to the module
-    level.
+    This version is based on xarray.core.combine.concat but calls patched versions of _dataset_concat and
+    _dataarray_concat in order to handle coordinate mismatches.
 
     Parameters
     ----------
@@ -368,7 +364,6 @@ def concat_coord_patch(objs, dim=None, data_vars='all', coords='different',
         List of integer arrays which specifies the integer positions to which
         to assign each dataset along the concatenated dimension. If not
         supplied, objects are concatenated in the provided order.
-    indexers, mode, concat_over : deprecated
 
     Returns
     -------
@@ -390,26 +385,7 @@ def concat_coord_patch(objs, dim=None, data_vars='all', coords='different',
         raise ValueError('must supply at least one object to concatenate')
 
     if dim is None:
-        warnings.warn('the `dim` argument to `concat` will be required '
-                      'in a future version of xarray; for now, setting it to '
-                      "the old default of 'concat_dim'",
-                      FutureWarning, stacklevel=2)
-        dim = 'concat_dims'
-
-    if indexers is not None:  # pragma: nocover
-        warnings.warn('indexers has been renamed to positions; the alias '
-                      'will be removed in a future version of xarray',
-                      FutureWarning, stacklevel=2)
-        positions = indexers
-
-    if mode is not None:
-        raise ValueError('`mode` is no longer a valid argument to '
-                         'xarray.concat; it has been split into the `data_vars` '
-                         'and `coords` arguments')
-    if concat_over is not None:
-        raise ValueError('`concat_over` is no longer a valid argument to '
-                         'xarray.concat; it has been split into the `data_vars` '
-                         'and `coords` arguments')
+        raise ValueError("Value of None is not allowed for argument 'dim'.")
 
     if isinstance(first_obj, DataArray):
         f = _dataarray_concat_coord_patch
