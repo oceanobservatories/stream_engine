@@ -12,7 +12,7 @@ dependencies:
 - flask=0.12
 - futures=2.2.0
 - gunicorn=19.7.0
-- ion-functions=2.4.0
+- ion-functions=2.4.1
 - msgpack-python=0.4.8
 - netcdf4=1.2.4
 - ntplib=0.3.3
