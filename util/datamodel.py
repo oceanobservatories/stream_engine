@@ -11,6 +11,7 @@ import pandas as pd
 import xarray as xr
 
 from common import StreamEngineException
+from xarray_overrides import concat_coord_patch
 from engine import app
 
 __author__ = 'Stephen Zakrewsky'
@@ -93,13 +94,14 @@ def find_depth_variable(variable_list):
     :param variable_list: the list of variable names
     :return: the depth variable, or None if the variable_list contains no known depth variable
     """
-    depth_variable=None
+    depth_variable = None
     # iterate through the config variables to ensure variables are found in order of preference
-    for variable in app.config.get('NETCDF_DEPTH_VARIABLES',[]):
+    for variable in app.config.get('NETCDF_DEPTH_VARIABLES', []):
         if variable in variable_list:
             depth_variable = variable
             break
     return depth_variable
+
 
 def to_xray_dataset(cols, data, stream_key, request_uuid, san=False):
     """
@@ -292,7 +294,8 @@ def compile_datasets(datasets):
         return None
 
     try:
-        dataset = xr.concat(datasets, dim='obs')
+        # run xarray.concat with patch to handle coordinate mismatches in datasets
+        dataset = concat_coord_patch(datasets, dim='obs')
     except ValueError:
         # concatenation failed to run normally and the ValueError suggests an index might be at fault
         # for each index except 'obs', set the index values to the sequence 0, 1, 2, ...
@@ -301,7 +304,7 @@ def compile_datasets(datasets):
             for key in non_obs_indices:
                 dataset[key] = (key, np.arange(dataset.dims[key]), dataset[key].attrs)
         # with the indices reset, try the concatenation again
-        dataset = xr.concat(datasets, dim='obs')
+        dataset = concat_coord_patch(datasets, dim='obs')
     
     # recreate the obs dimension
     dataset['obs'] = np.arange(dataset.obs.size)
