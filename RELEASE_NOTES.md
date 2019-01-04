@@ -1,6 +1,6 @@
 # Stream Engine
 
-# Development Release 1.8.0 2018-12-12
+# Release 1.8.0 2019-01-04
 
 Issue #13501 - Handle mismatched coordinates in NetCDF aggregation
 
