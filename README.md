@@ -51,11 +51,13 @@ generally be avoided unless necessary.
 ### Running on Test Server
 
 Our current test server is `uframe-3-test` under user `asadev`. Source the 
-stream engine conda environment `engine` and start the service:
+Stream Engine conda environment `engine` and start the service. Run Stream 
+Engine in the logs directory as they are written to the current working directory:
 
 ```shell
 source activate engine
-manage-streamng start
+cd ~/miniconda/envs/engine/stream_engine/logs
+../manage-streamng start
 ```
 
 ## Logs
