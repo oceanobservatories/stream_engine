@@ -25,6 +25,7 @@ log.info('Starting {} v{} {} ({})'.format(
     release.latest_descriptor(),
     release.latest_date()))
 
+
 @app.errorhandler(Exception)
 def handle_exception(error):
     request_id = request.get_json().get('requestUUID')
@@ -119,6 +120,15 @@ def get_local_dir(input_data):
     return os.path.join(base_dir, request_dir)
 
 
+def get_final_dir(input_data):
+    base_dir = app.config['FINAL_ASYNC_DIR']
+    request_dir = input_data.get('async_job')
+    if request_dir is None:
+        raise InvalidPathException('Supplied path: %r is not valid' % request_dir)
+    raise_invalid_path(base_dir, request_dir)
+    return os.path.join(base_dir, request_dir)
+
+
 ##########################
 # ROUTES
 ##########################
@@ -157,6 +167,35 @@ def estimate():
     """
     input_data = request.get_json()
     return jsonify(util.calc.get_estimate(input_data, request.url))
+
+
+@app.route('/stats', methods=['POST'])
+@set_timeout()
+def stats():
+    """
+    Return the calculated download size and completion time for a completed request by looking at the output directory
+    """
+    input_data = request.get_json()
+
+    try:
+        if app.config['AGGREGATE']:
+            async_job_dir = get_final_dir(input_data)
+        else:
+            async_job_dir = get_local_dir(input_data)
+
+        if os.path.isdir(async_job_dir):
+            return jsonify(util.calc.get_stats(async_job_dir))
+        else:
+            raise InvalidPathException("Directory %r does not exist" % async_job_dir)
+    except InvalidPathException as e:
+        output = {
+            "code": 500,
+            "message": "Request for download size and completion time failed for the following reason: %s" % e.message,
+            'requestUUID': input_data.get('requestUUID', '')
+        }
+        json_str = json.dumps(output, indent=2, separators=(',', ': '))
+        log.error(json_str)
+        return Response(json_str, mimetype='application/json')
 
 
 @app.route('/particles', methods=['POST'])
@@ -437,6 +476,11 @@ def output_async_error(input_data, e, filename="failure.json"):
         "message": "Request for particles failed for the following reason: %s" % e.message,
         'requestUUID': input_data.get('requestUUID', '')
     }
+
+    # keep the status code for StreamEngineExceptions
+    if isinstance(e, StreamEngineException):
+        output["code"] = e.status_code
+
     base_path = get_local_dir(input_data)
     # try to write file, if it does not succeed then return an additional error
     json_str = json.dumps(output, indent=2, separators=(',', ': '))

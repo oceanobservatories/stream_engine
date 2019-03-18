@@ -99,6 +99,28 @@ def get_estimate(input_data, url):
     }
 
 
+def get_stats(async_job_dir):
+    # sum the size of the files in the output directory
+    files = [os.path.join(async_job_dir, f) for f in os.listdir(async_job_dir)]
+    download_size = sum(os.path.getsize(f) for f in files if os.path.isfile(f))
+
+    # the status.txt file is written at the very end of aggregation and is the canonical way to determine that an async
+    # job is done, so its last modified timestamp indicates request completion time for successful requests
+    status_file = os.path.join(async_job_dir, "status.txt")
+    if os.path.isfile(status_file):
+        completion_time = os.path.getmtime(status_file)
+        # convert seconds to milliseconds
+        completion_time = completion_time * 1000
+    else:
+        # for some reason status.txt was not written - search instead for the most recently modified file time
+        completion_time = max(os.path.getmtime(f) for f in files if os.path.isfile(f))
+
+    return {
+        'size': download_size,
+        'time': completion_time  # milliseconds since epoch timestamp, not an elapsed time since request start
+    }
+
+
 @time_request
 def get_particles(input_data, url):
     stream_request = execute_stream_request(validate(input_data))

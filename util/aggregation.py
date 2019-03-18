@@ -24,7 +24,9 @@ from util.xarray_overrides import xr
 log = logging.getLogger(__name__)
 
 dre = re.compile('(deployment\d+_\S*).nc')
-valid_jobdir_re = re.compile('\d{8}T\d{6}-')
+# support new style and legacy directory naming - the new style has timestamps accurate to milliseconds vs seconds and
+# the character 'Z' to indicate UTC
+valid_jobdir_re = re.compile('\d{8}T(\d{6}|\d{9}Z)-')
 
 
 MAX_AGGREGATION_SIZE = app.config['MAX_AGGREGATION_SIZE']
