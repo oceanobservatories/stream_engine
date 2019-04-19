@@ -1,5 +1,12 @@
 # Stream Engine
 
+# Development Release 1.9.0 2019-04-18
+
+Issue #14159 - Record data download size and time data
+- Add endpoint to measure output directory size and write time
+- Update directory checking regex to handle new style directory names
+- Fix error handling to keep StreamEngineException status codes
+
 # Release 1.8.0 2019-01-04
 
 Issue #13501 - Handle mismatched coordinates in NetCDF aggregation
