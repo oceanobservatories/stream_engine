@@ -186,8 +186,8 @@ def stats():
 
         if os.path.isdir(async_job_dir):
             return jsonify(util.calc.get_stats(async_job_dir))
-        else:
-            raise InvalidPathException("Directory %r does not exist" % async_job_dir)
+
+        raise InvalidPathException("Directory %r does not exist" % async_job_dir)
     except InvalidPathException as e:
         output = {
             "code": 500,
