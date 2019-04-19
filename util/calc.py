@@ -109,15 +109,13 @@ def get_stats(async_job_dir):
     status_file = os.path.join(async_job_dir, "status.txt")
     if os.path.isfile(status_file):
         completion_time = os.path.getmtime(status_file)
-        # convert seconds to milliseconds
-        completion_time = completion_time * 1000
     else:
         # for some reason status.txt was not written - search instead for the most recently modified file time
         completion_time = max(os.path.getmtime(f) for f in files if os.path.isfile(f))
 
     return {
         'size': download_size,
-        'time': completion_time  # milliseconds since epoch timestamp, not an elapsed time since request start
+        'time': completion_time * 1000 # milliseconds since epoch timestamp, not an elapsed time since request start
     }
 
 

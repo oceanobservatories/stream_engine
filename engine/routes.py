@@ -16,6 +16,9 @@ from util.san import onload_netCDF, SAN_netcdf
 from util.releasenotes import ReleaseNotes
 from util.timeout import set_timeout, set_inactivity_timeout
 
+LOCAL_ASYNC_DIR = app.config['LOCAL_ASYNC_DIR']
+FINAL_ASYNC_DIR = app.config['FINAL_ASYNC_DIR']
+
 log = logging.getLogger(__name__)
 
 release = ReleaseNotes.instance()
@@ -112,21 +115,19 @@ def raise_invalid_path(base_dir, path):
 
 def get_local_dir(input_data):
     input_data = fix_directory(input_data)
-    base_dir = app.config['LOCAL_ASYNC_DIR']
     request_dir = input_data.get('directory')
     if request_dir is None:
         raise InvalidPathException('Supplied path: %r is not valid' % request_dir)
-    raise_invalid_path(base_dir, request_dir)
-    return os.path.join(base_dir, request_dir)
+    raise_invalid_path(LOCAL_ASYNC_DIR, request_dir)
+    return os.path.join(LOCAL_ASYNC_DIR, request_dir)
 
 
 def get_final_dir(input_data):
-    base_dir = app.config['FINAL_ASYNC_DIR']
     request_dir = input_data.get('async_job')
     if request_dir is None:
         raise InvalidPathException('Supplied path: %r is not valid' % request_dir)
-    raise_invalid_path(base_dir, request_dir)
-    return os.path.join(base_dir, request_dir)
+    raise_invalid_path(FINAL_ASYNC_DIR, request_dir)
+    return os.path.join(FINAL_ASYNC_DIR, request_dir)
 
 
 ##########################
