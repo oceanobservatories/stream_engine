@@ -97,6 +97,7 @@ class QcExecutor(object):
 
             module = importlib.import_module(ParameterFunction.query.filter_by(function=function_name)
                                              .first().owner)
+
             # call qc function in a separate process to deal with crashes, e.g. segfaults
             read_fd, write_fd = os.pipe()
             processid = os.fork()
@@ -149,9 +150,9 @@ class QcExecutor(object):
             qc_results_name = '_'.join([parameter.name, QC_RESULTS])
 
             if qc_count_name not in dataset:
-                dataset[qc_count_name] = ('obs', np.zeros_like(dataset.time.values, dtype=np.uint8), {})
+                dataset[qc_count_name] = (dataset[parameter.name].dims, np.zeros_like(dataset[parameter.name].values, dtype=np.uint8), {})
             if qc_results_name not in dataset:
-                dataset[qc_results_name] = ('obs', np.zeros_like(dataset.time.values, dtype=np.uint8), {})
+                dataset[qc_results_name] = (dataset[parameter.name].dims, np.zeros_like(dataset[parameter.name].values, dtype=np.uint8), {})
 
             qc_function = ParameterFunction.query.filter_by(function=function_name).first()
             flag = int(qc_function.qc_flag, 2)

@@ -475,43 +475,49 @@ class StreamRequest(object):
         :return:
         """
         log.debug('_find_stream_same_sensor(%r, %r, STREAM_DICTIONARY)', stream_key, streams)
-        method = stream_key.method
         subsite = stream_key.subsite
         node = stream_key.node
         sensor = stream_key.sensor
 
         # Search the same reference designator
         for stream in streams:
-            sensors = stream_dictionary.get(stream, {}).get(method, {}).get(subsite, {}).get(node, [])
-            if sensor in sensors:
-                return StreamKey.from_dict({
-                    "subsite": subsite,
-                    "node": node,
-                    "sensor": sensor,
-                    "method": method,
-                    "stream": stream
-                })
+            # do not restrict the method - try all available
+            potential_methods = stream_dictionary.get(stream, {}).keys()
+            for method in potential_methods:
+                sensors = stream_dictionary.get(stream, {}).get(method, {}).get(subsite, {}).get(node, [])
+                if sensor in sensors:
+                    return StreamKey.from_dict({
+                        "subsite": subsite,
+                        "node": node,
+                        "sensor": sensor,
+                        "method": method,
+                        "stream": stream
+                    })
+
+
 
     @staticmethod
     def _find_stream_from_list(stream_key, streams, sensors, stream_dictionary):
         log.debug('_find_stream_from_list(%r, %r, %r, STREAM_DICTIONARY)', stream_key, streams, sensors)
-        method = stream_key.method
         subsite = stream_key.subsite
         designators = [(c.subsite, c.node, c.sensor) for c in sensors]
 
         for stream in streams:
-            subsite_dict = stream_dictionary.get(stream, {}).get(method, {}).get(subsite, {})
-            for _node in subsite_dict:
-                for _sensor in subsite_dict[_node]:
-                    des = (subsite, _node, _sensor)
-                    if des in designators:
-                        return StreamKey.from_dict({
-                            "subsite": subsite,
-                            "node": _node,
-                            "sensor": _sensor,
-                            "method": method,
-                            "stream": stream
-                        })
+            # do not restrict the method - try all available
+            potential_methods = stream_dictionary.get(stream, {}).keys()
+            for method in potential_methods:
+                subsite_dict = stream_dictionary.get(stream, {}).get(method, {}).get(subsite, {})
+                for _node in subsite_dict:
+                    for _sensor in subsite_dict[_node]:
+                        des = (subsite, _node, _sensor)
+                        if des in designators:
+                            return StreamKey.from_dict({
+                                "subsite": subsite,
+                                "node": _node,
+                                "sensor": _sensor,
+                                "method": method,
+                                "stream": stream
+                            })
 
     @staticmethod
     def _find_stream_same_node(stream_key, streams, stream_dictionary):
@@ -523,20 +529,22 @@ class StreamRequest(object):
         :return: StreamKey if found, otherwise None
         """
         log.debug('_find_stream_same_node(%r, %r, STREAM_DICTIONARY)', stream_key, streams)
-        method = stream_key.method
         subsite = stream_key.subsite
         node = stream_key.node
 
         for stream in streams:
-            sensors = stream_dictionary.get(stream, {}).get(method, {}).get(subsite, {}).get(node, [])
-            if sensors:
-                return StreamKey.from_dict({
-                    "subsite": subsite,
-                    "node": node,
-                    "sensor": sensors[0],
-                    "method": method,
-                    "stream": stream
-                })
+            # do not restrict the method - try all available
+            potential_methods = stream_dictionary.get(stream, {}).keys()
+            for method in potential_methods:
+                sensors = stream_dictionary.get(stream, {}).get(method, {}).get(subsite, {}).get(node, [])
+                if sensors:
+                    return StreamKey.from_dict({
+                        "subsite": subsite,
+                        "node": node,
+                        "sensor": sensors[0],
+                        "method": method,
+                        "stream": stream
+                    })
 
     def interpolate_from_stream_request(self, stream_request):
         source_sk = stream_request.stream_key

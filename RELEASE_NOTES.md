@@ -1,6 +1,10 @@
 # Stream Engine
 
-# Development Release 1.9.0 2019-04-18
+# Development Release 1.9.0 2019-06-04
+
+Issue #13402 - Make stream resolution independent of delivery method
+- Allow lookup of streams with different method when locating externals
+- Handle non-obs dimensions when processing QC results
 
 Issue #14159 - Record data download size and time data
 - Add endpoint to measure output directory size and write time
