@@ -504,18 +504,19 @@ class StreamRequest(object):
         designators = [(c.subsite, c.node, c.sensor) for c in sensors]
 
         for stream in streams:
-            subsite_dict = stream_dictionary.get(stream, {}).get(method, {}).get(subsite, {})
-            for _node in subsite_dict:
-                for _sensor in subsite_dict[_node]:
-                    des = (subsite, _node, _sensor)
-                    if des in designators:
-                        return StreamKey.from_dict({
-                            "subsite": subsite,
-                            "node": _node,
-                            "sensor": _sensor,
-                            "method": method,
-                            "stream": stream
-                        })
+            for method in StreamRequest._get_potential_methods(method, stream_dictionary):
+                subsite_dict = stream_dictionary.get(stream, {}).get(method, {}).get(subsite, {})
+                for _node in subsite_dict:
+                    for _sensor in subsite_dict[_node]:
+                        des = (subsite, _node, _sensor)
+                        if des in designators:
+                            return StreamKey.from_dict({
+                                "subsite": subsite,
+                                "node": _node,
+                                "sensor": _sensor,
+                                "method": method,
+                                "stream": stream
+                            })
 
     @staticmethod
     def _find_stream_same_node(stream_key, streams, stream_dictionary):
@@ -532,15 +533,43 @@ class StreamRequest(object):
         node = stream_key.node
 
         for stream in streams:
-            sensors = stream_dictionary.get(stream, {}).get(method, {}).get(subsite, {}).get(node, [])
-            if sensors:
-                return StreamKey.from_dict({
-                    "subsite": subsite,
-                    "node": node,
-                    "sensor": sensors[0],
-                    "method": method,
-                    "stream": stream
-                })
+            for method in StreamRequest._get_potential_methods(method, stream_dictionary):
+                sensors = stream_dictionary.get(stream, {}).get(method, {}).get(subsite, {}).get(node, [])
+                if sensors:
+                    return StreamKey.from_dict({
+                        "subsite": subsite,
+                        "node": node,
+                        "sensor": sensors[0],
+                        "method": method,
+                        "stream": stream
+                    })
+
+    @staticmethod
+    def _get_potential_methods(method, stream_dictionary):
+        """
+        When trying to resolve streams, an applicable stream may have a subtlely different method
+        (e.g. 'recovered_host' vs. 'recovered_inst'). This function is used to identify all related methods
+        within a stream dictionary so that streams can be resolved properly despite these minor differences.
+        """
+        method_category = None
+        if "streamed" in method:
+            method_category = "streamed"
+        elif "recovered" in method:
+            method_category = "recovered"
+        elif "telemetered" in method:
+            method_category = "telemetered"
+
+        if not method_category:
+            log.warn("<%s> Unexpected method, %s, encountered during stream resolution."
+                     " Only resolving streams whose methods match exactly.", self.request_id, method)
+            return method
+
+        valid_methods = []
+        for stream in stream_dictionary:
+            for method in stream_dictionary[stream]:
+                if method_category in method and "bad" not in method:
+                    valid_methods.append(method)
+        return valid_methods
 
     def interpolate_from_stream_request(self, stream_request):
         source_sk = stream_request.stream_key

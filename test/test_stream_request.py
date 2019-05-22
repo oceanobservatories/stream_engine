@@ -98,12 +98,13 @@ class StreamRequestTest(unittest.TestCase):
     def test_glider_include_preswat_gps(self):
         do_sk = StreamKey('CP05MOAS', 'GL388', '04-DOSTAM000', 'recovered_host', 'dosta_abcdjm_glider_recovered')
         ctd_sk = StreamKey('CP05MOAS', 'GL388', '03-CTDGVM000', 'recovered_host', 'ctdgv_m_glider_instrument_recovered')
-        gps_sk = StreamKey('CP05MOAS', 'GL388', '00-ENG000000', 'recovered_host', 'glider_gps_position')
+        gps_sk1 = StreamKey('CP05MOAS', 'GL388', '00-ENG000000', 'recovered_host', 'glider_gps_position')
+        # this stream is appearing as the result of work on ticket 14486 
+        gps_sk2 = StreamKey('CP05MOAS', 'GL388', '00-ENG000000', 'recovered_host', 'glider_eng_recovered')
         tr = TimeRange(3.622409e+09, 3.627058e+09)
         sr = StreamRequest(do_sk, [], {}, tr, {}, request_id='UNIT')
 
-        # we expect to fetch the PRESWAT from the ctd glider stream and LAT/LON from the gps position stream
-        self.assertEqual(set(sr.stream_parameters), {do_sk, ctd_sk, gps_sk})
+        self.assertEqual(set(sr.stream_parameters), {do_sk, ctd_sk, gps_sk1, gps_sk2})
 
     def test_wfp_include_preswat(self):
         par_sk = StreamKey('CP02PMUO', 'WFP01', '05-PARADK000', 'recovered_wfp',
@@ -239,7 +240,8 @@ class StreamRequestTest(unittest.TestCase):
     def test_metbk_hourly_needs(self):
         hourly_sk = StreamKey('CP01CNSM', 'SBD11', '06-METBKA000', 'telemetered', 'metbk_hourly')
         met_sk = StreamKey('CP01CNSM', 'SBD11', '06-METBKA000', 'telemetered', 'metbk_a_dcl_instrument')
-        vel_sk = StreamKey('CP01CNSM', 'RID26', '04-VELPTA000', 'telemetered', 'velpt_ab_dcl_diagnostics')
+        # depending on the order in preload, either velpt_ab_dcl_diagnostics or velpt_ab_dcl_instrument can be used
+        vel_sk = StreamKey('CP01CNSM', 'RID26', '04-VELPTA000', 'telemetered', 'velpt_ab_dcl_instrument')
         tr = TimeRange(0, 99999999)
         sr = StreamRequest(hourly_sk, [], {}, tr, {}, request_id='UNIT')
         self.assertEqual(set(sr.stream_parameters), {hourly_sk, met_sk, vel_sk})

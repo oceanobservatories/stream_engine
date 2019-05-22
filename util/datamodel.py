@@ -11,7 +11,7 @@ import pandas as pd
 import xarray as xr
 
 from common import StreamEngineException
-from xarray_overrides import concat_coord_patch
+from multi_concat import multi_concat
 from engine import app
 
 __author__ = 'Stephen Zakrewsky'
@@ -294,8 +294,8 @@ def compile_datasets(datasets):
         return None
 
     try:
-        # run xarray.concat with patch to handle coordinate mismatches in datasets
-        dataset = concat_coord_patch(datasets, dim='obs')
+        # run an updated version of xarray.concat which handles mismatched coordinates and non-obs dimensions
+        dataset = multi_concat(datasets, dim='obs')
     except ValueError:
         # concatenation failed to run normally and the ValueError suggests an index might be at fault
         # for each index except 'obs', set the index values to the sequence 0, 1, 2, ...
@@ -304,7 +304,7 @@ def compile_datasets(datasets):
             for key in non_obs_indices:
                 dataset[key] = (key, np.arange(dataset.dims[key]), dataset[key].attrs)
         # with the indices reset, try the concatenation again
-        dataset = concat_coord_patch(datasets, dim='obs')
+        dataset = multi_concat(datasets, dim='obs')
     
     # recreate the obs dimension
     dataset['obs'] = np.arange(dataset.obs.size)
