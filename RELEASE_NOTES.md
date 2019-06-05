@@ -1,6 +1,6 @@
 # Stream Engine
 
-# Development Release 1.9.0 2019-04-18
+# Release 1.9.0 2019-06-06
 
 Issue #14159 - Record data download size and time data
 - Add endpoint to measure output directory size and write time
