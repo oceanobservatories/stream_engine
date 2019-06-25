@@ -10,6 +10,7 @@ from util.common import ntp_to_short_iso_datestring, get_annotation_filename, Wr
 
 # QC parameter identification patterns
 from util.qc_executor import QC_EXECUTED, QC_RESULTS
+from util.qartod_qc_executor import QARTOD_PRIMARY, QARTOD_SECONDARY
 
 log = logging.getLogger(__name__)
 
@@ -103,7 +104,8 @@ class CsvGenerator(object):
             # remove any "extra" keys while keeping relevant qc params and removing 'provenance' params
             if self._is_qc_param(key):
                 # drop QC param if not related to requested param
-                if not key.split('_qc_')[0] in params_to_include:
+                if (not key.split('_qc_')[0] in params_to_include) \
+                        and (not key.split('_qartod_')[0] in params_to_include):
                     drop.add(key)
             elif key not in params_to_include or 'provenance' in key:
                 # drop "extra" params and "provenance" params
@@ -112,7 +114,7 @@ class CsvGenerator(object):
 
     @staticmethod
     def _is_qc_param(param):
-        return QC_EXECUTED in param or QC_RESULTS in param
+        return QC_EXECUTED in param or QC_RESULTS in param or QARTOD_PRIMARY in param or QARTOD_SECONDARY in param
 
     def _create_csv(self, dataset, filehandle):
         """

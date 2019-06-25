@@ -32,6 +32,32 @@ ANNOTATION_FILE_FORMAT = '%s_annotations_%s.json'
 FILL_VALUES = app.config['FILL_VALUES']
 
 
+class QartodFlags:
+    """Primary flags for QARTOD."""
+    # Don't subclass Enum since values don't fit nicely into a numpy array.
+    PASS = 1
+    NOT_EVALUATED = 2
+    SUSPECT = 3
+    FAIL = 4
+    MISSING = 9
+
+    @classmethod
+    def getFlagOrder(cls):
+        return [cls.NOT_EVALUATED, cls.PASS, cls.MISSING, cls.SUSPECT, cls.FAIL]
+
+    @classmethod
+    def getValidQCFlags(cls):
+        return [cls.PASS, cls.NOT_EVALUATED, cls.SUSPECT, cls.FAIL, cls.MISSING]
+
+    @classmethod
+    def getQCFlagMeanings(cls):
+        return ["PASS", "NOT_EVALUATED", "SUSPECT", "FAIL", "MISSING"]
+
+    @classmethod
+    def isValidQCFlag(cls, flag):
+        return flag in QartodFlags.getValidQCFlags()
+
+
 def isfillvalue(a):
     """
     Test element-wise for fill values and return result as a boolean array.

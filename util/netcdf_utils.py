@@ -145,6 +145,7 @@ def prep_classic(ds):
 
 
 def write_netcdf(ds, file_path, classic=False):
+
     if classic:
         prep_classic(ds)
         ds.to_netcdf(path=file_path, format="NETCDF4_CLASSIC")
