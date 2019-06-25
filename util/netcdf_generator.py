@@ -12,6 +12,7 @@ from util.datamodel import find_depth_variable
 
 # QC parameter identification patterns
 from util.qc_executor import QC_EXECUTED, QC_RESULTS
+from util.qartod_qc_executor import QARTOD_PRIMARY, QARTOD_SECONDARY
 
 log = logging.getLogger(__name__)
 
@@ -91,14 +92,15 @@ class NetcdfGenerator(object):
         for key in ds.data_vars:
             if self._is_qc_parameter(key):
                 # drop any QC param not based on a param we are keeping
-                if not key.split('_qc_')[0] in params_to_filter:
+                if (not key.split('_qc_')[0] in params_to_filter) \
+                        and (not key.split('_qartod_')[0] in params_to_filter):
                     ds = ds.drop(key)
             elif key not in params_to_filter:
                 ds = ds.drop(key)
         return ds
         
     def _is_qc_parameter(self, param):
-        return QC_EXECUTED in param or QC_RESULTS in param
+        return QC_EXECUTED in param or QC_RESULTS in param or QARTOD_PRIMARY in param or QARTOD_SECONDARY in param
 
     def _setup_coordinate_variables(self, ds):
         """
@@ -139,7 +141,7 @@ class NetcdfGenerator(object):
             anno_json = os.path.join(base_path, anno_fname)
             file_paths.append(anno_json)
             self.stream_request.annotation_store.dump_json(anno_json)
-        
+
         for stream_key, stream_dataset in self.stream_request.datasets.iteritems():
             for deployment, ds in stream_dataset.datasets.iteritems():
                 add_dynamic_attributes(ds)
@@ -154,7 +156,7 @@ class NetcdfGenerator(object):
                     prov_json = os.path.join(base_path, prov_fname)
                     file_paths.append(prov_json)
                     stream_dataset.provenance_metadata.dump_json(prov_json)
-                
+
                 file_name = 'deployment%04d_%s_%s-%s.nc' % (deployment, stream_key.as_dashed_refdes(), start, end)
                 file_path = os.path.join(base_path, file_name)
                 ds = rename_glider_lat_lon(stream_key, ds)
@@ -166,6 +168,7 @@ class NetcdfGenerator(object):
                 pressure_params = [(sk, param) for sk in self.stream_request.external_includes
                                    for param in self.stream_request.external_includes[sk]
                                    if param.data_product_identifier == PRESSURE_DPI]
+
                 if pressure_params:
                     params_to_include.append(INT_PRESSURE_NAME)
 
