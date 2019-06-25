@@ -57,6 +57,7 @@ ANNOTATION_HOST = 'localhost'
 ASSET_HOST = 'localhost'
 STREAM_METADATA_SERVICE_URL = 'http://127.0.0.1:12571/streamMetadata'
 PARTITION_METADATA_SERVICE_URL = 'http://127.0.0.1:12571/partitionMetadata'
+QARTOD_TEST_SERVICE_URL = 'http://127.0.0.1:12593/qartod'
 
 
 ############################
