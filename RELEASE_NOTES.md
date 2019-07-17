@@ -1,5 +1,10 @@
 # Stream Engine
 
+# Development Release 1.10.0 2019-07-19
+
+Issue #9291 - Apply lat,lon on fixed assets to netcdf global attrs
+- On fixed assets add lat,lon to global attrs, remove from variable list
+
 # Release 1.9.0 2019-06-06
 
 Issue #14159 - Record data download size and time data

@@ -81,6 +81,18 @@ def add_dynamic_attributes(ds):
     ds.attrs['geospatial_vertical_positive'] = app.config['Z_POSITIVE']
 
 
+def replace_fixed_lat_lon(ds, stream_key):
+    if stream_key is None or stream_key.is_mobile:
+        return ds
+
+    if 'lat' in ds and 'lon' in ds:
+        ds.attrs['lat'] = ds.variables['lat'].values[0]
+        ds.attrs['lon'] = ds.variables['lon'].values[0]
+        ds = ds.drop('lat').drop('lon')
+
+    return ds
+
+
 def force_data_array_type(data_array, orig_data_type, new_data_type):
     data_array.attrs['original_dtype'] = str(orig_data_type)
     new_data_array = data_array.astype(new_data_type)
