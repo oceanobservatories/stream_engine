@@ -7,7 +7,7 @@ import zipfile
 
 from engine import app
 from util.common import log_timing, get_annotation_filename, WriteErrorException
-from util.netcdf_utils import rename_glider_lat_lon, add_dynamic_attributes, write_netcdf
+from util.netcdf_utils import rename_glider_lat_lon, add_dynamic_attributes, replace_fixed_lat_lon, write_netcdf
 from util.datamodel import find_depth_variable
 
 # QC parameter identification patterns
@@ -143,6 +143,7 @@ class NetcdfGenerator(object):
         for stream_key, stream_dataset in self.stream_request.datasets.iteritems():
             for deployment, ds in stream_dataset.datasets.iteritems():
                 add_dynamic_attributes(ds)
+                ds = replace_fixed_lat_lon(ds, stream_key)
                 start = ds.attrs['time_coverage_start'].translate(None, '-:')
                 end = ds.attrs['time_coverage_end'].translate(None, '-:')
                 
