@@ -1,4 +1,4 @@
-name: stream
+name: stream2
 channels:
 - defaults
 - ooi
@@ -13,8 +13,10 @@ dependencies:
 - futures=2.2.0
 - gunicorn=19.7.0
 - ion-functions=2.3.1
+- mock
 - msgpack-python=0.4.8
 - netcdf4=1.2.4
+- nose
 - ntplib=0.3.3
 - numexpr=2.6.2
 - numpy=1.12
@@ -23,6 +25,7 @@ dependencies:
 - pygsw=0.0.11
 - python=2.7.14
 - requests=2.13.0
+- requests-mock
 - scipy=0.19.0
 - simplejson=3.10.0
 - sqlalchemy=1.1.5

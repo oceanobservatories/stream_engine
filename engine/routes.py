@@ -23,10 +23,10 @@ log = logging.getLogger(__name__)
 
 release = ReleaseNotes.instance()
 log.info('Starting {} v{} {} ({})'.format(
-    release.get_component_name(),
-    release.get_latest_version(),
-    release.get_latest_descriptor(),
-    release.get_latest_date()))
+    release.component_name(),
+    release.latest_version(),
+    release.latest_descriptor(),
+    release.latest_date()))
 
 
 @app.errorhandler(Exception)
@@ -171,8 +171,7 @@ def get_final_dir(input_data):
 @app.route('/version', methods=['GET'])
 @set_timeout()
 def version():
-    component = release.get_component()
-    return Response(json.dumps(component, cls=ComponentDecoder, indent=2, separators=(',', ': ')),
+    return Response(json.dumps(release.component, cls=ComponentDecoder, indent=2, separators=(',', ': ')),
                     mimetype='application/json')
 
 

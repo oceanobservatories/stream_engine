@@ -93,7 +93,7 @@ class ReleaseNotes:
                 self._contents = file_handle.readlines()
         return self._contents
 
-    def dependencies(self):
+    def _parse_dependencies(self):
         """
         :return: the environment package requirements as a list of strings
         """
@@ -155,7 +155,7 @@ class ReleaseNotes:
             self._parsed = True
 
         # if dependencies not already set and there are dependencies to add...
-        if not self._dependencies and self.dependencies():
+        if not self._dependencies and self._parse_dependencies():
             self._component.dependencies = self._dependencies
 
         return self._parsed
@@ -167,42 +167,48 @@ class ReleaseNotes:
         if details:
             object_with_details.details = details
 
-    def get_component_name(self):
+    @property
+    def component_name(self):
         """
         :return: the component name or None if no component name was found
         """
         self._parse()
         return self._component.name
 
-    def get_latest_version(self):
+    @property
+    def latest_version(self):
         """
         :return: the latest version or UNKNOWN_VERSION if no version is found
         """
         self._parse()
         return self._component.versions[0].number if self._component.versions else ReleaseNotes.UNKNOWN_VERSION
 
-    def get_latest_date(self):
+    @property
+    def latest_date(self):
         """
         :return: the latest date or None is no date is found
         """
         self._parse()
         return self._component.versions[0].date if self._component.versions else None
 
-    def get_latest_descriptor(self):
+    @property
+    def latest_descriptor(self):
         """
         :return: the latest descriptor or None if no descriptor is found
         """
         self._parse()
         return self._component.versions[0].descriptor if self._component.versions else None
 
-    def get_component(self):
+    @property
+    def component(self):
         """
         :return: the component representing Stream Engine version information
         """
         self._parse()
         return self._component
 
-    def get_dependencies(self):
+    @property
+    def dependencies(self):
         """
         :return: the list of Strings representing required packages and their versions
         """
