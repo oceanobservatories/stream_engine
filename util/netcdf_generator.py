@@ -63,7 +63,7 @@ class NetcdfGenerator(object):
         missing_params = []
         params_to_filter = []
         # aggregation logic assumes the presence of a 'time' parameter, so do not allow it to get removed
-        default_params = ['time', 'deployment', 'id', 'lat', 'lon', 'quality_flag']
+        default_params = ['time', 'deployment', 'id', 'lat', 'lon', 'm_gps_lat', 'm_gps_lon', 'quality_flag']
 
         for param in params:
             # look for param in both data_vars and coords (13025 AC2)
@@ -109,7 +109,7 @@ class NetcdfGenerator(object):
         # find the depth_variable (10745 AC1)
         depth_variable = find_depth_variable(ds.data_vars)
         coordinates_key = 'coordinates'
-        coordinate_variables = "time lat lon"
+        coordinate_variables = "time lat lon m_gps_lat m_gps_lon"
         if depth_variable:
             coordinate_variables += " " + depth_variable
         for var in ds.data_vars:
@@ -121,9 +121,9 @@ class NetcdfGenerator(object):
             elif coordinates_key in ds[var].attrs:
                 del ds[var].attrs[coordinates_key]
             # make sure coordinate variables have axis defined (10745 AC4)
-            if var == 'lat':
+            if var == 'lat' or var == 'm_gps_lat':
                 ds[var].attrs['axis'] = 'Y'
-            elif var == 'lon':
+            elif var == 'lon' or var == 'm_gps_lon':
                 ds[var].attrs['axis'] = 'X'
             elif var == depth_variable:
                 ds[var].attrs['axis'] = 'Z'
