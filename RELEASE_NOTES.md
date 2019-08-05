@@ -5,6 +5,10 @@
 Issue #9291 - Apply lat,lon on fixed assets to netcdf global attrs
 - On fixed assets add lat,lon to global attrs, remove from variable list
 
+Issue #11399 - Ability to specify function parameter as optional
+- Allows calling a parameter function pointing to a Python function
+  which specifies a default for the optional argument
+
 # Release 1.9.0 2019-06-06
 
 Issue #14159 - Record data download size and time data

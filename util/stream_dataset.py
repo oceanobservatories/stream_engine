@@ -81,7 +81,7 @@ class StreamDataset(object):
             dataset['obs'] = np.arange(dataset.obs.size)
         return dataset
 
-    def calculate_all(self, source_datasets=None):
+    def calculate_all(self, source_datasets=None, ignore_missing_optional_params=False):
         """
         Brute force resolution of parameters - continue to loop as long as we can progress
         """
@@ -92,7 +92,8 @@ class StreamDataset(object):
                 remaining = []
                 for param in self.params[deployment]:
                     missing = self._try_create_derived_product(dataset, self.stream_key,
-                                                               param, deployment, source_dataset)
+                                                               param, deployment, source_dataset,
+                                                               ignore_missing_optional_params)
                     if missing:
                         remaining.append(param)
                         self.missing.setdefault(deployment, {})[param] = missing
@@ -298,8 +299,32 @@ class StreamDataset(object):
                 missing = self.missing.get(deployment, {}).get(param, {})
                 self._insert_missing(dataset, param, missing)
 
+    @staticmethod
+    def is_missing_arg_optional(missing_arg_map, param):
+        """
+        Check if the missing args are specified as optional in the function_parameter_map
+        of the parameter.
+        :param missing_arg_map: map of missing arguments for the function contained in the parameter
+        :param param: the Parameter who's parameter_function_map specifies the required args
+        :return: True if all of the missing args are optional, else False
+        """
+        for arg_name in missing_arg_map.keys():
+            arg_possible_params = param.parameter_function_map.get(arg_name, None)
+            # An arg in the function map that specified the string 'None'
+            # as a possible parameter is an optional argument. The actual
+            # python function that takes these arguments should specify a
+            # default for this argument since this arg may not be passed
+            # when the function is called.
+            if isinstance(arg_possible_params, (list, tuple)):
+                if 'None' not in arg_possible_params:
+                    return False
+            elif arg_possible_params != 'None':
+                return False
+        return True
+
     @log_timing(log)
-    def _try_create_derived_product(self, dataset, stream_key, param, deployment, source_dataset=None):
+    def _try_create_derived_product(self, dataset, stream_key, param, deployment, source_dataset=None,
+                                    ignore_missing_optional_params=False):
         """
         Extract the necessary args to create the derived product <param>, call _execute_algorithm
         and insert the result back into dataset.
@@ -314,7 +339,9 @@ class StreamDataset(object):
 
         function_map, missing = stream_key.stream.create_function_map(param, external_streams)
 
-        if missing:
+        # Consider a param as missing function arguments if we are not allowed to ignore
+        # optional arguments in this pass or if the missing args are not specified as optional
+        if missing and not (ignore_missing_optional_params and self.is_missing_arg_optional(missing, param)):
             return missing
 
         kwargs, arg_metadata = self._build_function_arguments(dataset, stream_key, function_map,
@@ -460,7 +487,7 @@ class StreamDataset(object):
         log.debug('<%s> _interpolate_and_import_needed for: %r %r', self.request_id, self.stream_key.as_refdes(), param)
         streams = {sk.stream: sk for sk in external_datasets}
         funcmap, missing = self.stream_key.stream.create_function_map(param, streams.keys())
-        if not missing:
+        if not missing or self.is_missing_arg_optional(missing, param):
             for name in funcmap:
                 source, value = funcmap[name]
                 if source not in ['CAL', self.stream_key.stream]:
