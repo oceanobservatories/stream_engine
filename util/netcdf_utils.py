@@ -10,6 +10,8 @@ from util.common import MissingDataException, ntp_to_datestring, log_timing
 
 
 GPS_STREAM_ID = app.config.get('GPS_STREAM_ID')
+GPS_LAT_PARAM_ID = app.config.get('GPS_LAT_PARAM_ID')
+GPS_LON_PARAM_ID = app.config.get('GPS_LON_PARAM_ID')
 LAT_PARAM_ID = app.config.get('LAT_PARAM_ID')
 LON_PARAM_ID = app.config.get('LON_PARAM_ID')
 FILL_VALUES = app.config['FILL_VALUES']
