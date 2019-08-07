@@ -51,13 +51,13 @@ def handle_exception(error):
 @app.before_request
 def log_request():
     data = request.get_json()
+    request_id = None
+    streams = None
     if data:
         request_id = data.get('requestUUID')
-        log.debug('<%s> Incoming request url=%r data=%r', request_id, request.url, data)
         streams = data.get('streams')
-        log.info('<%s> Handling request to %r - %r', request_id, request.url, streams)
-    else:
-        log.info('Handling request to %r', request.url)
+    log.debug('<%s> Incoming request url=%r data=%r', request_id, request.url, data)
+    log.info('<%s> Handling request to %r - %r', request_id, request.url, streams)
 
 
 def write_file_with_content(base_path, file_path, content):

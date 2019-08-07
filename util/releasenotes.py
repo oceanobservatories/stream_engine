@@ -91,6 +91,7 @@ class ReleaseNotes:
         if not self._contents:
             with open(self.file, 'r') as file_handle:
                 self._contents = file_handle.readlines()
+                self._parsed = False
         return self._contents
 
     def _parse_dependencies(self):
