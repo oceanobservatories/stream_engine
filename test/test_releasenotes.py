@@ -64,7 +64,7 @@ class ReleaseNotesTest(unittest.TestCase):
         self.assertEqual(version.descriptor, "Release")
         self.assertEqual(version.number, "1.6.0")
         self.assertEqual(version.date, "2018-07-20")
-        self.assertIsNone(version.details)
+        self.assertEqual(version.details, "")
         self.assertIs(len(version.notes), 5)
 
     def test_known_note(self):
@@ -86,7 +86,7 @@ class ReleaseNotesTest(unittest.TestCase):
         component = self.release.component
         version = component.versions[18]
         self.assertEqual(version.number, "1.3.0")
-        self.assertFalse(version.notes)
+        self.assertListEqual(version.notes, [])
         self.assertEqual(version.details, "Updated required packages\n- numpy\n- numexpr\n- scipy\n- ooi-data\n- "
                                           "flask\n- gunicorn\n- xarray\n- pandas")
 
@@ -95,7 +95,7 @@ class ReleaseNotesTest(unittest.TestCase):
         version = component.versions[20]
         note = version.notes[0]
         self.assertEqual(version.number, "1.2.9")
-        self.assertIsNone(note.details)
+        self.assertEqual(note.details, "")
         self.assertEqual(note.title, "Issue #12040 - parameter resolution error")
 
     def test_note_with_story_label(self):

@@ -23,18 +23,16 @@ log = logging.getLogger(__name__)
 
 release = ReleaseNotes.instance()
 log.info('Starting {} v{} {} ({})'.format(
-    release.component_name(),
-    release.latest_version(),
-    release.latest_descriptor(),
-    release.latest_date()))
+    release.component_name,
+    release.latest_version,
+    release.latest_descriptor,
+    release.latest_date))
 
 
 @app.errorhandler(Exception)
 def handle_exception(error):
-    if request.get_json():
-        request_id = request.get_json().get('requestUUID')
-    else:
-        request_id = None
+    data = request.get_json()
+    request_id = data.get('requestUUID') if data else None
     if isinstance(error, StreamEngineException):
         error_dict = error.to_dict()
         error_dict['requestUUID'] = request_id
@@ -52,19 +50,14 @@ def handle_exception(error):
 
 @app.before_request
 def log_request():
-    if request.endpoint == 'version':
-        if log.isEnabledFor(logging.DEBUG):
-            log.debug('Incoming request url=%r', request.url)
-        else:
-            log.info('Handling request to %r', request.url)
-    else:
-        data = request.get_json()
+    data = request.get_json()
+    if data:
         request_id = data.get('requestUUID')
+        log.debug('<%s> Incoming request url=%r data=%r', request_id, request.url, data)
         streams = data.get('streams')
-        if log.isEnabledFor(logging.DEBUG):
-            log.debug('<%s> Incoming request url=%r data=%r', request_id, request.url, data)
-        else:
-            log.info('<%s> Handling request to %r - %r', request_id, request.url, streams)
+        log.info('<%s> Handling request to %r - %r', request_id, request.url, streams)
+    else:
+        log.info('Handling request to %r', request.url)
 
 
 def write_file_with_content(base_path, file_path, content):

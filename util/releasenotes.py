@@ -12,7 +12,7 @@ class Note:
     def __init__(self, title, ticket):
         self.title = title
         self.ticket = ticket
-        self.details = None
+        self.details = ''
 
 
 class Version:
@@ -20,14 +20,14 @@ class Version:
         self.descriptor = descriptor
         self.number = number
         self.date = date
-        self.details = None
+        self.details = ''
         self.notes = []
 
 
 class Component:
     def __init__(self):
-        self.name = None
-        self.details = None
+        self.name = ''
+        self.details = ''
         self.dependencies = []
         self.versions = []
 
@@ -118,7 +118,7 @@ class ReleaseNotes:
             for line in self.contents():
 
                 # find component name
-                if not self._component.name:
+                if self._component.name == '':
                     match = re.search(ReleaseNotes._COMPONENT_NAME_PATTERN, line)
                     if match:
                         self._component.name = match.group("name")
