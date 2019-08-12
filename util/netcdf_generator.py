@@ -109,7 +109,7 @@ class NetcdfGenerator(object):
         # find the depth_variable (10745 AC1)
         depth_variable = find_depth_variable(ds.data_vars)
         coordinates_key = 'coordinates'
-        coordinate_variables = "time lat lon m_gps_lat m_gps_lon"
+        coordinate_variables = "time lat lon"
         if depth_variable:
             coordinate_variables += " " + depth_variable
         for var in ds.data_vars:
@@ -121,9 +121,9 @@ class NetcdfGenerator(object):
             elif coordinates_key in ds[var].attrs:
                 del ds[var].attrs[coordinates_key]
             # make sure coordinate variables have axis defined (10745 AC4)
-            if var == 'lat' or var == 'm_gps_lat':
+            if var == 'lat':
                 ds[var].attrs['axis'] = 'Y'
-            elif var == 'lon' or var == 'm_gps_lon':
+            elif var == 'lon':
                 ds[var].attrs['axis'] = 'X'
             elif var == depth_variable:
                 ds[var].attrs['axis'] = 'Z'

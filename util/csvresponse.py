@@ -23,8 +23,8 @@ DEFAULT_PARAMETERS = ['time', 'deployment', 'lat', 'lon', 'm_gps_lat', 'm_gps_lo
 # Glider GPS based lat/lon strings - for filtering
 GLIDER_GPS_BASED_LAT = 'glider_gps_position-m_gps_lat'
 GLIDER_GPS_BASED_LON = 'glider_gps_position-m_gps_lon'
-GLIDER_BASED_LAT = 'glider_gps_position-m_lat'
-GLIDER_BASED_LON = 'glider_gps_position-m_lon'
+GLIDER_DR_LAT = 'glider_gps_position-m_lat'
+GLIDER_DR_LON = 'glider_gps_position-m_lon'
 
 
 class CsvGenerator(object):
@@ -131,12 +131,12 @@ class CsvGenerator(object):
                 lon_data = dataset.data_vars[GLIDER_GPS_BASED_LON]
                 dataset = dataset.drop(GLIDER_GPS_BASED_LON)
                 dataset['m_gps_lon'] = lon_data
-            if GLIDER_BASED_LAT in dataset.data_vars.keys() and GLIDER_BASED_LON in dataset.data_vars.keys():
-                lat_data = dataset.data_vars[GLIDER_BASED_LAT]
-                dataset = dataset.drop(GLIDER_BASED_LAT)
+            if GLIDER_DR_LAT in dataset.data_vars.keys() and GLIDER_DR_LON in dataset.data_vars.keys():
+                lat_data = dataset.data_vars[GLIDER_DR_LAT]
+                dataset = dataset.drop(GLIDER_DR_LAT)
                 dataset['lat'] = lat_data
-                lon_data = dataset.data_vars[GLIDER_BASED_LON]
-                dataset = dataset.drop(GLIDER_BASED_LON)
+                lon_data = dataset.data_vars[GLIDER_DR_LON]
+                dataset = dataset.drop(GLIDER_DR_LON)
                 dataset['lon'] = lon_data
 
         # generate the filtering list

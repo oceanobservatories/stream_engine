@@ -67,7 +67,7 @@ class StreamRequestTest(unittest.TestCase):
         cls.echo_sk = StreamKey('RS01SLBS', 'LJ01A', '05-HPIESA101', 'streamed', 'echo_sounding')
         cls.hourly_sk = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_hourly')
         cls.met_sk = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_a_dcl_instrument_recovered')
-        cls.vel_sk = StreamKey('GI01SUMO', 'RID16', '04-VELPTA000', 'recovered_host', 'velpt_ab_dcl_instrument_recovered')
+        cls.vel_sk = StreamKey('GI01SUMO', 'RID16', '04-VELPTA000', 'recovered_host', 'velpt_ab_dcl_diagnostics_recovered')
 
         cls.ctd_events = AssetEvents(cls.ctd_sk.as_three_part_refdes(),
                                      json.load(open(os.path.join(DATA_DIR, 'CE04OSPS-SF01B-2A-CTDPFA107_events.json'))))
@@ -163,7 +163,7 @@ class StreamRequestTest(unittest.TestCase):
     def test_virtual(self):
         sk1 = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_hourly')
         sk2 = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_a_dcl_instrument_recovered')
-        sk3 = StreamKey('GI01SUMO', 'RID16', '04-VELPTA000', 'recovered_host', 'velpt_ab_dcl_instrument_recovered')
+        sk3 = StreamKey('GI01SUMO', 'RID16', '04-VELPTA000', 'recovered_host', 'velpt_ab_dcl_diagnostics_recovered')
         tr = TimeRange(3617736678.149051, 3661524609.0570827)
         sr = StreamRequest(sk1, [], {}, tr, {}, request_id='UNIT')
         self.assertEqual(set(sr.stream_parameters), {sk1, sk2, sk3})
@@ -239,7 +239,7 @@ class StreamRequestTest(unittest.TestCase):
     def test_metbk_hourly_needs(self):
         hourly_sk = StreamKey('CP01CNSM', 'SBD11', '06-METBKA000', 'telemetered', 'metbk_hourly')
         met_sk = StreamKey('CP01CNSM', 'SBD11', '06-METBKA000', 'telemetered', 'metbk_a_dcl_instrument')
-        vel_sk = StreamKey('CP01CNSM', 'RID26', '04-VELPTA000', 'telemetered', 'velpt_ab_dcl_instrument')
+        vel_sk = StreamKey('CP01CNSM', 'RID26', '04-VELPTA000', 'telemetered', 'velpt_ab_dcl_diagnostics')
         tr = TimeRange(0, 99999999)
         sr = StreamRequest(hourly_sk, [], {}, tr, {}, request_id='UNIT')
         self.assertEqual(set(sr.stream_parameters), {hourly_sk, met_sk, vel_sk})
@@ -357,9 +357,9 @@ class StreamRequestTest(unittest.TestCase):
         return AssetEvents(stream_key.as_three_part_refdes(), {})
 
     def test_add_externals_glider(self):
-        gps_fn = 'deployment0003_CE05MOAS-GL319-00-ENG000000-recovered_host-glider_gps_position.nc'
-        par_fn = 'deployment0003_CE05MOAS-GL319-01-PARADM000-recovered_host-parad_m_glider_recovered.nc'
-        ctd_fn = 'deployment0003_CE05MOAS-GL319-05-CTDGVM000-recovered_host-ctdgv_m_glider_instrument_recovered.nc'
+        gps_fn = 'deployment0006_CE05MOAS-GL319-00-ENG000000-recovered_host-glider_gps_position.nc'
+        par_fn = 'deployment0006_CE05MOAS-GL319-01-PARADM000-recovered_host-parad_m_glider_recovered.nc'
+        ctd_fn = 'deployment0006_CE05MOAS-GL319-05-CTDGVM000-recovered_host-ctdgv_m_glider_instrument_recovered.nc'
 
         gps_sk = StreamKey('CE05MOAS', 'GL319', '00-ENG000000', 'recovered_host', 'glider_gps_position')
         par_sk = StreamKey('CE05MOAS', 'GL319', '01-PARADM000', 'recovered_host', 'parad_m_glider_recovered')
@@ -397,19 +397,21 @@ class StreamRequestTest(unittest.TestCase):
         sr.import_extra_externals()
 
         # Ticket 9328: int_ctd_pressure is now set in stream_request.import_extra_externals()
-        self.assertNotIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[par_sk].datasets[3])
-        self.assertIn('int_ctd_pressure', sr.datasets[par_sk].datasets[3])
-        self.assertNotIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[ctd_sk].datasets[3])
+        self.assertNotIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[par_sk].datasets[6])
+        self.assertIn('int_ctd_pressure', sr.datasets[par_sk].datasets[6])
+        self.assertNotIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[ctd_sk].datasets[6])
 
         data = json.loads(JsonResponse(sr).json())
         for each in data:
             self.assertIn('int_ctd_pressure', each)
             self.assertIn('lat', each)
             self.assertIn('lon', each)
+            self.assertIn('m_gps_lat', each)
+            self.assertIn('m_gps_lon', each)
 
     def test_glider_rename_netcdf_lat_lon(self):
         ctd_sk = StreamKey('CE05MOAS', 'GL319', '05-CTDGVM000', 'recovered_host', 'ctdgv_m_glider_instrument_recovered')
-        ctd_fn = 'deployment0003_CE05MOAS-GL319-05-CTDGVM000-recovered_host-ctdgv_m_glider_instrument_recovered.nc'
+        ctd_fn = 'deployment0006_CE05MOAS-GL319-05-CTDGVM000-recovered_host-ctdgv_m_glider_instrument_recovered.nc'
         ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, ctd_fn), decode_times=False)
 
         self.assertIn('glider_gps_position-m_gps_lat', ctd_ds)
