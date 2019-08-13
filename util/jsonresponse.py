@@ -131,12 +131,12 @@ class JsonResponse(object):
             dr_lat_data = data.pop('glider_gps_position-m_lat', None)
             dr_lon_data = data.pop('glider_gps_position-m_lon', None)
 
-            if gps_lat_data.ndim > 0 and gps_lon_data.ndim > 0:
+            if gps_lat_data is not None and gps_lat_data.ndim > 0 and gps_lon_data is not None and gps_lon_data.ndim > 0:
                 data['m_gps_lat'] = gps_lat_data
                 data['m_gps_lon'] = gps_lon_data
                 params.extend(('m_gps_lat', 'm_gps_lon'))
 
-            if dr_lat_data.ndim > 0 and dr_lon_data.ndim > 0:
+            if dr_lat_data is not None and dr_lat_data.ndim > 0 and dr_lon_data is not None and dr_lon_data.ndim > 0:
                 data['lat'] = dr_lat_data
                 data['lon'] = dr_lon_data
                 params.extend(('lat', 'lon'))
