@@ -1,5 +1,15 @@
 # Stream Engine
 
+# Development Release 1.11.0 2019-09-05
+
+Issue #14398 - Handle nulls for wildcards in QARTOD records; add QARTOD code tests
+- Update conda environment/requirements
+- Wrote tests for QARTOD code
+- Added handling for nulls as wildcards in QARTOD record fields
+- Added hash, equals, print methods to QartodTestRecord object
+
+Issue #14398 - QARTOD proof of concept
+
 # Development Release 1.10.0 2019-08-05
 
 Issue #9291 - Apply lat,lon on fixed assets to netcdf global attrs

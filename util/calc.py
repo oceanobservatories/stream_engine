@@ -65,7 +65,6 @@ def execute_stream_request(request_parameters, needs_only=False, base_path=None)
                 stream_request[index].calculate_derived_products()
                 stream_request[index].import_extra_externals()
             stream_request[index].execute_qc()
-            # TODO enable QARTOD testing once we determine when/how it will be run
             stream_request[index].execute_qartod_qc()
             stream_request[index].insert_provenance()
         else:
