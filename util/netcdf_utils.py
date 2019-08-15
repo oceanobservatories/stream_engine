@@ -10,8 +10,10 @@ from util.common import MissingDataException, ntp_to_datestring, log_timing
 
 
 GPS_STREAM_ID = app.config.get('GPS_STREAM_ID')
-LATITUDE_PARAM_ID = app.config.get('LATITUDE_PARAM_ID')
-LONGITUDE_PARAM_ID = app.config.get('LONGITUDE_PARAM_ID')
+GPS_LAT_PARAM_ID = app.config.get('GPS_LAT_PARAM_ID')
+GPS_LON_PARAM_ID = app.config.get('GPS_LON_PARAM_ID')
+LAT_PARAM_ID = app.config.get('LAT_PARAM_ID')
+LON_PARAM_ID = app.config.get('LON_PARAM_ID')
 FILL_VALUES = app.config['FILL_VALUES']
 NETCDF_UNLIMITED_DIMS = app.config.get('NETCDF_UNLIMITED_DIMS')
 
@@ -113,12 +115,20 @@ def rename_glider_lat_lon(stream_key, dataset):
     """
     if stream_key.is_glider:
         gps_stream = Stream.query.get(GPS_STREAM_ID)
-        lat_param = Parameter.query.get(LATITUDE_PARAM_ID)
-        lon_param = Parameter.query.get(LONGITUDE_PARAM_ID)
+        lat_param = Parameter.query.get(LAT_PARAM_ID)
+        lon_param = Parameter.query.get(LON_PARAM_ID)
         lat_name = '-'.join((gps_stream.name, lat_param.name))
         lon_name = '-'.join((gps_stream.name, lon_param.name))
+        gps_lat_param = Parameter.query.get(GPS_LAT_PARAM_ID)
+        gps_lon_param = Parameter.query.get(GPS_LON_PARAM_ID)
+        gps_lat_name = '-'.join((gps_stream.name, gps_lat_param.name))
+        gps_lon_name = '-'.join((gps_stream.name, gps_lon_param.name))
+
         if lat_name in dataset and lon_name in dataset:
-            return dataset.rename({lat_name: 'lat', lon_name: 'lon'})
+            dataset = dataset.rename({lat_name: 'lat', lon_name: 'lon'})
+        if gps_lat_name in dataset and gps_lon_name in dataset:
+            dataset = dataset.rename({gps_lat_name: 'm_gps_lat', gps_lon_name: 'm_gps_lon'})
+
     return dataset
 
 
