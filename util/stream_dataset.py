@@ -305,7 +305,7 @@ class StreamDataset(object):
         Check if the missing args are specified as optional in the function_parameter_map
         of the parameter.
         :param missing_arg_map: map of missing arguments for the function contained in the parameter
-        :param param: the Parameter who's parameter_function_map specifies the required args
+        :param param: the Parameter who's parameter_function_map specifies the args
         :return: True if all of the missing args are optional, else False
         """
         for arg_name in missing_arg_map.keys():
