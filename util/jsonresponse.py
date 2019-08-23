@@ -125,11 +125,20 @@ class JsonResponse(object):
 
         # check if we should include and have positional data
         if stream_key.is_glider:
-            lat_data = data.pop('glider_gps_position-m_gps_lat', None)
-            lon_data = data.pop('glider_gps_position-m_gps_lon', None)
-            if lat_data is not None and lon_data is not None:
-                data['lat'] = lat_data
-                data['lon'] = lon_data
+            # get the lat,lon data from the GPS and DR (dead-reckoning) fields
+            gps_lat_data = data.pop('glider_gps_position-m_gps_lat', None)
+            gps_lon_data = data.pop('glider_gps_position-m_gps_lon', None)
+            dr_lat_data = data.pop('glider_gps_position-m_lat', None)
+            dr_lon_data = data.pop('glider_gps_position-m_lon', None)
+
+            if gps_lat_data is not None and gps_lat_data.ndim > 0 and gps_lon_data is not None and gps_lon_data.ndim > 0:
+                data['m_gps_lat'] = gps_lat_data
+                data['m_gps_lon'] = gps_lon_data
+                params.extend(('m_gps_lat', 'm_gps_lon'))
+
+            if dr_lat_data is not None and dr_lat_data.ndim > 0 and dr_lon_data is not None and dr_lon_data.ndim > 0:
+                data['lat'] = dr_lat_data
+                data['lon'] = dr_lon_data
                 params.extend(('lat', 'lon'))
 
         # remaining externals

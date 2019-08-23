@@ -13,7 +13,7 @@ from engine import app
 from util.common import (StreamEngineException, MissingDataException, MissingTimeException,
                          ntp_to_datestring, StreamKey, InvalidPathException)
 from util.san import onload_netCDF, SAN_netcdf
-from util.releasenotes import ReleaseNotes
+from util.releasenotes import ReleaseNotes, ComponentDecoder
 from util.timeout import set_timeout, set_inactivity_timeout
 
 LOCAL_ASYNC_DIR = app.config['LOCAL_ASYNC_DIR']
@@ -23,15 +23,16 @@ log = logging.getLogger(__name__)
 
 release = ReleaseNotes.instance()
 log.info('Starting {} v{} {} ({})'.format(
-    release.component_name(),
-    release.latest_version(),
-    release.latest_descriptor(),
-    release.latest_date()))
+    release.component_name,
+    release.latest_version,
+    release.latest_descriptor,
+    release.latest_date))
 
 
 @app.errorhandler(Exception)
 def handle_exception(error):
-    request_id = request.get_json().get('requestUUID')
+    data = request.get_json()
+    request_id = data.get('requestUUID') if data else None
     if isinstance(error, StreamEngineException):
         error_dict = error.to_dict()
         error_dict['requestUUID'] = request_id
@@ -50,12 +51,13 @@ def handle_exception(error):
 @app.before_request
 def log_request():
     data = request.get_json()
-    request_id = data.get('requestUUID')
-    streams = data.get('streams')
-    if log.isEnabledFor(logging.DEBUG):
-        log.debug('<%s> Incoming request url=%r data=%r', request_id, request.url, data)
-    else:
-        log.info('<%s> Handling request to %r - %r', request_id, request.url, streams)
+    request_id = None
+    streams = None
+    if data:
+        request_id = data.get('requestUUID')
+        streams = data.get('streams')
+    log.debug('<%s> Incoming request url=%r data=%r', request_id, request.url, data)
+    log.info('<%s> Handling request to %r - %r', request_id, request.url, streams)
 
 
 def write_file_with_content(base_path, file_path, content):
@@ -158,6 +160,12 @@ def get_final_dir(input_data):
 #     'start': ntptime,
 #     'stop': ntptime
 # }
+
+@app.route('/version', methods=['GET'])
+@set_timeout()
+def version():
+    return Response(json.dumps(release.component, cls=ComponentDecoder, indent=2, separators=(',', ': ')),
+                    mimetype='application/json')
 
 
 @app.route('/estimate', methods=['POST'])

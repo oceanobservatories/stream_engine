@@ -6,7 +6,7 @@ from collections import OrderedDict
 # General Settings         #
 ############################
 DEBUG = False
-STREAM_ENGINE_VERSION = ReleaseNotes.instance().latest_version()
+STREAM_ENGINE_VERSION = ReleaseNotes.instance().latest_version
 # Cassandra process pool size
 POOL_SIZE = 4
 LOGGING_CONFIG = 'logging.conf'
@@ -249,6 +249,8 @@ UNBOUND_QUERY_START = 3471292800
 ############################
 PRESSURE_DPI = 'PRESWAT_L1'
 GPS_STREAM_ID = 761
-LATITUDE_PARAM_ID = 1335
-LONGITUDE_PARAM_ID = 1336
+GPS_LAT_PARAM_ID = 1335
+GPS_LON_PARAM_ID = 1336
+LAT_PARAM_ID = 1382
+LON_PARAM_ID = 1391
 INT_PRESSURE_NAME = 'int_ctd_pressure'

@@ -18,8 +18,10 @@ log = logging.getLogger()
 
 PRESSURE_DPI = app.config.get('PRESSURE_DPI')
 GPS_STREAM_ID = app.config.get('GPS_STREAM_ID')
-LATITUDE_PARAM_ID = app.config.get('LATITUDE_PARAM_ID')
-LONGITUDE_PARAM_ID = app.config.get('LONGITUDE_PARAM_ID')
+GPS_LAT_PARAM_ID = app.config.get('GPS_LAT_PARAM_ID')
+GPS_LON_PARAM_ID = app.config.get('GPS_LON_PARAM_ID')
+LAT_PARAM_ID = app.config.get('LAT_PARAM_ID')
+LON_PARAM_ID = app.config.get('LON_PARAM_ID')
 INT_PRESSURE_NAME = app.config.get('INT_PRESSURE_NAME')
 MAX_DEPTH_VARIANCE = app.config.get('MAX_DEPTH_VARIANCE')
 MAX_DEPTH_VARIANCE_METBK = app.config.get('MAX_DEPTH_VARIANCE_METBK')
@@ -341,8 +343,10 @@ class StreamRequest(object):
 
         if self.stream_key.is_glider:
             gps_stream = Stream.query.get(GPS_STREAM_ID)
-            external_to_process.add((gps_stream, (Parameter.query.get(LATITUDE_PARAM_ID),)))
-            external_to_process.add((gps_stream, (Parameter.query.get(LONGITUDE_PARAM_ID),)))
+            external_to_process.add((gps_stream, (Parameter.query.get(GPS_LAT_PARAM_ID),)))
+            external_to_process.add((gps_stream, (Parameter.query.get(GPS_LON_PARAM_ID),)))
+            external_to_process.add((gps_stream, (Parameter.query.get(LAT_PARAM_ID),)))
+            external_to_process.add((gps_stream, (Parameter.query.get(LON_PARAM_ID),)))
         return external_to_process
 
     @log_timing(log)
