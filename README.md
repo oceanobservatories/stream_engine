@@ -100,3 +100,18 @@ You can then push the commit and the tag to the upstream repo(s):
 git push gerrit master
 git push gerrit master --tags
 ```
+
+## Updating the preload-database submodule (usually only to satisfy unit tests)
+
+1. Within the stream_engine root, change directory to preload-database
+2. Ensure all changes you may have are cleared/savef off
+3. Run the following commands
+
+```
+git fetch origin # assuming "origin" points to the source URL
+git rebase origin/master
+cd .. # to stream_engine root
+git add preload_database
+git commit -m "Issue #nnnnn <message>
+git push origin HEAD:nnnnn
+```
