@@ -160,14 +160,14 @@ class StreamRequest(object):
         # Calculate all internal-only data products
         for sk in self.datasets:
             if not sk.is_virtual:
-                self.datasets[sk].calculate_all()
+                self.datasets[sk].calculate_all(ignore_missing_optional_params=False)
 
         # Allow each StreamDataset to interpolate any needed non-virtual parameters from the other datasets
         # Then calculate any data products which required only non-virtual external input.
         for sk in self.datasets:
             if not sk.is_virtual:
                 self.datasets[sk].interpolate_needed(self.datasets, interpolate_virtual=False)
-                self.datasets[sk].calculate_all()
+                self.datasets[sk].calculate_all(ignore_missing_optional_params=True)
 
         for sk in self.datasets:
             if sk.is_virtual:
