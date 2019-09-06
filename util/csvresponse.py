@@ -6,11 +6,7 @@ import tempfile
 import zipfile
 
 from engine import app
-from util.common import ntp_to_short_iso_datestring, get_annotation_filename, WriteErrorException
-
-# QC parameter identification patterns
-from util.qc_executor import QC_EXECUTED, QC_RESULTS
-from util.qartod_qc_executor import QARTOD_PRIMARY, QARTOD_SECONDARY
+from util.common import ntp_to_short_iso_datestring, get_annotation_filename, WriteErrorException, is_qc_parameter
 
 log = logging.getLogger(__name__)
 
@@ -86,8 +82,8 @@ class CsvGenerator(object):
 
         # Determine if there is interpolated pressure parameter. if so include it
         pressure_params = [(sk, param) for sk in self.stream_request.external_includes
-                            for param in self.stream_request.external_includes[sk]
-                            if param.data_product_identifier == PRESSURE_DPI]
+                           for param in self.stream_request.external_includes[sk]
+                           if param.data_product_identifier == PRESSURE_DPI]
         if pressure_params:
             params_to_include.append(INT_PRESSURE_NAME)
 
@@ -102,7 +98,7 @@ class CsvGenerator(object):
         drop = {'id', 'annotations'}
         for key in keys:
             # remove any "extra" keys while keeping relevant qc params and removing 'provenance' params
-            if self._is_qc_param(key):
+            if is_qc_parameter(key):
                 # drop QC param if not related to requested param
                 if (not key.split('_qc_')[0] in params_to_include) \
                         and (not key.split('_qartod_')[0] in params_to_include):
@@ -111,10 +107,6 @@ class CsvGenerator(object):
                 # drop "extra" params and "provenance" params
                 drop.add(key)
         return drop
-
-    @staticmethod
-    def _is_qc_param(param):
-        return QC_EXECUTED in param or QC_RESULTS in param or QARTOD_PRIMARY in param or QARTOD_SECONDARY in param
 
     def _create_csv(self, dataset, filehandle):
         """

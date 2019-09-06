@@ -11,39 +11,16 @@ class QartodTestServiceAPI(object):
     def __init__(self, qartod_url):
         self.base_url = qartod_url
 
-    def find_qartod_tests(self, subsite, node, sensor, stream, parameter):
-        result = []
-
-        params = {
-            'subsite': subsite,
-            'node': node,
-            'sensor': sensor,
-            'stream': stream,
-            'parameter': parameter
-        }
-
-        url = '/'.join((self.base_url, 'find'))
-        response = requests.get(url, params=params)
-        try:
-            payload = response.json()
-        except ValueError:
-            log.error('Error fetching QARTOD tests: %s', ValueError.message)
-            return result
-
-        if response.status_code == requests.codes.ok:
-            for record in payload:
-                if record.pop('@class', None) == '.QartodTestRecord':
-                    qartod_test_record = QartodTestRecord(**record)
-                    expanded_test_records = self.expand_qartod_record(qartod_test_record, subsite, node, sensor,
-                                                                      stream, parameter)
-                    result.extend(expanded_test_records)
-        else:
-            log.error('Error fetching QARTOD tests: <%r> %r', response.status_code, payload)
-        return result
-
-    def find_qartod_tests_bulk(self, subsite, node, sensor, stream, parameters):
-        result = []
-
+    def find_qartod_tests(self, subsite, node, sensor, stream, parameters):
+        """
+        Lookup QARTOD test records via the EDEX webservice.
+        :param subsite: name of subsite to match
+        :param node: name of node to match
+        :param sensor: name of sensor to match
+        :param stream: name of stream to match
+        :param parameters: list of parameter names, one of which must match
+        :return: list of QartodTestRecord objects
+        """
         params = {
             'subsite': subsite,
             'node': node,
@@ -52,26 +29,41 @@ class QartodTestServiceAPI(object):
             'parameters': parameters
         }
 
-        url = '/'.join((self.base_url, 'bulk'))
+        url = '/'.join((self.base_url, 'find'))
         response = requests.get(url, params=params)
         try:
             payload = response.json()
         except ValueError:
             log.error('Error fetching QARTOD tests: %s', ValueError.message)
-            return result
+            return []
 
-        if response.status_code == requests.codes.ok:
-            for record in payload:
-                if record.pop('@class', None) == '.QartodTestRecord':
-                    qartod_test_record = QartodTestRecord(**record)
-                    expanded_test_records = self.expand_qartod_record(qartod_test_record, subsite, node, sensor,
-                                                                      stream, parameters)
-                    result.extend(expanded_test_records)
-        else:
+        if response.status_code != requests.codes.ok:
             log.error('Error fetching QARTOD tests: <%r> %r', response.status_code, payload)
+            return []
+
+        result = []
+        for record in payload:
+            if record.pop('@class', None) == '.QartodTestRecord':
+                qartod_test_record = QartodTestRecord(**record)
+                expanded_test_records = self.expand_qartod_record(qartod_test_record, subsite, node, sensor,
+                                                                  stream, parameters)
+                result.extend(expanded_test_records)
         return result
 
-    def expand_qartod_record(self, record, subsite, node, sensor, stream, parameters):
+    @staticmethod
+    def expand_qartod_record(record, subsite, node, sensor, stream, parameters):
+        """
+        Check for null fields indicating wildcards in a QartodTestRecord and replace these nulls with applicable values
+        for the current data under test and return the result. In the case of a null parameter field, return one
+        QartodTestRecord per applicable parameter.
+        :param record: QartodTestRecord with potentially null fields to process
+        :param subsite: name of subsite of StreamDataset against which QARTOD tests will run
+        :param node: name of node of StreamDataset against which QARTOD tests will run
+        :param sensor: name of sensor of StreamDataset against which QARTOD tests will run
+        :param stream: name of stream of StreamDataset against which QARTOD tests will run
+        :param parameters: list of parameter names applicable for StreamDataset against which QARTOD tests will run
+        :return: list of processed QartodTestRecords with no null fields
+        """
         # Nulls are used as wildcards for subsite, node, sensor, stream, and parameter to match all possible values.
         # Expand these records into the multiple test records they represent for clarity and later reference.
         tests = []
@@ -114,7 +106,9 @@ class QartodTestRecord(object):
         return NotImplemented
 
     def __str__(self):
+        # serialize the class as JSON
         json_str = json.dumps(self, default=lambda x: x.__dict__, separators=(',', ':'), indent=2)
+        # insert the missing "@class" attribute
         return json_str[:4] + '"@class": ".QartodTestRecord",\n  ' + json_str[4:]
 
     def __repr__(self):

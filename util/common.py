@@ -11,6 +11,8 @@ import numpy
 
 from engine import app
 from ooi_data.postgres.model import Stream
+#from util.qc_executor import QC_EXECUTED, QC_RESULTS
+#from util.qartod_qc_executor import QARTOD_PRIMARY, QARTOD_SECONDARY
 
 log = logging.getLogger(__name__)
 
@@ -26,6 +28,13 @@ PROVENANCE_KEYORDER = ["eventId", "editPhase", "eventName", "eventType", "refere
                        "sensor.calibration"]
 
 ANNOTATION_FILE_FORMAT = '%s_annotations_%s.json'
+
+# QC Parameter identification patterns
+QC_EXECUTED = 'qc_executed'
+QC_RESULTS = 'qc_results'
+# QARTOD Parameter identification patterns
+QARTOD_PRIMARY = 'qartod_flag_primary'
+QARTOD_SECONDARY = 'qartod_flag_secondary'
 
 
 class QartodFlags:
@@ -51,8 +60,11 @@ class QartodFlags:
 
     @classmethod
     def isValidQCFlag(cls, flag):
-        return flag in QartodFlags.getValidQCFlags()
+        return flag in cls.getValidQCFlags()
 
+def is_qc_parameter(param):
+    #return any(quality_variable in param for quality_variable in [QC_EXECUTED, QC_RESULTS, QARTOD_PRIMARY, QARTOD_SECONDARY])
+    return True
 
 def isfillvalue(a):
     """

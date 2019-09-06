@@ -6,13 +6,10 @@ import tempfile
 import zipfile
 
 from engine import app
-from util.common import log_timing, get_annotation_filename, WriteErrorException
+from util.common import log_timing, get_annotation_filename, WriteErrorException, is_qc_parameter
 from util.netcdf_utils import rename_glider_lat_lon, add_dynamic_attributes, replace_fixed_lat_lon, write_netcdf
 from util.datamodel import find_depth_variable
 
-# QC parameter identification patterns
-from util.qc_executor import QC_EXECUTED, QC_RESULTS
-from util.qartod_qc_executor import QARTOD_PRIMARY, QARTOD_SECONDARY
 
 log = logging.getLogger(__name__)
 
@@ -90,7 +87,7 @@ class NetcdfGenerator(object):
             params_to_filter.append('annotations')
 
         for key in ds.data_vars:
-            if self._is_qc_parameter(key):
+            if is_qc_parameter(key):
                 # drop any QC param not based on a param we are keeping
                 if (not key.split('_qc_')[0] in params_to_filter) \
                         and (not key.split('_qartod_')[0] in params_to_filter):
@@ -98,9 +95,6 @@ class NetcdfGenerator(object):
             elif key not in params_to_filter:
                 ds = ds.drop(key)
         return ds
-        
-    def _is_qc_parameter(self, param):
-        return QC_EXECUTED in param or QC_RESULTS in param or QARTOD_PRIMARY in param or QARTOD_SECONDARY in param
 
     def _setup_coordinate_variables(self, ds):
         """

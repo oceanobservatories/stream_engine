@@ -102,7 +102,6 @@ class QartodTest(unittest.TestCase):
         cls.base_params = ['time', 'deployment', 'provenance']
 
         cls.qartod_find_url = '/'.join((qartodTestServiceAPI.base_url, 'find'))
-        cls.qartod_find_bulk_url = '/'.join((qartodTestServiceAPI.base_url, 'bulk'))
 
     @staticmethod
     def get_modified_ctdbp_record(**kwargs):
@@ -140,10 +139,10 @@ class QartodTest(unittest.TestCase):
         # requests_mock.response chokes when trying to serialize QartodTestRecord objects, so pass the serialized JSON
         # via the 'text' argument for request mocking instead of using the 'json' argument
         nut_json = "[%s, %s]" % (NUTNR_QARTOD_RECORD_1, NUTNR_QARTOD_RECORD_2)
-        nut_path = self.qartod_find_bulk_url + "?sensor=4A-NUTNRA102"
+        nut_path = self.qartod_find_url + "?sensor=4A-NUTNRA102"
         m.get(nut_path, text=nut_json)
         ctd_json = "[%s, %s]" % (CTDBP_QARTOD_RECORD_1, CTDBP_QARTOD_RECORD_2)
-        ctd_path = self.qartod_find_bulk_url + "?sensor=2A-CTDPFA107"
+        ctd_path = self.qartod_find_url + "?sensor=2A-CTDPFA107"
         m.get(ctd_path, text=ctd_json)
 
         sr = self.create_nut_sr()
@@ -242,27 +241,6 @@ class QartodTest(unittest.TestCase):
         m.get(self.qartod_find_url, text='This should have been JSON...')
         result = qartodTestServiceAPI.find_qartod_tests('CE02SHBP', 'LJ01D', '06-CTDBPN106', 'ctdbp_no_sample',
                                                         'practical_salinity')
-        self.assertListEqual(result, [])
-
-    @requests_mock.mock()
-    def test_find_qartod_tests_bulk_handles_error_status(self, m):
-        m.get(self.qartod_find_bulk_url, status_code=500, json={'status_code': 500, 'message': 'Internal Server Error'})
-        result = qartodTestServiceAPI.find_qartod_tests_bulk('CE02SHBP', 'LJ01D', '06-CTDBPN106', 'ctdbp_no_sample',
-                                                             'practical_salinity')
-        self.assertListEqual(result, [])
-
-    @requests_mock.mock()
-    def test_find_qartod_tests_bulk_handles_empty_list(self, m):
-        m.get(self.qartod_find_bulk_url, json=[])
-        result = qartodTestServiceAPI.find_qartod_tests_bulk('CE02SHBP', 'LJ01D', '06-CTDBPN106', 'ctdbp_no_sample',
-                                                             'practical_salinity')
-        self.assertListEqual(result, [])
-
-    @requests_mock.mock()
-    def test_find_qartod_tests_bulk_handles_malformed_response(self, m):
-        m.get(self.qartod_find_bulk_url, text='This should have been JSON...')
-        result = qartodTestServiceAPI.find_qartod_tests_bulk('CE02SHBP', 'LJ01D', '06-CTDBPN106', 'ctdbp_no_sample',
-                                                             'practical_salinity')
         self.assertListEqual(result, [])
 
     def test_primary_qartod_flags_in_dataset(self):
