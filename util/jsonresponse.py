@@ -11,8 +11,7 @@ from engine import app
 from ooi_data.postgres.model import Parameter, Stream
 
 # QC parameter identification patterns
-from util.qc_executor import QC_EXECUTED, QC_RESULTS
-from util.qartod_qc_executor import QARTOD_PRIMARY, QARTOD_SECONDARY
+from util.common import QC_EXECUTED, QC_RESULTS, QARTOD_PRIMARY, QARTOD_SECONDARY
 
 __author__ = 'Stephen Zakrewsky'
 
