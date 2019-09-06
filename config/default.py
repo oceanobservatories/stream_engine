@@ -25,6 +25,7 @@ PARAMETER_LOGGING = '/opendap_export/stream_engine'
 DPA_VERSION_VARIABLE = "version"
 INTERNAL_OUTPUT_EXCLUDE_LIST = ['bin', 'quality_flag']
 CONFIG_DIR = os.path.dirname(__file__)
+DEFAULT_QARTOD_TEST_MODULE = 'ion_functions.qc.qartod_functions'
 
 
 ############################
