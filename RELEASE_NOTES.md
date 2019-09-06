@@ -1,6 +1,6 @@
 # Stream Engine
 
-# Development Release 1.10.0 2019-08-05
+# Release 1.10.0 2019-09-06
 
 Issue #9291 - Apply lat,lon on fixed assets to netcdf global attrs
 - On fixed assets add lat,lon to global attrs, remove from variable list
