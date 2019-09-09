@@ -109,6 +109,13 @@ class QartodTest(unittest.TestCase):
         record.__dict__.update(kwargs)
         return record
 
+    def check_ctdbp_record_expansion(self, record, expected):
+        parameters = ['ctdbp_no_seawater_conductivity', 'ctdbp_no_seawater_pressure', 'practical_salinity',
+                      'seawater_temperature']
+        result = qartodTestServiceAPI.expand_qartod_record(record, 'CE02SHBP', 'LJ01D', '06-CTDBPN106',
+                                                           'ctdbp_no_sample', parameters)
+        self.assertItemsEqual(expected, result)
+
     def create_nut_sr(self):
         nutnr_fn = 'nutnr_a_sample.nc'
         ctdpf_fn = 'ctdpf_sbe43_sample.nc'
@@ -155,38 +162,22 @@ class QartodTest(unittest.TestCase):
     def test_expand_qartod_record_for_null_subsite(self):
         record = self.get_modified_ctdbp_record(subsite=None)
         expected = [CTDBP_QARTOD_RECORD_3]
-        parameters = ['ctdbp_no_seawater_conductivity', 'ctdbp_no_seawater_pressure', 'practical_salinity',
-                      'seawater_temperature']
-        result = qartodTestServiceAPI.expand_qartod_record(record, 'CE02SHBP', 'LJ01D', '06-CTDBPN106',
-                                                           'ctdbp_no_sample', parameters)
-        self.assertItemsEqual(expected, result)
+        self.check_ctdbp_record_expansion(record, expected)
 
     def test_expand_qartod_record_for_null_node(self):
         record = self.get_modified_ctdbp_record(node=None)
         expected = [CTDBP_QARTOD_RECORD_3]
-        parameters = ['ctdbp_no_seawater_conductivity', 'ctdbp_no_seawater_pressure', 'practical_salinity',
-                      'seawater_temperature']
-        result = qartodTestServiceAPI.expand_qartod_record(record, 'CE02SHBP', 'LJ01D', '06-CTDBPN106',
-                                                           'ctdbp_no_sample', parameters)
-        self.assertItemsEqual(expected, result)
+        self.check_ctdbp_record_expansion(record, expected)
 
     def test_expand_qartod_record_for_null_sensor(self):
         record = self.get_modified_ctdbp_record(sensor=None)
         expected = [CTDBP_QARTOD_RECORD_3]
-        parameters = ['ctdbp_no_seawater_conductivity', 'ctdbp_no_seawater_pressure', 'practical_salinity',
-                      'seawater_temperature']
-        result = qartodTestServiceAPI.expand_qartod_record(record, 'CE02SHBP', 'LJ01D', '06-CTDBPN106',
-                                                           'ctdbp_no_sample', parameters)
-        self.assertItemsEqual(expected, result)
+        self.check_ctdbp_record_expansion(record, expected)
 
     def test_expand_qartod_record_for_null_stream(self):
         record = self.get_modified_ctdbp_record(stream=None)
         expected = [CTDBP_QARTOD_RECORD_3]
-        parameters = ['ctdbp_no_seawater_conductivity', 'ctdbp_no_seawater_pressure', 'practical_salinity',
-                      'seawater_temperature']
-        result = qartodTestServiceAPI.expand_qartod_record(record, 'CE02SHBP', 'LJ01D', '06-CTDBPN106',
-                                                           'ctdbp_no_sample', parameters)
-        self.assertItemsEqual(expected, result)
+        self.check_ctdbp_record_expansion(record, expected)
 
     def test_expand_qartod_record_for_null_parameter(self):
         record = self.get_modified_ctdbp_record(parameter=None)
@@ -197,13 +188,7 @@ class QartodTest(unittest.TestCase):
         record_d = self.get_modified_ctdbp_record(parameter='seawater_temperature')
         expected = [record_a, record_b, record_c, record_d]
 
-        parameters = ['ctdbp_no_seawater_conductivity', 'ctdbp_no_seawater_pressure', 'practical_salinity',
-                      'seawater_temperature']
-
-        result = qartodTestServiceAPI.expand_qartod_record(record, 'CE02SHBP', 'LJ01D', '06-CTDBPN106',
-                                                           'ctdbp_no_sample', parameters)
-
-        self.assertItemsEqual(expected, result)
+        self.check_ctdbp_record_expansion(record, expected)
 
     def test_expand_qartod_record_for_multiple_nulls(self):
         record = self.get_modified_ctdbp_record(subsite=None, node=None, sensor=None, stream=None, parameter=None)
@@ -214,13 +199,7 @@ class QartodTest(unittest.TestCase):
         record_d = self.get_modified_ctdbp_record(parameter='seawater_temperature')
         expected = [record_a, record_b, record_c, record_d]
 
-        parameters = ['ctdbp_no_seawater_conductivity', 'ctdbp_no_seawater_pressure', 'practical_salinity',
-                      'seawater_temperature']
-
-        result = qartodTestServiceAPI.expand_qartod_record(record, 'CE02SHBP', 'LJ01D', '06-CTDBPN106',
-                                                           'ctdbp_no_sample', parameters)
-
-        self.assertItemsEqual(expected, result)
+        self.check_ctdbp_record_expansion(record, expected)
 
     @requests_mock.mock()
     def test_find_qartod_tests_handles_error_status(self, m):
