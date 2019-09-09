@@ -9,10 +9,7 @@ from collections import OrderedDict
 import ntplib
 import numpy
 
-from engine import app
 from ooi_data.postgres.model import Stream
-#from util.qc_executor import QC_EXECUTED, QC_RESULTS
-#from util.qartod_qc_executor import QARTOD_PRIMARY, QARTOD_SECONDARY
 
 log = logging.getLogger(__name__)
 
@@ -63,8 +60,8 @@ class QartodFlags:
         return flag in cls.getValidQCFlags()
 
 def is_qc_parameter(param):
-    #return any(quality_variable in param for quality_variable in [QC_EXECUTED, QC_RESULTS, QARTOD_PRIMARY, QARTOD_SECONDARY])
-    return True
+    return any(quality_variable in param for quality_variable in [QC_EXECUTED, QC_RESULTS, QARTOD_PRIMARY,
+                                                                  QARTOD_SECONDARY])
 
 def isfillvalue(a):
     """
