@@ -161,40 +161,27 @@ class QartodQcExecutor(object):
             temp_qartod_flag_primary = np.maximum(current_qartod_flag_primary, results)
             dataset[qartod_primary_flag_name].values = temp_qartod_flag_primary
 
+        # Work with results as an array of strings for the secondary flag
+        results_string = results.astype('S1')
+
         # UPDATE SECONDARY FLAGS
-        # represent QARTOD test results as a bit mask with bit position indicating which test, 0 indicating either a
-        # good value or not evaluated (1 or 2), and 1 indicating suspect, bad, or missing (3, 4, or 9)
+        # represent QARTOD test results as a string of space separated test result integers (flags) in the order the
+        # tests were run, as indicated by the 'tests_executed' attribute
         if qartod_secondary_flag_name not in dataset:
-            # convert results into bit mask with 0 for flags < 3 and 1 otherwise (i.e. 1 for tests indicating failures)
-            # bit shift to the most significant bit
-            results_mask = np.where(results < 3, 0, 1) << 7
-            # make sure the array data type is correct - failure to do this can cause issues writing the NetCDF file
-            # specifically, without this the type is assumed int64 and recasting in netcdf_utils clears the attrs
-            results_mask = results_mask.astype(np.uint8)
-            dataset[qartod_secondary_flag_name] = (qc_obs_dimension, results_mask, {})
+            dataset[qartod_secondary_flag_name] = (qc_obs_dimension, results_string, {})
             # add attribute info for QC flag interpretation
-            # 1 << 7 = 128 the most significant bit for the first test result
-            dataset[qartod_secondary_flag_name].attrs['flag_values'] = np.array([128]).astype(np.uint8)
-            dataset[qartod_secondary_flag_name].attrs['flag_meanings'] = '_'.join([test.upper(), 'FAILED'])
+            dataset[qartod_secondary_flag_name].attrs['flag_values'] = np.array(
+                QartodFlags.getValidQCFlags()).astype(np.uint8)
+            dataset[qartod_secondary_flag_name].attrs['flag_meanings'] = ' '.join(QartodFlags.getQCFlagMeanings())
             dataset[qartod_secondary_flag_name].attrs['tests_executed'] = test
             dataset[qartod_secondary_flag_name].attrs['long_name'] = qartod_secondary_flag_name
         else:
-            # convert results into bit mask with 0 for flags < 3 and 1 otherwise (i.e. 1 for tests indicating failures)
-            # bit shift to the correct position based on test order
-            shift_value = 7 - len(dataset[qartod_secondary_flag_name].attrs['tests_executed'].split(','))
-            results_mask = np.where(results < 3, 0, 1) << shift_value
-            # make sure the array data type is correct - failure to do this can cause issues writing the NetCDF file
-            # specifically, without this the type is assumed int64 and recasting in netcdf_utils clears the attrs
-            results_mask = results_mask.astype(np.uint8)
-
+            # combine qc results by appending results to the relevant string for each observation (i.e. all tests for
+            # a given observation occur in the same string)
             current_qartod_flag_secondary = dataset[qartod_secondary_flag_name].values
-            dataset[qartod_secondary_flag_name].values = np.bitwise_or(current_qartod_flag_secondary, results_mask)
+            temp_qartod_flag_secondary = np.core.defchararray.add(current_qartod_flag_secondary, results_string)
+            print(temp_qartod_flag_secondary)
+            dataset[qartod_secondary_flag_name].values = temp_qartod_flag_secondary
 
             # update the attributes to detail which tests were run (and in what order)
             dataset[qartod_secondary_flag_name].attrs['tests_executed'] += ', ' + test
-
-            current_flag_meanings = dataset[qartod_secondary_flag_name].attrs['flag_values']
-            dataset[qartod_secondary_flag_name].attrs['flag_values'] = np.append(
-                current_flag_meanings, 1 << shift_value).astype(np.uint8)
-
-            dataset[qartod_secondary_flag_name].attrs['flag_meanings'] += ' ' + '_'.join([test.upper(), 'FAILED'])
