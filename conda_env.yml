@@ -22,6 +22,8 @@ dependencies:
 - numpy=1.12
 - ooi-data=0.0.5
 - pandas=0.19.2
+- pip
+- psycopg2
 - pygsw=0.0.11
 - pyproj=1.9.5.1
 - python=2.7.14
