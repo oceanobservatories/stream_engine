@@ -29,45 +29,40 @@ NUTNR_QARTOD_RECORD_1 = QartodTestRecord(id=1,
                                                  "full": True},
                                          stream='nutnr_a_sample',
                                          parameter='int_ctd_pressure',
-                                         test='ion_functions.qc.qartod_functions.range_check',
-                                         inputs='{"arr": "int_ctd_pressure", "sensor_span": [0.0, 42.0], '
-                                                '"user_span": [28.0, 33.8]}')
+                                         qcConfig='{"qartod": {"gross_range_test": {"suspect_span": [28.0, 33.8], '
+                                                '"fail_span": [0.0, 42.0]}}}')
 
 NUTNR_QARTOD_RECORD_2 = QartodTestRecord(id=2,
                                          refDes={"subsite": "CE04OSPS", "node": "SF01B", "sensor": "4A-NUTNRA102",
                                                  "full": True},
                                          stream='nutnr_a_sample',
                                          parameter='salinity_corrected_nitrate',
-                                         test='ion_functions.qc.qartod_functions.range_check',
-                                         inputs='{"arr": "salinity_corrected_nitrate", "sensor_span": [0.0, 42.0], '
-                                                '"user_span": [28.0, 33.8]}')
+                                         qcConfig='{"qartod": {"gross_range_test": {"suspect_span": [28.0, 33.8], '
+                                                '"fail_span": [0.0, 42.0]}}}')
 
 CTDBP_QARTOD_RECORD_1 = QartodTestRecord(id=3,
                                          refDes={"subsite": "CE04OSPS", "node": "SF01B", "sensor": "2A-CTDPFA107",
                                                  "full": True},
                                          stream='ctdpf_sbe43_sample',
                                          parameter='pressure',
-                                         test='ion_functions.qc.qartod_functions.range_check',
-                                         inputs='{"arr": "pressure", "sensor_span": [0.0, 42.0], '
-                                                '"user_span": [28.0, 33.8]}')
+                                         qcConfig='{"qartod": {"gross_range_test": {"suspect_span": [28.0, 33.8], '
+                                                '"fail_span": [0.0, 42.0]}}}')
 
 CTDBP_QARTOD_RECORD_2 = QartodTestRecord(id=4,
                                          refDes={"subsite": "CE04OSPS", "node": "SF01B", "sensor": "2A-CTDPFA107",
                                                  "full": True},
                                          stream='ctdpf_sbe43_sample',
                                          parameter='temperature',
-                                         test='ion_functions.qc.qartod_functions.range_check',
-                                         inputs='{"arr": "temperature", "sensor_span": [0.0, 42.0], '
-                                                '"user_span": [28.0, 33.8]}')
+                                         qcConfig='{"qartod": {"gross_range_test": {"suspect_span": [28.0, 33.8], '
+                                                '"fail_span": [0.0, 42.0]}}}')
 
 CTDBP_QARTOD_RECORD_3 = QartodTestRecord(id=5,
                                          refDes={"node": "LJ01D", "subsite": "CE02SHBP", "full": True,
                                                  "sensor": "06-CTDBPN106"},
                                          stream='ctdbp_no_sample',
                                          parameter='practical_salinity',
-                                         test='ion_functions.qc.qartod_functions.range_check',
-                                         inputs='{"arr": "practical_salinity", "sensor_span": [0.0, 42.0], '
-                                                '"user_span": [28.0, 33.8]}')
+                                         qcConfig='{"qartod": {"gross_range_test": {"suspect_span": [28.0, 33.8], '
+                                                '"fail_span": [0.0, 42.0]}}}')
 
 metadata = pd.read_csv(os.path.join(DATA_DIR, 'stream_metadata.csv'))
 
@@ -250,8 +245,10 @@ class QartodTest(unittest.TestCase):
                              sr.datasets[self.nut_sk].datasets[2][nitrate_var].attrs['flag_values'].tolist())
 
     def test_secondary_qartod_flag_attribute_flag_values(self):
-        # TODO check computed values once secondary flag encoding scheme is finalized
-        pass
+        sr = self.calculate_nut_sr()
+        nitrate_var = 'salinity_corrected_nitrate_qartod_flag_secondary'
+        self.assertListEqual(QartodFlags.getValidQCFlags(),
+                             sr.datasets[self.nut_sk].datasets[2][nitrate_var].attrs['flag_values'].tolist())
 
     def test_primary_qartod_flag_attribute_flag_meanings(self):
         sr = self.calculate_nut_sr()
@@ -260,5 +257,6 @@ class QartodTest(unittest.TestCase):
                          sr.datasets[self.nut_sk].datasets[2][nitrate_var].attrs['flag_meanings'])
 
     def test_qartod_flag_variable_attributes_tests_executed(self):
-        # TODO check computed meanings once secondary flag encoding scheme is finalized
-        pass
+        sr = self.calculate_nut_sr()
+        nitrate_var = 'salinity_corrected_nitrate_qartod_flag_secondary'
+        self.assertEqual('gross_range_test', sr.datasets[self.nut_sk].datasets[2][nitrate_var].attrs['tests_executed'])

@@ -1,6 +1,8 @@
 import os
 import calendar
 import csv
+import json
+import datetime
 import logging
 import time
 from functools import wraps
@@ -62,6 +64,14 @@ class QartodFlags:
     @classmethod
     def isValidQCFlag(cls, flag):
         return flag in cls.getValidQCFlags()
+
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, numpy.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+
 
 def is_qc_parameter(param):
     return any(quality_variable in param for quality_variable in [QC_EXECUTED, QC_RESULTS, QARTOD_PRIMARY,

@@ -2,13 +2,13 @@ import os
 import io
 import json
 import engine
-import importlib
 import logging
 from util.qartod_service import qartodTestServiceAPI
+from ioos_qc.config import QcConfig
 
 import numpy as np
 
-from util.common import QartodFlags
+from util.common import QartodFlags, NumpyEncoder
 
 log = logging.getLogger(__name__)
 
@@ -42,36 +42,21 @@ class QartodQcExecutor(object):
         :return:
         """
         parameter = qartod_test_record.parameter
-        test_identifier = qartod_test_record.test
 
         if parameter not in dataset:
             return
 
-        # if the full function path is specified, parse the module from the path; otherwise, assume the function is from
-        # the default module and the test identifier is simply the function name
-        if test_identifier.count('.'):
-            module, test = test_identifier.rsplit('.', 1)
-        else:
-            module = DEFAULT_QARTOD_TEST_MODULE
-            test = test_identifier
+        config = qartod_test_record.qcConfig
+        # single quoted strings in qcConfig (i.e. from the database field) will mess up the json.loads call
+        config = config.replace("'", "\"")
+        try:
+            qc_config = QcConfig(json.loads(config))
+        except ValueError:
+            log.error('<%s> Failure deserializing QC test configuration %r for parameter %r', self.request_id,
+                      config, parameter)
+            return
 
-        # do some magical input processing here... assume that qartod_test_record.inputs is JSON
-        inputs = json.loads(qartod_test_record.inputs)
-        # only inputs that should require translation are ndarray references which are referenced by strings
-        for key, value in inputs.iteritems():
-            if isinstance(value, basestring):
-                if value not in dataset:
-                    log.error('<%s> Unable to find QC test input %r for function %r', self.request_id, key, test)
-                    return
-
-                if len(dataset[value].values.shape) > 1:
-                    log.error('<%s> Attempted to run QC against >1d data %r %r',
-                              self.request_id, value, dataset[value].values.shape)
-                    return
-
-                inputs[key] = dataset[value].values
-
-        module = importlib.import_module(module)
+        array_under_test = dataset[parameter].values
 
         # call QARTOD test in a separate process to deal with crashes, e.g. segfaults
         read_fd, write_fd = os.pipe()
@@ -82,14 +67,15 @@ class QartodQcExecutor(object):
                 os.close(read_fd)
                 # run the qc function
                 try:
-                    results = getattr(module, test)(**inputs)
-                    # convert the np.ndarray into a string for sending over pipe
-                    rbytes = io.BytesIO()
-                    np.savez(rbytes, x=results)
-                    results_string = rbytes.getvalue()
+                    # all arguments except the data under test come from the configuration object
+                    # results is a nested dictionary
+                    results = qc_config.run(inp=array_under_test)
+                    # convert results into a string for sending over pipe
+                    # NOTE: this converts numpy arrays to lists! Use np.asarray() to restore them.
+                    results_string = json.dumps(results, cls=NumpyEncoder)
                     w.write(results_string)
                 except (TypeError, ValueError) as e:
-                    log.exception('<%s> Failed to execute QC %s %r', self.request_id, test, e)
+                    log.exception('<%s> Failure executing QC with configuration %r %r', self.request_id, config, e)
                     w.write(EXCEPTION_MESSAGE)
             # child process is done, don't let it stick around
             os._exit(0)
@@ -103,26 +89,36 @@ class QartodQcExecutor(object):
         # check for failure to produce results
         if not results_string:
             # an error, e.g. segfault, prevented proper qc execution, proceed with trying the next qc function
-            log.error('<%s> Failed to execute QC %s: QC process failed to return any data', self.request_id, test)
+            log.error('<%s> Failed to execute QC with configuration %r: QC process failed to return any data',
+                      self.request_id, config)
             return
 
         if results_string == EXCEPTION_MESSAGE:
             # an exception has already been logged, proceed with trying the next qc function
             return
 
-        # load the np.ndarray from the sent results string
-        data = np.load(io.BytesIO(results_string))
-        results = data['x']
+        # load the results dict from the results string
+        results = json.loads(results_string)
 
-        # Verify all QC results are valid QARTOD Primary Level Flags
-        mask = np.array([item not in QartodFlags.getValidQCFlags() for item in results])
-        if mask.any():
-            log.error('Received QC result with invalid QARTOD Primary Flag from %s. Invalid flags: %r',
-                      test, np.unique(results[mask]))
-            # Use the "high interest" (SUSPECT) flag to draw attention to the failure
-            results[mask] = QartodFlags.SUSPECT
+        # results is a nested dictionary with the outer keys being module names, the inner keys being test
+        # names, and the inner values being the results for the given test
+        # e.g. {'qartod': {'gross_range_test': [0, 0, 3, 4, 0], 'location_test': [2, 2, 2, 2, 2]}}
+        for module, test_set in results.items():
+            for test, test_results in test_set.items():
+                # test_results was converted from an np.array to a list during serialization, so convert it back
+                test_results = np.asarray(test_results)
 
-        QartodQcExecutor.insert_qc_results(parameter, test, results, dataset)
+                # Verify all QC results are valid QARTOD Primary Level Flags
+                mask = np.array([item not in QartodFlags.getValidQCFlags() for item in test_results])
+
+                if mask.any():
+                    log.error('Received QC result with invalid QARTOD Primary Flag from %s. Invalid flags: %r',
+                              test, np.unique(test_results[mask]))
+                    # Use the "high interest" (SUSPECT) flag to draw attention to the failure
+                    test_results[mask] = QartodFlags.SUSPECT
+
+                # add results to dataset
+                QartodQcExecutor.insert_qc_results(parameter, test, test_results, dataset)
 
     @staticmethod
     def insert_qc_results(parameter, test, results, dataset):
@@ -180,7 +176,6 @@ class QartodQcExecutor(object):
             # a given observation occur in the same string)
             current_qartod_flag_secondary = dataset[qartod_secondary_flag_name].values
             temp_qartod_flag_secondary = np.core.defchararray.add(current_qartod_flag_secondary, results_string)
-            print(temp_qartod_flag_secondary)
             dataset[qartod_secondary_flag_name].values = temp_qartod_flag_secondary
 
             # update the attributes to detail which tests were run (and in what order)
