@@ -85,17 +85,16 @@ class QartodTestServiceAPI(object):
 
 
 class QartodTestRecord(object):
-    def __init__(self, id, refDes, stream, parameter, test, inputs):
+    def __init__(self, id, refDes, stream, parameter, qcConfig):
         self.id = id
         self.refDes = refDes
         self.stream = stream
         self.parameter = parameter
-        self.test = test
-        self.inputs = inputs
+        self.qcConfig = qcConfig
 
     def __key(self):
         return (self.id, self.refDes['subsite'], self.refDes['node'], self.refDes['sensor'], self.stream,
-                self.parameter, self.test, self.inputs)
+                self.parameter, self.qcConfig)
 
     def __hash__(self):
         return hash(self.__key())
