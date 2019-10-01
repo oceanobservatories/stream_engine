@@ -12,6 +12,7 @@ from util.cass import fetch_l0_provenance
 from util.common import log_timing, StreamEngineException, StreamKey, MissingDataException, read_size_config
 from util.metadata_service import build_stream_dictionary, get_available_time_range
 from util.qc_executor import QcExecutor
+from util.qartod_qc_executor import QartodQcExecutor
 from util.stream_dataset import StreamDataset
 
 log = logging.getLogger()
@@ -52,6 +53,7 @@ class StreamRequest(object):
         self.time_range = time_range
         self.uflags = uflags
         self.qc_executor = QcExecutor(qc_parameters, self)
+        self.qartod_qc_executor = QartodQcExecutor(self)
         self.limit = limit
         self.include_provenance = include_provenance
         self.include_annotations = include_annotations
@@ -189,6 +191,9 @@ class StreamRequest(object):
     def execute_qc(self):
         self._run_qc()
 
+    def execute_qartod_qc(self):
+        self._run_qartod_qc()
+
     def insert_provenance(self):
         self._insert_provenance()
         self._add_location()
@@ -200,6 +205,10 @@ class StreamRequest(object):
             for param in sk.stream.parameters:
                 for dataset in stream_dataset.datasets.itervalues():
                     self.qc_executor.qc_check(param, dataset)
+
+    @log_timing(log)
+    def _run_qartod_qc(self):
+        self.qartod_qc_executor.execute_qartod_tests()
 
     # noinspection PyTypeChecker
     def _insert_provenance(self):

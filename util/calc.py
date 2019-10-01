@@ -65,6 +65,7 @@ def execute_stream_request(request_parameters, needs_only=False, base_path=None)
                 stream_request[index].calculate_derived_products()
                 stream_request[index].import_extra_externals()
             stream_request[index].execute_qc()
+            stream_request[index].execute_qartod_qc()
             stream_request[index].insert_provenance()
         else:
             # If needs_only is true we only want to process the first stream, for now
@@ -115,7 +116,7 @@ def get_stats(async_job_dir):
 
     return {
         'size': download_size,
-        'time': completion_time * 1000 # milliseconds since epoch timestamp, not an elapsed time since request start
+        'time': completion_time * 1000  # milliseconds since epoch timestamp, not an elapsed time since request start
     }
 
 
