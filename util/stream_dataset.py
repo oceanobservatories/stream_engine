@@ -340,7 +340,9 @@ class StreamDataset(object):
         function_map, missing = stream_key.stream.create_function_map(param, external_streams)
 
         # Consider a param as missing function arguments if we are not allowed to ignore
-        # optional arguments in this pass or if the missing args are not specified as optional
+        # optional arguments in this pass or if the missing args are not specified as optional.
+        # An arg missing at this point would be a dpi where a stream exposing that dpi parameter
+        # could not be found and that dpi was not specified as optional arg to this param function.
         if missing and not (ignore_missing_optional_params and self.is_missing_arg_optional(missing, param)):
             return missing
 
@@ -348,7 +350,12 @@ class StreamDataset(object):
                                                               deployment, source_dataset)
         missing = {k: function_map[k] for k in set(function_map) - set(kwargs)}
 
-        if missing:
+        # Function arguments can be missing at this point if the param in a supporting dataset
+        # was resolved but there was not any records in that dataset for the time range. In such
+        # a case, the dataset would have not been added (or even removed) from StreamRequest.datasets map
+        # (see StreamRequest.fetch_raw_data()) so the param in that dataset is considered missing. Continue
+        # processing only if that missing param is considered to be an optional argument to this function.
+        if missing and not (ignore_missing_optional_params and self.is_missing_arg_optional(missing, param)):
             return missing
 
         result, version = self._execute_algorithm(param, kwargs)
