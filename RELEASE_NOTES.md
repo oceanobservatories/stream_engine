@@ -2,6 +2,8 @@
 
 # Development Release 1.12.0 2019-11-25
 
+Issue #14537 - Updates to use numpy version 1.16; added source field to QARTOD records
+
 Issue #14398 - Handle nulls for wildcards in QARTOD records; add QARTOD code tests
 - Update conda environment/requirements
 - Wrote tests for QARTOD code
