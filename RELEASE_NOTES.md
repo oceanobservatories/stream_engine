@@ -1,5 +1,11 @@
 # Stream Engine
 
+# Release 1.11.0 2019-12-04
+
+Issue #14518 - Allow optional args during derived product function arg binding
+- Allow function to be called even when an argument to the function was resolved but
+  it did not contain any data if the argument was specified as optional in preload
+
 # Release 1.10.0 2019-09-06
 
 Issue #9291 - Apply lat,lon on fixed assets to netcdf global attrs
