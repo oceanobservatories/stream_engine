@@ -2,6 +2,8 @@
 
 # Release 1.11.0 2019-12-04
 
+Issue #14304 - Add bin size entry for new metbk_ct_dcl_instrument stream
+
 Issue #14518 - Allow optional args during derived product function arg binding
 - Allow function to be called even when an argument to the function was resolved but
   it did not contain any data if the argument was specified as optional in preload
