@@ -58,6 +58,38 @@ def _query_partition_metadata_before(stream_key, time_start):
 
 
 @log_timing(_log)
+def _query_partition_metadata_after(stream_key, time_end):
+    """
+    Return the first 4 bins after the the given end time.  Need to return 4 to account for some possibilities:
+        Data is present in both SAN and CASS. Need 2 bins to choose location
+        Data in current bin is all before the end of the time range:
+            Need to check to make sure start time is before current time so need bins for fallback.
+    :param stream_key:
+    :param time_end:
+    :return: Return a list of named tuples which contain the following information about metadata bins
+    [
+        [
+            bin : The bin number
+            store : cass or san for location
+            count : Number of data points
+            first : first ntp time of data in bin
+            last : last ntp time of data in the bin
+        ],
+    ]
+    """
+    end_bin = _time_in_bin_units(time_end, stream_key.stream_name)
+    partition_metadata_record_list = metadata_service_api.get_partition_metadata_records(*stream_key.as_tuple())
+    partition_metadata_record_list.sort(key=itemgetter('bin'), reverse=False)
+    result = []
+    for rec in partition_metadata_record_list:
+        if rec['bin'] >= end_bin:
+            result.append(_RecordInfo(rec['bin'], rec['store'], rec['count'], rec['first'], rec['last']))
+        if len(result) == 4:
+            break
+    return result
+
+
+@log_timing(_log)
 def _query_partition_metadata(stream_key, time_range):
     """
     Get the metadata entries for partitions that contain data within the time range.
@@ -109,7 +141,40 @@ def get_first_before_metadata(stream_key, start_time):
     """
     res = _query_partition_metadata_before(stream_key, start_time)
     # filter to ensure start time < time_range_start
-    res = filter(lambda x: x.first <= start_time, res)
+    res = filter(lambda x: x.first < start_time, res)
+    if not res:
+        return {}
+    first_bin = res[0].bin
+    res = filter(lambda x: x.bin == first_bin, res)
+    if len(res) == 1:
+        to_use = res[0]
+    else:
+        # Check same size
+        if res[0].count == res[1].count:
+            # take the choosen one
+            res = filter(lambda x: x.store == engine.app.config['PREFERRED_DATA_LOCATION'], res)
+            to_use = res[0]
+        # other otherwise take the larger of the two
+        else:
+            if res[0].count < res[1].count:
+                to_use = res[1]
+            else:
+                to_use = res[0]
+    return {to_use.store: LocationMetadata({to_use.bin: (to_use.count, to_use.first, to_use.last)})}
+
+
+@log_timing(_log)
+def get_first_after_metadata(stream_key, end_time):
+    """
+    Return metadata information for the first bin after the time range
+        Cass metadata, San metadata, messages
+    :param stream_key:
+    :param end_time:
+    :return:
+    """
+    res = _query_partition_metadata_after(stream_key, end_time)
+    # filter to ensure end time < time_range_start
+    res = filter(lambda x: x.last > end_time, res)
     if not res:
         return {}
     first_bin = res[0].bin
