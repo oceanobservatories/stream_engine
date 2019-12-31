@@ -514,28 +514,54 @@ class StreamDataset(object):
         if source_key != self.stream_key:
             log.debug('<%s> interpolate_into: %s source: %s param: %r',
                       self.request_id, self.stream_key, source_key, parameter)
+            only_same_deployment = self.interpolate_only_from_same_deployment(source_key, parameter)
             new_name = '-'.join((source_key.stream.name, parameter.name))
             for deployment, ds in self.datasets.iteritems():
                 if new_name in ds:
                     continue
                 try:
-                    ds[new_name] = source_dataset.get_interpolated(ds.time.values, parameter)
+                    ds[new_name] = source_dataset.get_interpolated(ds.time.values, parameter,
+                                                                   deployment if only_same_deployment else None)
                 except StreamEngineException as e:
                     log.error(e.message)
 
+    def interpolate_only_from_same_deployment(self, source_key, parameter):
+        """
+        Determine whether we should interpolate data only from the same deployment
+        as the target dataset and not allow interpolation from across multiple
+        source datasets deployments.
+        :param source_key: RefDes + Stream for dataset to interpolate from
+        :param parameter: Parameter defining the data to be interpolated
+        :return: Boolean
+        """
+        # If the data level of the parameter in the source dataset is 0 (raw data)
+        # and the source and target datasets are from the same instrument,
+        # assume that data from the source can only be used from the same deployment
+        # as the target dataset that it is getting interpolated into.
+        # In contrast, a finished data product (data level greater than 0) and can be
+        # used interpolated into an different instrument's dataset regardless of
+        # deployment. Interpolating pressure form a CTD would be an example of the latter.
+        if parameter.data_level == 0 and (source_key.as_tuple()[:4] == self.stream_key.as_tuple()[:4]):
+            log.debug('Interpolating parameter %r from %s only from same deployment',
+                      parameter, source_key)
+            return True
+        return False
+
     @log_timing(log)
-    def get_interpolated(self, target_times, parameter):
+    def get_interpolated(self, target_times, parameter, required_deployment=None):
         """
         Interpolate <parameter> from this dataset to the supplied times
         :param target_times: Times to interpolate to
         :param parameter: Parameter defining the data to be interpolated
+        :param required_deployment: Only interpolate from this deployment
         :return: DataArray containing the interpolated data
         """
         log.info('<%s> get_interpolated source: %s parameter: %r',
                  self.request_id, self.stream_key.as_refdes(), parameter)
         name = parameter.name
         datasets = [self.datasets[deployment][['obs', 'time', name]] for deployment in sorted(self.datasets)
-                    if name in self.datasets[deployment]]
+                    if name in self.datasets[deployment]
+                    and (required_deployment is None or deployment == required_deployment)]
         if datasets:
             shape = datasets[0][name].shape
             if len(shape) != 1:
@@ -549,7 +575,7 @@ class StreamDataset(object):
             # Search for a single deployment which covers this request
             for dataset in datasets:
                 ds_start, ds_end = dataset.time.values[0], dataset.time.values[-1]
-                if ds_start <= start and ds_end >= end:
+                if len(datasets) == 1 or (ds_start <= start and ds_end >= end):
                     return interp1d_data_array(dataset.time.values,
                                                dataset[name],
                                                time=target_times)
