@@ -116,7 +116,7 @@ def _init():
 
 @log_timing(log)
 def get_cass_lookback_dataset(stream_key, start_time, data_bin, deployment_start_time, request_id):
-    # try to fetch the first n times to ensure we get a deployment value in there.
+    # try to fetch the first n times before the request start time
     cols, rows = fetch_with_func(query_n_before, stream_key,
                                  [(data_bin, start_time, engine.app.config['LOOKBACK_QUERY_LIMIT'])])
     # Only return data gathered after the start of the first deployment
@@ -132,7 +132,7 @@ def get_cass_lookback_dataset(stream_key, start_time, data_bin, deployment_start
 
 @log_timing(log)
 def get_cass_lookforward_dataset(stream_key, end_time, data_bin, deployment_stop_time, request_id):
-    # try to fetch the first n times to ensure we get a deployment value in there.
+    # try to fetch the first n times after the request end time
     cols, rows = fetch_with_func(query_n_after, stream_key,
                                  [(data_bin, end_time, engine.app.config['LOOKBACK_QUERY_LIMIT'])])
     # Only return data gathered before the end of the last deployment

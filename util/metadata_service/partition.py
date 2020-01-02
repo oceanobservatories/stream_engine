@@ -140,7 +140,7 @@ def get_first_before_metadata(stream_key, start_time):
     :return:
     """
     res = _query_partition_metadata_before(stream_key, start_time)
-    # filter to ensure start time < time_range_start
+    # filter to ensure first time in bin < time_range_start
     res = filter(lambda x: x.first < start_time, res)
     if not res:
         return {}
@@ -151,10 +151,10 @@ def get_first_before_metadata(stream_key, start_time):
     else:
         # Check same size
         if res[0].count == res[1].count:
-            # take the choosen one
+            # take the chosen one
             res = filter(lambda x: x.store == engine.app.config['PREFERRED_DATA_LOCATION'], res)
             to_use = res[0]
-        # other otherwise take the larger of the two
+        # otherwise take the larger of the two
         else:
             if res[0].count < res[1].count:
                 to_use = res[1]
@@ -173,7 +173,7 @@ def get_first_after_metadata(stream_key, end_time):
     :return:
     """
     res = _query_partition_metadata_after(stream_key, end_time)
-    # filter to ensure end time < time_range_start
+    # filter to ensure last time in bin > time_range_end
     res = filter(lambda x: x.last > end_time, res)
     if not res:
         return {}
@@ -184,10 +184,10 @@ def get_first_after_metadata(stream_key, end_time):
     else:
         # Check same size
         if res[0].count == res[1].count:
-            # take the choosen one
+            # take the chosen one
             res = filter(lambda x: x.store == engine.app.config['PREFERRED_DATA_LOCATION'], res)
             to_use = res[0]
-        # other otherwise take the larger of the two
+        # otherwise take the larger of the two
         else:
             if res[0].count < res[1].count:
                 to_use = res[1]
