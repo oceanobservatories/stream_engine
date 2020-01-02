@@ -1,5 +1,9 @@
 # Stream Engine
 
+# Release 1.12.0 2020-02-05
+
+Issue #14573 - Don't interpolate raw data across deployments for the same instrument
+
 # Release 1.11.0 2019-12-04
 
 Issue #14304 - Add bin size entry for new metbk_ct_dcl_instrument stream
