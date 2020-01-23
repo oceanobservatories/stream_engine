@@ -1,5 +1,17 @@
 # Stream Engine
 
+# Development Release 1.12.0 2019-11-25
+
+Issue #14537 - Updates to use numpy version 1.16; added source field to QARTOD records
+
+Issue #14398 - Handle nulls for wildcards in QARTOD records; add QARTOD code tests
+- Update conda environment/requirements
+- Wrote tests for QARTOD code
+- Added handling for nulls as wildcards in QARTOD record fields
+- Added hash, equals, print methods to QartodTestRecord object
+
+Issue #14398 - QARTOD proof of concept
+
 # Release 1.11.0 2019-12-04
 
 Issue #14304 - Add bin size entry for new metbk_ct_dcl_instrument stream

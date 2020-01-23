@@ -10,15 +10,11 @@ from multiprocessing import Process, Pipe
 import numpy as np
 
 from ooi_data.postgres.model import ParameterFunction
-from util.common import log_timing
+from util.common import QC_EXECUTED, QC_RESULTS
 
 log = logging.getLogger(__name__)
 
 EXCEPTION_MESSAGE = "Logged Exception"
-
-# QC Parameter identification patterns
-QC_EXECUTED = 'qc_executed'
-QC_RESULTS = 'qc_results'
 
 
 class QcExecutor(object):

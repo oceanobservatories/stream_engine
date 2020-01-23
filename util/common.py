@@ -1,5 +1,6 @@
 import os
 import csv
+import json
 import datetime
 import logging
 import time
@@ -9,7 +10,6 @@ from collections import OrderedDict
 import ntplib
 import numpy
 
-from engine import app
 from ooi_data.postgres.model import Stream
 
 log = logging.getLogger(__name__)
@@ -27,6 +27,50 @@ PROVENANCE_KEYORDER = ["eventId", "editPhase", "eventName", "eventType", "refere
 
 ANNOTATION_FILE_FORMAT = '%s_annotations_%s.json'
 
+# QC Parameter identification patterns
+QC_EXECUTED = 'qc_executed'
+QC_RESULTS = 'qc_results'
+# QARTOD Parameter identification patterns
+QARTOD_PRIMARY = 'qartod_flag_primary'
+QARTOD_SECONDARY = 'qartod_flag_secondary'
+
+
+class QartodFlags:
+    """Primary flags for QARTOD."""
+    # Don't subclass Enum since values don't fit nicely into a numpy array.
+    PASS = 1
+    NOT_EVALUATED = 2
+    SUSPECT = 3
+    FAIL = 4
+    MISSING = 9
+
+    @classmethod
+    def getFlagOrder(cls):
+        return [cls.NOT_EVALUATED, cls.PASS, cls.MISSING, cls.SUSPECT, cls.FAIL]
+
+    @classmethod
+    def getValidQCFlags(cls):
+        return [cls.PASS, cls.NOT_EVALUATED, cls.SUSPECT, cls.FAIL, cls.MISSING]
+
+    @classmethod
+    def getQCFlagMeanings(cls):
+        return ["PASS", "NOT_EVALUATED", "SUSPECT", "FAIL", "MISSING"]
+
+    @classmethod
+    def isValidQCFlag(cls, flag):
+        return flag in cls.getValidQCFlags()
+
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, numpy.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+
+
+def is_qc_parameter(param):
+    return any(quality_variable in param for quality_variable in [QC_EXECUTED, QC_RESULTS, QARTOD_PRIMARY,
+                                                                  QARTOD_SECONDARY])
 
 def isfillvalue(a):
     """
