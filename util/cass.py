@@ -115,17 +115,33 @@ def _init():
 
 
 @log_timing(log)
-def get_cass_lookback_dataset(stream_key, start_time, data_bin, deployments, request_id):
-    # try to fetch the first n times to ensure we get a deployment value in there.
+def get_cass_lookback_dataset(stream_key, start_time, data_bin, deployment_start_time, request_id):
+    # try to fetch the first n times before the request start time
     cols, rows = fetch_with_func(query_n_before, stream_key,
                                  [(data_bin, start_time, engine.app.config['LOOKBACK_QUERY_LIMIT'])])
-    needed = set(deployments)
-    dep_idx = cols.index('deployment')
+    # Only return data gathered after the start of the first deployment
+    # within the time range of this request
+    time_idx = cols.index('time')
     ret_rows = []
     for r in rows:
-        if r[dep_idx] in needed:
+        if r[time_idx] >= deployment_start_time:
             ret_rows.append(r)
-            needed.remove(r[dep_idx])
+
+    return to_xray_dataset(cols, ret_rows, stream_key, request_id)
+
+
+@log_timing(log)
+def get_cass_lookforward_dataset(stream_key, end_time, data_bin, deployment_stop_time, request_id):
+    # try to fetch the first n times after the request end time
+    cols, rows = fetch_with_func(query_n_after, stream_key,
+                                 [(data_bin, end_time, engine.app.config['LOOKBACK_QUERY_LIMIT'])])
+    # Only return data gathered before the end of the last deployment
+    # within the time range of this request
+    time_idx = cols.index('time')
+    ret_rows = []
+    for r in rows:
+        if r[time_idx] < deployment_stop_time:
+            ret_rows.append(r)
     return to_xray_dataset(cols, ret_rows, stream_key, request_id)
 
 
@@ -161,6 +177,19 @@ def query_first_after(stream_key, times_and_bins, cols):
 @log_timing(log)
 def query_n_before(stream_key, query_arguments, cols):
     query = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s' and time <= ? ORDER BY method DESC, time DESC LIMIT ?" % \
+            (', '.join(cols), stream_key.stream.name, stream_key.subsite, stream_key.node,
+             stream_key.sensor, stream_key.method)
+    query = SessionManager.prepare(query)
+    result = []
+    for success, rows in execute_concurrent_with_args(SessionManager.session(), query, query_arguments, concurrency=50):
+        if success:
+            result.extend(list(rows))
+    return result
+
+
+@log_timing(log)
+def query_n_after(stream_key, query_arguments, cols):
+    query = "select %s from %s where subsite='%s' and node='%s' and sensor='%s' and bin=? and method='%s' and time >= ? ORDER BY method ASC, time ASC LIMIT ?" % \
             (', '.join(cols), stream_key.stream.name, stream_key.subsite, stream_key.node,
              stream_key.sensor, stream_key.method)
     query = SessionManager.prepare(query)

@@ -1,5 +1,12 @@
 # Stream Engine
 
+# Release 1.12.0 2020-02-05
+
+Issue #14387 - pCO2 sensors not returning recent data
+- Select extra data points for supporting streams immediately before and after the
+  request time range for better interpolation. Restrict these extra data points
+  to be from deployments that are within the request time range.
+
 # Release 1.11.0 2019-12-04
 
 Issue #14304 - Add bin size entry for new metbk_ct_dcl_instrument stream
