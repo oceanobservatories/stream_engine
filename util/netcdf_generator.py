@@ -172,14 +172,21 @@ class NetcdfGenerator(object):
                 # include all external parameters associated with the directly requested parameters (12886)
                 for external_stream_key in self.stream_request.external_includes:
                     for parameter in self.stream_request.external_includes[external_stream_key]:
-                        params_to_include.append(parameter.name)
-                        long_parameter_name = external_stream_key.stream_name+"-"+parameter.name
+                        # parameters interpolated from another stream have a name
+                        # like "source_stream_name-parameter_name"
+                        long_parameter_name = external_stream_key.stream_name + "-" + parameter.name
                         if long_parameter_name in ds:
-                            # rename the parameter without the stream_name prefix (12544 AC1)
-                            ds = ds.rename({long_parameter_name: parameter.name})
+                            final_parameter_name = long_parameter_name
+                            # if parameter.name does not already exist in the dataset (14535) ...
+                            if parameter.name not in ds:
+                                # rename the parameter without the stream_name prefix (12544 AC1)
+                                ds = ds.rename({long_parameter_name: parameter.name})
+                                final_parameter_name = parameter.name
+
+                            params_to_include.append(final_parameter_name)
                             # record the instrument and stream (12544 AC2)
-                            ds[parameter.name].attrs['instrument'] = external_stream_key.as_three_part_refdes()
-                            ds[parameter.name].attrs['stream'] = external_stream_key.stream_name
+                            ds[final_parameter_name].attrs['instrument'] = external_stream_key.as_three_part_refdes()
+                            ds[final_parameter_name].attrs['stream'] = external_stream_key.stream_name
 
                 # associated variables with their contributors (12544 AC3)
                 for requested_parameter in self.stream_request.requested_parameters:
