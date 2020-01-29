@@ -238,7 +238,7 @@ UI_HARD_LIMIT = 20000
 QC_RESULTS_STORAGE_SYSTEM = 'none'  # 'log' to write qc results to a file, 'cass' to write qc results to a database
 # Number of cassandra rows used to the correct deployment for padding of streams which provide
 # cal coefficients and other needed data
-LOOKBACK_QUERY_LIMIT = 100
+LOOKBACK_QUERY_LIMIT = 1
 MAX_BIN_SIZE_MIN = 20160
 # Where to start unbounded queries 2010-01-01T00:00:00.000Z
 UNBOUND_QUERY_START = 3471292800

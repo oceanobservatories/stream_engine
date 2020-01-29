@@ -7,14 +7,17 @@ import sys
 import ion_functions
 import numexpr
 import numpy as np
+import time
+import ntplib
 
 from ooi_data.postgres.model import Parameter, Stream
 from util.advlogging import ParameterReport
-from util.cass import fetch_nth_data, get_full_cass_dataset, get_cass_lookback_dataset
+from util.cass import fetch_nth_data, get_full_cass_dataset, get_cass_lookback_dataset, get_cass_lookforward_dataset
 from util.common import (log_timing, ntp_to_datestring, ntp_to_datetime, UnknownFunctionTypeException,
                          StreamEngineException, TimeRange, MissingDataException)
 from util.datamodel import create_empty_dataset, compile_datasets, add_location_data, _get_fill_value
-from util.metadata_service import (SAN_LOCATION_NAME, CASS_LOCATION_NAME, get_first_before_metadata,
+from util.metadata_service import (SAN_LOCATION_NAME, CASS_LOCATION_NAME,
+                                   get_first_before_metadata, get_first_after_metadata,
                                    get_location_metadata)
 
 from util.provenance_metadata_store import ProvenanceMetadataStore
@@ -50,7 +53,7 @@ class StreamDataset(object):
 
     def fetch_raw_data(self, time_range, limit, should_pad):
         dataset = self.get_dataset(time_range, limit, self.provenance_metadata,
-                                   should_pad, [], self.request_id)
+                                   should_pad, self.request_id)
         self._insert_dataset(dataset)
 
     def _insert_dataset(self, dataset):
@@ -725,13 +728,12 @@ class StreamDataset(object):
         return result, version
 
     @log_timing(log)
-    def get_dataset(self, time_range, limit, provenance_metadata, pad_forward, deployments, request_id=None):
+    def get_dataset(self, time_range, limit, provenance_metadata, pad_dataset, request_id=None):
         """
         :param time_range:
         :param limit:
         :param provenance_metadata:
-        :param pad_forward:
-        :param deployments:
+        :param pad_dataset:
         :param request_id:
         :return:
         """
@@ -745,9 +747,21 @@ class StreamDataset(object):
             san_percent = san_locations.total / total
             cass_percent = cass_locations.total / total
 
-        if pad_forward:
-            # pad forward on some datasets
-            datasets.append(self.get_lookback_dataset(self.stream_key, time_range, deployments, request_id))
+        # If this is a supporting stream (ie. not the primary requested stream),
+        # get extra data points on both sides immediately outside of the requested
+        # time range for higher quality interpolation of supporting stream data
+        # into the primary data set at the request time boundaries. The extra
+        # data points must be within the time range of the deployments.
+        if pad_dataset and app.config['LOOKBACK_QUERY_LIMIT'] > 0:
+            # Get the start time of the first and stop time of the last deployments
+            # within the requested time range.
+            deployment_time_range = self.get_deployment_time_range(time_range)
+            if deployment_time_range.get("start", None):
+                datasets.append(self.get_lookback_dataset(self.stream_key, time_range,
+                                                          deployment_time_range["start"], request_id))
+            if deployment_time_range.get("stop", None):
+                datasets.append(self.get_lookforward_dataset(self.stream_key, time_range,
+                                                             deployment_time_range["stop"], request_id))
 
         if san_locations.total > 0:
             # put the range down if we are within the time range
@@ -777,14 +791,71 @@ class StreamDataset(object):
         return compile_datasets(datasets)
 
     @log_timing(log)
-    def get_lookback_dataset(self, key, time_range, deployments, request_id=None):
-        first_metadata = get_first_before_metadata(key, time_range.start)
-        if CASS_LOCATION_NAME in first_metadata:
-            locations = first_metadata[CASS_LOCATION_NAME]
-            return get_cass_lookback_dataset(key, time_range.start, locations.bin_list[0], deployments, request_id)
-        elif SAN_LOCATION_NAME in first_metadata:
-            locations = first_metadata[SAN_LOCATION_NAME]
-            return get_san_lookback_dataset(key, TimeRange(locations.start_time, time_range.start),
-                                            locations.bin_list[0], deployments)
+    def get_lookback_dataset(self, key, request_time_range, deployment_start_time, request_id=None):
+        first_metadata_before = get_first_before_metadata(key, request_time_range.start)
+        if CASS_LOCATION_NAME in first_metadata_before:
+            locations = first_metadata_before[CASS_LOCATION_NAME]
+
+            return get_cass_lookback_dataset(key, request_time_range.start, locations.bin_list[0],
+                                             deployment_start_time, request_id)
+        elif SAN_LOCATION_NAME in first_metadata_before:
+            locations = first_metadata_before[SAN_LOCATION_NAME]
+
+            # Note that the deployments list was originally hardcoded to an empty list ([]) in
+            # StreamDataset.fetch_raw_data(). That same hard code is moved to the function
+            # call below to preserve the behavior of that function while changing the behavior
+            # of the above call to get_cass_lookback_dataset. I would think that the
+            # hard coded empty list of deployment numbers should be removed from the call
+            # below at some point in the future as well. Note that since the list of deployments
+            # is empty, the function call below returns an empty list.
+            return get_san_lookback_dataset(key, TimeRange(locations.start_time, request_time_range.start),
+                                            locations.bin_list[0], [])
         else:
             return None
+
+    @log_timing(log)
+    def get_lookforward_dataset(self, key, request_time_range, deployment_stop_time, request_id=None):
+        first_metadata_after = get_first_after_metadata(key, request_time_range.stop)
+        if CASS_LOCATION_NAME in first_metadata_after:
+            locations = first_metadata_after[CASS_LOCATION_NAME]
+
+            return get_cass_lookforward_dataset(key, request_time_range.stop, locations.bin_list[0],
+                                                deployment_stop_time, request_id)
+        elif SAN_LOCATION_NAME in first_metadata_after:
+            locations = first_metadata_after[SAN_LOCATION_NAME]
+
+            # Note that the deployments list was originally hardcoded to an empty list ([]) in
+            # StreamDataset.fetch_raw_data(). That same hard code when passed to get_san_lookback_dataset()
+            # above results in an empty list getting returned from that function. Instead of implementing an
+            # analogous "do nothing" get_san_lookforward_dataset() function, we just return an empty set
+            # here until that function is properly implemented.
+            return []
+        else:
+            return None
+
+    @log_timing(log)
+    def get_deployment_time_range(self, request_time_range):
+        # The expected deployments are the intersection of those that:
+        # end after the start of the requested time range and
+        # start before the end of the requested time range
+        expected_deployment_numbers = []
+        for dep_no in sorted(self.events.deps):
+            if (request_time_range.start is None or
+                    self.events.deps[dep_no].ntp_stop is None or
+                    self.events.deps[dep_no].ntp_stop >= request_time_range.start) and \
+               (request_time_range.stop is None or
+                    self.events.deps[dep_no].ntp_start is None or
+                    self.events.deps[dep_no].ntp_start < request_time_range.stop):
+                expected_deployment_numbers.append(dep_no)
+
+        # The deployment time range is the start time of the first
+        # deployment and the stop time of the last deployment
+        deployment_time_range = {"start": None, "stop": None}
+        if expected_deployment_numbers:
+            deployment_time_range["start"] = self.events.deps[expected_deployment_numbers[0]].ntp_start
+            deployment_time_range["stop"] = self.events.deps[expected_deployment_numbers[-1]].ntp_stop
+            if deployment_time_range["stop"] is None:
+                deployment_time_range["stop"] = ntplib.system_to_ntp_time(time.time())
+
+        return deployment_time_range
+
