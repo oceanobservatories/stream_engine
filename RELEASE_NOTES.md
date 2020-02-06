@@ -1,5 +1,9 @@
 # Stream Engine
 
+# Release 1.13.0 2020-03-04
+
+Issue #14535 - Parameter naming conflict prevents netcdf generation
+
 # Release 1.12.0 2020-02-04
 
 Issue #14573 - Don't interpolate raw data across deployments for the same instrument
