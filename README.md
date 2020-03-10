@@ -104,7 +104,7 @@ git push gerrit master --tags
 ## Updating the preload-database submodule (usually only to satisfy unit tests)
 
 1. Within the stream_engine root, change directory to preload-database
-2. Ensure all changes you may have are cleared/savef off
+2. Ensure all changes you may have are cleared/saved off
 3. Run the following commands
 
 ```
