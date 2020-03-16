@@ -193,7 +193,7 @@ class NetcdfGenerator(object):
                                 if need.name in params_to_include:
                                     netcdf_name = need.netcdf_name if need.netcdf_name else need.name
                                     if 'ancillary_variables' in ds[requested_parameter.name].attrs:
-                                        ds[requested_parameter.name].attrs['ancillary_variables'] += "," + netcdf_name
+                                        ds[requested_parameter.name].attrs['ancillary_variables'] += " " + need.name
                                     else:
                                         ds[requested_parameter.name].attrs['ancillary_variables'] = netcdf_name
                                     break
