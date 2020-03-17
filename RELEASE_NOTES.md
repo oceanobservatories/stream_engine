@@ -2,6 +2,10 @@
 
 # Release 1.15.0 2020-06-02
 
+Issue #14398 - Cleanup QARTOD NetCDF variables and attributes
+
+Issue #14398 - Update RELEASE_NOTES and fix conda_env.yml
+
 Issue #14537 - Updates to use numpy version 1.16; added source field to QARTOD records
 
 Issue #14398 - Handle nulls for wildcards in QARTOD records; add QARTOD code tests
