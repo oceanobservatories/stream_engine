@@ -1,6 +1,5 @@
 name: stream
 channels:
-- file://home/1116449/miniconda2/custom_conda_channel
 - defaults
 - ooi
 - conda-forge

@@ -1,6 +1,8 @@
 # Stream Engine
 
-# Development Release 1.12.0 2019-11-25
+# Development Release 1.14.0 2020-03-17
+
+Issue #14398 - Cleanup QARTOD NetCDF variables and attributes
 
 Issue #14537 - Updates to use numpy version 1.16; added source field to QARTOD records
 
