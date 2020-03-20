@@ -257,7 +257,7 @@ def shape_up(dataset, parameters, request_id=None):
                 # be able to re-insert our data
                 for index, dim_name in enumerate(dataset[var].dims):
                     # skip the obs dimension
-                    if index == 0:
+                    if dim_name == "obs":
                         continue
                     if dim_name == dims[index]:
                         temp_name = 'TEMP_DIM_%s_%d' % (var, index)
@@ -294,7 +294,8 @@ def concatenate_and_write(datasets, out_dir, group_name, request_id=None):
 
     # remove obs dimension from non_obs data (13025 AC2)
     for non_obs in non_obs_data:
-        ds[non_obs] = (ds[non_obs].dims[1:], ds[non_obs].values[0], ds[non_obs].attrs)
+        if 'obs' in ds[non_obs].dims:
+            ds[non_obs] = (ds[non_obs].dims[1:], ds[non_obs].values[0], ds[non_obs].attrs)
 
     add_dynamic_attributes(ds)
     write_netcdf(ds, os.path.join(out_dir, get_name(ds, group_name)))

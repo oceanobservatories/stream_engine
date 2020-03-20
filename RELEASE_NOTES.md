@@ -2,6 +2,12 @@
 
 # Release 1.13.0 2020-03-04
 
+Issue #13402 - Handle alternative data dimensions
+- Resolve streams with minor method name variations (e.g. recovered_host vs recovered_inst)
+- Handle non-obs dimensions when building up datasets
+- Provide concatenation over multiple dimensions to handle non-obs variables
+- Move custom concatenation logic to new file multi_concat.py
+
 Issue #14535 - Parameter naming conflict prevents netcdf generation
 
 # Release 1.12.0 2020-02-04

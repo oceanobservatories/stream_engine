@@ -10,7 +10,7 @@ dependencies:
 - cassandra-driver=3.9.0
 - concurrentloghandler=0.9.1
 - flask=0.12
-- futures=2.2.0
+- futures
 - gunicorn=19.7.0
 - ion-functions=2.4.3
 - mock
@@ -27,6 +27,6 @@ dependencies:
 - requests=2.13.0
 - requests-mock
 - scipy=0.19.0
-- simplejson=3.10.0
+- simplejson
 - sqlalchemy=1.1.5
 - xarray=0.9.2

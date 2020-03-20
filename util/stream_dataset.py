@@ -425,7 +425,11 @@ class StreamDataset(object):
             # remove obs dimension from parameter's dimensions and data (13025 AC2)
             param_dimensions.remove('-obs')
             dims = param_dimensions
-            data = data[0] if data is not None else None
+
+            if data is not None:
+                # remove the obs dimension if it is present - in such a case, the data dimensions will be greater than 
+                # the number of items in param_dimensions
+                data = data[0] if data.ndim > len(param_dimensions) else data
         elif param_dimensions:
             # append parameter dimensions onto obs
             dims += param_dimensions
