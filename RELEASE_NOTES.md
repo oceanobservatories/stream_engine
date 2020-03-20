@@ -2,6 +2,8 @@
 
 # Release 1.15.0 2020-06-02
 
+Issue #14278 - Use netcdf_name attribute to rename parameters in output files
+
 Issue #13674 - Exclude coordinates attribute from timestamp parameters
 - Added *timestamp* variables to NETCDF_NONSCI_VARIABLES config list
 

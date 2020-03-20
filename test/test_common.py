@@ -23,7 +23,7 @@ class CommonTest(unittest.TestCase):
         self.epoch_dt = datetime(1900, 1, 1, 0, 0, 0)
 
     def test_isfillvalue(self):
-        assert np.array_equal(common.isfillvalue([1, 2, 3, -999999999, 4]),
+        assert np.array_equal(common.isfillvalue([1, 2, 3, -9999999, 4]),
                               [False, False, False, True, False])
         assert np.array_equal(common.isfillvalue([1.2, np.NaN, np.NaN, 2.3, np.NaN]),
                               [False, True, True, False, True])

@@ -3148,3 +3148,4 @@ CE01ISSP,SP001,09-CTDPFJ000,recovered_cspp,ctdpf_j_cspp_instrument_recovered,217
 CE01ISSP,SP001,09-CTDPFJ000,recovered_cspp,ctdpf_j_cspp_metadata_recovered,442,3606762493.683,3653515780.336
 CE01ISSP,SP001,09-CTDPFJ000,telemetered,ctdpf_j_cspp_instrument,3326,3606765503.684,3649348396.212
 CE01ISSP,SP001,09-CTDPFJ000,telemetered,ctdpf_j_cspp_metadata,32,3606765503.684,3649347978.6879997
+CE02SHSP,SP001,08-CTDPFJ000,recovered_cspp,ctdpf_j_cspp_instrument_recovered,32,3606765503.684,3649347978.6879997

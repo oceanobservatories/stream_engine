@@ -67,7 +67,11 @@ class StreamRequestTest(unittest.TestCase):
         cls.echo_sk = StreamKey('RS01SLBS', 'LJ01A', '05-HPIESA101', 'streamed', 'echo_sounding')
         cls.hourly_sk = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_hourly')
         cls.met_sk = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_a_dcl_instrument_recovered')
-        cls.vel_sk = StreamKey('GI01SUMO', 'RID16', '04-VELPTA000', 'recovered_host', 'velpt_ab_dcl_diagnostics_recovered')
+        cls.vel_sk = StreamKey('GI01SUMO', 'RID16', '04-VELPTA000', 'recovered_host', 'velpt_ab_dcl_instrument_recovered')
+
+        cls.dosta_sk = StreamKey('CE02SHSP', 'SP001', '01-DOSTAJ000', 'recovered_cspp', 'dosta_abcdjm_cspp_instrument_recovered')
+        cls.nut_sk2 = StreamKey('CE02SHSP', 'SP001', '05-NUTNRJ000', 'recovered_cspp', 'nutnr_j_cspp_instrument_recovered')
+        cls.ctd_sk2 = StreamKey('CE02SHSP', 'SP001', '08-CTDPFJ000', 'recovered_cspp', 'ctdpf_j_cspp_instrument_recovered')
 
         cls.ctd_events = AssetEvents(cls.ctd_sk.as_three_part_refdes(),
                                      json.load(open(os.path.join(DATA_DIR, 'CE04OSPS-SF01B-2A-CTDPFA107_events.json'))))
@@ -99,12 +103,10 @@ class StreamRequestTest(unittest.TestCase):
         do_sk = StreamKey('CP05MOAS', 'GL388', '04-DOSTAM000', 'recovered_host', 'dosta_abcdjm_glider_recovered')
         ctd_sk = StreamKey('CP05MOAS', 'GL388', '03-CTDGVM000', 'recovered_host', 'ctdgv_m_glider_instrument_recovered')
         gps_sk1 = StreamKey('CP05MOAS', 'GL388', '00-ENG000000', 'recovered_host', 'glider_gps_position')
-        # this stream is appearing as the result of work on ticket 14486 
-        gps_sk2 = StreamKey('CP05MOAS', 'GL388', '00-ENG000000', 'recovered_host', 'glider_eng_recovered')
         tr = TimeRange(3.622409e+09, 3.627058e+09)
         sr = StreamRequest(do_sk, [], {}, tr, {}, request_id='UNIT')
 
-        self.assertEqual(set(sr.stream_parameters), {do_sk, ctd_sk, gps_sk1, gps_sk2})
+        self.assertEqual(set(sr.stream_parameters), {do_sk, ctd_sk, gps_sk1})
 
     def test_wfp_include_preswat(self):
         par_sk = StreamKey('CP02PMUO', 'WFP01', '05-PARADK000', 'recovered_wfp',
@@ -164,10 +166,15 @@ class StreamRequestTest(unittest.TestCase):
     def test_virtual(self):
         sk1 = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_hourly')
         sk2 = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_a_dcl_instrument_recovered')
+        # this can be either velpt_ab_dcl_instrument_recovered or velpt_ab_dcl_diagnostics_recovered depending on
         sk3 = StreamKey('GI01SUMO', 'RID16', '04-VELPTA000', 'recovered_host', 'velpt_ab_dcl_diagnostics_recovered')
+        sk4 = StreamKey('GI01SUMO', 'RID16', '04-VELPTA000', 'recovered_host', 'velpt_ab_dcl_instrument_recovered')
         tr = TimeRange(3617736678.149051, 3661524609.0570827)
         sr = StreamRequest(sk1, [], {}, tr, {}, request_id='UNIT')
-        self.assertEqual(set(sr.stream_parameters), {sk1, sk2, sk3})
+        if sk3 in set(sr.stream_parameters):
+            self.assertEqual(set(sr.stream_parameters), {sk1, sk2, sk3})
+        else:
+            self.assertEqual(set(sr.stream_parameters), {sk1, sk2, sk4})
 
     def create_nut_sr(self):
         nutnr_fn = 'nutnr_a_sample.nc'
@@ -241,10 +248,14 @@ class StreamRequestTest(unittest.TestCase):
         hourly_sk = StreamKey('CP01CNSM', 'SBD11', '06-METBKA000', 'telemetered', 'metbk_hourly')
         met_sk = StreamKey('CP01CNSM', 'SBD11', '06-METBKA000', 'telemetered', 'metbk_a_dcl_instrument')
         # depending on the order in preload, either velpt_ab_dcl_diagnostics or velpt_ab_dcl_instrument can be used
-        vel_sk = StreamKey('CP01CNSM', 'RID26', '04-VELPTA000', 'telemetered', 'velpt_ab_dcl_instrument')
+        vel_sk = StreamKey('CP01CNSM', 'RID26', '04-VELPTA000', 'telemetered', 'velpt_ab_dcl_diagnostics')
+        vel_sk2 = StreamKey('CP01CNSM', 'RID26', '04-VELPTA000', 'telemetered', 'velpt_ab_dcl_instrument')
         tr = TimeRange(0, 99999999)
         sr = StreamRequest(hourly_sk, [], {}, tr, {}, request_id='UNIT')
-        self.assertEqual(set(sr.stream_parameters), {hourly_sk, met_sk, vel_sk})
+        if vel_sk in set(sr.stream_parameters):
+            self.assertEqual(set(sr.stream_parameters), {hourly_sk, met_sk, vel_sk})
+        else:
+            self.assertEqual(set(sr.stream_parameters), {hourly_sk, met_sk, vel_sk2})
         self.assertEqual(set(sr.unfulfilled), set([]))
 
     def test_external_virtual(self):
@@ -346,14 +357,14 @@ class StreamRequestTest(unittest.TestCase):
         sr.calculate_derived_products()
         sr.import_extra_externals()
 
-        # Ticket 9328: int_ctd_pressure is now set in stream_request.import_extra_externals()
+        # Ticket 9328: int_ctd_pressure (renamed 'pressure') is now set in stream_request.import_extra_externals()
         self.assertNotIn('ctdpf_sbe43_sample-seawater_pressure', sr.datasets[nutnr_sk].datasets[2])
-        self.assertIn('int_ctd_pressure', sr.datasets[nutnr_sk].datasets[2])
+        self.assertIn('pressure', sr.datasets[nutnr_sk].datasets[2])
         self.assertNotIn('ctdpf_sbe43_sample-seawater_pressure', sr.datasets[ctdpf_sk].datasets[2])
 
         data = json.loads(JsonResponse(sr).json())
         for each in data:
-            self.assertIn('int_ctd_pressure', each)
+            self.assertIn('pressure', each)
 
     def get_events(self, stream_key):
         return AssetEvents(stream_key.as_three_part_refdes(), {})
@@ -398,14 +409,14 @@ class StreamRequestTest(unittest.TestCase):
         sr.calculate_derived_products()
         sr.import_extra_externals()
 
-        # Ticket 9328: int_ctd_pressure is now set in stream_request.import_extra_externals()
+        # Ticket 9328: int_ctd_pressure (renamed 'pressure') is now set in stream_request.import_extra_externals()
         self.assertNotIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[par_sk].datasets[6])
-        self.assertIn('int_ctd_pressure', sr.datasets[par_sk].datasets[6])
+        self.assertIn('pressure', sr.datasets[par_sk].datasets[6])
         self.assertNotIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[ctd_sk].datasets[6])
 
         data = json.loads(JsonResponse(sr).json())
         for each in data:
-            self.assertIn('int_ctd_pressure', each)
+            self.assertIn('pressure', each)
             self.assertIn('lat', each)
             self.assertIn('lon', each)
             self.assertIn('m_gps_lat', each)
@@ -533,3 +544,62 @@ class StreamRequestTest(unittest.TestCase):
             size_est = nut_sr.compute_request_size(se)
             expected_size_est = math.ceil(nutnr_count * se['nutnr_a_sample'] + ctdpf_count * se['ctdpf_sbe43_sample'])
             self.assertEqual(size_est, expected_size_est)
+
+    def test_pressure_depth_renamed(self):
+        dosta_fn = 'dosta_abcdjm_cspp_instrument_recovered.nc'
+        ctd_fn = 'ctdpf_j_cspp_instrument_recovered.nc'
+
+        dosta_ds = xr.open_dataset(os.path.join(DATA_DIR, dosta_fn), decode_times=False)
+        ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, ctd_fn), decode_times=False)
+
+        tr = TimeRange(dosta_ds.time.values[0], dosta_ds.time.values[-1])
+        sr = StreamRequest(self.dosta_sk, [], tr, {}, request_id='UNIT')
+
+        dosta_ds = dosta_ds[self.base_params + [p.name for p in sr.stream_parameters[self.dosta_sk]]]
+
+        sr.datasets[self.dosta_sk] = StreamDataset(self.dosta_sk, sr.uflags, [self.ctd_sk2], sr.request_id)
+        sr.datasets[self.ctd_sk2] = StreamDataset(self.ctd_sk2, sr.uflags, [self.dosta_sk], sr.request_id)
+
+        sr.datasets[self.dosta_sk]._insert_dataset(dosta_ds)
+        sr.datasets[self.ctd_sk2]._insert_dataset(ctd_ds)
+
+        sr.calculate_derived_products()
+        sr.import_extra_externals()
+        sr.rename_parameters()
+
+        self.assertNotIn('pressure_depth', sr.datasets[self.dosta_sk].datasets[1])
+        self.assertIn('pressure', sr.datasets[self.dosta_sk].datasets[1])
+        data = json.loads(JsonResponse(sr).json())
+        for each in data:
+            self.assertNotIn('pressure_depth', each)
+            self.assertIn('pressure', each)
+
+    def test_cspp_nutnr_uses_ctd_pressure(self):
+        nut_fn = 'nutnr_j_cspp_instrument_recovered.nc'
+        ctd_fn = 'ctdpf_j_cspp_instrument_recovered.nc'
+
+        nut_ds = xr.open_dataset(os.path.join(DATA_DIR, nut_fn), decode_times=False)
+        ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, ctd_fn), decode_times=False)
+
+        tr = TimeRange(nut_ds.time.values[0], nut_ds.time.values[-1])
+        sr = StreamRequest(self.nut_sk2, [], tr, {}, request_id='UNIT')
+
+        nut_ds = nut_ds[self.base_params + [p.name for p in sr.stream_parameters[self.nut_sk2]]]
+
+        sr.datasets[self.ctd_sk2] = StreamDataset(self.ctd_sk2, sr.uflags, [self.nut_sk2], sr.request_id)
+        sr.datasets[self.nut_sk2] = StreamDataset(self.nut_sk2, sr.uflags, [self.ctd_sk2], sr.request_id)
+
+        sr.datasets[self.ctd_sk2]._insert_dataset(ctd_ds)
+        sr.datasets[self.nut_sk2]._insert_dataset(nut_ds)
+
+        sr.calculate_derived_products()
+        sr.import_extra_externals()
+        sr.rename_parameters()
+
+        self.assertIn('pressure', sr.datasets[self.nut_sk2].datasets[1])
+        # NUTNR has all 0 data for pressure_depth, but CTD pressure should have non-zero values
+        self.assertTrue(sr.datasets[self.nut_sk2].datasets[1]['pressure'].any())
+
+        data = json.loads(JsonResponse(sr).json())
+        for each in data:
+            self.assertIn('pressure', each)
