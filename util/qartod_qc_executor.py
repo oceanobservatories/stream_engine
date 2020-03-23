@@ -8,7 +8,7 @@ from ioos_qc.config import QcConfig
 
 import numpy as np
 
-from util.common import QartodFlags, NumpyEncoder
+from util.common import QartodFlags, NumpyEncoder, QARTOD_PRIMARY, QARTOD_SECONDARY
 
 log = logging.getLogger(__name__)
 
@@ -136,8 +136,8 @@ class QartodQcExecutor(object):
         # specifically, without this the type is assumed int64 and recasting in netcdf_utils clears the attrs
         results = results.astype(np.uint8)
 
-        qartod_primary_flag_name = '_'.join([parameter, 'qartod_flag_primary'])
-        qartod_secondary_flag_name = '_'.join([parameter, 'qartod_flag_secondary'])
+        qartod_primary_flag_name = '_'.join([parameter, QARTOD_PRIMARY])
+        qartod_secondary_flag_name = '_'.join([parameter, QARTOD_SECONDARY])
         # In rare cases, a parameter may have a dimension other than 'obs'. Normally, dataset[parameter].dims would be
         # a tuple potentially containing multiple dimensions, but we previously checked the data is 1-dimensional,
         # so the tuple must contain only 1 dimension
@@ -145,12 +145,21 @@ class QartodQcExecutor(object):
 
         # UPDATE PRIMARY FLAGS
         if qartod_primary_flag_name not in dataset:
+            # add this variable to 'ancillary_variables' attribute for the parameter it describes
+            if dataset[parameter].attrs.get('ancillary_variables', None):
+                dataset[parameter].attrs['ancillary_variables'] += ' ' + qartod_primary_flag_name
+            else:
+                dataset[parameter].attrs['ancillary_variables'] = qartod_primary_flag_name
+
             dataset[qartod_primary_flag_name] = (qc_obs_dimension, results, {})
             # add attribute info for QC flag interpretation
             dataset[qartod_primary_flag_name].attrs['flag_values'] = np.array(
                 QartodFlags.getValidQCFlags()).astype(np.uint8)
             dataset[qartod_primary_flag_name].attrs['flag_meanings'] = ' '.join(QartodFlags.getQCFlagMeanings())
-            dataset[qartod_primary_flag_name].attrs['long_name'] = qartod_primary_flag_name
+            dataset[qartod_primary_flag_name].attrs['standard_name'] = dataset[parameter].attrs['standard_name'] + ' status_flag'
+            dataset[qartod_primary_flag_name].attrs['long_name'] = dataset[parameter].attrs['long_name'] + ' QARTOD Summary Flag'
+            dataset[qartod_primary_flag_name].attrs['references'] = 'https://ioos.noaa.gov/project/qartod https://github.com/ioos/ioos_qc'
+            dataset[qartod_primary_flag_name].attrs['comment'] = 'Summary QARTOD flag'
         else:
             # combine qc results by keeping the most adverse flag for each observation
             current_qartod_flag_primary = dataset[qartod_primary_flag_name].values
@@ -164,13 +173,22 @@ class QartodQcExecutor(object):
         # represent QARTOD test results as a string of space separated test result integers (flags) in the order the
         # tests were run, as indicated by the 'tests_executed' attribute
         if qartod_secondary_flag_name not in dataset:
+            # add this variable to 'ancillary_variables' attribute for the parameter it describes
+            if dataset[parameter].attrs.get('ancillary_variables', None):
+                dataset[parameter].attrs['ancillary_variables'] += ' ' + qartod_secondary_flag_name
+            else:
+                dataset[parameter].attrs['ancillary_variable'] = qartod_secondary_flag_name
+
             dataset[qartod_secondary_flag_name] = (qc_obs_dimension, results_string, {})
             # add attribute info for QC flag interpretation
             dataset[qartod_secondary_flag_name].attrs['flag_values'] = np.array(
                 QartodFlags.getValidQCFlags()).astype(np.uint8)
             dataset[qartod_secondary_flag_name].attrs['flag_meanings'] = ' '.join(QartodFlags.getQCFlagMeanings())
             dataset[qartod_secondary_flag_name].attrs['tests_executed'] = test
-            dataset[qartod_secondary_flag_name].attrs['long_name'] = qartod_secondary_flag_name
+            dataset[qartod_secondary_flag_name].attrs['standard_name'] = dataset[parameter].attrs['standard_name'] + ' status_flag'
+            dataset[qartod_secondary_flag_name].attrs['long_name'] = dataset[parameter].attrs['long_name'] + ' Individual QARTOD Flags'
+            dataset[qartod_secondary_flag_name].attrs['references'] = 'https://ioos.noaa.gov/project/qartod https://github.com/ioos/ioos_qc'
+            dataset[qartod_secondary_flag_name].attrs['comment'] = "Individual QARTOD test flags. For each datum, flags are listed in a string matching the order of the 'tests_executed' attribute."
         else:
             # combine qc results by appending results to the relevant string for each observation (i.e. all tests for
             # a given observation occur in the same string)

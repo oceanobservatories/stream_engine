@@ -31,8 +31,8 @@ ANNOTATION_FILE_FORMAT = '%s_annotations_%s.json'
 QC_EXECUTED = 'qc_executed'
 QC_RESULTS = 'qc_results'
 # QARTOD Parameter identification patterns
-QARTOD_PRIMARY = 'qartod_flag_primary'
-QARTOD_SECONDARY = 'qartod_flag_secondary'
+QARTOD_PRIMARY = 'qartod_results'
+QARTOD_SECONDARY = 'qartod_executed'
 
 
 class QartodFlags:
@@ -54,7 +54,7 @@ class QartodFlags:
 
     @classmethod
     def getQCFlagMeanings(cls):
-        return ["PASS", "NOT_EVALUATED", "SUSPECT", "FAIL", "MISSING"]
+        return ["pass", "not_evaluated", "suspect_or_of_high_interest", "fail", "missing_data"]
 
     @classmethod
     def isValidQCFlag(cls, flag):
