@@ -2,19 +2,10 @@
 
 # Release 1.15.0 2020-06-02
 
-Issue #14398 - Cleanup QARTOD NetCDF variables and attributes
-
-Issue #14398 - Update RELEASE_NOTES and fix conda_env.yml
-
-Issue #14537 - Updates to use numpy version 1.16; added source field to QARTOD records
-
-Issue #14398 - Handle nulls for wildcards in QARTOD records; add QARTOD code tests
-- Update conda environment/requirements
-- Wrote tests for QARTOD code
-- Added handling for nulls as wildcards in QARTOD record fields
-- Added hash, equals, print methods to QartodTestRecord object
-
 Issue #14398 - QARTOD proof of concept
+- Add QARTOD QC executor
+- Add tests for QARTOD changes
+- Update conda environment/requirements
 
 Issue #14278 - Use netcdf_name attribute to rename parameters in output files
 

@@ -12,6 +12,7 @@ from datetime import datetime
 import ntplib
 import numpy as np
 
+from engine import app
 from ooi_data.postgres.model import Stream
 
 log = logging.getLogger(__name__)
@@ -68,7 +69,7 @@ class QartodFlags:
 
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, numpy.ndarray):
+        if isinstance(obj, np.ndarray):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
 
@@ -250,7 +251,7 @@ class StreamKey(object):
         self.node = node
         self.sensor = sensor
         self.method = method
-        if isinstance(stream, str):
+        if isinstance(stream, basestring):
             if stream.isdigit():  # the stream number
                 self.stream = Stream.query.get(int(stream))
                 self.stream_name = self.stream.name

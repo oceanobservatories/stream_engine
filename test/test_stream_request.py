@@ -102,11 +102,11 @@ class StreamRequestTest(unittest.TestCase):
     def test_glider_include_preswat_gps(self):
         do_sk = StreamKey('CP05MOAS', 'GL388', '04-DOSTAM000', 'recovered_host', 'dosta_abcdjm_glider_recovered')
         ctd_sk = StreamKey('CP05MOAS', 'GL388', '03-CTDGVM000', 'recovered_host', 'ctdgv_m_glider_instrument_recovered')
-        gps_sk1 = StreamKey('CP05MOAS', 'GL388', '00-ENG000000', 'recovered_host', 'glider_gps_position')
+        gps_sk = StreamKey('CP05MOAS', 'GL388', '00-ENG000000', 'recovered_host', 'glider_gps_position')
         tr = TimeRange(3.622409e+09, 3.627058e+09)
         sr = StreamRequest(do_sk, [], {}, tr, {}, request_id='UNIT')
 
-        self.assertEqual(set(sr.stream_parameters), {do_sk, ctd_sk, gps_sk1})
+        self.assertEqual(set(sr.stream_parameters), {do_sk, ctd_sk, gps_sk})
 
     def test_wfp_include_preswat(self):
         par_sk = StreamKey('CP02PMUO', 'WFP01', '05-PARADK000', 'recovered_wfp',
@@ -166,7 +166,7 @@ class StreamRequestTest(unittest.TestCase):
     def test_virtual(self):
         sk1 = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_hourly')
         sk2 = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_a_dcl_instrument_recovered')
-        # this can be either velpt_ab_dcl_instrument_recovered or velpt_ab_dcl_diagnostics_recovered depending on
+        # either velpt_ab_dcl_instrument_recovered or velpt_ab_dcl_diagnostics_recovered depending on order in preload
         sk3 = StreamKey('GI01SUMO', 'RID16', '04-VELPTA000', 'recovered_host', 'velpt_ab_dcl_diagnostics_recovered')
         sk4 = StreamKey('GI01SUMO', 'RID16', '04-VELPTA000', 'recovered_host', 'velpt_ab_dcl_instrument_recovered')
         tr = TimeRange(3617736678.149051, 3661524609.0570827)

@@ -10,7 +10,7 @@ import pandas as pd
 from copy import deepcopy
 from util.asset_management import AssetEvents
 from util.qartod_service import qartodTestServiceAPI, QartodTestRecord
-from util.common import StreamKey, TimeRange, QartodFlags
+from util.common import StreamKey, TimeRange, QartodFlags, QARTOD_PRIMARY, QARTOD_SECONDARY
 from util.stream_request import StreamRequest
 from util.stream_dataset import StreamDataset
 
@@ -28,7 +28,7 @@ NUTNR_QARTOD_RECORD_1 = QartodTestRecord(id=1,
                                          refDes={"subsite": "CE04OSPS", "node": "SF01B", "sensor": "4A-NUTNRA102",
                                                  "full": True},
                                          stream='nutnr_a_sample',
-                                         parameter='int_ctd_pressure',
+                                         parameter='pressure',
                                          qcConfig='{"qartod": {"gross_range_test": {"suspect_span": [28.0, 33.8], '
                                                 '"fail_span": [0.0, 42.0]}}}')
 
@@ -219,44 +219,41 @@ class QartodTest(unittest.TestCase):
 
     def test_primary_qartod_flags_in_dataset(self):
         sr = self.calculate_nut_sr()
-        self.assertIn('salinity_corrected_nitrate_qartod_flag_primary', sr.datasets[self.nut_sk].datasets[2])
-        self.assertIn('int_ctd_pressure_qartod_flag_primary', sr.datasets[self.nut_sk].datasets[2])
-        self.assertIn('pressure_qartod_flag_primary', sr.datasets[self.ctd_sk].datasets[2])
-        self.assertIn('temperature_qartod_flag_primary', sr.datasets[self.ctd_sk].datasets[2])
+        self.assertIn('salinity_corrected_nitrate_' + QARTOD_PRIMARY, sr.datasets[self.nut_sk].datasets[2])
+        self.assertIn('pressure_' + QARTOD_PRIMARY, sr.datasets[self.nut_sk].datasets[2])
+        self.assertIn('pressure_' + QARTOD_PRIMARY, sr.datasets[self.ctd_sk].datasets[2])
+        self.assertIn('temperature_' + QARTOD_PRIMARY, sr.datasets[self.ctd_sk].datasets[2])
 
     def test_secondary_qartod_flags_in_dataset(self):
         sr = self.calculate_nut_sr()
-        self.assertIn('salinity_corrected_nitrate_qartod_flag_secondary', sr.datasets[self.nut_sk].datasets[2])
-        self.assertIn('int_ctd_pressure_qartod_flag_secondary', sr.datasets[self.nut_sk].datasets[2])
-        self.assertIn('pressure_qartod_flag_secondary', sr.datasets[self.ctd_sk].datasets[2])
-        self.assertIn('temperature_qartod_flag_secondary', sr.datasets[self.ctd_sk].datasets[2])
+        self.assertIn('salinity_corrected_nitrate_' + QARTOD_SECONDARY, sr.datasets[self.nut_sk].datasets[2])
+        self.assertIn('pressure_' + QARTOD_SECONDARY, sr.datasets[self.nut_sk].datasets[2])
+        self.assertIn('pressure_' + QARTOD_SECONDARY, sr.datasets[self.ctd_sk].datasets[2])
+        self.assertIn('temperature_' + QARTOD_SECONDARY, sr.datasets[self.ctd_sk].datasets[2])
 
     def test_qartod_flag_attribute_long_names(self):
         sr = self.calculate_nut_sr()
-        nitrate_var = 'salinity_corrected_nitrate_qartod_flag_primary'
-        pressure_var = 'pressure_qartod_flag_secondary'
-        self.assertEqual(nitrate_var, sr.datasets[self.nut_sk].datasets[2][nitrate_var].attrs['long_name'])
-        self.assertEqual(pressure_var, sr.datasets[self.ctd_sk].datasets[2][pressure_var].attrs['long_name'])
+        nitrate_var = 'salinity_corrected_nitrate_' + QARTOD_PRIMARY
+        pressure_var = 'pressure_' + QARTOD_SECONDARY
+        log.warn(sr.datasets[self.nut_sk].datasets[2])
+        self.assertEqual('Nitrate Concentration - Temp and Sal Corrected QARTOD Summary Flag', 
+                         sr.datasets[self.nut_sk].datasets[2][nitrate_var].attrs['long_name'])
+        self.assertEqual('Seawater Pressure Measurement Individual QARTOD Flags', 
+                         sr.datasets[self.ctd_sk].datasets[2][pressure_var].attrs['long_name'])
 
     def test_primary_qartod_flag_attribute_flag_values(self):
         sr = self.calculate_nut_sr()
-        nitrate_var = 'salinity_corrected_nitrate_qartod_flag_primary'
-        self.assertListEqual(QartodFlags.getValidQCFlags(),
-                             sr.datasets[self.nut_sk].datasets[2][nitrate_var].attrs['flag_values'].tolist())
-
-    def test_secondary_qartod_flag_attribute_flag_values(self):
-        sr = self.calculate_nut_sr()
-        nitrate_var = 'salinity_corrected_nitrate_qartod_flag_secondary'
+        nitrate_var = 'salinity_corrected_nitrate_' + QARTOD_PRIMARY
         self.assertListEqual(QartodFlags.getValidQCFlags(),
                              sr.datasets[self.nut_sk].datasets[2][nitrate_var].attrs['flag_values'].tolist())
 
     def test_primary_qartod_flag_attribute_flag_meanings(self):
         sr = self.calculate_nut_sr()
-        nitrate_var = 'salinity_corrected_nitrate_qartod_flag_primary'
+        nitrate_var = 'salinity_corrected_nitrate_' + QARTOD_PRIMARY
         self.assertEqual(' '.join(QartodFlags.getQCFlagMeanings()),
                          sr.datasets[self.nut_sk].datasets[2][nitrate_var].attrs['flag_meanings'])
 
     def test_qartod_flag_variable_attributes_tests_executed(self):
         sr = self.calculate_nut_sr()
-        nitrate_var = 'salinity_corrected_nitrate_qartod_flag_secondary'
+        nitrate_var = 'salinity_corrected_nitrate_' + QARTOD_SECONDARY
         self.assertEqual('gross_range_test', sr.datasets[self.nut_sk].datasets[2][nitrate_var].attrs['tests_executed'])
