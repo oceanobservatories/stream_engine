@@ -121,6 +121,7 @@ class NetcdfGenerator(object):
             elif coordinates_key in ds[var].attrs:
                 del ds[var].attrs[coordinates_key]
             # make sure coordinate variables have axis defined (10745 AC4)
+            # 'time' already has its axis set to 'T' in datamodel.py, to_xray_dataset
             if var == 'lat':
                 ds[var].attrs['axis'] = 'Y'
             elif var == 'lon':

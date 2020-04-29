@@ -1,5 +1,10 @@
 # Stream Engine
 
+# Release 1.15.0 2020-06-02
+
+Issue #13674 - Exclude coordinates attribute from timestamp parameters
+- Added *timestamp* variables to NETCDF_NONSCI_VARIABLES config list
+
 # Release 1.14.0 2020-04-07
 
 Issue #13402 - Handle alternative data dimensions
