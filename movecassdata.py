@@ -24,11 +24,11 @@ def get_float(value):
 
 def get_ntp_time(time_stamp):
     # If timestamp can be converted to float, it's assumed to be NTP
-    # Otherwise it's assumed to be zulu. If neither it will fail cleanly.
+    # Otherwise it's assumed to be zulu. If it's neither None will be returned.
     float_time_stamp = get_float(time_stamp)
     return float_time_stamp if float_time_stamp else convert_zulu_to_ntp(time_stamp)
 
-def get_stream_key(which, subsite, node, sensor, method, stream_id):
+def get_stream_key(old_or_new, subsite, node, sensor, method, stream_id):
     # If stream id is all digits, it's assumed to be a valid stream id
     # else it's assumed to be a valid stream name
     if stream_id.isdigit():
@@ -37,12 +37,12 @@ def get_stream_key(which, subsite, node, sensor, method, stream_id):
         stream = Stream.query.filter(Stream.name == stream_id).first()
 
     if stream is None:
-        usage(which + " stream id (" + stream_id + ") is invalid: must be existing stream id or name")
+        usage(old_or_new + " stream id (" + stream_id + ") is invalid: must be existing stream id or name")
         return None
 
     stream_key =  StreamKey(subsite, node, sensor, method, stream)
     if stream_key is None:
-        usage("Invalid values were used for the " + which + " stream key")
+        usage("Invalid values were used for the " + old_or_new + " stream key")
 
     return stream_key
 
@@ -65,19 +65,13 @@ def get_time_range(time_stamps):
               time_stamp_values[1] + ")")
         return None
 
-    # Timestamp range should be within 1995 and 2040
-    if begin_time_stamp < 2997907200 or end_time_stamp > 4449600000:
-        usage("Timestamps outside reasonable range of 1995(2997907200) to 2040(4449600000): " +
-              str(begin_time_stamp) + " to " + str(end_time_stamp))
-        return None
-
     print str(begin_time_stamp), str(end_time_stamp)
     return TimeRange(begin_time_stamp, end_time_stamp)
 
-def split_refdes(which, refdes):
+def split_refdes(old_or_new, refdes):
     refdes_values = refdes.split("-", 2)
     if len(refdes_values) != 3:
-        usage(which + " refdes (" + refdes + ") is incorrectly specified")
+        usage(old_or_new + " refdes (" + refdes + ") is incorrectly specified")
         return (None, None, None)
     subsite = refdes_values[0]
     node = refdes_values[1]
@@ -85,14 +79,14 @@ def split_refdes(which, refdes):
     dash_in_sensor = sensor.find("-")
     another_dash = sensor.rfind("-")
     if dash_in_sensor < 0 or dash_in_sensor == len(sensor) - 1 or dash_in_sensor != another_dash:
-        usage(which + " sensor (" + sensor + ") is incorrectly specified")
+        usage(old_or_new + " sensor (" + sensor + ") is incorrectly specified")
         return (None, None, None)
     return (subsite, node, sensor)
 
-def split_sk_vals(which, skentry):
+def split_sk_vals(old_or_new, skentry):
     skvals = skentry.split(":")
     if len(skvals) != 3:
-        usage(which + " stream-key argument incorrect")
+        usage(old_or_new + " stream-key argument incorrect")
         return (None, None, None)
     return (skvals[0], skvals[1], skvals[2])
 
