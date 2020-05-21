@@ -581,29 +581,13 @@ def insert_san_dataset(stream_key, dataset):
 @log_timing(log)
 def insert_dataset(stream_key, dataset):
     """
-    Insert an xray dataset back into CASSANDRA.
-    First we check to see if there is data in the bins, if there is we
-    either overwrite and update the values or fail and notify the user
+    Insert an xray dataset into CASSANDRA using the specified stream_key.
     :param stream_key: Stream that we are using for the data insertion
     :param dataset: xray dataset we are inserting
-    :return:
+    :return: str: results of insertion
     """
-    # capture the current data from the stream metadata table for later processing, then delete it
+    # capture the current data from the stream metadata table for later processing
     cur_stream_meta = metadata_service_api.get_stream_metadata_record(*(stream_key.as_tuple()))
-    if cur_stream_meta:
-        del_resp = metadata_service_api.delete_stream_metadata_record(*(stream_key.as_tuple()))
-        del_stts = del_resp.get('statusCode')
-        del_msg = del_resp.get('message')
-        if del_stts == "OK" and del_msg.startswith("Successfully deleted"):
-            count = cur_stream_meta.get('count')
-            first = cur_stream_meta.get('first')
-            last = cur_stream_meta.get('last')
-            log.info("Deleted stream_metadata that summarized the partition_metadata records for %s: " +
-            "count %d, first %f, last %f", stream_key.as_refdes(), count, first, last)
-        else:
-            error_msg = "Failed to delete stream_metadata for %s", stream_key.as_refdes()
-            log.error(error_msg)
-            return error_msg
 
     # capture current partition metadata for each unique bin in the dataset for later processing
     cur_part_meta = {}
@@ -614,20 +598,6 @@ def insert_dataset(stream_key, dataset):
         if part_meta:
             # capture the parts that are useful for later
             cur_part_meta[bin_val] = (part_meta.get('count'), part_meta.get('first'), part_meta.get('last'))
-
-    # Delete the current data from the partition metadata table for the involved bins
-    for pkey, pvals in cur_part_meta.items():
-        del_resp = metadata_service_api.delete_partition_metadata_record(*(stream_key.as_tuple() +
-                                                                           (pkey, 'cass')))
-        del_stts = del_resp.get('statusCode')
-        del_msg = del_resp.get('message')
-        if del_stts == "OK" and del_msg.startswith("Successfully deleted"):
-            log.info("Deleted partition_metadata on bin %d for %s: count %d, first %f, last %f",
-                     pkey, stream_key.as_refdes(), pvals[0], pvals[1], pvals[2])
-        else:
-            error_msg = "Failed to delete partition_metadata on bin %d for %s", pkey, stream_key.as_refdes()
-            log.error(error_msg)
-            return error_msg
 
     # get the data in the correct format
     cols = SessionManager.get_query_columns(stream_key.stream.name)
@@ -748,6 +718,20 @@ def insert_dataset(stream_key, dataset):
                 last = curlast
         combined_part_meta.append((bin_val, count, first, last))
 
+    # Delete the current data from the partition metadata table for the involved bins
+    for pkey, pvals in cur_part_meta.items():
+        del_resp = metadata_service_api.delete_partition_metadata_record(*(stream_key.as_tuple() +
+                                                                           (pkey, 'cass')))
+        del_stts = del_resp.get('statusCode')
+        del_msg = del_resp.get('message')
+        if del_stts == "OK" and del_msg.startswith("Successfully deleted"):
+            log.info("Deleted partition_metadata on bin %d for %s: count %d, first %f, last %f",
+                     pkey, stream_key.as_refdes(), pvals[0], pvals[1], pvals[2])
+        else:
+            error_msg = "Failed to delete partition_metadata on bin %d for %s", pkey, stream_key.as_refdes()
+            log.error(error_msg)
+            return error_msg
+
     # Insert the combined data into the partition metadata table
     for pmeta in combined_part_meta:
         bin_val = pmeta[0]
@@ -762,8 +746,9 @@ def insert_dataset(stream_key, dataset):
     total = sum(row[1] for row in combined_part_meta)
     first = combined_part_meta[0][2]
     last = combined_part_meta[len(combined_part_meta) - 1][3]
-    # adjust these if there's any current stream metadata involved
+    # if there's a current stream metadata involved do the following
     if cur_stream_meta:
+        # adjust the count, first and last entries
         curtotal = cur_stream_meta.get('count')
         curfirst = cur_stream_meta.get('first')
         curlast = cur_stream_meta.get('last')
@@ -772,6 +757,20 @@ def insert_dataset(stream_key, dataset):
             first = curfirst
         if curlast > last:
             last = curlast
+        # delete the existing stream_metadata row prior to adding the updated one
+        del_resp = metadata_service_api.delete_stream_metadata_record(*(stream_key.as_tuple()))
+        del_stts = del_resp.get('statusCode')
+        del_msg = del_resp.get('message')
+        if del_stts == "OK" and del_msg.startswith("Successfully deleted"):
+            count = cur_stream_meta.get('count')
+            first = cur_stream_meta.get('first')
+            last = cur_stream_meta.get('last')
+            log.info("Deleted stream_metadata that summarized the partition_metadata records for %s: " +
+            "count %d, first %f, last %f", stream_key.as_refdes(), count, first, last)
+        else:
+            error_msg = "Failed to delete stream_metadata for %s", stream_key.as_refdes()
+            log.error(error_msg)
+            return error_msg
 
     smeta = metadata_service_api.build_stream_metadata_record(*(stream_key.as_tuple() + (first, last, total)))
     metadata_service_api.create_stream_metadata_record(smeta)
