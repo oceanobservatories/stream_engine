@@ -103,7 +103,7 @@ def find_depth_variable(variable_list):
     return depth_variable
 
 
-def to_xray_dataset(cols, data, stream_key, request_uuid, san=False):
+def to_xray_dataset(cols, data, stream_key, request_uuid, san=False, keep_exclusions=False):
     """
     Make an xray dataset from the raw cassandra data
     """
@@ -121,7 +121,7 @@ def to_xray_dataset(cols, data, stream_key, request_uuid, san=False):
     dataframe = pd.DataFrame(data=data, columns=cols)
 
     for column in dataframe.columns:
-        if column in app.config['INTERNAL_OUTPUT_EXCLUDE_LIST']:
+        if not keep_exclusions and column in app.config['INTERNAL_OUTPUT_EXCLUDE_LIST']:
             continue
 
         param = params.get(column)
@@ -131,6 +131,11 @@ def to_xray_dataset(cols, data, stream_key, request_uuid, san=False):
             param_dims = [dim.value for dim in param.dimensions]
             fill_val = _get_fill_value(param)
             is_array = param.parameter_type == 'array<quantity>'
+        elif column == 'bin':
+            encoding = 'uint64'
+            fill_val = np.array('0').astype(encoding)
+            is_array = False
+            param_dims = []
         else:
             encoding = 'str'
             fill_val = ''
@@ -270,7 +275,7 @@ def _fix_data_arrays(data, unpacked):
     if unpacked is None:
         return
     if len(data.shape) == 1:
-        for idx, val in enumerate(unpacked):
+        for idx, _ in enumerate(unpacked):
             if idx < len(data):
                 # Don't overwrite the fill value when data is None
                 if unpacked[idx] is not None:
@@ -305,7 +310,7 @@ def compile_datasets(datasets):
                 dataset[key] = (key, np.arange(dataset.dims[key]), dataset[key].attrs)
         # with the indices reset, try the concatenation again
         dataset = multi_concat(datasets, dim='obs')
-    
+
     # recreate the obs dimension
     dataset['obs'] = np.arange(dataset.obs.size)
     # sort the dataset by time

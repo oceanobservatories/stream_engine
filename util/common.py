@@ -1,10 +1,11 @@
 import os
+import calendar
 import csv
-import datetime
 import logging
 import time
 from functools import wraps
 from collections import OrderedDict
+from datetime import datetime
 
 import ntplib
 import numpy
@@ -14,15 +15,17 @@ from ooi_data.postgres.model import Stream
 
 log = logging.getLogger(__name__)
 
+ZULU_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
+
 stream_cache = {}
 parameter_cache = {}
 function_cache = {}
 
 PROVENANCE_KEYORDER = ["eventId", "editPhase", "eventName", "eventType", "referenceDesignator", "deploymentNumber",
-                       "versionNumber", "inductiveId", "assetUid", "dataSource", "lastModifiedTimestamp", "tense", 
-                       "ingestInfo", "notes", "mooring", "mooring.location.location", "node", "node.location.location", 
-                       "eventStartTime", "eventStopTime", "waterDepth", "location", "location.location", "deployedBy", 
-                       "deployCruiseInfo", "recoveredBy", "recoverCruiseInfo", "sensor", "sensor.location.location", 
+                       "versionNumber", "inductiveId", "assetUid", "dataSource", "lastModifiedTimestamp", "tense",
+                       "ingestInfo", "notes", "mooring", "mooring.location.location", "node", "node.location.location",
+                       "eventStartTime", "eventStopTime", "waterDepth", "location", "location.location", "deployedBy",
+                       "deployCruiseInfo", "recoveredBy", "recoverCruiseInfo", "sensor", "sensor.location.location",
                        "sensor.calibration"]
 
 ANNOTATION_FILE_FORMAT = '%s_annotations_%s.json'
@@ -81,7 +84,7 @@ def ntp_to_datetime(ntp_time):
     try:
         ntp_time = float(ntp_time)
         unix_time = ntplib.ntp_to_system_time(ntp_time)
-        dt = datetime.datetime.utcfromtimestamp(unix_time)
+        dt = datetime.utcfromtimestamp(unix_time)
         return dt
     except (ValueError, TypeError):
         return None
@@ -99,6 +102,44 @@ def ntp_to_short_iso_datestring(ntp_time):
     if dt is None:
         return str(ntp_time)
     return dt.strftime("%Y%m%dT%H%M%S")
+
+
+def formatted_timestamp_utc_time(timestamp_str, format_str):
+    """
+    Converts a formatted timestamp timestamp string to UTC time
+    NOTE: will not handle seconds >59 correctly due to limitation in
+    datetime module.
+    :param timestamp_str: a formatted timestamp string
+    :param format_str: format string used to decode the timestamp_str
+    :return: utc time value
+    """
+
+    dt = datetime.strptime(timestamp_str, format_str)
+
+    return calendar.timegm(dt.timetuple()) + (dt.microsecond / 1000000.0)
+
+
+def zulu_timestamp_to_utc_time(zulu_timestamp_str):
+    """
+    Converts a zulu formatted timestamp timestamp string to UTC time.
+    :param zulu_timestamp_str: a zulu formatted timestamp string
+    :return: UTC time in seconds and microseconds precision
+    """
+
+    return formatted_timestamp_utc_time(zulu_timestamp_str,
+                                        ZULU_TIMESTAMP_FORMAT)
+
+
+def zulu_timestamp_to_ntp_time(zulu_timestamp_str):
+    """
+    Converts a zulu formatted timestamp timestamp string to NTP time.
+    :param zulu_timestamp_str: a zulu formatted timestamp string
+    :return: NTP time in seconds and microseconds precision
+    """
+
+    utc_time = zulu_timestamp_to_utc_time(zulu_timestamp_str)
+
+    return float(ntplib.system_to_ntp_time(utc_time))
 
 
 class TimeRange(object):
@@ -145,8 +186,18 @@ class StreamKey(object):
         self.node = node
         self.sensor = sensor
         self.method = method
-        self.stream_name = stream
-        self.stream = Stream.query.filter(Stream.name == stream).first()
+        if isinstance(stream, str):
+            if stream.isdigit():  # the stream number
+                self.stream = Stream.query.get(int(stream))
+                self.stream_name = self.stream.name
+            else:  # stream name
+                self.stream_name = stream
+                self.stream = Stream.query.filter(Stream.name == stream).first()
+        elif stream.__tablename__ and stream.__tablename__ == "stream":  # Stream object
+            self.stream_name = stream.name
+            self.stream = stream
+        else:
+            raise MalformedRequestException("stream parameter is not and cannot be converted to a Stream object")
 
     def _check_node(self, prefixes):
         for prefix in prefixes:
@@ -414,7 +465,7 @@ def _sort_dicts_in_list(data_list, key_order, sorted_first, alphabetize, key_sta
     """
     Helper function for sorting dictionaries; takes a list and if it contains any dictionaries, sorts those according
     to the key_order passed in and returns the updated list.
-    
+
     :param data_list: the list potentially containing dictionaries to be sorted
     :param key_order: a list with dictionary keys, listed in desired order
     :param sorted_first: whether key-value pairs whose keys are not found in key_order should come before or after the
@@ -433,16 +484,16 @@ def _sort_dicts_in_list(data_list, key_order, sorted_first, alphabetize, key_sta
             # recursive call to keep looking for embedded dictionaries
             data_list[index] = _sort_dicts_in_list(item, key_order, sorted_first, alphabetize, key_stack)
     return data_list
-        
+
 
 def sort_dict(data_dict, key_order, sorted_first=False, alphabetize=True, key_stack=[]):
     """
     Create an OrderedDict from an unsorted dictionary using specified key ordering. The original dictionary is not
     changed. Note: key-value pairs whose keys are not specified in key_order will still appear, but will not be sorted.
     Nested dictionaries and nested lists containing dictionaries are handled.
-    
+
     :param data_dict: the dictionary to be sorted
-    :param key_order: a list with keys from the dictionary, listed in desired order. in the case of nested dictionaries,
+    :param key_order: a list with keys from the dictionary listed in desired order. in the case of nested dictionaries,
                       the parent key(s) should be included as a prefix followed by a period (e.g. 'key1.key2.key3' to
                       represent 'key3' in the dict {'key1': {'key2': {'key3' : 'foo'}}}). No prefix is added for a
                       dictionary in a list (e.g. 'key1.key2.key3' to represent 'key3' in
@@ -451,8 +502,8 @@ def sort_dict(data_dict, key_order, sorted_first=False, alphabetize=True, key_st
                          pairs that are represented - True indicates before (i.e. sorted pairs come before unsorted
                          ones)
     :param alphabetize: if True, key-value pairs without their keys in key_order will be sorted alphabetically
-    :param key_stack: a list acting as a stack to track what level of the dictionary is currently being sorted; used for
-                      recursive calls only - should be allowed to default to empty
+    :param key_stack: a list acting as a stack to track what level of the dictionary is currently being sorted;
+                      used for recursive calls only - should be allowed to default to empty
     :return: an OrderedDict representing the original dictionary after sorting
     """
     if alphabetize:
@@ -476,9 +527,9 @@ def sort_dict(data_dict, key_order, sorted_first=False, alphabetize=True, key_st
             key_stack.append(key)
             _sort_dicts_in_list(value, key_order, sorted_first, alphabetize, key_stack)
             key_stack.pop()
-    
+
     # sort current level
-    
+
     # get the keys relevant to this "level" of the dictionary by looking at their prefix - prefix will show parent keys
     # (i.e. parent objects in JSON)
     prefix = ".".join(key_stack) + "."
@@ -488,7 +539,7 @@ def sort_dict(data_dict, key_order, sorted_first=False, alphabetize=True, key_st
     else:
         new_order = [x.replace(prefix, "") for x in key_order if prefix in x]
     order_dict = {k: v for v, k in enumerate(new_order)}
-    
+
     # use the default in order_dict.get() to control whether unsorted key-value pairs come before or after the sorted
     # pairs
     default = len(order_dict) if sorted_first else None

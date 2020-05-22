@@ -6,7 +6,7 @@ import xarray as xr
 from multiprocessing.pool import ThreadPool
 
 from engine import app
-from util.cass import insert_dataset, fetch_bin
+from util.cass import insert_san_dataset, fetch_bin
 from util.common import StreamKey, log_timing
 from util.datamodel import to_xray_dataset, compile_datasets
 from util.metadata_service import SAN_LOCATION_NAME, get_location_metadata_by_store
@@ -35,7 +35,7 @@ def onload_netCDF(file_name):
             if stream_key is None:
                 return errors
             else:
-                result = insert_dataset(stream_key, dataset)
+                result = insert_san_dataset(stream_key, dataset)
                 return result
     except RuntimeError as e:
         log.warn(e)
