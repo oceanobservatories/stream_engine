@@ -7,6 +7,9 @@ Issue #14278 - Use netcdf_name attribute to rename parameters in output files
 Issue #13674 - Exclude coordinates attribute from timestamp parameters
 - Added *timestamp* variables to NETCDF_NONSCI_VARIABLES config list
 
+Issue #14540 - Provide avenue to correct stream key references in particle data
+- Script provided to manage obtaining current data and applying correct refdes values to it
+
 # Release 1.14.0 2020-04-07
 
 Issue #13402 - Handle alternative data dimensions
@@ -21,7 +24,7 @@ Issue #14535 - Parameter naming conflict prevents netcdf generation
 
 # Release 1.12.0 2020-02-04
 
-Issue #14573 - Don't interpolate raw data across deployments for the same instrument
+Issue #14573 - Do not interpolate raw data across deployments for the same instrument
 
 Issue #14387 - pCO2 sensors not returning recent data
 - Select extra data points for supporting streams immediately before and after the

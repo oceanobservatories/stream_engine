@@ -110,8 +110,23 @@ git push gerrit master --tags
 ```
 git fetch origin # assuming "origin" points to the source URL
 git rebase origin/master
-cd .. # to stream_engine root
+cd ..  # to stream_engine root
 git add preload_database
+git commit -m "Issue #nnnnn <message>
+git push origin HEAD:nnnnn
+```
+
+## Updating the ooi-metadata-service-api submodule
+
+1. Within the stream_engine root, change directory to util/metadata_service/metadata_service_api
+2. Ensure all changes you may have are cleared/saved off
+3. Run the following commands
+
+```
+git fetch origin # assuming "origin" points to the source URL
+git rebase origin/master
+cd ../../..  # to stream_engine root
+git add util/metadata_service/metadata_service_api
 git commit -m "Issue #nnnnn <message>
 git push origin HEAD:nnnnn
 ```
