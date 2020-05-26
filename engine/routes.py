@@ -269,6 +269,10 @@ def netcdf_save_to_filesystem():
     try:
         _, json_str = util.calc.get_netcdf(input_data, request.url, base_path)
     except Exception as e:
+        import traceback
+        trace = traceback.format_exc()
+        log.error(trace)
+
         json_efile = time_prefix_filename(input_data.get('start'), input_data.get('stop'), "failure.json")
         json_str = output_async_error(input_data, e, filename=json_efile)
 

@@ -28,8 +28,8 @@ class CalculatedProvenanceMetadataStore(object):
 
     def get_dict(self):
         """return dictionary representation"""
-        res = {'parameters': {parameter.name: v for parameter, v in self.params.iteritems()},
-               'calculations': self.calls, 'errors': self.errors}
+        res = {'parameters': {parameter.netcdf_name if parameter.netcdf_name else parameter.name: v for parameter, v
+               in self.params.iteritems()}, 'calculations': self.calls, 'errors': self.errors}
         return res
 
     def get_keys_for_calculated(self, parameter):

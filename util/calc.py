@@ -66,6 +66,7 @@ def execute_stream_request(request_parameters, needs_only=False, base_path=None)
                 stream_request[index].import_extra_externals()
             stream_request[index].execute_qc()
             stream_request[index].insert_provenance()
+            stream_request[index].rename_parameters()
         else:
             # If needs_only is true we only want to process the first stream, for now
             break

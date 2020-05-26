@@ -1,5 +1,6 @@
 import logging
 import math
+import numpy as np
 
 import util.annotation
 import util.metadata_service
@@ -9,7 +10,7 @@ from engine import app
 from ooi_data.postgres.model import Parameter, Stream, NominalDepth
 from util.asset_management import AssetManagement
 from util.cass import fetch_l0_provenance
-from util.common import log_timing, StreamEngineException, StreamKey, MissingDataException, read_size_config
+from util.common import log_timing, StreamEngineException, StreamKey, MissingDataException, read_size_config, find_depth_variable, isfillvalue
 from util.metadata_service import build_stream_dictionary, get_available_time_range
 from util.qc_executor import QcExecutor
 from util.stream_dataset import StreamDataset
@@ -30,6 +31,7 @@ SIZE_ESTIMATES = read_size_config(app.config.get('SIZE_CONFIG'))
 DEFAULT_PARTICLE_DENSITY = app.config.get('PARTICLE_DENSITY', 1000)  # default bytes/particle estimate
 SECONDS_PER_BYTE = app.config.get('SECONDS_PER_BYTE', 0.0000041)  # default bytes/sec estimate
 MINIMUM_REPORTED_TIME = app.config.get('MINIMUM_REPORTED_TIME')
+DEPTH_FILL = app.config['DEPTH_FILL']
 
 
 class StreamRequest(object):
@@ -256,23 +258,90 @@ class StreamRequest(object):
         pressure_params = [(sk, param) for sk in self.external_includes for param in self.external_includes[sk]
                            if param.data_product_identifier == PRESSURE_DPI]
 
-        if pressure_params:
-            # if there is a pressure parameter, integrate it into the stream
-            pressure_key, pressure_param = pressure_params.pop()
-            pressure_name = '-'.join((pressure_key.stream.name, pressure_param.name))
+        if not pressure_params:
+            return
 
-            if pressure_key in self.datasets:
-                self.datasets[self.stream_key].interpolate_into(pressure_key,
-                                                                self.datasets.get(pressure_key),
-                                                                pressure_param)
+        # integrate the pressure parameter into the stream
+        pressure_key, pressure_param = pressure_params.pop()
+        pressure_name = '-'.join((pressure_key.stream.name, pressure_param.name))
 
-                # Add the appropriate pressure_value to each deployment
-                for deployment in self.datasets[self.stream_key].datasets:
-                    if pressure_name in self.datasets[self.stream_key].datasets[deployment].data_vars:
-                        pressure_value = self.datasets[self.stream_key].datasets[deployment].data_vars[pressure_name]
-                        del self.datasets[self.stream_key].datasets[deployment][pressure_name]
-                        pressure_value.name = INT_PRESSURE_NAME
-                        self.datasets[self.stream_key].datasets[deployment][INT_PRESSURE_NAME] = pressure_value
+        if pressure_key not in self.datasets:
+            return
+
+        # interpolate CTD pressure in case we need it for any of the deployments
+        # it will be removed again where a preferred pressure parameter is available
+        self.datasets[self.stream_key].interpolate_into(pressure_key, self.datasets.get(pressure_key), pressure_param)
+
+        for deployment in self.datasets[self.stream_key].datasets:
+            ds = self.datasets[self.stream_key].datasets[deployment]
+
+            # Search for a valid (not fill values) pressure parameter other than CTD pressure
+            # If a preferred alternative pressure parameter is found, remove the CTD pressure from the dataset
+            # Whenever a candidate pressure parameter is found that is all fill values, remove it from the dataset
+            # Result dataset will contain either a preferred pressure parameter OR CTD pressure and no other pressure
+            candidate_vars = {var for var in ds.data_vars if var != pressure_name}
+            candidate_depth_var = find_depth_variable(candidate_vars)
+            while candidate_depth_var:
+                values = ds[candidate_depth_var].values
+                # sometimes, particularly for NUTNR and OPTAA, the 'pressure_depth' parameter is all fill values
+                # such data is useless and should be replaced by CTD pressure
+                is_all_fill = np.all(values == DEPTH_FILL) or np.all(isfillvalue(values))
+
+                if not is_all_fill:
+                    # we found a good pressure parameter - discard the CTD pressure
+                    if pressure_name in ds.data_vars:
+                        del ds[pressure_name]
+                    break
+                else:
+                    # continue checking for a good pressure parameter
+                    # remove the useless pressure parameter - we will keep CTD pressure if necessary 
+                    del ds[candidate_depth_var]
+                    candidate_vars.remove(candidate_depth_var)
+                    candidate_depth_var = find_depth_variable(candidate_vars)
+
+            # If we used the CTD pressure, then rename it to the configured final name (e.g. 'pressure')
+            # It is important this happens after the check for alternative pressure parameters to avoid mistaking CTD 
+            # pressure for another parameter
+            if pressure_name in ds.data_vars:
+                pressure_value = ds.data_vars[pressure_name]
+                del ds[pressure_name]
+                pressure_value.name = INT_PRESSURE_NAME
+                self.datasets[self.stream_key].datasets[deployment][INT_PRESSURE_NAME] = pressure_value
+
+    def rename_parameters(self):
+        """
+        Some internal parameters are not well suited for output data files (e.g. NetCDF). To get around this, the
+        Parameter class has a netcdf_name attribute for use in output files. This function performs the translations
+        from internal name (Parameter.name) to output name (Parameter.netcdf_name).
+        """
+        # build a mapping from original parameter name to netcdf_name
+        parameter_name_map = {x.name: x.netcdf_name for x in self.requested_parameters if x.netcdf_name}
+        for external_stream_key in self.external_includes:
+            for parameter in [x for x in self.external_includes[external_stream_key] if x.netcdf_name]:
+                long_parameter_name = external_stream_key.stream_name + "-" + parameter.name
+                parameter_name_map[long_parameter_name] = parameter.netcdf_name
+
+        # pass the parameter mapping to the annotation store for renaming there
+        if self.include_annotations:
+            self.annotation_store.rename_parameters(parameter_name_map)
+
+        # generate possible qc/qartod renamings too so they will be handled in the update loop below
+        # TODO tie this into existing constants rather than hardcoding here!
+        for suffix in ['_qc_executed', '_qc_results', '_qartod_executed', '_qartod_results']:
+            parameter_name_map.update({name + suffix: netcdf_name + suffix for name, netcdf_name in
+                                       parameter_name_map.iteritems()})
+
+        # update parameter names
+        for stream_key, stream_dataset in self.datasets.iteritems():
+            for deployment, ds in stream_dataset.datasets.iteritems():
+                for key in ds.data_vars:
+                    if key in parameter_name_map:
+                        value = ds.data_vars[key]
+                        del ds[key]
+                        value.name = parameter_name_map[key]
+                        self.datasets[self.stream_key].datasets[deployment][value.name] = value
+                        # add an attribute to help users associate the renamed variable with its original name
+                        self.datasets[self.stream_key].datasets[deployment][value.name].attrs['alternative_parameter_name'] = key
 
     def _add_location(self):
         log.debug('<%s> Inserting location data for all datasets', self.request_id)
@@ -561,7 +630,7 @@ class StreamRequest(object):
 
         if not method_category:
             log.warn("<%s> Unexpected method, %s, encountered during stream resolution."
-                     " Only resolving streams whose methods match exactly.", self.request_id, method)
+                     " Only resolving streams whose methods match exactly.", method)
             return method
 
         valid_methods = []

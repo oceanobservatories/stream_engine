@@ -101,6 +101,13 @@ class AnnotationStore(object):
     def get_annotations(self):
         return list(self._store)
 
+    def rename_parameters(self, name_mapping):
+        for anno in self._store:
+            for param in anno.parameters:
+                if param in name_mapping:
+                    anno.parameters.remove(param)
+                    anno.parameters.add(name_mapping[param])
+
     def as_dict_list(self):
         return [x.as_dict() for x in self._store]
     

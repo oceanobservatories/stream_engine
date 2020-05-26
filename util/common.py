@@ -8,7 +8,7 @@ from collections import OrderedDict
 from datetime import datetime
 
 import ntplib
-import numpy
+import numpy as np
 
 from engine import app
 from ooi_data.postgres.model import Stream
@@ -29,6 +29,7 @@ PROVENANCE_KEYORDER = ["eventId", "editPhase", "eventName", "eventType", "refere
                        "sensor.calibration"]
 
 ANNOTATION_FILE_FORMAT = '%s_annotations_%s.json'
+FILL_VALUES = app.config['FILL_VALUES']
 
 
 def isfillvalue(a):
@@ -37,16 +38,34 @@ def isfillvalue(a):
     :param a: array_like
     :return: ndarray
     """
-    a = numpy.asarray(a)
-    if a.dtype.kind == 'i':
-        mask = a == -999999999
-    elif a.dtype.kind == 'f':
-        mask = numpy.isnan(a)
-    elif a.dtype.kind == 'S':
+    a = np.asarray(a)
+
+    if a.dtype.kind in ('S', 'a', 'U'):
+        # dtype is string or unicode
         mask = a == ''
+    elif a.dtype.kind == 'f':
+        mask = np.isnan(a)
     else:
-        raise ValueError('Fill value not known for dtype %s' % a.dtype)
+        fill_value = FILL_VALUES.get(a.dtype.name)
+        if fill_value is None:
+            raise ValueError('Fill value not known for dtype %s' % a.dtype)
+        mask = a == fill_value
     return mask
+
+
+def find_depth_variable(variable_list):
+    """
+    Find the depth variable in the variable_list
+    :param variable_list: the list of variable names
+    :return: the depth variable, or None if the variable_list contains no known depth variable
+    """
+    depth_variable = None
+    # iterate through the config variables to ensure variables are found in order of preference
+    for variable in app.config.get('NETCDF_DEPTH_VARIABLES', []):
+        if variable in variable_list:
+            depth_variable = variable
+            break
+    return depth_variable
 
 
 def get_annotation_filename(stream_request):

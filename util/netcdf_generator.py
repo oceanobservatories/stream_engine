@@ -6,9 +6,8 @@ import tempfile
 import zipfile
 
 from engine import app
-from util.common import log_timing, get_annotation_filename, WriteErrorException
+from util.common import find_depth_variable, log_timing, get_annotation_filename, WriteErrorException
 from util.netcdf_utils import rename_glider_lat_lon, add_dynamic_attributes, replace_fixed_lat_lon, write_netcdf
-from util.datamodel import find_depth_variable
 
 # QC parameter identification patterns
 from util.qc_executor import QC_EXECUTED, QC_RESULTS
@@ -195,10 +194,11 @@ class NetcdfGenerator(object):
                         for k, need_list in requested_parameter.needs:
                             for need in need_list:
                                 if need.name in params_to_include:
+                                    netcdf_name = need.netcdf_name if need.netcdf_name else need.name
                                     if 'ancillary_variables' in ds[requested_parameter.name].attrs:
-                                        ds[requested_parameter.name].attrs['ancillary_variables'] += "," + need.name
+                                        ds[requested_parameter.name].attrs['ancillary_variables'] += "," + netcdf_name
                                     else:
-                                        ds[requested_parameter.name].attrs['ancillary_variables'] = need.name
+                                        ds[requested_parameter.name].attrs['ancillary_variables'] = netcdf_name
                                     break
 
                 # setup coordinate variables (10745)

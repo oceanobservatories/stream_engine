@@ -154,7 +154,6 @@ NETCDF_DEPTH_VARIABLES = [
     'seawater_pressure_mbar',
     'pressure_mbar',
     'm_depth',
-    'int_ctd_pressure'
 ]
 
 Z_AXIS_NAME = "depth"
@@ -289,4 +288,4 @@ GPS_LAT_PARAM_ID = 1335
 GPS_LON_PARAM_ID = 1336
 LAT_PARAM_ID = 1382
 LON_PARAM_ID = 1391
-INT_PRESSURE_NAME = 'int_ctd_pressure'
+INT_PRESSURE_NAME = 'pressure'
