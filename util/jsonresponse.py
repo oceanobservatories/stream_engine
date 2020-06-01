@@ -11,7 +11,7 @@ from engine import app
 from ooi_data.postgres.model import Parameter, Stream
 
 # QC parameter identification patterns
-from util.qc_executor import QC_EXECUTED, QC_RESULTS
+from util.common import QC_EXECUTED, QC_RESULTS, QARTOD_PRIMARY, QARTOD_SECONDARY
 
 __author__ = 'Stephen Zakrewsky'
 
@@ -153,7 +153,7 @@ class JsonResponse(object):
 
         # add any QC if it exists
         for param in params:
-            qc_postfixes = [QC_RESULTS, QC_EXECUTED]
+            qc_postfixes = [QC_RESULTS, QC_EXECUTED, QARTOD_PRIMARY, QARTOD_SECONDARY]
             for qc_postfix in qc_postfixes:
                 qc_key = '%s_%s' % (param, qc_postfix)
                 if qc_key in data:

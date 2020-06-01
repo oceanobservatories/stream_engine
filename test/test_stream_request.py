@@ -102,11 +102,11 @@ class StreamRequestTest(unittest.TestCase):
     def test_glider_include_preswat_gps(self):
         do_sk = StreamKey('CP05MOAS', 'GL388', '04-DOSTAM000', 'recovered_host', 'dosta_abcdjm_glider_recovered')
         ctd_sk = StreamKey('CP05MOAS', 'GL388', '03-CTDGVM000', 'recovered_host', 'ctdgv_m_glider_instrument_recovered')
-        gps_sk1 = StreamKey('CP05MOAS', 'GL388', '00-ENG000000', 'recovered_host', 'glider_gps_position')
+        gps_sk = StreamKey('CP05MOAS', 'GL388', '00-ENG000000', 'recovered_host', 'glider_gps_position')
         tr = TimeRange(3.622409e+09, 3.627058e+09)
         sr = StreamRequest(do_sk, [], {}, tr, {}, request_id='UNIT')
 
-        self.assertEqual(set(sr.stream_parameters), {do_sk, ctd_sk, gps_sk1})
+        self.assertEqual(set(sr.stream_parameters), {do_sk, ctd_sk, gps_sk})
 
     def test_wfp_include_preswat(self):
         par_sk = StreamKey('CP02PMUO', 'WFP01', '05-PARADK000', 'recovered_wfp',
@@ -166,7 +166,7 @@ class StreamRequestTest(unittest.TestCase):
     def test_virtual(self):
         sk1 = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_hourly')
         sk2 = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_a_dcl_instrument_recovered')
-        # this can be either velpt_ab_dcl_instrument_recovered or velpt_ab_dcl_diagnostics_recovered depending on
+        # either velpt_ab_dcl_instrument_recovered or velpt_ab_dcl_diagnostics_recovered depending on order in preload
         sk3 = StreamKey('GI01SUMO', 'RID16', '04-VELPTA000', 'recovered_host', 'velpt_ab_dcl_diagnostics_recovered')
         sk4 = StreamKey('GI01SUMO', 'RID16', '04-VELPTA000', 'recovered_host', 'velpt_ab_dcl_instrument_recovered')
         tr = TimeRange(3617736678.149051, 3661524609.0570827)
@@ -463,23 +463,24 @@ class StreamRequestTest(unittest.TestCase):
         with mock.patch('util.stream_request.StreamRequest.fetch_raw_data', new=mock_fetch_raw_data):
             with mock.patch('util.stream_request.StreamRequest._collapse_times'):
                 with mock.patch('util.stream_request.StreamRequest.insert_annotations'):
-                    sr = execute_stream_request(validate(input_data), True)
-                    self.assertEqual(len(sr.external_includes), 1)
+                    with mock.patch('util.stream_request.StreamRequest.execute_qartod_qc'):
+                        sr = execute_stream_request(validate(input_data), True)
+                        self.assertEqual(len(sr.external_includes), 1)
 
-                    sr = execute_stream_request(validate(input_data))
-                    # stream engine should only return requested parameters
-                    self.assertEqual(len(sr.external_includes), len(input_data['streams']))
-                    self.assertIn(self.echo_sk, sr.external_includes)
-                    expected = {Parameter.query.get(2575)}
-                    self.assertEqual(expected, sr.external_includes[self.echo_sk])
+                        sr = execute_stream_request(validate(input_data))
+                        # stream engine should only return requested parameters
+                        self.assertEqual(len(sr.external_includes), len(input_data['streams']))
+                        self.assertIn(self.echo_sk, sr.external_includes)
+                        expected = {Parameter.query.get(2575)}
+                        self.assertEqual(expected, sr.external_includes[self.echo_sk])
 
-                    self.assertIn(self.nut_sk, sr.external_includes)
-                    expected = Parameter.query.get(2327)
-                    self.assertIn(expected, sr.external_includes[self.nut_sk])
-                    expected = Parameter.query.get(2328)
-                    self.assertIn(expected, sr.external_includes[self.nut_sk])
-                    expected = Parameter.query.get(2329)
-                    self.assertIn(expected, sr.external_includes[self.nut_sk])
+                        self.assertIn(self.nut_sk, sr.external_includes)
+                        expected = Parameter.query.get(2327)
+                        self.assertIn(expected, sr.external_includes[self.nut_sk])
+                        expected = Parameter.query.get(2328)
+                        self.assertIn(expected, sr.external_includes[self.nut_sk])
+                        expected = Parameter.query.get(2329)
+                        self.assertIn(expected, sr.external_includes[self.nut_sk])
 
     def test_execute_stream_request_multiple_streams_invalid_input(self):
         input_data = json.load(open(os.path.join(DATA_DIR, 'multiple_stream_request_no_parameter.json')))
