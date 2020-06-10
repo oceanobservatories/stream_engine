@@ -24,6 +24,8 @@ GPS_LAT_PARAM_ID = app.config.get('GPS_LAT_PARAM_ID')
 GPS_LON_PARAM_ID = app.config.get('GPS_LON_PARAM_ID')
 LAT_PARAM_ID = app.config.get('LAT_PARAM_ID')
 LON_PARAM_ID = app.config.get('LON_PARAM_ID')
+INTERP_LAT_PARAM_ID = app.config.get('INTERP_LAT_PARAM_ID')
+INTERP_LON_PARAM_ID = app.config.get('INTERP_LON_PARAM_ID')
 INT_PRESSURE_NAME = app.config.get('INT_PRESSURE_NAME')
 MAX_DEPTH_VARIANCE = app.config.get('MAX_DEPTH_VARIANCE')
 MAX_DEPTH_VARIANCE_METBK = app.config.get('MAX_DEPTH_VARIANCE_METBK')
@@ -179,7 +181,7 @@ class StreamRequest(object):
                     if poss_source.stream in sk.stream.source_streams:
                         self.datasets[sk].calculate_virtual(self.datasets[poss_source])
                         break
-        
+ 
         # Allow each StreamDataset to interpolate any needed virtual parameters from the other datasets
         # Then calculate any data products which required virtual external input.
         for sk in self.datasets:
@@ -423,6 +425,8 @@ class StreamRequest(object):
             external_to_process.add((gps_stream, (Parameter.query.get(GPS_LON_PARAM_ID),)))
             external_to_process.add((gps_stream, (Parameter.query.get(LAT_PARAM_ID),)))
             external_to_process.add((gps_stream, (Parameter.query.get(LON_PARAM_ID),)))
+            external_to_process.add((gps_stream, (Parameter.query.get(INTERP_LAT_PARAM_ID),)))
+            external_to_process.add((gps_stream, (Parameter.query.get(INTERP_LON_PARAM_ID),)))
         return external_to_process
 
     @log_timing(log)

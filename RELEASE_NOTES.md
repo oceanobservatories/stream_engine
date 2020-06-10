@@ -1,5 +1,9 @@
 # Stream Engine
 
+# Release 1.16.0 2020-07-07
+
+Issue #14654 - Add processing of interp_lat,lon parameters
+
 # Release 1.15.1 2020-06-12
 
 Issue #14768 - pressure_depth has not changed: fixed renaming
