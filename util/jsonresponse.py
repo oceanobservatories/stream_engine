@@ -113,7 +113,7 @@ class JsonResponse(object):
             data[p] = ds[p].values
 
         # Extract the parameter names from the parameter objects
-        params = [p.name for p in parameters]
+        params = [p.netcdf_name for p in parameters]
 
         # check if we should include and have pressure data
         if stream_key.is_mobile:
@@ -144,7 +144,7 @@ class JsonResponse(object):
         # remaining externals
         for sk in external_includes:
             for param in external_includes[sk]:
-                name = '-'.join((sk.stream_name, param.name))
+                name = '-'.join((sk.stream_name, param.netcdf_name))
                 if name in data:
                     params.append(name)
 

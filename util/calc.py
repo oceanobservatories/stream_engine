@@ -67,7 +67,6 @@ def execute_stream_request(request_parameters, needs_only=False, base_path=None)
             stream_request[index].execute_qc()
             stream_request[index].execute_qartod_qc()
             stream_request[index].insert_provenance()
-            stream_request[index].rename_parameters()
         else:
             # If needs_only is true we only want to process the first stream, for now
             break
@@ -75,6 +74,7 @@ def execute_stream_request(request_parameters, needs_only=False, base_path=None)
         if index > 0:
             stream_request[0].interpolate_from_stream_request(stream_request[index])
 
+    stream_request[0].rename_parameters()
     return stream_request[0]
 
 

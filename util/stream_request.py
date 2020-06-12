@@ -324,9 +324,9 @@ class StreamRequest(object):
         from internal name (Parameter.name) to output name (Parameter.netcdf_name).
         """
         # build a mapping from original parameter name to netcdf_name
-        parameter_name_map = {x.name: x.netcdf_name for x in self.requested_parameters if x.netcdf_name}
+        parameter_name_map = {x.name: x.netcdf_name for x in self.requested_parameters if x.netcdf_name != x.name}
         for external_stream_key in self.external_includes:
-            for parameter in [x for x in self.external_includes[external_stream_key] if x.netcdf_name]:
+            for parameter in [x for x in self.external_includes[external_stream_key] if x.netcdf_name != x.name]:
                 long_parameter_name = external_stream_key.stream_name + "-" + parameter.name
                 parameter_name_map[long_parameter_name] = parameter.netcdf_name
 
@@ -335,22 +335,20 @@ class StreamRequest(object):
             self.annotation_store.rename_parameters(parameter_name_map)
 
         # generate possible qc/qartod renamings too so they will be handled in the update loop below
-        # TODO tie this into existing constants rather than hardcoding here!
+        qartod_name_map = {}
         for suffix in ['_qc_executed', '_qc_results', '_qartod_executed', '_qartod_results']:
-            parameter_name_map.update({name + suffix: netcdf_name + suffix for name, netcdf_name in
+            qartod_name_map.update({name + suffix: netcdf_name + suffix for name, netcdf_name in
                                        parameter_name_map.iteritems()})
+        parameter_name_map.update(qartod_name_map)
 
         # update parameter names
         for stream_key, stream_dataset in self.datasets.iteritems():
             for deployment, ds in stream_dataset.datasets.iteritems():
-                for key in ds.data_vars:
-                    if key in parameter_name_map:
-                        value = ds.data_vars[key]
-                        del ds[key]
-                        value.name = parameter_name_map[key]
-                        self.datasets[self.stream_key].datasets[deployment][value.name] = value
-                        # add an attribute to help users associate the renamed variable with its original name
-                        self.datasets[self.stream_key].datasets[deployment][value.name].attrs['alternative_parameter_name'] = key
+                for key in [x for x in parameter_name_map.keys() if x in ds]:
+                    # add an attribute to help users associate the renamed variable with its original name
+                    ds[key].attrs['alternate_parameter_name'] = key
+                    # rename
+                    ds.rename({key: parameter_name_map[key]}, inplace=True)
 
     def _add_location(self):
         log.debug('<%s> Inserting location data for all datasets', self.request_id)

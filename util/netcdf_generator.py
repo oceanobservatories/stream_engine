@@ -156,7 +156,7 @@ class NetcdfGenerator(object):
                 ds = rename_glider_lat_lon(stream_key, ds)
 
                 # include all directly requested_parameters
-                params_to_include = [p.name for p in self.stream_request.requested_parameters]
+                params_to_include = [p.netcdf_name for p in self.stream_request.requested_parameters]
 
                 # also include any indirectly derived pressure parameter (9328)
                 pressure_params = [(sk, param) for sk in self.stream_request.external_includes
@@ -171,14 +171,14 @@ class NetcdfGenerator(object):
                     for parameter in self.stream_request.external_includes[external_stream_key]:
                         # parameters interpolated from another stream have a name
                         # like "source_stream_name-parameter_name"
-                        long_parameter_name = external_stream_key.stream_name + "-" + parameter.name
+                        long_parameter_name = external_stream_key.stream_name + "-" + parameter.netcdf_name
                         if long_parameter_name in ds:
                             final_parameter_name = long_parameter_name
-                            # if parameter.name does not already exist in the dataset (14535) ...
-                            if parameter.name not in ds:
+                            # if parameter.netcdf_name does not already exist in the dataset (14535) ...
+                            if parameter.netcdf_name not in ds:
                                 # rename the parameter without the stream_name prefix (12544 AC1)
-                                ds = ds.rename({long_parameter_name: parameter.name})
-                                final_parameter_name = parameter.name
+                                ds = ds.rename({long_parameter_name: parameter.netcdf_name})
+                                final_parameter_name = parameter.netcdf_name
 
                             params_to_include.append(final_parameter_name)
                             # record the instrument and stream (12544 AC2)
@@ -187,15 +187,14 @@ class NetcdfGenerator(object):
 
                 # associated variables with their contributors (12544 AC3)
                 for requested_parameter in self.stream_request.requested_parameters:
-                    if requested_parameter.needs and requested_parameter.name in ds:
+                    if requested_parameter.needs and requested_parameter.netcdf_name in ds:
                         for k, need_list in requested_parameter.needs:
                             for need in need_list:
-                                if need.name in params_to_include:
-                                    netcdf_name = need.netcdf_name if need.netcdf_name else need.name
-                                    if 'ancillary_variables' in ds[requested_parameter.name].attrs:
-                                        ds[requested_parameter.name].attrs['ancillary_variables'] += " " + need.name
+                                if need.netcdf_name in params_to_include:
+                                    if 'ancillary_variables' in ds[requested_parameter.netcdf_name].attrs:
+                                        ds[requested_parameter.netcdf_name].attrs['ancillary_variables'] += " " + need.netcdf_name
                                     else:
-                                        ds[requested_parameter.name].attrs['ancillary_variables'] = netcdf_name
+                                        ds[requested_parameter.netcdf_name].attrs['ancillary_variables'] = need.netcdf_name
                                     break
 
                 # setup coordinate variables (10745)
