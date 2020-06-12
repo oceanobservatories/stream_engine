@@ -73,10 +73,10 @@ class CsvGenerator(object):
 
         # check for and remove any missing params from the requested list
         for param in self.stream_request.requested_parameters:
-            if param.name not in keys:
-                missing_params.append(param.name)
+            if param.netcdf_name not in keys:
+                missing_params.append(param.netcdf_name)
             else:
-                params_to_include.append(param.name)
+                params_to_include.append(param.netcdf_name)
         if missing_params:
             log.warning('one or more selected parameters (%s) not found in the dataset', missing_params)
 
@@ -90,7 +90,7 @@ class CsvGenerator(object):
         # include any externals
         for extern in self.stream_request.external_includes:
             for param in self.stream_request.external_includes[extern]:
-                name = '-'.join((extern.stream_name, param.name))
+                name = '-'.join((extern.stream_name, param.netcdf_name))
                 params_to_include.append(name)
 
         # create the list of fields to remove from the dataset
