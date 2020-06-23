@@ -1,5 +1,9 @@
 # Stream Engine
 
+# Release 1.15.1 2020-06-12
+
+Issue #14768 - pressure_depth has not changed: fixed renaming
+
 # Release 1.15.0 2020-06-09
 
 Issue #14398 - QARTOD proof of concept
