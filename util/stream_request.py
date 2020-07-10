@@ -25,6 +25,7 @@ GPS_LAT_PARAM_ID = app.config.get('GPS_LAT_PARAM_ID')
 GPS_LON_PARAM_ID = app.config.get('GPS_LON_PARAM_ID')
 LAT_PARAM_ID = app.config.get('LAT_PARAM_ID')
 LON_PARAM_ID = app.config.get('LON_PARAM_ID')
+PRESSURE_DEPTH_PARAM_ID = app.config.get('PRESSURE_DEPTH_PARAM_ID')
 INT_PRESSURE_NAME = app.config.get('INT_PRESSURE_NAME')
 MAX_DEPTH_VARIANCE = app.config.get('MAX_DEPTH_VARIANCE')
 MAX_DEPTH_VARIANCE_METBK = app.config.get('MAX_DEPTH_VARIANCE_METBK')
@@ -34,6 +35,7 @@ DEFAULT_PARTICLE_DENSITY = app.config.get('PARTICLE_DENSITY', 1000)  # default b
 SECONDS_PER_BYTE = app.config.get('SECONDS_PER_BYTE', 0.0000041)  # default bytes/sec estimate
 MINIMUM_REPORTED_TIME = app.config.get('MINIMUM_REPORTED_TIME')
 DEPTH_FILL = app.config['DEPTH_FILL']
+PRESSURE_DEPTH_APPLICABLE_STREAM_KEYS = app.config['PRESSURE_DEPTH_APPLICABLE_STREAM_KEYS']
 
 
 class StreamRequest(object):
@@ -256,6 +258,23 @@ class StreamRequest(object):
         for stream_key, stream_dataset in self.datasets.iteritems():
             stream_dataset.exclude_nondeployed_data(self.require_deployment)
 
+    def _is_pressure_depth_valid(self, stream_key):
+        """
+        Returns true if the stream key corresponds to an instrument which should use pressure_depth instead of
+        int_ctd_pressure. Many streams have a pressure_depth parameter which is filled with unusable data. This 
+        function handles determining when the pressure_depth parameter is usable based on a lookup.
+        """
+        stream_key = stream_key.as_dict()
+
+        for candidate_key in PRESSURE_DEPTH_APPLICABLE_STREAM_KEYS:
+            # ignore fields in candidate_key which are set to None as None means wildcard
+            fields_to_match = {k: candidate_key[k] for k in candidate_key if candidate_key[k] != None}
+            # compute the difference in the non-None fields
+            mismatch = {k: stream_key[k] for k in fields_to_match if stream_key[k] != candidate_key[k]}
+            if not mismatch:
+                return True
+        return False
+
     def import_extra_externals(self):
         # import any other required "externals" into all datasets
         for source_sk in self.external_includes:
@@ -263,6 +282,10 @@ class StreamRequest(object):
                 for param in self.external_includes[source_sk]:
                     for target_sk in self.datasets:
                         self.datasets[target_sk].interpolate_into(source_sk, self.datasets[source_sk], param)
+
+        # for instruments with usable pressure_depth, we do not add int_ctd_pressure
+        if self._is_pressure_depth_valid(self.stream_key):
+            return
 
         # determine if there is a pressure parameter available (9328)
         pressure_params = [(sk, param) for sk in self.external_includes for param in self.external_includes[sk]
@@ -278,40 +301,18 @@ class StreamRequest(object):
         if pressure_key not in self.datasets:
             return
 
-        # interpolate CTD pressure in case we need it for any of the deployments
-        # it will be removed again where a preferred pressure parameter is available
+        # interpolate CTD pressure
         self.datasets[self.stream_key].interpolate_into(pressure_key, self.datasets.get(pressure_key), pressure_param)
 
         for deployment in self.datasets[self.stream_key].datasets:
             ds = self.datasets[self.stream_key].datasets[deployment]
 
-            # Search for a valid (not fill values) pressure parameter other than CTD pressure
-            # If a preferred alternative pressure parameter is found, remove the CTD pressure from the dataset
-            # Whenever a candidate pressure parameter is found that is all fill values, remove it from the dataset
-            # Result dataset will contain either a preferred pressure parameter OR CTD pressure and no other pressure
-            candidate_vars = {var for var in ds.data_vars if var != pressure_name}
-            candidate_depth_var = find_depth_variable(candidate_vars)
-            while candidate_depth_var:
-                values = ds[candidate_depth_var].values
-                # sometimes, particularly for NUTNR and OPTAA, the 'pressure_depth' parameter is all fill values
-                # such data is useless and should be replaced by CTD pressure
-                is_all_fill = np.all(values == DEPTH_FILL) or np.all(isfillvalue(values))
+            # if we got to this point, we are not using pressure_depth
+            pressure_depth = Parameter.query.get(PRESSURE_DEPTH_PARAM_ID)
+            if pressure_depth.name in ds:
+                del ds[pressure_depth.name]
 
-                if not is_all_fill:
-                    # we found a good pressure parameter - discard the CTD pressure
-                    if pressure_name in ds.data_vars:
-                        del ds[pressure_name]
-                    break
-                else:
-                    # continue checking for a good pressure parameter
-                    # remove the useless pressure parameter - we will keep CTD pressure if necessary 
-                    del ds[candidate_depth_var]
-                    candidate_vars.remove(candidate_depth_var)
-                    candidate_depth_var = find_depth_variable(candidate_vars)
-
-            # If we used the CTD pressure, then rename it to the configured final name (e.g. 'pressure')
-            # It is important this happens after the check for alternative pressure parameters to avoid mistaking CTD 
-            # pressure for another parameter
+            # If we used the CTD pressure, then rename it to the configured final name (e.g. 'int_ctd_pressure')
             if pressure_name in ds.data_vars:
                 pressure_value = ds.data_vars[pressure_name]
                 del ds[pressure_name]
@@ -329,7 +330,8 @@ class StreamRequest(object):
         for external_stream_key in self.external_includes:
             for parameter in [x for x in self.external_includes[external_stream_key] if x.netcdf_name != x.name]:
                 long_parameter_name = external_stream_key.stream_name + "-" + parameter.name
-                parameter_name_map[long_parameter_name] = parameter.netcdf_name
+                # netcdf_generator.py is expecting the long naming scheme
+                parameter_name_map[long_parameter_name] = external_stream_key.stream_name + "-" + parameter.netcdf_name
 
         # pass the parameter mapping to the annotation store for renaming there
         if self.include_annotations:
@@ -413,7 +415,7 @@ class StreamRequest(object):
         :return: set((Stream, (Parameter,)))
         """
         external_to_process = set()
-        if self.stream_key.is_mobile:
+        if self.stream_key.is_mobile and not self._is_pressure_depth_valid(self.stream_key):
             dpi = PRESSURE_DPI
             external_to_process.add((None, tuple(Parameter.query.filter(
                 Parameter.data_product_identifier == dpi).all())))

@@ -28,7 +28,7 @@ NUTNR_QARTOD_RECORD_1 = QartodTestRecord(id=1,
                                          refDes={"subsite": "CE04OSPS", "node": "SF01B", "sensor": "4A-NUTNRA102",
                                                  "full": True},
                                          stream='nutnr_a_sample',
-                                         parameters='{"inp": "pressure"}',
+                                         parameters='{"inp": "int_ctd_pressure"}',
                                          qcConfig='{"qartod": {"gross_range_test": {"suspect_span": [28.0, 33.8], '
                                                 '"fail_span": [0.0, 42.0]}}}')
 
@@ -231,14 +231,14 @@ class QartodTest(unittest.TestCase):
     def test_primary_qartod_flags_in_dataset(self):
         sr = self.calculate_nut_sr()
         self.assertIn('salinity_corrected_nitrate' + QARTOD_PRIMARY, sr.datasets[self.nut_sk].datasets[2])
-        self.assertIn('pressure' + QARTOD_PRIMARY, sr.datasets[self.nut_sk].datasets[2])
+        self.assertIn('int_ctd_pressure' + QARTOD_PRIMARY, sr.datasets[self.nut_sk].datasets[2])
         self.assertIn('pressure' + QARTOD_PRIMARY, sr.datasets[self.ctd_sk].datasets[2])
         self.assertIn('temperature' + QARTOD_PRIMARY, sr.datasets[self.ctd_sk].datasets[2])
 
     def test_secondary_qartod_flags_in_dataset(self):
         sr = self.calculate_nut_sr()
         self.assertIn('salinity_corrected_nitrate' + QARTOD_SECONDARY, sr.datasets[self.nut_sk].datasets[2])
-        self.assertIn('pressure' + QARTOD_SECONDARY, sr.datasets[self.nut_sk].datasets[2])
+        self.assertIn('int_ctd_pressure' + QARTOD_SECONDARY, sr.datasets[self.nut_sk].datasets[2])
         self.assertIn('pressure' + QARTOD_SECONDARY, sr.datasets[self.ctd_sk].datasets[2])
         self.assertIn('temperature' + QARTOD_SECONDARY, sr.datasets[self.ctd_sk].datasets[2])
 

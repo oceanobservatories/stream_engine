@@ -156,6 +156,34 @@ NETCDF_DEPTH_VARIABLES = [
     'seawater_pressure_mbar',
     'pressure_mbar',
     'm_depth',
+    'int_ctd_pressure'
+]
+
+PRESSURE_DEPTH_APPLICABLE_STREAM_KEYS = [
+    # StreamKeys for which pressure_depth contains usable data - Nones act as wildcards in this instance
+    {'subsite': None, 'node': None, 'sensor': None, 'method': None, 'stream': 'dosta_abcdjm_cspp_instrument'},
+    {'subsite': None, 'node': None, 'sensor': None, 'method': None, 'stream': 'dosta_abcdjm_cspp_instrument_recovered'},
+    {'subsite': None, 'node': None, 'sensor': None, 'method': None, 'stream': 'cspp_eng_cspp_wc_hmr_eng'},
+    {'subsite': None, 'node': None, 'sensor': None, 'method': None, 'stream': 'cspp_eng_cspp_wc_hmr_eng_recovered'},
+    {'subsite': None, 'node': None, 'sensor': None, 'method': None, 'stream': 'cspp_eng_cspp_wc_sbe_eng'},
+    {'subsite': None, 'node': None, 'sensor': None, 'method': None, 'stream': 'cspp_eng_cspp_wc_sbe_eng_recovered'},
+    {'subsite': None, 'node': None, 'sensor': None, 'method': None, 'stream': 'cspp_eng_cspp_wc_wm_eng'},
+    {'subsite': None, 'node': None, 'sensor': None, 'method': None, 'stream': 'cspp_eng_cspp_wc_wm_eng_recovered'},
+    {'subsite': None, 'node': None, 'sensor': None, 'method': None, 'stream': 'parad_j_cspp_instrument'},
+    {'subsite': None, 'node': None, 'sensor': None, 'method': None, 'stream': 'parad_j_cspp_instrument_recovered'},
+    {'subsite': None, 'node': None, 'sensor': None, 'method': None, 'stream': 'spkir_abj_cspp_instrument'},
+    {'subsite': None, 'node': None, 'sensor': None, 'method': None, 'stream': 'spkir_abj_cspp_instrument_recovered'},
+    {'subsite': None, 'node': None, 'sensor': None, 'method': None, 'stream': 'velpt_j_cspp_instrument'},
+    {'subsite': None, 'node': None, 'sensor': None, 'method': None, 'stream': 'velpt_j_cspp_instrument_recovered'},
+    {'subsite': None, 'node': None, 'sensor': None, 'method': None, 'stream': 'flort_dj_cspp_instrument'},
+    {'subsite': None, 'node': None, 'sensor': None, 'method': None, 'stream': 'flort_dj_cspp_instrument_recovered'},
+    {'subsite': 'CE01ISSP', 'node': 'SP001', 'sensor': '08-FLORTJ000', 'method': None, 'stream': 'flort_sample'},
+    {'subsite': 'CE02SHSP', 'node': 'SP001', 'sensor': '07-FLORTJ000', 'method': None, 'stream': 'flort_sample'},
+    {'subsite': 'CE02SHSP', 'node': 'SP002', 'sensor': '07-FLORTJ000', 'method': None, 'stream': 'flort_sample'},
+    {'subsite': 'CE06ISSP', 'node': 'SP001', 'sensor': '08-FLORTJ000', 'method': None, 'stream': 'flort_sample'},
+    {'subsite': 'CE07SHSP', 'node': 'SP001', 'sensor': '07-FLORTJ000', 'method': None, 'stream': 'flort_sample'},
+    {'subsite': 'CP01CNSP', 'node': 'SP001', 'sensor': '09-FLORTJ000', 'method': None, 'stream': 'flort_sample'},
+    {'subsite': 'CP03ISSP', 'node': 'SP001', 'sensor': '09-FLORTJ000', 'method': None, 'stream': 'flort_sample'}
 ]
 
 Z_AXIS_NAME = "depth"
@@ -290,4 +318,5 @@ GPS_LAT_PARAM_ID = 1335
 GPS_LON_PARAM_ID = 1336
 LAT_PARAM_ID = 1382
 LON_PARAM_ID = 1391
-INT_PRESSURE_NAME = 'pressure'
+PRESSURE_DEPTH_PARAM_ID = 2606
+INT_PRESSURE_NAME = 'int_ctd_pressure'

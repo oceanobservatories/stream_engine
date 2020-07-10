@@ -2,6 +2,8 @@
 
 # Release 1.16.0 2020-08-11
 
+Issue #14791 - Correct pressure_depth/int_ctd_pressure handling
+
 Issue #14790 - Add support for QARTOD climatology tests
 
 # Release 1.15.1 2020-06-12
