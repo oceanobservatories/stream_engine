@@ -10,7 +10,8 @@ from engine import app
 from ooi_data.postgres.model import Parameter, Stream, NominalDepth
 from util.asset_management import AssetManagement
 from util.cass import fetch_l0_provenance
-from util.common import log_timing, StreamEngineException, StreamKey, MissingDataException, read_size_config, find_depth_variable, isfillvalue
+from util.common import log_timing, StreamEngineException, StreamKey, MissingDataException, read_size_config, \
+    find_depth_variable, isfillvalue, QC_SUFFIXES
 from util.metadata_service import build_stream_dictionary, get_available_time_range
 from util.qc_executor import QcExecutor
 from util.qartod_qc_executor import QartodQcExecutor

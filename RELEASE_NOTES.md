@@ -1,5 +1,9 @@
 # Stream Engine
 
+# Release 1.16.0 2020-08-11
+
+Issue #14790 - Add support for QARTOD climatology tests
+
 # Release 1.15.1 2020-06-12
 
 Issue #14768 - pressure_depth has not changed: fixed renaming

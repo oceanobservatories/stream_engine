@@ -357,7 +357,7 @@ class StreamRequestTest(unittest.TestCase):
         sr.calculate_derived_products()
         sr.import_extra_externals()
 
-        # Ticket 9328: int_ctd_pressure (renamed 'pressure') is now set in stream_request.import_extra_externals()
+        # Ticket 9328: int_ctd_pressure is now set in stream_request.import_extra_externals()
         self.assertNotIn('ctdpf_sbe43_sample-seawater_pressure', sr.datasets[nutnr_sk].datasets[2])
         self.assertIn('pressure', sr.datasets[nutnr_sk].datasets[2])
         self.assertNotIn('ctdpf_sbe43_sample-seawater_pressure', sr.datasets[ctdpf_sk].datasets[2])
@@ -409,7 +409,7 @@ class StreamRequestTest(unittest.TestCase):
         sr.calculate_derived_products()
         sr.import_extra_externals()
 
-        # Ticket 9328: int_ctd_pressure (renamed 'pressure') is now set in stream_request.import_extra_externals()
+        # Ticket 9328: int_ctd_pressure is now set in stream_request.import_extra_externals()
         self.assertNotIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[par_sk].datasets[6])
         self.assertIn('pressure', sr.datasets[par_sk].datasets[6])
         self.assertNotIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[ctd_sk].datasets[6])
@@ -598,8 +598,6 @@ class StreamRequestTest(unittest.TestCase):
         sr.rename_parameters()
 
         self.assertIn('pressure', sr.datasets[self.nut_sk2].datasets[1])
-        # NUTNR has all 0 data for pressure_depth, but CTD pressure should have non-zero values
-        self.assertTrue(sr.datasets[self.nut_sk2].datasets[1]['pressure'].any())
 
         data = json.loads(JsonResponse(sr).json())
         for each in data:

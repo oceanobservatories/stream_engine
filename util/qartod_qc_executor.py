@@ -40,11 +40,23 @@ class QartodQcExecutor(object):
         :param dataset: xarray.Dataset holding the science data the QARTOD test evaluates
         :return:
         """
-        parameter = qartod_test_record.parameter
-
-        if parameter not in dataset:
+        # Extract configuration details for test inputs referring to dataset variables
+        params = qartod_test_record.parameters
+        # single quoted strings in parameters (i.e. from the database field) will mess up the json.loads call
+        params = params.replace("'", "\"")
+        try:
+            param_dict = json.loads(params)
+        except ValueError:
+            log.error('<%s> Failure deserializing QC parameter configuration %r', self.request_id, params)
             return
 
+        parameter_under_test = param_dict['inp']
+
+        # can't run test on data that's not there
+        if parameter_under_test not in dataset:
+            return
+
+        # Extract configuration details for remaining test inputs
         config = qartod_test_record.qcConfig
         # single quoted strings in qcConfig (i.e. from the database field) will mess up the json.loads call
         config = config.replace("'", "\"")
@@ -52,10 +64,13 @@ class QartodQcExecutor(object):
             qc_config = QcConfig(json.loads(config))
         except ValueError:
             log.error('<%s> Failure deserializing QC test configuration %r for parameter %r', self.request_id,
-                      config, parameter)
+                      config, parameter_under_test)
             return
 
-        array_under_test = dataset[parameter].values
+        # replace parameter names with the actual numpy arrays from the dataset for each entry in param_dict
+        for input_name in param_dict:
+            param_name = param_dict[input_name]
+            param_dict[input_name] = dataset[param_name].values
 
         # call QARTOD test in a separate process to deal with crashes, e.g. segfaults
         read_fd, write_fd = os.pipe()
@@ -68,7 +83,7 @@ class QartodQcExecutor(object):
                 try:
                     # all arguments except the data under test come from the configuration object
                     # results is a nested dictionary
-                    results = qc_config.run(inp=array_under_test)
+                    results = qc_config.run(**param_dict)
                     # convert results into a string for sending over pipe
                     # NOTE: this converts numpy arrays to lists! Use np.asarray() to restore them.
                     results_string = json.dumps(results, cls=NumpyEncoder)
@@ -117,7 +132,7 @@ class QartodQcExecutor(object):
                     test_results[mask] = QartodFlags.SUSPECT
 
                 # add results to dataset
-                QartodQcExecutor.insert_qc_results(parameter, test, test_results, dataset)
+                QartodQcExecutor.insert_qc_results(parameter_under_test, test, test_results, dataset)
 
     @staticmethod
     def insert_qc_results(parameter, test, results, dataset):
@@ -135,13 +150,12 @@ class QartodQcExecutor(object):
         # specifically, without this the type is assumed int64 and recasting in netcdf_utils clears the attrs
         results = results.astype(np.uint8)
 
-        qartod_primary_flag_name = '_'.join([parameter, QARTOD_PRIMARY])
-        qartod_secondary_flag_name = '_'.join([parameter, QARTOD_SECONDARY])
+        qartod_primary_flag_name = parameter + QARTOD_PRIMARY
+        qartod_secondary_flag_name = parameter + QARTOD_SECONDARY
         # In rare cases, a parameter may have a dimension other than 'obs'. Normally, dataset[parameter].dims would be
         # a tuple potentially containing multiple dimensions, but we previously checked the data is 1-dimensional,
         # so the tuple must contain only 1 dimension
         qc_obs_dimension = dataset[parameter].dims[0]
-
 
         # try to get the standard_name if its set, but default to the parameter name otherwise
         parameter_standard_name = dataset[parameter].attrs.get('standard_name', parameter)
