@@ -61,7 +61,7 @@ class NetcdfGenerator(object):
         params_to_filter = []
         # aggregation logic assumes the presence of a 'time' parameter, so do not allow it to get removed
         default_params = ['time', 'deployment', 'id', 'm_lat', 'm_lon', 'm_gps_lat', 'm_gps_lon',
-                          'interp_lat', 'interp_lon', 'quality_flag']
+                          'lat', 'lon', 'quality_flag']
 
         for param in params:
             # look for param in both data_vars and coords (13025 AC2)

@@ -15,7 +15,7 @@ PRESSURE_DPI = app.config.get('PRESSURE_DPI')
 INT_PRESSURE_NAME = app.config.get('INT_PRESSURE_NAME')
 
 # default parameters to request
-DEFAULT_PARAMETERS = ['time', 'deployment', 'm_lat', 'm_lon', 'm_gps_lat', 'm_gps_lon', 'interp_lat', 'interp_lon']
+DEFAULT_PARAMETERS = ['time', 'deployment', 'm_lat', 'm_lon', 'm_gps_lat', 'm_gps_lon', 'lat', 'lon']
 
 # Glider GPS based lat/lon strings - for filtering
 GLIDER_GPS_BASED_LAT = 'glider_gps_position-m_gps_lat'
@@ -136,10 +136,10 @@ class CsvGenerator(object):
             if GLIDER_INTERP_LAT in dataset.data_vars.keys() and GLIDER_INTERP_LON in dataset.data_vars.keys():
                 lat_data = dataset.data_vars[GLIDER_INTERP_LAT]
                 dataset = dataset.drop(GLIDER_INTERP_LAT)
-                dataset['interp_lat'] = lat_data
+                dataset['lat'] = lat_data
                 lon_data = dataset.data_vars[GLIDER_INTERP_LON]
                 dataset = dataset.drop(GLIDER_INTERP_LON)
-                dataset['interp_lon'] = lon_data
+                dataset['lon'] = lon_data
 
         # generate the filtering list
         drop = self._create_filter_list(dataset.data_vars.keys())

@@ -70,13 +70,13 @@ def add_dynamic_attributes(ds):
         ds.attrs['time_coverage_resolution'] = 'P0S'
 
     if 'lat' in ds:
-        ds.attrs['geospatial_lat_min'] = min(ds.variables['lat'].values)
-        ds.attrs['geospatial_lat_max'] = max(ds.variables['lat'].values)
+        ds.attrs['geospatial_lat_min'] = np.nanmin(ds.variables['lat'].values)
+        ds.attrs['geospatial_lat_max'] = np.nanmax(ds.variables['lat'].values)
         ds.attrs['geospatial_lat_units'] = 'degrees_north'
         ds.attrs['geospatial_lat_resolution'] = app.config["GEOSPATIAL_LAT_LON_RES"]
     if 'lon' in ds:
-        ds.attrs['geospatial_lon_min'] = min(ds.variables['lon'].values)
-        ds.attrs['geospatial_lon_max'] = max(ds.variables['lon'].values)
+        ds.attrs['geospatial_lon_min'] = np.nanmin(ds.variables['lon'].values)
+        ds.attrs['geospatial_lon_max'] = np.nanmax(ds.variables['lon'].values)
         ds.attrs['geospatial_lon_units'] = 'degrees_east'
         ds.attrs['geospatial_lon_resolution'] = app.config["GEOSPATIAL_LAT_LON_RES"]
 
@@ -135,7 +135,7 @@ def rename_glider_lat_lon(stream_key, dataset):
         if gps_lat_name in dataset and gps_lon_name in dataset:
             dataset = dataset.rename({gps_lat_name: 'm_gps_lat', gps_lon_name: 'm_gps_lon'})
         if interp_lat_name in dataset and interp_lon_name in dataset:
-            dataset = dataset.rename({interp_lat_name: 'interp_lat', interp_lon_name: 'interp_lon'})
+            dataset = dataset.rename({interp_lat_name: 'lat', interp_lon_name: 'lon'})
 
     return dataset
 

@@ -1,8 +1,10 @@
 # Stream Engine
 
-# Release 1.16.0 2020-07-07
+# Release 1.16.0 2020-09-10
 
 Issue #14654 - Add processing of interp_lat,lon parameters
+
+Issue #14790 - Add support for QARTOD climatology tests
 
 # Release 1.15.1 2020-06-12
 

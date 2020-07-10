@@ -142,8 +142,8 @@ class QcExecutor(object):
                           function_name, np.unique(results[mask]))
                 results[mask] = 0
 
-            qc_count_name = '_'.join([parameter.name, QC_EXECUTED])
-            qc_results_name = '_'.join([parameter.name, QC_RESULTS])
+            qc_count_name = parameter.name + QC_EXECUTED
+            qc_results_name = parameter.name + QC_RESULTS
 
             if qc_count_name not in dataset:
                 dataset[qc_count_name] = (dataset[parameter.name].dims, np.zeros_like(dataset[parameter.name].values, dtype=np.uint8), {})

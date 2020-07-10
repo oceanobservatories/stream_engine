@@ -49,7 +49,7 @@ class AnnotationServiceInterface(object):
 
 class AnnotationRecord(object):
     def __init__(self, id=None, subsite=None, node=None, sensor=None, method=None, stream=None, annotation=None,
-                 exclusionFlag=None, beginDT=None, endDT=None, source=None, qcFlag=None, parameters=None, **kwargs):
+                 exclusionFlag=None, beginDT=None, endDT=None, source=None, qcFlag=None, parameters=None):
         self.id = id
         self.subsite = subsite
         self.node = node
@@ -130,7 +130,7 @@ class AnnotationStore(object):
     def _update_mask(times, mask, anno):
         if anno._stop_ntp is None:
             return mask & (times < anno._start_ntp)
-        return mask & ((times < anno._start_ntp) | (times > anno._stop_ntp ))
+        return mask & ((times < anno._start_ntp) | (times > anno._stop_ntp))
 
     def get_exclusion_mask(self, stream_key, times):
         key = stream_key.as_dict()

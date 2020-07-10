@@ -11,7 +11,7 @@ from engine import app
 from ooi_data.postgres.model import Parameter, Stream
 
 # QC parameter identification patterns
-from util.common import QC_EXECUTED, QC_RESULTS, QARTOD_PRIMARY, QARTOD_SECONDARY
+from util.common import QC_SUFFIXES
 
 __author__ = 'Stephen Zakrewsky'
 
@@ -133,7 +133,8 @@ class JsonResponse(object):
             interp_lat_data = data.pop('glider_gps_position-interp_lat', None)
             interp_lon_data = data.pop('glider_gps_position-interp_lon', None)
 
-            if gps_lat_data is not None and gps_lat_data.ndim > 0 and gps_lon_data is not None and gps_lon_data.ndim > 0:
+            if gps_lat_data is not None and gps_lat_data.ndim > 0 and gps_lon_data is not None and \
+                    gps_lon_data.ndim > 0:
                 data['m_gps_lat'] = gps_lat_data
                 data['m_gps_lon'] = gps_lon_data
                 params.extend(('m_gps_lat', 'm_gps_lon'))
@@ -144,9 +145,9 @@ class JsonResponse(object):
                 params.extend(('m_lat', 'm_lon'))
 
             if interp_lat_data is not None and interp_lat_data.ndim > 0 and interp_lon_data is not None and interp_lon_data.ndim > 0:
-                data['interp_lat'] = interp_lat_data
-                data['interp_lon'] = interp_lon_data
-                params.extend(('interp_lat', 'interp_lon'))
+                data['lat'] = interp_lat_data
+                data['lon'] = interp_lon_data
+                params.extend(('lat', 'lon'))
 
         # remaining externals
         for sk in external_includes:
@@ -160,9 +161,8 @@ class JsonResponse(object):
 
         # add any QC if it exists
         for param in params:
-            qc_postfixes = [QC_RESULTS, QC_EXECUTED, QARTOD_PRIMARY, QARTOD_SECONDARY]
-            for qc_postfix in qc_postfixes:
-                qc_key = '%s_%s' % (param, qc_postfix)
+            for qc_suffix in QC_SUFFIXES:
+                qc_key = '%s%s' % (param, qc_suffix)
                 if qc_key in data:
                     params.append(qc_key)
 

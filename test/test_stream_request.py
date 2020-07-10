@@ -365,7 +365,7 @@ class StreamRequestTest(unittest.TestCase):
         sr.calculate_derived_products()
         sr.import_extra_externals()
 
-        # Ticket 9328: int_ctd_pressure (renamed 'pressure') is now set in stream_request.import_extra_externals()
+        # Ticket 9328: int_ctd_pressure is now set in stream_request.import_extra_externals()
         self.assertNotIn('ctdpf_sbe43_sample-seawater_pressure', sr.datasets[nutnr_sk].datasets[2])
         self.assertIn('pressure', sr.datasets[nutnr_sk].datasets[2])
         self.assertNotIn('ctdpf_sbe43_sample-seawater_pressure', sr.datasets[ctdpf_sk].datasets[2])
@@ -427,8 +427,8 @@ class StreamRequestTest(unittest.TestCase):
             self.assertIn('pressure', each)
             self.assertIn('m_lat', each)
             self.assertIn('m_lon', each)
-            self.assertIn('interp_lat', each)
-            self.assertIn('interp_lon', each)
+            self.assertIn('lat', each)
+            self.assertIn('lon', each)
             self.assertIn('m_gps_lat', each)
             self.assertIn('m_gps_lon', each)
 
@@ -447,8 +447,8 @@ class StreamRequestTest(unittest.TestCase):
         self.assertNotIn('m_gps_lon', ctd_ds)
         self.assertNotIn('m_lat', ctd_ds)
         self.assertNotIn('m_lon', ctd_ds)
-        self.assertNotIn('interp_lat', ctd_ds)
-        self.assertNotIn('interp_lon', ctd_ds)
+        self.assertNotIn('lat', ctd_ds)
+        self.assertNotIn('lon', ctd_ds)
 
         modified = rename_glider_lat_lon(ctd_sk, ctd_ds)
 
@@ -462,8 +462,8 @@ class StreamRequestTest(unittest.TestCase):
         self.assertIn('m_gps_lon', modified)
         self.assertIn('m_lat', modified)
         self.assertIn('m_lon', modified)
-        self.assertIn('interp_lat', modified)
-        self.assertIn('interp_lon', modified)
+        self.assertIn('lat', modified)
+        self.assertIn('lon', modified)
 
     def test_execute_stream_request_multiple_streams(self):
         input_data = json.load(open(os.path.join(DATA_DIR, 'multiple_stream_request.json')))
@@ -627,8 +627,6 @@ class StreamRequestTest(unittest.TestCase):
         sr.rename_parameters()
 
         self.assertIn('pressure', sr.datasets[self.nut_sk2].datasets[1])
-        # NUTNR has all 0 data for pressure_depth, but CTD pressure should have non-zero values
-        self.assertTrue(sr.datasets[self.nut_sk2].datasets[1]['pressure'].any())
 
         data = json.loads(JsonResponse(sr).json())
         for each in data:
