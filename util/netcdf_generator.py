@@ -173,7 +173,7 @@ class NetcdfGenerator(object):
                         # parameters interpolated from another stream have a name
                         # like "source_stream_name-parameter_name"
                         long_parameter_name = external_stream_key.stream_name + "-" + parameter.netcdf_name
-                        if long_parameter_name in ds:
+                        if stream_key == self.stream_request.stream_key and long_parameter_name in ds:
                             final_parameter_name = long_parameter_name
                             # if parameter.netcdf_name does not already exist in the dataset (14535) ...
                             if parameter.netcdf_name not in ds:
@@ -185,6 +185,9 @@ class NetcdfGenerator(object):
                             # record the instrument and stream (12544 AC2)
                             ds[final_parameter_name].attrs['instrument'] = external_stream_key.as_three_part_refdes()
                             ds[final_parameter_name].attrs['stream'] = external_stream_key.stream_name
+                        # auxilliary streams (e.g. CTD) will not use the long naming scheme
+                        elif stream_key != self.stream_request.stream_key and parameter.netcdf_name in ds:
+                            params_to_include.append(parameter.netcdf_name)
 
                 # associated variables with their contributors (12544 AC3)
                 for requested_parameter in self.stream_request.requested_parameters:

@@ -367,12 +367,12 @@ class StreamRequestTest(unittest.TestCase):
 
         # Ticket 9328: int_ctd_pressure is now set in stream_request.import_extra_externals()
         self.assertNotIn('ctdpf_sbe43_sample-seawater_pressure', sr.datasets[nutnr_sk].datasets[2])
-        self.assertIn('pressure', sr.datasets[nutnr_sk].datasets[2])
+        self.assertIn('int_ctd_pressure', sr.datasets[nutnr_sk].datasets[2])
         self.assertNotIn('ctdpf_sbe43_sample-seawater_pressure', sr.datasets[ctdpf_sk].datasets[2])
 
         data = json.loads(JsonResponse(sr).json())
         for each in data:
-            self.assertIn('pressure', each)
+            self.assertIn('int_ctd_pressure', each)
 
     def get_events(self, stream_key):
         return AssetEvents(stream_key.as_three_part_refdes(), {})
@@ -419,12 +419,12 @@ class StreamRequestTest(unittest.TestCase):
 
         # Ticket 9328: int_ctd_pressure (renamed 'pressure') is now set in stream_request.import_extra_externals()
         self.assertNotIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[par_sk].datasets[8])
-        self.assertIn('pressure', sr.datasets[par_sk].datasets[8])
+        self.assertIn('int_ctd_pressure', sr.datasets[par_sk].datasets[8])
         self.assertNotIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[ctd_sk].datasets[8])
 
         data = json.loads(JsonResponse(sr).json())
         for each in data:
-            self.assertIn('pressure', each)
+            self.assertIn('int_ctd_pressure', each)
             self.assertIn('m_lat', each)
             self.assertIn('m_lon', each)
             self.assertIn('lat', each)
@@ -626,8 +626,8 @@ class StreamRequestTest(unittest.TestCase):
         sr.import_extra_externals()
         sr.rename_parameters()
 
-        self.assertIn('pressure', sr.datasets[self.nut_sk2].datasets[1])
+        self.assertIn('int_ctd_pressure', sr.datasets[self.nut_sk2].datasets[1])
 
         data = json.loads(JsonResponse(sr).json())
         for each in data:
-            self.assertIn('pressure', each)
+            self.assertIn('int_ctd_pressure', each)
