@@ -48,7 +48,7 @@ class AnnotationTest(unittest.TestCase):
         key = streamKey.as_dict()
         return AnnotationRecord(id=self.annotation_id_counter, subsite=key['subsite'], node=key['node'],
                                 sensor=key['sensor'], method=key['method'], stream=key['stream'], annotation=annotation,
-                                exclusionFlag=exclusionFlag, source=source, qc_flag=qcFlag, parameters=parameters,
+                                exclusionFlag=exclusionFlag, source=source, qcFlag=qcFlag, parameters=parameters,
                                 beginDT=start, endDT=stop)
 
     def _create_exclusion_anno(self, streamKey, start, stop):

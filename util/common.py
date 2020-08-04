@@ -34,11 +34,12 @@ ANNOTATION_FILE_FORMAT = '%s_annotations_%s.json'
 FILL_VALUES = app.config['FILL_VALUES']
 
 # QC Parameter identification patterns
-QC_EXECUTED = 'qc_executed'
-QC_RESULTS = 'qc_results'
+QC_EXECUTED = '_qc_executed'
+QC_RESULTS = '_qc_results'
 # QARTOD Parameter identification patterns
-QARTOD_PRIMARY = 'qartod_results'
-QARTOD_SECONDARY = 'qartod_executed'
+QARTOD_PRIMARY = '_qartod_results'
+QARTOD_SECONDARY = '_qartod_executed'
+QC_SUFFIXES = [QC_RESULTS, QC_EXECUTED, QARTOD_PRIMARY, QARTOD_SECONDARY]
 
 
 class QartodFlags:
@@ -75,8 +76,8 @@ class NumpyEncoder(json.JSONEncoder):
 
 
 def is_qc_parameter(param):
-    return any(quality_variable in param for quality_variable in [QC_EXECUTED, QC_RESULTS, QARTOD_PRIMARY,
-                                                                  QARTOD_SECONDARY])
+    return any(qc_suffix in param for qc_suffix in QC_SUFFIXES)
+
 
 def isfillvalue(a):
     """

@@ -28,7 +28,7 @@ NUTNR_QARTOD_RECORD_1 = QartodTestRecord(id=1,
                                          refDes={"subsite": "CE04OSPS", "node": "SF01B", "sensor": "4A-NUTNRA102",
                                                  "full": True},
                                          stream='nutnr_a_sample',
-                                         parameter='pressure',
+                                         parameters='{"inp": "int_ctd_pressure"}',
                                          qcConfig='{"qartod": {"gross_range_test": {"suspect_span": [28.0, 33.8], '
                                                 '"fail_span": [0.0, 42.0]}}}')
 
@@ -36,7 +36,7 @@ NUTNR_QARTOD_RECORD_2 = QartodTestRecord(id=2,
                                          refDes={"subsite": "CE04OSPS", "node": "SF01B", "sensor": "4A-NUTNRA102",
                                                  "full": True},
                                          stream='nutnr_a_sample',
-                                         parameter='salinity_corrected_nitrate',
+                                         parameters='{"inp": "salinity_corrected_nitrate"}',
                                          qcConfig='{"qartod": {"gross_range_test": {"suspect_span": [28.0, 33.8], '
                                                 '"fail_span": [0.0, 42.0]}}}')
 
@@ -44,7 +44,7 @@ CTDBP_QARTOD_RECORD_1 = QartodTestRecord(id=3,
                                          refDes={"subsite": "CE04OSPS", "node": "SF01B", "sensor": "2A-CTDPFA107",
                                                  "full": True},
                                          stream='ctdpf_sbe43_sample',
-                                         parameter='pressure',
+                                         parameters='{"inp": "pressure"}',
                                          qcConfig='{"qartod": {"gross_range_test": {"suspect_span": [28.0, 33.8], '
                                                 '"fail_span": [0.0, 42.0]}}}')
 
@@ -52,7 +52,7 @@ CTDBP_QARTOD_RECORD_2 = QartodTestRecord(id=4,
                                          refDes={"subsite": "CE04OSPS", "node": "SF01B", "sensor": "2A-CTDPFA107",
                                                  "full": True},
                                          stream='ctdpf_sbe43_sample',
-                                         parameter='temperature',
+                                         parameters='{"inp": "temperature"}',
                                          qcConfig='{"qartod": {"gross_range_test": {"suspect_span": [28.0, 33.8], '
                                                 '"fail_span": [0.0, 42.0]}}}')
 
@@ -60,7 +60,7 @@ CTDBP_QARTOD_RECORD_3 = QartodTestRecord(id=5,
                                          refDes={"node": "LJ01D", "subsite": "CE02SHBP", "full": True,
                                                  "sensor": "06-CTDBPN106"},
                                          stream='ctdbp_no_sample',
-                                         parameter='practical_salinity',
+                                         parameters='{"inp": "practical_salinity"}',
                                          qcConfig='{"qartod": {"gross_range_test": {"suspect_span": [28.0, 33.8], '
                                                 '"fail_span": [0.0, 42.0]}}}')
 
@@ -174,24 +174,35 @@ class QartodTest(unittest.TestCase):
         expected = [CTDBP_QARTOD_RECORD_3]
         self.check_ctdbp_record_expansion(record, expected)
 
-    def test_expand_qartod_record_for_null_parameter(self):
-        record = self.get_modified_ctdbp_record(parameter=None)
+    def test_expand_qartod_record_for_parameters_null_in_json(self):
+        record = self.get_modified_ctdbp_record(parameters='{"inp": null}')
 
-        record_a = self.get_modified_ctdbp_record(parameter='ctdbp_no_seawater_conductivity')
-        record_b = self.get_modified_ctdbp_record(parameter='ctdbp_no_seawater_pressure')
-        record_c = self.get_modified_ctdbp_record(parameter='practical_salinity')
-        record_d = self.get_modified_ctdbp_record(parameter='seawater_temperature')
+        record_a = self.get_modified_ctdbp_record(parameters='{"inp": "ctdbp_no_seawater_conductivity"}')
+        record_b = self.get_modified_ctdbp_record(parameters='{"inp": "ctdbp_no_seawater_pressure"}')
+        record_c = self.get_modified_ctdbp_record(parameters='{"inp": "practical_salinity"}')
+        record_d = self.get_modified_ctdbp_record(parameters='{"inp": "seawater_temperature"}')
+        expected = [record_a, record_b, record_c, record_d]
+
+        self.check_ctdbp_record_expansion(record, expected)
+
+    def test_expand_qartod_record_for_null_parameters(self):
+        record = self.get_modified_ctdbp_record(parameters=None)
+
+        record_a = self.get_modified_ctdbp_record(parameters='{"inp": "ctdbp_no_seawater_conductivity"}')
+        record_b = self.get_modified_ctdbp_record(parameters='{"inp": "ctdbp_no_seawater_pressure"}')
+        record_c = self.get_modified_ctdbp_record(parameters='{"inp": "practical_salinity"}')
+        record_d = self.get_modified_ctdbp_record(parameters='{"inp": "seawater_temperature"}')
         expected = [record_a, record_b, record_c, record_d]
 
         self.check_ctdbp_record_expansion(record, expected)
 
     def test_expand_qartod_record_for_multiple_nulls(self):
-        record = self.get_modified_ctdbp_record(subsite=None, node=None, sensor=None, stream=None, parameter=None)
+        record = self.get_modified_ctdbp_record(subsite=None, node=None, sensor=None, stream=None, parameters='{"inp": null}')
 
-        record_a = self.get_modified_ctdbp_record(parameter='ctdbp_no_seawater_conductivity')
-        record_b = self.get_modified_ctdbp_record(parameter='ctdbp_no_seawater_pressure')
-        record_c = self.get_modified_ctdbp_record(parameter='practical_salinity')
-        record_d = self.get_modified_ctdbp_record(parameter='seawater_temperature')
+        record_a = self.get_modified_ctdbp_record(parameters='{"inp": "ctdbp_no_seawater_conductivity"}')
+        record_b = self.get_modified_ctdbp_record(parameters='{"inp": "ctdbp_no_seawater_pressure"}')
+        record_c = self.get_modified_ctdbp_record(parameters='{"inp": "practical_salinity"}')
+        record_d = self.get_modified_ctdbp_record(parameters='{"inp": "seawater_temperature"}')
         expected = [record_a, record_b, record_c, record_d]
 
         self.check_ctdbp_record_expansion(record, expected)
@@ -219,22 +230,22 @@ class QartodTest(unittest.TestCase):
 
     def test_primary_qartod_flags_in_dataset(self):
         sr = self.calculate_nut_sr()
-        self.assertIn('salinity_corrected_nitrate_' + QARTOD_PRIMARY, sr.datasets[self.nut_sk].datasets[2])
-        self.assertIn('pressure_' + QARTOD_PRIMARY, sr.datasets[self.nut_sk].datasets[2])
-        self.assertIn('pressure_' + QARTOD_PRIMARY, sr.datasets[self.ctd_sk].datasets[2])
-        self.assertIn('temperature_' + QARTOD_PRIMARY, sr.datasets[self.ctd_sk].datasets[2])
+        self.assertIn('salinity_corrected_nitrate' + QARTOD_PRIMARY, sr.datasets[self.nut_sk].datasets[2])
+        self.assertIn('int_ctd_pressure' + QARTOD_PRIMARY, sr.datasets[self.nut_sk].datasets[2])
+        self.assertIn('pressure' + QARTOD_PRIMARY, sr.datasets[self.ctd_sk].datasets[2])
+        self.assertIn('temperature' + QARTOD_PRIMARY, sr.datasets[self.ctd_sk].datasets[2])
 
     def test_secondary_qartod_flags_in_dataset(self):
         sr = self.calculate_nut_sr()
-        self.assertIn('salinity_corrected_nitrate_' + QARTOD_SECONDARY, sr.datasets[self.nut_sk].datasets[2])
-        self.assertIn('pressure_' + QARTOD_SECONDARY, sr.datasets[self.nut_sk].datasets[2])
-        self.assertIn('pressure_' + QARTOD_SECONDARY, sr.datasets[self.ctd_sk].datasets[2])
-        self.assertIn('temperature_' + QARTOD_SECONDARY, sr.datasets[self.ctd_sk].datasets[2])
+        self.assertIn('salinity_corrected_nitrate' + QARTOD_SECONDARY, sr.datasets[self.nut_sk].datasets[2])
+        self.assertIn('int_ctd_pressure' + QARTOD_SECONDARY, sr.datasets[self.nut_sk].datasets[2])
+        self.assertIn('pressure' + QARTOD_SECONDARY, sr.datasets[self.ctd_sk].datasets[2])
+        self.assertIn('temperature' + QARTOD_SECONDARY, sr.datasets[self.ctd_sk].datasets[2])
 
     def test_qartod_flag_attribute_long_names(self):
         sr = self.calculate_nut_sr()
-        nitrate_var = 'salinity_corrected_nitrate_' + QARTOD_PRIMARY
-        pressure_var = 'pressure_' + QARTOD_SECONDARY
+        nitrate_var = 'salinity_corrected_nitrate' + QARTOD_PRIMARY
+        pressure_var = 'pressure' + QARTOD_SECONDARY
         log.warn(sr.datasets[self.nut_sk].datasets[2])
         self.assertEqual('Nitrate Concentration - Temp and Sal Corrected QARTOD Summary Flag', 
                          sr.datasets[self.nut_sk].datasets[2][nitrate_var].attrs['long_name'])
@@ -243,17 +254,17 @@ class QartodTest(unittest.TestCase):
 
     def test_primary_qartod_flag_attribute_flag_values(self):
         sr = self.calculate_nut_sr()
-        nitrate_var = 'salinity_corrected_nitrate_' + QARTOD_PRIMARY
+        nitrate_var = 'salinity_corrected_nitrate' + QARTOD_PRIMARY
         self.assertListEqual(QartodFlags.getValidQCFlags(),
                              sr.datasets[self.nut_sk].datasets[2][nitrate_var].attrs['flag_values'].tolist())
 
     def test_primary_qartod_flag_attribute_flag_meanings(self):
         sr = self.calculate_nut_sr()
-        nitrate_var = 'salinity_corrected_nitrate_' + QARTOD_PRIMARY
+        nitrate_var = 'salinity_corrected_nitrate' + QARTOD_PRIMARY
         self.assertEqual(' '.join(QartodFlags.getQCFlagMeanings()),
                          sr.datasets[self.nut_sk].datasets[2][nitrate_var].attrs['flag_meanings'])
 
     def test_qartod_flag_variable_attributes_tests_executed(self):
         sr = self.calculate_nut_sr()
-        nitrate_var = 'salinity_corrected_nitrate_' + QARTOD_SECONDARY
+        nitrate_var = 'salinity_corrected_nitrate' + QARTOD_SECONDARY
         self.assertEqual('gross_range_test', sr.datasets[self.nut_sk].datasets[2][nitrate_var].attrs['tests_executed'])

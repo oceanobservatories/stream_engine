@@ -1,3 +1,4 @@
+import re
 import json
 import engine
 import logging
@@ -54,8 +55,9 @@ class QartodTestServiceAPI(object):
     def expand_qartod_record(record, subsite, node, sensor, stream, parameters):
         """
         Check for null fields indicating wildcards in a QartodTestRecord and replace these nulls with applicable values
-        for the current data under test and return the result. In the case of a null parameter field, return one
-        QartodTestRecord per applicable parameter.
+        for the current data under test and return the result. In the case of parameters, check for a null "inp"
+        parameter in the parameters JSON and then return one QartodTestRecord per applicable parameter, setting the
+        "inp" in the parameters JSON accordingly.
         :param record: QartodTestRecord with potentially null fields to process
         :param subsite: name of subsite of StreamDataset against which QARTOD tests will run
         :param node: name of node of StreamDataset against which QARTOD tests will run
@@ -74,28 +76,38 @@ class QartodTestServiceAPI(object):
         if record.stream is None:
             record.stream = stream
         # expand the null wildcard into all of the test records it represents
-        if record.parameter is None:
-            for parameter in parameters:
+        new_params = None
+        if record.parameters is None:
+            # parameters was null - add parameters to new records
+            new_params = {parameter: '{"inp": "' + parameter + '"}' for parameter in parameters}
+        elif re.compile('[\'"]inp[\'"]: [\'"]?(\w*)[\'"]?').search(record.parameters).group(1) == 'null':
+            # parameters existed, but the "inp" attribute was null - replace "inp" in each new record
+            new_params = {parameter: '{"inp": "' + parameter + '"}' for parameter in parameters}
+
+        if new_params:
+            # expand the null parameters into every applicable parameter
+            for parameter in new_params:
                 new_record = deepcopy(record)
-                new_record.parameter = parameter
+                new_record.parameters = new_params[parameter]
                 tests.append(new_record)
         else:
+            # no record expansion necessary - return the record
             tests.append(record)
         return tests
 
 
 class QartodTestRecord(object):
-    def __init__(self, id, refDes, stream, parameter, qcConfig, source=""):
+    def __init__(self, id, refDes, stream, parameters, qcConfig, source=""):
         self.id = id
         self.refDes = refDes
         self.stream = stream
-        self.parameter = parameter
+        self.parameters = parameters
         self.qcConfig = qcConfig
         self.source = source
 
     def __key(self):
         return (self.id, self.refDes['subsite'], self.refDes['node'], self.refDes['sensor'], self.stream,
-                self.parameter, self.qcConfig, self.source)
+                self.parameters, self.qcConfig, self.source)
 
     def __hash__(self):
         return hash(self.__key())
