@@ -144,6 +144,7 @@ NETCDF_DEPTH_VARIABLES = [
     # The order of the list determines the preferred variable to use in
     # streams containing multiple matching depth variables.
     # #10745 AC 1
+    'depth',
     'sci_water_pressure_dbar',
     'seawater_pressure',
     'pressure_depth',

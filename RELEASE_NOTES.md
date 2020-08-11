@@ -1,8 +1,12 @@
 # Stream Engine
 
-# Release 1.16.0 2020-09-10
+# Release 1.17.0 2020-09-10
 
 Issue #14654 - Add processing of interp_lat,lon parameters
+
+Issue #14675 - Compute depth from pressure
+
+# Release 1.16.0 2020-08-11
 
 Issue #14791 - Correct pressure_depth/int_ctd_pressure handling
 

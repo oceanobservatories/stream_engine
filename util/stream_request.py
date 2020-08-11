@@ -11,7 +11,7 @@ from ooi_data.postgres.model import Parameter, Stream, NominalDepth
 from util.asset_management import AssetManagement
 from util.cass import fetch_l0_provenance
 from util.common import log_timing, StreamEngineException, StreamKey, MissingDataException, read_size_config, \
-    find_depth_variable, isfillvalue, QC_SUFFIXES
+    isfillvalue, QC_SUFFIXES
 from util.metadata_service import build_stream_dictionary, get_available_time_range
 from util.qc_executor import QcExecutor
 from util.qartod_qc_executor import QartodQcExecutor
@@ -38,6 +38,7 @@ SECONDS_PER_BYTE = app.config.get('SECONDS_PER_BYTE', 0.0000041)  # default byte
 MINIMUM_REPORTED_TIME = app.config.get('MINIMUM_REPORTED_TIME')
 DEPTH_FILL = app.config['DEPTH_FILL']
 PRESSURE_DEPTH_APPLICABLE_STREAM_KEYS = app.config['PRESSURE_DEPTH_APPLICABLE_STREAM_KEYS']
+DEPTH_PARAMETER_NAME = app.config.get('DEPTH_PARAMETER_NAME')
 
 
 class StreamRequest(object):
@@ -165,6 +166,16 @@ class StreamRequest(object):
                 if not self.datasets[stream_key].datasets:
                     del self.datasets[stream_key]
 
+        # Remove pressure_depth if it is not applicable to prevent misguided uses of rubbish
+        # pressure_depth data when pressure should be interpolated from the CTD stream
+        for stream_key in list(self.datasets):
+            if not self._is_pressure_depth_valid(stream_key) and self.datasets[stream_key].datasets:
+                for _, ds in self.datasets[stream_key].datasets.iteritems():
+                    pressure_depth = Parameter.query.get(PRESSURE_DEPTH_PARAM_ID)
+                    if pressure_depth.name in ds:
+                        del ds[pressure_depth.name]
+                
+
     def calculate_derived_products(self):
         # Calculate all internal-only data products
         for sk in self.datasets:
@@ -285,11 +296,7 @@ class StreamRequest(object):
                     for target_sk in self.datasets:
                         self.datasets[target_sk].interpolate_into(source_sk, self.datasets[source_sk], param)
 
-        # for instruments with usable pressure_depth, we do not add int_ctd_pressure
-        if self._is_pressure_depth_valid(self.stream_key):
-            return
-
-        # determine if there is a pressure parameter available (9328)
+        # determine if there is a pressure parameter available (9328) - should be none when _is_pressure_depth_valid evaluates to True
         pressure_params = [(sk, param) for sk in self.external_includes for param in self.external_includes[sk]
                            if param.data_product_identifier == PRESSURE_DPI]
 
@@ -309,17 +316,28 @@ class StreamRequest(object):
         for deployment in self.datasets[self.stream_key].datasets:
             ds = self.datasets[self.stream_key].datasets[deployment]
 
-            # if we got to this point, we are not using pressure_depth
-            pressure_depth = Parameter.query.get(PRESSURE_DEPTH_PARAM_ID)
-            if pressure_depth.name in ds:
-                del ds[pressure_depth.name]
-
             # If we used the CTD pressure, then rename it to the configured final name (e.g. 'int_ctd_pressure')
             if pressure_name in ds.data_vars:
                 pressure_value = ds.data_vars[pressure_name]
                 del ds[pressure_name]
                 pressure_value.name = INT_PRESSURE_NAME
                 self.datasets[self.stream_key].datasets[deployment][INT_PRESSURE_NAME] = pressure_value
+
+        # determine if there is a depth parameter available
+        # depth is computed from pressure, so look for it in the same stream
+        depth_key, depth_param = self.find_stream(self.stream_key, tuple(Parameter.query.filter(Parameter.name == DEPTH_PARAMETER_NAME)), pressure_key.stream)
+
+        if not depth_param:
+            return
+
+        if depth_key not in self.datasets:
+            return
+
+        # update external_includes for any post processing that looks at it - pressure was already handled, but depth was not
+        self.external_includes.setdefault(depth_key, set()).add(depth_param)
+
+        # interpolate depth computed from CTD pressure
+        self.datasets[self.stream_key].interpolate_into(depth_key, self.datasets.get(depth_key), depth_param)
 
     def rename_parameters(self):
         """
@@ -418,10 +436,11 @@ class StreamRequest(object):
         """
         external_to_process = set()
         if self.stream_key.is_mobile and not self._is_pressure_depth_valid(self.stream_key):
-            dpi = PRESSURE_DPI
+            # add pressure parameter
             external_to_process.add((None, tuple(Parameter.query.filter(
-                Parameter.data_product_identifier == dpi).all())))
-
+                Parameter.data_product_identifier == PRESSURE_DPI).all())))
+            # do NOT add depth parameter here; we want to make sure it comes from the
+            # same stream as the pressure parameter (which has not been determined yet)
         if self.stream_key.is_glider:
             gps_stream = Stream.query.get(GPS_STREAM_ID)
             external_to_process.add((gps_stream, (Parameter.query.get(GPS_LAT_PARAM_ID),)))
@@ -443,6 +462,16 @@ class StreamRequest(object):
             internal_requested = [p for p in self.stream_key.stream.parameters if p.id in self.requested_parameters]
         else:
             internal_requested = self.stream_key.stream.parameters
+
+        pressure_depth = Parameter.query.get(PRESSURE_DEPTH_PARAM_ID)
+        if pressure_depth in internal_requested and not self._is_pressure_depth_valid(self.stream_key):
+            log.debug('<%s> removing invalid pressure_depth from requested parameters', self.request_id)
+            internal_requested.remove(pressure_depth)
+            log.debug('<%s> removing invalid depth computed from invalid pressure_depth from requested parameters', self.request_id)
+            for param in internal_requested:
+                if param.name == DEPTH_PARAMETER_NAME:
+                    internal_requested.remove(param)
+
         self.requested_parameters = internal_requested
 
         # Identify internal parameters needed to support this query
