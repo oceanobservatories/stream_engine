@@ -189,7 +189,7 @@ class QartodQcExecutor(object):
             dataset[qartod_primary_flag_name].values = temp_qartod_flag_primary
 
         # Work with results as an array of strings for the secondary flag
-        results_string = results.astype('S1')
+        results_string = results.astype('U1')
 
         # UPDATE SECONDARY FLAGS
         # represent QARTOD test results as a string of space separated test result integers (flags) in the order the

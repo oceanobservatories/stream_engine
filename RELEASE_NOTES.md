@@ -2,6 +2,10 @@
 
 # Release 1.17.0 2020-09-10
 
+Issue #14828 - Use unicode for qartod_results variables to get encoding as array of strings
+
+Issue #14787 - Preload update to use pressure_depth for dosta calculations when appropriate
+
 Issue #14654 - Add processing of interp_lat,lon parameters
 
 Issue #14675 - Compute depth from pressure
