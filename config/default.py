@@ -144,6 +144,7 @@ NETCDF_DEPTH_VARIABLES = [
     # The order of the list determines the preferred variable to use in
     # streams containing multiple matching depth variables.
     # #10745 AC 1
+    'depth',
     'sci_water_pressure_dbar',
     'seawater_pressure',
     'pressure_depth',
@@ -313,6 +314,7 @@ UNBOUND_QUERY_START = 3471292800
 # X/Y/Z Interp. Settings   #
 ############################
 PRESSURE_DPI = 'PRESWAT_L1'
+DEPTH_PARAMETER_NAME = 'depth'
 GPS_STREAM_ID = 761
 GPS_LAT_PARAM_ID = 1335
 GPS_LON_PARAM_ID = 1336
