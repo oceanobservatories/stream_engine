@@ -15,13 +15,15 @@ PRESSURE_DPI = app.config.get('PRESSURE_DPI')
 INT_PRESSURE_NAME = app.config.get('INT_PRESSURE_NAME')
 
 # default parameters to request
-DEFAULT_PARAMETERS = ['time', 'deployment', 'lat', 'lon', 'm_gps_lat', 'm_gps_lon']
+DEFAULT_PARAMETERS = ['time', 'deployment', 'm_lat', 'm_lon', 'm_gps_lat', 'm_gps_lon', 'lat', 'lon']
 
 # Glider GPS based lat/lon strings - for filtering
 GLIDER_GPS_BASED_LAT = 'glider_gps_position-m_gps_lat'
 GLIDER_GPS_BASED_LON = 'glider_gps_position-m_gps_lon'
 GLIDER_DR_LAT = 'glider_gps_position-m_lat'
 GLIDER_DR_LON = 'glider_gps_position-m_lon'
+GLIDER_INTERP_LAT = 'glider_gps_position-interp_lat'
+GLIDER_INTERP_LON = 'glider_gps_position-interp_lon'
 
 
 class CsvGenerator(object):
@@ -36,7 +38,7 @@ class CsvGenerator(object):
 
     def to_csv(self):
         return self._create_zip()
-        
+ 
     def _create_zip(self):
         with tempfile.NamedTemporaryFile() as tzf:
             with zipfile.ZipFile(tzf.name, 'w') as zf:
@@ -48,7 +50,6 @@ class CsvGenerator(object):
             return tzf.read()
 
     def to_csv_files(self, path):
-        file_paths = []
         base_path = os.path.join(app.config['LOCAL_ASYNC_DIR'], path)
 
         if not os.path.isdir(base_path):
@@ -128,9 +129,16 @@ class CsvGenerator(object):
             if GLIDER_DR_LAT in dataset.data_vars.keys() and GLIDER_DR_LON in dataset.data_vars.keys():
                 lat_data = dataset.data_vars[GLIDER_DR_LAT]
                 dataset = dataset.drop(GLIDER_DR_LAT)
-                dataset['lat'] = lat_data
+                dataset['m_lat'] = lat_data
                 lon_data = dataset.data_vars[GLIDER_DR_LON]
                 dataset = dataset.drop(GLIDER_DR_LON)
+                dataset['m_lon'] = lon_data
+            if GLIDER_INTERP_LAT in dataset.data_vars.keys() and GLIDER_INTERP_LON in dataset.data_vars.keys():
+                lat_data = dataset.data_vars[GLIDER_INTERP_LAT]
+                dataset = dataset.drop(GLIDER_INTERP_LAT)
+                dataset['lat'] = lat_data
+                lon_data = dataset.data_vars[GLIDER_INTERP_LON]
+                dataset = dataset.drop(GLIDER_INTERP_LON)
                 dataset['lon'] = lon_data
 
         # generate the filtering list
@@ -144,21 +152,21 @@ class CsvGenerator(object):
 
     def _create_files(self, base_path):
         file_paths = []
-        
+ 
         # annotation data will be written to a JSON file
         if self.stream_request.include_annotations:
             anno_fname = get_annotation_filename(self.stream_request)
             anno_json = os.path.join(base_path, anno_fname)
             file_paths.append(anno_json)
             self.stream_request.annotation_store.dump_json(anno_json)
-        
+ 
         stream_key = self.stream_request.stream_key
         stream_dataset = self.stream_request.datasets[stream_key]
         for deployment, ds in stream_dataset.datasets.iteritems():
             times = ds.time.values
             start = ntp_to_short_iso_datestring(times[0])
             end = ntp_to_short_iso_datestring(times[-1])
-            
+ 
             # provenance types will be written to JSON files
             if self.stream_request.include_provenance:
                 prov_fname = 'deployment%04d_%s_provenance_%s-%s.json' % (deployment,
@@ -175,7 +183,7 @@ class CsvGenerator(object):
                 self._create_csv(ds, filehandle)
             file_paths.append(file_path)
         return file_paths
-        
+ 
     def _get_suffix(self):
         """
         Get the suffix we should use to name file. Default to csv

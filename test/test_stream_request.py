@@ -68,6 +68,7 @@ class StreamRequestTest(unittest.TestCase):
         cls.hourly_sk = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_hourly')
         cls.met_sk = StreamKey('GI01SUMO', 'SBD11', '06-METBKA000', 'recovered_host', 'metbk_a_dcl_instrument_recovered')
         cls.vel_sk = StreamKey('GI01SUMO', 'RID16', '04-VELPTA000', 'recovered_host', 'velpt_ab_dcl_instrument_recovered')
+        cls.vel_sk2 = StreamKey('GI01SUMO', 'RID16', '04-VELPTA000', 'recovered_host', 'velpt_ab_dcl_diagnostics_recovered')
 
         cls.dosta_sk = StreamKey('CE02SHSP', 'SP001', '01-DOSTAJ000', 'recovered_cspp', 'dosta_abcdjm_cspp_instrument_recovered')
         cls.nut_sk2 = StreamKey('CE02SHSP', 'SP001', '05-NUTNRJ000', 'recovered_cspp', 'nutnr_j_cspp_instrument_recovered')
@@ -103,10 +104,11 @@ class StreamRequestTest(unittest.TestCase):
         do_sk = StreamKey('CP05MOAS', 'GL388', '04-DOSTAM000', 'recovered_host', 'dosta_abcdjm_glider_recovered')
         ctd_sk = StreamKey('CP05MOAS', 'GL388', '03-CTDGVM000', 'recovered_host', 'ctdgv_m_glider_instrument_recovered')
         gps_sk = StreamKey('CP05MOAS', 'GL388', '00-ENG000000', 'recovered_host', 'glider_gps_position')
+        adc_sk = StreamKey('CP05MOAS', 'GL388', '01-ADCPAM000', 'recovered_host', 'adcp_velocity_glider')
         tr = TimeRange(3.622409e+09, 3.627058e+09)
         sr = StreamRequest(do_sk, [], {}, tr, {}, request_id='UNIT')
 
-        self.assertEqual(set(sr.stream_parameters), {do_sk, ctd_sk, gps_sk})
+        self.assertEqual(set(sr.stream_parameters), {do_sk, ctd_sk, gps_sk, adc_sk})
 
     def test_wfp_include_preswat(self):
         par_sk = StreamKey('CP02PMUO', 'WFP01', '05-PARADK000', 'recovered_wfp',
@@ -284,18 +286,25 @@ class StreamRequestTest(unittest.TestCase):
         sr = StreamRequest(self.hourly_sk, [], tr, {}, request_id='UNIT')
 
         metbk_ds = metbk_ds[self.base_params + [p.name for p in sr.stream_parameters[self.met_sk]]]
-        vel_ds = vel_ds[self.base_params + [p.name for p in sr.stream_parameters[self.vel_sk]]]
 
         sr.datasets[self.met_sk] = StreamDataset(self.met_sk, sr.uflags, [self.hourly_sk, self.vel_sk], sr.request_id)
         sr.datasets[self.hourly_sk] = StreamDataset(self.hourly_sk, sr.uflags, [self.met_sk, self.vel_sk], sr.request_id)
-        sr.datasets[self.vel_sk] = StreamDataset(self.vel_sk, sr.uflags, [self.hourly_sk, self.met_sk], sr.request_id)
 
         sr.datasets[self.hourly_sk].events = self.met_events
         sr.datasets[self.met_sk].events = self.met_events
-        sr.datasets[self.vel_sk].events = self.vel_events
-
         sr.datasets[self.met_sk]._insert_dataset(metbk_ds)
-        sr.datasets[self.vel_sk]._insert_dataset(vel_ds)
+
+        if self.vel_sk in sr.stream_parameters.keys():
+            vel_ds = vel_ds[self.base_params + [p.name for p in sr.stream_parameters[self.vel_sk]]]
+            sr.datasets[self.vel_sk] = StreamDataset(self.vel_sk, sr.uflags, [self.hourly_sk, self.met_sk], sr.request_id)
+            sr.datasets[self.vel_sk].events = self.vel_events
+            sr.datasets[self.vel_sk]._insert_dataset(vel_ds)
+        else:
+            vel_ds = vel_ds[self.base_params + [p.name for p in sr.stream_parameters[self.vel_sk2]]]
+            sr.datasets[self.vel_sk2] = StreamDataset(self.vel_sk2, sr.uflags, [self.hourly_sk, self.met_sk], sr.request_id)
+            sr.datasets[self.vel_sk2].events = self.vel_events
+            sr.datasets[self.vel_sk2]._insert_dataset(vel_ds)
+
         return sr
 
     def test_metbk_hourly(self):
@@ -370,13 +379,13 @@ class StreamRequestTest(unittest.TestCase):
         return AssetEvents(stream_key.as_three_part_refdes(), {})
 
     def test_add_externals_glider(self):
-        gps_fn = 'deployment0006_CE05MOAS-GL319-00-ENG000000-recovered_host-glider_gps_position.nc'
-        par_fn = 'deployment0006_CE05MOAS-GL319-01-PARADM000-recovered_host-parad_m_glider_recovered.nc'
-        ctd_fn = 'deployment0006_CE05MOAS-GL319-05-CTDGVM000-recovered_host-ctdgv_m_glider_instrument_recovered.nc'
+        gps_fn = 'deployment0008_CP05MOAS-GL388-00-ENG000000-recovered_host-glider_gps_position.nc'
+        par_fn = 'deployment0008_CP05MOAS-GL388-05-PARADM000-recovered_host-parad_m_glider_recovered.nc'
+        ctd_fn = 'deployment0008_CP05MOAS-GL388-03-CTDGVM000-recovered_host-ctdgv_m_glider_instrument_recovered.nc'
 
-        gps_sk = StreamKey('CE05MOAS', 'GL319', '00-ENG000000', 'recovered_host', 'glider_gps_position')
-        par_sk = StreamKey('CE05MOAS', 'GL319', '01-PARADM000', 'recovered_host', 'parad_m_glider_recovered')
-        ctd_sk = StreamKey('CE05MOAS', 'GL319', '05-CTDGVM000', 'recovered_host', 'ctdgv_m_glider_instrument_recovered')
+        gps_sk = StreamKey('CP05MOAS', 'GL388', '00-ENG000000', 'recovered_host', 'glider_gps_position')
+        par_sk = StreamKey('CP05MOAS', 'GL388', '05-PARADM000', 'recovered_host', 'parad_m_glider_recovered')
+        ctd_sk = StreamKey('CP05MOAS', 'GL388', '03-CTDGVM000', 'recovered_host', 'ctdgv_m_glider_instrument_recovered')
 
         # Fetch the source data
         gps_ds = xr.open_dataset(os.path.join(DATA_DIR, gps_fn), decode_times=False)
@@ -409,30 +418,51 @@ class StreamRequestTest(unittest.TestCase):
         sr.calculate_derived_products()
         sr.import_extra_externals()
 
-        # Ticket 9328: int_ctd_pressure is now set in stream_request.import_extra_externals()
-        self.assertNotIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[par_sk].datasets[6])
-        self.assertIn('int_ctd_pressure', sr.datasets[par_sk].datasets[6])
-        self.assertNotIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[ctd_sk].datasets[6])
+        # Ticket 9328: int_ctd_pressure (renamed 'pressure') is now set in stream_request.import_extra_externals()
+        self.assertNotIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[par_sk].datasets[8])
+        self.assertIn('int_ctd_pressure', sr.datasets[par_sk].datasets[8])
+        self.assertNotIn('ctdgv_m_glider_instrument_recovered-sci_water_pressure_dbar', sr.datasets[ctd_sk].datasets[8])
 
         data = json.loads(JsonResponse(sr).json())
         for each in data:
             self.assertIn('int_ctd_pressure', each)
+            self.assertIn('m_lat', each)
+            self.assertIn('m_lon', each)
             self.assertIn('lat', each)
             self.assertIn('lon', each)
             self.assertIn('m_gps_lat', each)
             self.assertIn('m_gps_lon', each)
 
     def test_glider_rename_netcdf_lat_lon(self):
-        ctd_sk = StreamKey('CE05MOAS', 'GL319', '05-CTDGVM000', 'recovered_host', 'ctdgv_m_glider_instrument_recovered')
-        ctd_fn = 'deployment0006_CE05MOAS-GL319-05-CTDGVM000-recovered_host-ctdgv_m_glider_instrument_recovered.nc'
+        ctd_sk = StreamKey('CP05MOAS', 'GL388', '03-CTDGVM000', 'recovered_host', 'ctdgv_m_glider_instrument_recovered')
+        ctd_fn = 'deployment0008_CP05MOAS-GL388-03-CTDGVM000-recovered_host-ctdgv_m_glider_instrument_recovered.nc'
         ctd_ds = xr.open_dataset(os.path.join(DATA_DIR, ctd_fn), decode_times=False)
 
         self.assertIn('glider_gps_position-m_gps_lat', ctd_ds)
         self.assertIn('glider_gps_position-m_gps_lon', ctd_ds)
+        self.assertIn('glider_gps_position-m_lat', ctd_ds)
+        self.assertIn('glider_gps_position-m_lon', ctd_ds)
+        self.assertIn('glider_gps_position-interp_lat', ctd_ds)
+        self.assertIn('glider_gps_position-interp_lon', ctd_ds)
+        self.assertNotIn('m_gps_lat', ctd_ds)
+        self.assertNotIn('m_gps_lon', ctd_ds)
+        self.assertNotIn('m_lat', ctd_ds)
+        self.assertNotIn('m_lon', ctd_ds)
+        self.assertNotIn('lat', ctd_ds)
+        self.assertNotIn('lon', ctd_ds)
 
         modified = rename_glider_lat_lon(ctd_sk, ctd_ds)
+
         self.assertNotIn('glider_gps_position-m_gps_lat', modified)
         self.assertNotIn('glider_gps_position-m_gps_lon', modified)
+        self.assertNotIn('glider_gps_position-m_lat', modified)
+        self.assertNotIn('glider_gps_position-m_lon', modified)
+        self.assertNotIn('glider_gps_position-interp_lat', modified)
+        self.assertNotIn('glider_gps_position-interp_lon', modified)
+        self.assertIn('m_gps_lat', modified)
+        self.assertIn('m_gps_lon', modified)
+        self.assertIn('m_lat', modified)
+        self.assertIn('m_lon', modified)
         self.assertIn('lat', modified)
         self.assertIn('lon', modified)
 

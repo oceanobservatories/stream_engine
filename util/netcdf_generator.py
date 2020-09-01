@@ -60,7 +60,8 @@ class NetcdfGenerator(object):
         missing_params = []
         params_to_filter = []
         # aggregation logic assumes the presence of a 'time' parameter, so do not allow it to get removed
-        default_params = ['time', 'deployment', 'id', 'lat', 'lon', 'm_gps_lat', 'm_gps_lon', 'quality_flag']
+        default_params = ['time', 'deployment', 'id', 'm_lat', 'm_lon', 'm_gps_lat', 'm_gps_lon',
+                          'lat', 'lon', 'quality_flag']
 
         for param in params:
             # look for param in both data_vars and coords (13025 AC2)
@@ -128,7 +129,7 @@ class NetcdfGenerator(object):
 
     def _create_files(self, base_path):
         file_paths = []
-        
+ 
         # annotation data will be written to a JSON file
         if self.stream_request.include_annotations:
             anno_fname = get_annotation_filename(self.stream_request)
@@ -142,7 +143,7 @@ class NetcdfGenerator(object):
                 ds = replace_fixed_lat_lon(ds, stream_key)
                 start = ds.attrs['time_coverage_start'].translate(None, '-:')
                 end = ds.attrs['time_coverage_end'].translate(None, '-:')
-                
+ 
                 # provenance types will be written to JSON files
                 if self.stream_request.include_provenance:
                     prov_fname = 'deployment%04d_%s_provenance_%s-%s.json' % (deployment,
@@ -191,7 +192,7 @@ class NetcdfGenerator(object):
                 # associated variables with their contributors (12544 AC3)
                 for requested_parameter in self.stream_request.requested_parameters:
                     if requested_parameter.needs and requested_parameter.netcdf_name in ds:
-                        for k, need_list in requested_parameter.needs:
+                        for _, need_list in requested_parameter.needs:
                             for need in need_list:
                                 if need.netcdf_name in params_to_include:
                                     if 'ancillary_variables' in ds[requested_parameter.netcdf_name].attrs:

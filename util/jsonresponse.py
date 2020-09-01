@@ -95,7 +95,7 @@ class JsonResponse(object):
 
             filename = 'deployment%04d_%s_%s-%s.json' % (deployment, stream_key.as_dashed_refdes(), start, end)
             file_path = os.path.join(base_path, filename)
-            
+ 
             with open(file_path, 'w') as filehandle:
                 data = self._deployment_particles(ds, stream_key, parameters, external_includes)
                 json.dump(data, filehandle, indent=2, separators=(',', ': '), cls=NumpyJSONEncoder)
@@ -106,7 +106,7 @@ class JsonResponse(object):
     @log_timing(log)
     def _deployment_particles(self, ds, stream_key, parameters, external_includes):
         particles = []
-        
+ 
         # extract the underlying numpy arrays from the dataset (indexing into the dataset is expensive)
         data = {}
         for p in ds.data_vars:
@@ -125,11 +125,13 @@ class JsonResponse(object):
 
         # check if we should include and have positional data
         if stream_key.is_glider:
-            # get the lat,lon data from the GPS and DR (dead-reckoning) fields
+            # get the lat,lon data from the GPS, DR (dead-reckoning) and interpolated fields
             gps_lat_data = data.pop('glider_gps_position-m_gps_lat', None)
             gps_lon_data = data.pop('glider_gps_position-m_gps_lon', None)
             dr_lat_data = data.pop('glider_gps_position-m_lat', None)
             dr_lon_data = data.pop('glider_gps_position-m_lon', None)
+            interp_lat_data = data.pop('glider_gps_position-interp_lat', None)
+            interp_lon_data = data.pop('glider_gps_position-interp_lon', None)
 
             if gps_lat_data is not None and gps_lat_data.ndim > 0 and gps_lon_data is not None and \
                     gps_lon_data.ndim > 0:
@@ -138,8 +140,14 @@ class JsonResponse(object):
                 params.extend(('m_gps_lat', 'm_gps_lon'))
 
             if dr_lat_data is not None and dr_lat_data.ndim > 0 and dr_lon_data is not None and dr_lon_data.ndim > 0:
-                data['lat'] = dr_lat_data
-                data['lon'] = dr_lon_data
+                data['m_lat'] = dr_lat_data
+                data['m_lon'] = dr_lon_data
+                params.extend(('m_lat', 'm_lon'))
+
+            if interp_lat_data is not None and interp_lat_data.ndim > 0 and interp_lon_data is not None and \
+                    interp_lon_data.ndim > 0:
+                data['lat'] = interp_lat_data
+                data['lon'] = interp_lon_data
                 params.extend(('lat', 'lon'))
 
         # remaining externals
@@ -186,7 +194,7 @@ class JsonResponse(object):
             if 'deployment' in data:
                 particle['pk']['deployment'] = data['deployment'][index]
             particles.append(particle)
-            
+ 
         return particles
 
     @log_timing(log)
