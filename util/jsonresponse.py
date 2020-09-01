@@ -144,7 +144,8 @@ class JsonResponse(object):
                 data['m_lon'] = dr_lon_data
                 params.extend(('m_lat', 'm_lon'))
 
-            if interp_lat_data is not None and interp_lat_data.ndim > 0 and interp_lon_data is not None and interp_lon_data.ndim > 0:
+            if interp_lat_data is not None and interp_lat_data.ndim > 0 and interp_lon_data is not None and \
+                    interp_lon_data.ndim > 0:
                 data['lat'] = interp_lat_data
                 data['lon'] = interp_lon_data
                 params.extend(('lat', 'lon'))

@@ -104,10 +104,11 @@ class StreamRequestTest(unittest.TestCase):
         do_sk = StreamKey('CP05MOAS', 'GL388', '04-DOSTAM000', 'recovered_host', 'dosta_abcdjm_glider_recovered')
         ctd_sk = StreamKey('CP05MOAS', 'GL388', '03-CTDGVM000', 'recovered_host', 'ctdgv_m_glider_instrument_recovered')
         gps_sk = StreamKey('CP05MOAS', 'GL388', '00-ENG000000', 'recovered_host', 'glider_gps_position')
+        adc_sk = StreamKey('CP05MOAS', 'GL388', '01-ADCPAM000', 'recovered_host', 'adcp_velocity_glider')
         tr = TimeRange(3.622409e+09, 3.627058e+09)
         sr = StreamRequest(do_sk, [], {}, tr, {}, request_id='UNIT')
 
-        self.assertEqual(set(sr.stream_parameters), {do_sk, ctd_sk, gps_sk})
+        self.assertEqual(set(sr.stream_parameters), {do_sk, ctd_sk, gps_sk, adc_sk})
 
     def test_wfp_include_preswat(self):
         par_sk = StreamKey('CP02PMUO', 'WFP01', '05-PARADK000', 'recovered_wfp',
