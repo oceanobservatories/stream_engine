@@ -14,6 +14,8 @@ GPS_LAT_PARAM_ID = app.config.get('GPS_LAT_PARAM_ID')
 GPS_LON_PARAM_ID = app.config.get('GPS_LON_PARAM_ID')
 LAT_PARAM_ID = app.config.get('LAT_PARAM_ID')
 LON_PARAM_ID = app.config.get('LON_PARAM_ID')
+INTERP_LAT_PARAM_ID = app.config.get('INTERP_LAT_PARAM_ID')
+INTERP_LON_PARAM_ID = app.config.get('INTERP_LON_PARAM_ID')
 FILL_VALUES = app.config['FILL_VALUES']
 NETCDF_UNLIMITED_DIMS = app.config.get('NETCDF_UNLIMITED_DIMS')
 
@@ -68,13 +70,13 @@ def add_dynamic_attributes(ds):
         ds.attrs['time_coverage_resolution'] = 'P0S'
 
     if 'lat' in ds:
-        ds.attrs['geospatial_lat_min'] = min(ds.variables['lat'].values)
-        ds.attrs['geospatial_lat_max'] = max(ds.variables['lat'].values)
+        ds.attrs['geospatial_lat_min'] = np.nanmin(ds.variables['lat'].values)
+        ds.attrs['geospatial_lat_max'] = np.nanmax(ds.variables['lat'].values)
         ds.attrs['geospatial_lat_units'] = 'degrees_north'
         ds.attrs['geospatial_lat_resolution'] = app.config["GEOSPATIAL_LAT_LON_RES"]
     if 'lon' in ds:
-        ds.attrs['geospatial_lon_min'] = min(ds.variables['lon'].values)
-        ds.attrs['geospatial_lon_max'] = max(ds.variables['lon'].values)
+        ds.attrs['geospatial_lon_min'] = np.nanmin(ds.variables['lon'].values)
+        ds.attrs['geospatial_lon_max'] = np.nanmax(ds.variables['lon'].values)
         ds.attrs['geospatial_lon_units'] = 'degrees_east'
         ds.attrs['geospatial_lon_resolution'] = app.config["GEOSPATIAL_LAT_LON_RES"]
 
@@ -111,7 +113,7 @@ def ensure_no_int64(ds):
 
 def rename_glider_lat_lon(stream_key, dataset):
     """
-    Rename INTERPOLATED glider GPS lat/lon values to lat/lon
+    Rename glider lat/lon values
     """
     if stream_key.is_glider:
         gps_stream = Stream.query.get(GPS_STREAM_ID)
@@ -123,11 +125,17 @@ def rename_glider_lat_lon(stream_key, dataset):
         gps_lon_param = Parameter.query.get(GPS_LON_PARAM_ID)
         gps_lat_name = '-'.join((gps_stream.name, gps_lat_param.name))
         gps_lon_name = '-'.join((gps_stream.name, gps_lon_param.name))
+        interp_lat_param = Parameter.query.get(INTERP_LAT_PARAM_ID)
+        interp_lon_param = Parameter.query.get(INTERP_LON_PARAM_ID)
+        interp_lat_name = '-'.join((gps_stream.name, interp_lat_param.name))
+        interp_lon_name = '-'.join((gps_stream.name, interp_lon_param.name))
 
         if lat_name in dataset and lon_name in dataset:
-            dataset = dataset.rename({lat_name: 'lat', lon_name: 'lon'})
+            dataset = dataset.rename({lat_name: 'm_lat', lon_name: 'm_lon'})
         if gps_lat_name in dataset and gps_lon_name in dataset:
             dataset = dataset.rename({gps_lat_name: 'm_gps_lat', gps_lon_name: 'm_gps_lon'})
+        if interp_lat_name in dataset and interp_lon_name in dataset:
+            dataset = dataset.rename({interp_lat_name: 'lat', interp_lon_name: 'lon'})
 
     return dataset
 
