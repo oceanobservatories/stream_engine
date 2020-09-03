@@ -130,3 +130,25 @@ git add util/metadata_service/metadata_service_api
 git commit -m "Issue #nnnnn <message>
 git push origin HEAD:nnnnn
 ```
+## Creating test NetCDF files (used in test_stream_request.py, among others)
+
+NOTE: this was used for 13182,14654 (may be applicable elsewhere)
+Ensure up-to-date data has been ingested for the NC files you want to create
+Then temporarily modify the stream_engine code as follows to create the files:
+
+1. In util/netcdf_generator.py's _filter_parameters, change default_params to add: sci_water_pressure
+2) In util/netcdf_generator.py's _create_files
+   a) comment line: ds = rename_glider_lat_lon(stream_key, ds)
+   b) after the following code snippet (as of 9/3/2020)
+```
+                for external_stream_key in self.stream_request.external_includes:
+                    for parameter in self.stream_request.external_includes[external_stream_key]:
+                        long_parameter_name = external_stream_key.stream_name + "-" + parameter.name
+```
+      add the following code snippet to ensure these parameters are retained in the output
+```
+                        if parameter.name in ('m_gps_lat', 'm_gps_lon', 'm_lat', 'm_lon', 'interp_lat', 'interp_lon'):
+                            params_to_include.append(long_parameter_name)
+                            continue
+```
+3) Once this is done run a data request against the data to produce the NC files. Then back out these changes.
