@@ -14,6 +14,50 @@ from xarray.core.variable import Variable, IndexVariable, as_variable, concat as
 from xarray.core.alignment import align
 
 
+try:
+    # solely for isinstance checks
+    import dask.array as dask_array
+
+    dask_array_type = (dask_array.Array,)
+except ImportError:  # pragma: no cover
+    dask_array_type = ()
+    dask_array = None
+
+
+def asarray(data):
+    return (
+        data
+        if (isinstance(data, dask_array_type) or hasattr(data, "__array_function__"))
+        else np.asarray(data)
+    )
+
+
+def lazy_array_equiv(arr1, arr2):
+    """Like array_equal, but doesn't actually compare values.
+       Returns True when arr1, arr2 identical or their dask names are equal.
+       Returns False when shapes are not equal.
+       Returns None when equality cannot determined: one or both of arr1, arr2 are numpy arrays;
+       or their dask names are not equal
+    """
+    if arr1 is arr2:
+        return True
+    arr1 = asarray(arr1)
+    arr2 = asarray(arr2)
+    if arr1.shape != arr2.shape:
+        return False
+    if (
+        dask_array
+        and isinstance(arr1, dask_array.Array)
+        and isinstance(arr2, dask_array.Array)
+    ):
+        # GH3068
+        if arr1.name == arr2.name:
+            return True
+        else:
+            return None
+    return None
+
+
 def _parse_datasets(datasets):
     """
     Determine dimensional coordinate names and a dict mapping name to DataArray. This function has been copied as-is
@@ -83,7 +127,7 @@ def _calc_concat_over(datasets, dims, dim_names, data_vars, coords, compat):
     equals = {}
     concat_dim_lengths = {}
 
-    for dim in dim_names:
+    for dim in dims:
         if dim in dim_names:
             concat_over_existing_dim = True
             concat_over.add(dim)
@@ -202,10 +246,11 @@ def _find_concat_dims(datasets, dim):
     where the preferred dimension is absent, whatever dimensions are present will be added to the alternatives list.
     """ 
     dims = set()
-    for _, var in datasets[0].variables.iteritems():
+    for name, var in datasets[0].variables.iteritems():
         # Do NOT add dims from variables that already have the preferred dim available - we are only interested in 
         # alternate dims to concatenate on when the preferred dim is absent
-        if dim not in var.dims:
+        # Do NOT add a dim for concatenation over when the only variables that would be concatenated on it are dimensions!
+        if dim not in var.dims and name not in datasets[0].dims:
             dims.update(var.dims)
     # we used a set for dims to prevent duplicates - now convert to a list to have a defined order
     dims = list(dims)

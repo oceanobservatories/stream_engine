@@ -1,5 +1,9 @@
 # Stream Engine
 
+# Release 1.18.0 2020-09-29
+
+Issue #14744 - Fix aggregation handling for non-obs dims
+
 # Release 1.17.0 2020-09-10
 
 Issue #14828 - Use unicode for qartod_results variables to get encoding as array of strings
