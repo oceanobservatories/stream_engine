@@ -2,6 +2,8 @@
 
 # Release 1.18.0 2020-09-29
 
+Issue #14790 - Correct parsing of QARTOD records and add script to load them
+
 Issue #14744 - Fix aggregation handling for non-obs dims
 
 # Release 1.17.0 2020-09-10
