@@ -68,9 +68,14 @@ class QartodQcExecutor(object):
             return
 
         # replace parameter names with the actual numpy arrays from the dataset for each entry in param_dict
-        for input_name in param_dict:
+        # caste keys to list instead of iterating dict directly because we may delete keys in this loop
+        for input_name in list(param_dict.keys()):
             param_name = param_dict[input_name]
-            param_dict[input_name] = dataset[param_name].values
+            if param_name:
+                param_dict[input_name] = dataset[param_name].values
+            else:
+                # optional parameter set to None/null - remove it
+                del param_dict[input_name]
 
         # call QARTOD test in a separate process to deal with crashes, e.g. segfaults
         read_fd, write_fd = os.pipe()
