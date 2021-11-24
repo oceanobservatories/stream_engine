@@ -245,7 +245,7 @@ class TimeRange(object):
 
 class StreamKey(object):
     glider_prefixes = ['GL', 'PG']
-    mobile_prefixes = ['GL', 'PG', 'SF', 'WFP', 'SP']
+    mobile_prefixes = ['GL', 'PG', 'SF', 'WFP', 'SP', 'DP', 'PC']
 
     def __init__(self, subsite, node, sensor, method, stream):
         self.subsite = subsite
