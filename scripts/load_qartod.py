@@ -2,7 +2,6 @@ import csv
 import collections
 import argparse
 import getpass
-import json
 import psycopg2
 from psycopg2 import sql
 
@@ -50,22 +49,12 @@ def parse_qartod_dict(qartod_dict):
             param = qartod_dict.get('particleKey')
         # convert legacy 'parameter' field into new 'parameters' dictionary
         parameters = "{'inp': '%s'}" % param
-
+    
     qcconfig = qartod_dict.get('qcConfig')
     climatologyTable = qartod_dict.get('climatologyTable')
     if not qcconfig and climatologyTable:
-         # Extract configuration details for test inputs referring to dataset variables
-        params = parameters
-        # single quoted strings in parameters (i.e. from the database field) will mess up the json.loads call
-        params = params.replace("'", "\"")
-        param_dict = {}
-        try:
-            param_dict = json.loads(params)      
-        except ValueError:
-            print('Failure deserializing QC parameter configuration ', params)
-            return        
         # climatology qcconfig is encoded in a separate CSV file pointed to by climatologyTable
-        qcconfig = parse_climatology_table(climatologyTable, param_dict)
+        qcconfig = parse_climatology_table(climatologyTable)
     elif not qcconfig:
         qcconfig = {'qartod': {'gross_range_test': {}}}
         # suspect_span is optional
@@ -88,6 +77,7 @@ def parse_qartod_dict(qartod_dict):
     # do some data sanitation - valid JSON uses null instead None
     qcconfig = qcconfig.replace('None', 'null')
     parameters = parameters.replace('None', 'null')
+    
     source = qartod_dict.get('source')
     if not source:
         source = qartod_dict.get('Source')
@@ -105,7 +95,7 @@ def parse_qartod_file(filepath):
     return qartod_list
 
 
-def parse_climatology_table(filepath, param_dict):
+def parse_climatology_table(filepath):
     prefix = "{'qartod': {'climatology_test': {'config': ["
     suffix = "]}}}"
 
@@ -114,22 +104,13 @@ def parse_climatology_table(filepath, param_dict):
         reader = csv.reader(csvfile)
         # NOTE: time_bins[0] is empty for alignment purposes!
         time_bins = reader.next()
-
-        #don't add a zspan if there is no value for zinp, doing so will cause tests to  not run
-        includeZSpan = True
-        if param_dict and (param_dict['zinp'] == 'null' or param_dict['zinp'] == 'None'):
-               includeZSpan = False
-
+        
         for row in reader:
-            if row:
-                pressure_bin = row[0]
-                # skip first row which is blank for time_bins and the pressure_bin data for other rows
-                for i in range(1, len(time_bins)):
-                    if includeZSpan:
-                        data = "{'tspan': %s, 'zspan': %s, 'vspan': %s, 'period': 'month'}" % (time_bins[i], pressure_bin, row[i])
-                    else:
-                        data = "{'tspan': %s, 'vspan': %s, 'period': 'month'}" % (time_bins[i], row[i])
-                    configs.append(data)
+            pressure_bin = row[0]
+            # skip first row which is blank for time_bins and the pressure_bin data for other rows
+            for i in range(1, len(time_bins)):
+                data = "{'tspan': %s, 'zspan': %s, 'vspan': %s, 'period': 'month'}" % (time_bins[i], pressure_bin, row[i])
+                configs.append(data)
     return '%s%s%s' % (prefix, ', '.join(configs), suffix)
 
 
