@@ -1,11 +1,5 @@
 # Stream Engine
 
-# Release 1.19.1 2021-12-08
-
-Issue #14992 - Pressure missing from all Cabled Deep Profiler and some Shallow Profiler instruments
-
-Issue #15227 - QARTOD updates
-
 # Release 1.18.0 2020-09-29
 
 Issue #14790 - Correct parsing of QARTOD records and add script to load them
