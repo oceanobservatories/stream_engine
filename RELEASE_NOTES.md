@@ -1,5 +1,9 @@
 # Stream Engine
 
+# Release 1.19.2 2021-12-08
+
+Issue #14992 - Add missing pressure from cabled deep profiler
+
 # Release 1.18.0 2020-09-29
 
 Issue #14790 - Correct parsing of QARTOD records and add script to load them
