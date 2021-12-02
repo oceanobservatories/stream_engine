@@ -51,6 +51,7 @@ class QartodQcExecutor(object):
             return
 
         parameter_under_test = param_dict['inp']
+
         # can't run test on data that's not there
         if parameter_under_test not in dataset:
             return
@@ -67,20 +68,14 @@ class QartodQcExecutor(object):
             return
 
         # replace parameter names with the actual numpy arrays from the dataset for each entry in param_dict
-        # caste keys to list instead of iterating dict directly because we may delete keys in this loop 
+        # caste keys to list instead of iterating dict directly because we may delete keys in this loop
         for input_name in list(param_dict.keys()):
             param_name = param_dict[input_name]
-            if param_name and param_name != 'null' and param_name != 'None':
+            if param_name:
                 param_dict[input_name] = dataset[param_name].values
             else:
                 # optional parameter set to None/null - remove it
                 del param_dict[input_name]
-        if 'tinp' in param_dict.keys():
-            # Seconds from NTP epoch to UNIX epoch           
-            NTP_OFFSET_SECS = 2208988800
-            #convert NTP times to UNIX time before sending to Qartod for Climatology test
-            if np.all(param_dict['tinp'] > NTP_OFFSET_SECS):
-                param_dict['tinp'] = param_dict['tinp'] - NTP_OFFSET_SECS
 
         # call QARTOD test in a separate process to deal with crashes, e.g. segfaults
         read_fd, write_fd = os.pipe()
@@ -131,7 +126,7 @@ class QartodQcExecutor(object):
             for test, test_results in test_set.items():
                 # test_results was converted from an np.array to a list during serialization, so convert it back
                 test_results = np.asarray(test_results)
-                
+
                 # Verify all QC results are valid QARTOD Primary Level Flags
                 mask = np.array([item not in QartodFlags.getValidQCFlags() for item in test_results])
 
