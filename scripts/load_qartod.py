@@ -134,12 +134,11 @@ def parse_climatology_table(filepath, param_dict):
 
 
 def insert_qartod_records(qartod_list):
-    host = raw_input('Connecting to PostgreSQL to insert QARTOD records...\nhost: ')
     username = raw_input('Connecting to PostgreSQL to insert QARTOD records...\nusername: ')
     password = getpass.getpass('password: ')
     connection = None
     try:
-        connection = psycopg2.connect(user=username, password=password, host=host, port='5432', database='metadata')
+        connection = psycopg2.connect(user=username, password=password, host='localhost', port='5432', database='metadata')
         for parsed_qartod_dict in qartod_list:
             with connection:
                 with connection.cursor() as cursor:
