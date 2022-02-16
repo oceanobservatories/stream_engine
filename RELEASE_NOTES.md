@@ -1,5 +1,11 @@
 # Stream Engine
 
+# Release 1.20.0 2022-02-23
+
+Issue #15227 - QARTOD updates
+
+Issue #15266 - Enhanced QARTOD testing
+
 # Release 1.19.2 2021-12-08
 
 Issue #14992 - Add missing pressure from cabled deep profiler
