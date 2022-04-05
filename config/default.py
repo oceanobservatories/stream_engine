@@ -273,6 +273,10 @@ MAX_RSYNC_WORKERS = 4
 MAX_RETRY_COUNT = 3
 # Maximum single file size for aggregation, in Bytes
 MAX_AGGREGATION_SIZE = 500e6
+#set the aggregation range in bytes, this represents how close the final files will be to MAX_AGGREGATION_SIZE
+AGGREGATION_RANGE = 50e6
+#set the number of rows to slice off a dataset at a time when splitting NETCDF files
+AGGREGATION_SLICE_SIZE=2500
 # Maximum time aggregation can run, in seconds, before being forcibly terminated - use value of 'None' (without the 
 # quotes) for no max runtime limit. This limit is only checked once every poll period, so it should be a multiple of 
 # AGGREGATION_ACTIVITY_POLL_PERIOD.
