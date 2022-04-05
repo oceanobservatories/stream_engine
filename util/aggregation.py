@@ -30,6 +30,9 @@ valid_jobdir_re = re.compile('\d{8}T(\d{6}|\d{9}Z)-')
 
 
 MAX_AGGREGATION_SIZE = app.config['MAX_AGGREGATION_SIZE']
+AGGREGATION_RANGE = app.config['AGGREGATION_RANGE']
+AGGREGATION_SLICE_SIZE = app.config['AGGREGATION_SLICE_SIZE']
+
 ATTRIBUTE_CARRYOVER_MAP = {
     'time_coverage_start': {'type': 'string', 'func': min},
     'time_coverage_end': {'type': 'string', 'func': max},
@@ -303,26 +306,67 @@ def concatenate_and_write(datasets, out_dir, group_name, request_id=None):
 
 @log_timing(log)
 def aggregate_netcdf_group(job_dir, output_dir, files, group_name, request_id=None):
+    TEMP_FILE="temp.nc"
+
     datasets = []
+    #track size of full netcdf files aggregated to gether
     accum_size = 0
+    #track size of split netcdf files
+    concat_size = 0
     parameters = analyze_datasets(job_dir, files, request_id=request_id)
     for f in sorted(files):
         path = os.path.join(job_dir, f)
-        size = os.stat(path).st_size
-        accum_size += size
-        if accum_size > MAX_AGGREGATION_SIZE:
-            concatenate_and_write(datasets, output_dir, group_name, request_id=request_id)
-            accum_size = size
-            datasets = []
+        orig_file_size = os.stat(path).st_size
+        concat_size = accum_size
+        accum_size += orig_file_size   
+        if accum_size < MAX_AGGREGATION_SIZE:    
+            # coordinates must be decoded to gracefully handle mismatched coordinates during dataset concatenation
+            with xr.open_dataset(path, decode_times=False, mask_and_scale=False, decode_coords=True) as ds:
+                ds.load()
+                #log.error("Parameters: %s", parameters)
+                shape_up(ds, parameters, request_id=request_id)
+                datasets.append(ds)
+            # aggregated file size should be within allowable range so write it to disk 
+            if accum_size >= MAX_AGGREGATION_SIZE-AGGREGATION_RANGE:
+                concatenate_and_write(datasets, output_dir, group_name, request_id=request_id)
+                accum_size = 0
+                concat_size = 0
+                datasets = []
+        elif accum_size > MAX_AGGREGATION_SIZE:
+            #aggregated NetCDF file would be too big, so we will try to slice the original file into smaller sections until the aggretated file is the appropriate size
+            dset = None
+            # coordinates must be decoded to gracefully handle mismatched coordinates during dataset concatenation
+            with xr.open_dataset(path, decode_times=False, mask_and_scale=False, decode_coords=True) as ds:
+                ds.load()
+                dset = ds
+            slice_start = 0
+            data_size = dset['time'].size            
+            while slice_start < data_size:
+                #slice the original netcdf file into smaller pieces, and aggretate the slice until we reach MAX_AGGREGATION_SIZE 
+                subset = dset.isel(obs=slice(slice_start, slice_start+AGGREGATION_SLICE_SIZE)).load()
+                slice_start=slice_start+AGGREGATION_SLICE_SIZE
+                shape_up(subset, parameters, request_id=request_id)
 
-        # coordinates must be decoded to gracefully handle mismatched coordinates during dataset concatenation
-        with xr.open_dataset(path, decode_times=False, mask_and_scale=False, decode_coords=True) as ds:
-            ds.load()
-            shape_up(ds, parameters, request_id=request_id)
-            datasets.append(ds)
+                #write temp file to calculate the actual size of the slice on disk
+                concat_path =os.path.join(output_dir, TEMP_FILE)
+                write_netcdf(subset, concat_path)
+                temp_concat_size = os.stat(concat_path).st_size
+                concat_size = temp_concat_size + concat_size
+                datasets.append(subset)
+                accum_size = concat_size
+         
+                #amount left to read in original file is minimal, so concatanate remainder to netcdf file and reset
+                if concat_size >= MAX_AGGREGATION_SIZE-AGGREGATION_RANGE:
+                    concatenate_and_write(datasets, output_dir, group_name, request_id=request_id)
+                    accum_size = 0
+                    concat_size = 0
+                    datasets = []
 
     if datasets:
+        #write any remaing data sets to NetCDF file
         concatenate_and_write(datasets, output_dir, group_name, request_id=request_id)
+    if os.path.exists(TEMP_FILE):
+        os.remove(TEMP_FILE)   
 
 
 @log_timing(log)
