@@ -144,11 +144,11 @@ def _calc_concat_over(datasets, dims, dim_names, data_vars, coords, compat):
             
             # don't concat along non obs dimensions (i.e. wavelength) containing duplicate data, this can lead to errors
             if dim != 'obs' and len(datasets) > 1 and dim in concat_dim_lengths.keys():
-                non_obs_data = [var for var in ds.data_vars if 'obs' not in ds[var].dims]
-                non_obs_vars = datasets[0][non_obs_data].data_vars
-                for key in non_obs_vars.keys():
-                    #if data in non obs dimension is not duplicate update concat_dim_lengths
-                    if not ds[key].equals(non_obs_vars[key]):
+                ds_non_obs_vars = [var for var in ds.data_vars if 'obs' not in ds[var].dims]
+                first_non_obs_vars = datasets[0][ds_non_obs_vars].data_vars
+                for key in first_non_obs_vars.keys():
+                    #if data in non obs dimension is not duplicate (compared to first dataset) update concat_dim_lengths
+                    if not ds[key].equals(first_non_obs_vars[key]):
                         # insert dim length for each ds into concat_dim_lengths under appropriate key
                         concat_dim_lengths.setdefault(dim, []).append(ds.dims.get(dim, 1))
             else:
