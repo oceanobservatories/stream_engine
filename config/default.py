@@ -277,6 +277,8 @@ MAX_AGGREGATION_SIZE = 500e6
 AGGREGATION_RANGE = 50e6
 #set the number of rows to slice off a dataset at a time when splitting NETCDF files
 AGGREGATION_SLICE_SIZE=2500
+#temporary file used to test aggregation file sizes
+TEMP_AGGREGATION_FILE='aggregation_temp.nc'
 # Maximum time aggregation can run, in seconds, before being forcibly terminated - use value of 'None' (without the 
 # quotes) for no max runtime limit. This limit is only checked once every poll period, so it should be a multiple of 
 # AGGREGATION_ACTIVITY_POLL_PERIOD.
