@@ -365,8 +365,9 @@ def aggregate_netcdf_group(job_dir, output_dir, files, group_name, request_id=No
         #write any remaing data sets to NetCDF file
         concatenate_and_write(datasets, output_dir, group_name, request_id=request_id)
     # cleanup temporary aggregation file    
-    if os.path.exists(TEMP_AGGREGATION_FILE):
-        os.remove(TEMP_AGGREGATION_FILE)   
+    temp_file = os.path.join(output_dir, TEMP_AGGREGATION_FILE)
+    if os.path.exists(temp_file):
+        os.remove(temp_file)  
 
 
 @log_timing(log)
@@ -386,8 +387,9 @@ def aggregate_netcdf(job_dir, output_dir, request_id=None):
                 shutil.move(os.path.join(job_dir, filename),
                             os.path.join(output_dir, filename))
             # cleanup temporary aggregation file                
-            if os.path.exists(TEMP_AGGREGATION_FILE):
-                os.remove(TEMP_AGGREGATION_FILE) 
+            temp_file = os.path.join(output_dir, TEMP_AGGREGATION_FILE)
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
 
 
 @log_timing(log)
