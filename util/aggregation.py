@@ -32,6 +32,7 @@ valid_jobdir_re = re.compile('\d{8}T(\d{6}|\d{9}Z)-')
 MAX_AGGREGATION_SIZE = app.config['MAX_AGGREGATION_SIZE']
 AGGREGATION_RANGE = app.config['AGGREGATION_RANGE']
 AGGREGATION_SLICE_SIZE = app.config['AGGREGATION_SLICE_SIZE']
+TEMP_AGGREGATION_FILE = app.config['TEMP_AGGREGATION_FILE']
 
 ATTRIBUTE_CARRYOVER_MAP = {
     'time_coverage_start': {'type': 'string', 'func': min},
@@ -306,8 +307,6 @@ def concatenate_and_write(datasets, out_dir, group_name, request_id=None):
 
 @log_timing(log)
 def aggregate_netcdf_group(job_dir, output_dir, files, group_name, request_id=None):
-    TEMP_FILE="temp.nc"
-
     datasets = []
     #track size of full netcdf files aggregated to gether
     accum_size = 0
@@ -342,20 +341,20 @@ def aggregate_netcdf_group(job_dir, output_dir, files, group_name, request_id=No
             slice_start = 0
             data_size = dset['time'].size            
             while slice_start < data_size:
-                #slice the original netcdf file into smaller pieces, and aggretate the slice until we reach MAX_AGGREGATION_SIZE 
+                # slice the original netcdf file into smaller pieces, and aggretate the slice until we reach MAX_AGGREGATION_SIZE 
                 subset = dset.isel(obs=slice(slice_start, slice_start+AGGREGATION_SLICE_SIZE)).load()
                 slice_start=slice_start+AGGREGATION_SLICE_SIZE
                 shape_up(subset, parameters, request_id=request_id)
 
-                #write temp file to calculate the actual size of the slice on disk
-                concat_path =os.path.join(output_dir, TEMP_FILE)
+                # write temp file to calculate the actual size of the slice on disk
+                concat_path =os.path.join(output_dir, TEMP_AGGREGATION_FILE)
                 write_netcdf(subset, concat_path)
                 temp_concat_size = os.stat(concat_path).st_size
                 concat_size = temp_concat_size + concat_size
                 datasets.append(subset)
                 accum_size = concat_size
          
-                #amount left to read in original file is minimal, so concatanate remainder to netcdf file and reset
+                # amount left to read in original file is minimal, so concatanate remainder to netcdf file and reset
                 if concat_size >= MAX_AGGREGATION_SIZE-AGGREGATION_RANGE:
                     concatenate_and_write(datasets, output_dir, group_name, request_id=request_id)
                     accum_size = 0
@@ -365,8 +364,9 @@ def aggregate_netcdf_group(job_dir, output_dir, files, group_name, request_id=No
     if datasets:
         #write any remaing data sets to NetCDF file
         concatenate_and_write(datasets, output_dir, group_name, request_id=request_id)
-    if os.path.exists(TEMP_FILE):
-        os.remove(TEMP_FILE)   
+    # cleanup temporary aggregation file    
+    if os.path.exists(TEMP_AGGREGATION_FILE):
+        os.remove(TEMP_AGGREGATION_FILE)   
 
 
 @log_timing(log)
@@ -385,6 +385,9 @@ def aggregate_netcdf(job_dir, output_dir, request_id=None):
             for filename in groups[group]:
                 shutil.move(os.path.join(job_dir, filename),
                             os.path.join(output_dir, filename))
+            # cleanup temporary aggregation file                
+            if os.path.exists(TEMP_AGGREGATION_FILE):
+                os.remove(TEMP_AGGREGATION_FILE) 
 
 
 @log_timing(log)
