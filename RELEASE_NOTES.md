@@ -1,5 +1,9 @@
 # Stream Engine
 
+# Release 1.20.1 2022-04-13
+
+Issue #13624 - Aggregation can create NetCDF files substantially below the ideal 500MB size
+
 # Release 1.20.0 2022-02-23
 
 Issue #15227 - QARTOD updates
