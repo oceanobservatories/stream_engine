@@ -141,8 +141,20 @@ def _calc_concat_over(datasets, dims, dim_names, data_vars, coords, compat):
                     if dim in ds:
                         ds = ds.set_coords(dim)
             concat_over.update(k for k, v in ds.variables.items() if dim in v.dims)
-            # insert dim length for each ds into concat_dim_lengths under appropriate key
-            concat_dim_lengths.setdefault(dim, []).append(ds.dims.get(dim, 1))
+            
+            # don't concat along non obs dimensions (i.e. wavelength) containing duplicate data, this can lead to errors
+            # only applies in cases where there is more than one dimension
+            if dim != 'obs' and len(dim_names) > 1 and len(datasets) > 1 and dim in concat_dim_lengths.keys():
+                ds_non_obs_vars = [var for var in ds.data_vars if 'obs' not in ds[var].dims]
+                first_non_obs_vars = datasets[0][ds_non_obs_vars].data_vars
+                for key in first_non_obs_vars.keys():
+                    #if data in non obs dimension is not duplicate (compared to first dataset) update concat_dim_lengths
+                    if not ds[key].equals(first_non_obs_vars[key]):
+                        # insert dim length for each ds into concat_dim_lengths under appropriate key
+                        concat_dim_lengths.setdefault(dim, []).append(ds.dims.get(dim, 1))
+            else:
+                # insert dim length for each ds into concat_dim_lengths under appropriate key
+                concat_dim_lengths.setdefault(dim, []).append(ds.dims.get(dim, 1))
 
     def process_subset_opt(opt, subset):
         if isinstance(opt, str):
