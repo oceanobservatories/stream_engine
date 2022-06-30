@@ -100,6 +100,8 @@ class StreamDataset(object):
                     if missing:
                         remaining.append(param)
                         self.missing.setdefault(deployment, {})[param] = missing
+                    else:
+                        self.missing.setdefault(deployment, {}).pop(param, None)
                 if len(remaining) == len(self.params[deployment]):
                     break
                 self.params[deployment] = remaining
@@ -378,6 +380,9 @@ class StreamDataset(object):
             self._insert_data(dataset, param, None,
                               provenance_metadata=self.provenance_metadata,
                               request_id=self.request_id)
+
+        # All params for the calc were found, nothing is missing
+        return {}
 
     def _insert_missing(self, dataset, param, missing):
         """

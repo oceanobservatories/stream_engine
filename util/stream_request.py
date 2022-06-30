@@ -121,7 +121,11 @@ class StreamRequest(object):
         for stream_key, stream_parameters in self.stream_parameters.iteritems():
             other_streams = set(self.stream_parameters)
             other_streams.remove(stream_key)
+
+            # Pull a data point on either side of the requested time range only for supporting streams
+            # to improve interpolation
             should_pad = stream_key != self.stream_key
+
             if not stream_key.is_virtual:
                 log.debug('<%s> Fetching raw data for %s', self.request_id, stream_key.as_refdes())
                 sd = StreamDataset(stream_key, self.uflags, other_streams, self.request_id)
@@ -174,7 +178,34 @@ class StreamRequest(object):
                     pressure_depth = Parameter.query.get(PRESSURE_DEPTH_PARAM_ID)
                     if pressure_depth.name in ds:
                         del ds[pressure_depth.name]
-                
+
+    @staticmethod
+    def missing_params_of_dataset_depend_on_another(dataset, another):
+        if not (dataset.missing and another.missing):
+            return False
+        missing_param_dependencies = set()
+        for param_dependencies_dict in dataset.missing.values():
+            for param_dependencies in param_dependencies_dict.values():
+                for dependency in param_dependencies.values():
+                    missing_param_dependencies.add(dependency)
+
+        for param_list in another.params.values():
+            for param in param_list:
+                if (another.stream_key.stream, param) in missing_param_dependencies:
+                    return True
+        return False
+
+    @staticmethod
+    def compare_datasets_by_missing(ds1, ds2):
+        if ds1.stream_key.is_virtual:
+            return 1
+        if ds2.stream_key.is_virtual:
+            return -1
+        if StreamRequest.missing_params_of_dataset_depend_on_another(ds1, ds2):
+            return 1
+        if StreamRequest.missing_params_of_dataset_depend_on_another(ds2, ds1):
+            return -1
+        return 0
 
     def calculate_derived_products(self):
         # Calculate all internal-only data products
@@ -182,9 +213,13 @@ class StreamRequest(object):
             if not sk.is_virtual:
                 self.datasets[sk].calculate_all(ignore_missing_optional_params=False)
 
+        # Sort the datasets in case a derived parameter requires an another external parameter to be calculated first
+        sorted_datasets = sorted(self.datasets.values(), cmp=StreamRequest.compare_datasets_by_missing)
+        sorted_stream_keys = [ds.stream_key for ds in sorted_datasets]
+
         # Allow each StreamDataset to interpolate any needed non-virtual parameters from the other datasets
         # Then calculate any data products which required only non-virtual external input.
-        for sk in self.datasets:
+        for sk in sorted_stream_keys:
             if not sk.is_virtual:
                 self.datasets[sk].interpolate_needed(self.datasets, interpolate_virtual=False)
                 self.datasets[sk].calculate_all(ignore_missing_optional_params=True)

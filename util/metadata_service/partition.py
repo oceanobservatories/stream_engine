@@ -25,6 +25,16 @@ def _time_in_bin_units(t, stream):
     return long(t)
 
 
+def _get_bin(t, stream_key):
+    """
+    :param t: The timestamp that falls within the bin
+    :param stream_key: The stream info containing the binsize
+    :return: The bin number in this stream that contains the timestamp t
+    """
+    bin_size_seconds = stream_key.stream.binsize_minutes * 60
+    return int(t / bin_size_seconds) * bin_size_seconds
+
+
 @log_timing(_log)
 def _query_partition_metadata_before(stream_key, time_start):
     """
@@ -45,7 +55,7 @@ def _query_partition_metadata_before(stream_key, time_start):
         ],
     ]
     """
-    start_bin = _time_in_bin_units(time_start, stream_key.stream_name)
+    start_bin = _get_bin(time_start, stream_key)
     partition_metadata_record_list = metadata_service_api.get_partition_metadata_records(*stream_key.as_tuple())
     partition_metadata_record_list.sort(key=itemgetter('bin'), reverse=True)
     result = []
@@ -77,7 +87,7 @@ def _query_partition_metadata_after(stream_key, time_end):
         ],
     ]
     """
-    end_bin = _time_in_bin_units(time_end, stream_key.stream_name)
+    end_bin = _get_bin(time_end, stream_key)
     partition_metadata_record_list = metadata_service_api.get_partition_metadata_records(*stream_key.as_tuple())
     partition_metadata_record_list.sort(key=itemgetter('bin'), reverse=False)
     result = []
