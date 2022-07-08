@@ -1,5 +1,9 @@
 # Stream Engine
 
+# Release 1.20.2 2022-07-14
+
+Issue #15323 - Enhance derived parameter dependency resolution
+
 # Release 1.20.1 2022-04-13
 
 Issue #13624 - Aggregation can create NetCDF files substantially below the ideal 500MB size
