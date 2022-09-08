@@ -44,15 +44,16 @@ class DataModelTest(TestCase):
         cols = echo_df.columns
         rows = list(echo_df.itertuples(index=False))
 
-        ds = to_xray_dataset(cols, rows, echo_sk, None)
+        dep_ds = to_xray_dataset(cols, rows, echo_sk, None)
 
         # first, verify there were 64-bit vars in the original dataset
         found = self.find_int64_vars(echo_ds)
         self.assertNotEqual(found, set())
 
         # second, verify there are no 64-bit vars in the output dataset
-        found = self.find_int64_vars(ds)
-        self.assertEqual(found, set())
+        for ds in dep_ds.values():
+            found = self.find_int64_vars(ds)
+            self.assertEqual(found, set())
 
     def test_shared_dimensions(self):
         adcp_fn = 'deployment0000_RS03AXBS-LJ03A-10-ADCPTE301-streamed-adcp_velocity_beam.nc'
@@ -62,6 +63,7 @@ class DataModelTest(TestCase):
         # grab the stream from preload
         stream = Stream.query.filter(Stream.name == 'adcp_velocity_beam').first()
         params = [p.name for p in stream.parameters if not p.is_function]
+        params.append('deployment')
 
         # transform into row data suitable for to_xray_dataset
         rows = []
@@ -79,9 +81,10 @@ class DataModelTest(TestCase):
             rows.append(row)
 
         # create the dataset
-        ds = to_xray_dataset(params, rows, adcp_sk, None)
-        # verify only two dimensions exists, bin and obs
-        self.assertEqual(set(ds.dims), {'bin', 'obs'})
+        dep_ds = to_xray_dataset(params, rows, adcp_sk, None)
+        for ds in dep_ds.values():
+            # verify only two dimensions exists, bin and obs
+            self.assertEqual(set(ds.dims), {'bin', 'obs'})
 
     def test_get_fill_value(self):
         for param in Parameter.query:

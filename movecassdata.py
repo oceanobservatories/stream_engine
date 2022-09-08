@@ -131,8 +131,11 @@ def main(args):
         return
 
     initialize_worker()
-    dataset = get_full_cass_dataset(old_stream_key, time_range, keep_exclusions=True)
-    insert_dataset(new_stream_key, dataset)
+    dep_datasets = get_full_cass_dataset(old_stream_key, time_range, keep_exclusions=True)
+
+    if dep_datasets:
+        for dep, dataset in dep_datasets.iteritems():
+            insert_dataset(new_stream_key, dataset)
 
 if __name__ == "__main__":
     # forward all but the program name argument
