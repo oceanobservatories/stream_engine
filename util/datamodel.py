@@ -102,73 +102,75 @@ def to_xray_dataset(cols, data, stream_key, request_uuid, san=False, keep_exclus
         attrs['title'] = '{:s} for {:s}'.format("SAN offloaded netCDF", stream_key.as_dashed_refdes())
         attrs['history'] = '{:s} {:s}'.format(datetime.datetime.utcnow().isoformat(), 'generated netcdf for SAN')
 
-    dataset = xr.Dataset(attrs=attrs)
+    datasets = {}
     dataframe = pd.DataFrame(data=data, columns=cols)
 
-    for column in dataframe.columns:
-        if not keep_exclusions and column in app.config['INTERNAL_OUTPUT_EXCLUDE_LIST']:
-            continue
+    for deployment, dataframe_group in dataframe.groupby('deployment'):
+        dataset = xr.Dataset(attrs=attrs)
+        for column in dataframe.columns:
+            if not keep_exclusions and column in app.config['INTERNAL_OUTPUT_EXCLUDE_LIST']:
+                continue
 
-        param = params.get(column)
+            param = params.get(column)
 
-        if param:
-            encoding = param.value_encoding
-            param_dims = [dim.value for dim in param.dimensions]
-            fill_val = _get_fill_value(param)
-            is_array = param.parameter_type == 'array<quantity>'
-        elif column == 'bin':
-            encoding = 'uint64'
-            fill_val = np.array('0').astype(encoding)
-            is_array = False
-            param_dims = []
-        else:
-            encoding = 'str'
-            fill_val = ''
-            is_array = False
-            param_dims = []
-
-        if column in app.config['INTERNAL_OUTPUT_MAPPING']:
-            encoding = app.config['INTERNAL_OUTPUT_MAPPING'][column]
-
-        data = _replace_values(dataframe[column].values, encoding, fill_val, is_array, column)
-        data = _force_dtype(data, encoding)
-        if data is None:
-            log.error('<%s> Unable to encode data NAME: %s FROM: %s TO: %s, dropping from dataset',
-                      request_uuid, column, data.dtype, encoding)
-
-        # Fix up the dimensions for possible multi-d objects
-        dims = ['obs']
-        if len(data.shape) > 1:
-            if param_dims:
-                dims += param_dims
+            if param:
+                encoding = param.value_encoding
+                param_dims = [dim.value for dim in param.dimensions]
+                fill_val = _get_fill_value(param)
+                is_array = param.parameter_type == 'array<quantity>'
+            elif column == 'bin':
+                encoding = 'uint64'
+                fill_val = np.array('0').astype(encoding)
+                is_array = False
+                param_dims = []
             else:
-                for index, dim in enumerate(data.shape[1:]):
-                    name = "{:s}_dim_{:d}".format(column, index)
-                    dims.append(name)
+                encoding = 'str'
+                fill_val = ''
+                is_array = False
+                param_dims = []
 
-        if column == 'time':
-            array_attrs = {
-                'units': 'seconds since 1900-01-01 0:0:0',
-                'standard_name': 'time',
-                'long_name': 'time',
-                'axis': 'T',
-                'calendar': app.config["NETCDF_CALENDAR_TYPE"]
-            }
-        elif column in params:
-            array_attrs = params[column].attrs
-        else:
-            array_attrs = {'name': column}
+            if column in app.config['INTERNAL_OUTPUT_MAPPING']:
+                encoding = app.config['INTERNAL_OUTPUT_MAPPING'][column]
 
-        coord_columns = 'time lat lon'
-        if column not in coord_columns:
-            array_attrs['coordinates'] = coord_columns
+            data = _replace_values(dataframe_group[column].values, encoding, fill_val, is_array, column)
+            data = _force_dtype(data, encoding)
+            if data is None:
+                log.error('<%s> Unable to encode data NAME: %s FROM: %s TO: %s, dropping from dataset',
+                          request_uuid, column, data.dtype, encoding)
 
-        # Override the fill value supplied by preload if necessary
-        array_attrs['_FillValue'] = fill_val
+            # Fix up the dimensions for possible multi-d objects
+            dims = ['obs']
+            if len(data.shape) > 1:
+                if param_dims:
+                    dims += param_dims
+                else:
+                    for index, dim in enumerate(data.shape[1:]):
+                        name = "{:s}_dim_{:d}".format(column, index)
+                        dims.append(name)
 
-        dataset.update({column: xr.DataArray(data, dims=dims, attrs=array_attrs)})
+            if column == 'time':
+                array_attrs = {
+                    'units': 'seconds since 1900-01-01 0:0:0',
+                    'standard_name': 'time',
+                    'long_name': 'time',
+                    'axis': 'T',
+                    'calendar': app.config["NETCDF_CALENDAR_TYPE"]
+                }
+            elif column in params:
+                array_attrs = params[column].attrs
+            else:
+                array_attrs = {'name': column}
 
-    return dataset
+            coord_columns = 'time lat lon'
+            if column not in coord_columns:
+                array_attrs['coordinates'] = coord_columns
+
+            # Override the fill value supplied by preload if necessary
+            array_attrs['_FillValue'] = fill_val
+
+            dataset.update({column: xr.DataArray(data, dims=dims, attrs=array_attrs)})
+        datasets[deployment] = dataset
+    return datasets
 
 
 def _force_dtype(data_slice, value_encoding):

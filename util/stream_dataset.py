@@ -52,9 +52,10 @@ class StreamDataset(object):
             self.time_param = None
 
     def fetch_raw_data(self, time_range, limit, should_pad):
-        dataset = self.get_dataset(time_range, limit, self.provenance_metadata,
-                                   should_pad, self.request_id)
-        self._insert_dataset(dataset)
+        deployment_datasets = self.get_dataset(time_range, limit, self.provenance_metadata,
+                                               should_pad, self.request_id)
+        for dataset in deployment_datasets.values():
+            self._insert_dataset(dataset)
 
     def _insert_dataset(self, dataset):
         """
@@ -756,6 +757,7 @@ class StreamDataset(object):
             san_percent = san_locations.total / total
             cass_percent = cass_locations.total / total
 
+        deployment_datasets = {}
         # If this is a supporting stream (ie. not the primary requested stream),
         # get extra data points on both sides immediately outside of the requested
         # time range for higher quality interpolation of supporting stream data
@@ -766,12 +768,17 @@ class StreamDataset(object):
             # within the requested time range.
             deployment_time_range = self.get_deployment_time_range(time_range)
             if deployment_time_range.get("start", None):
-                datasets.append(self.get_lookback_dataset(self.stream_key, time_range,
-                                                          deployment_time_range["start"], request_id))
+                dep_datasets = self.get_lookback_dataset(self.stream_key, time_range,
+                                                         deployment_time_range["start"], request_id)
+                if dep_datasets:
+                    for dep, dataset in dep_datasets.iteritems():
+                        deployment_datasets.setdefault(dep, []).append(dataset)
             if deployment_time_range.get("stop", None):
-                datasets.append(self.get_lookforward_dataset(self.stream_key, time_range,
-                                                             deployment_time_range["stop"], request_id))
-
+                dep_datasets = self.get_lookforward_dataset(self.stream_key, time_range,
+                                                            deployment_time_range["stop"], request_id)
+                if dep_datasets:
+                    for dep, dataset in dep_datasets.iteritems():
+                        deployment_datasets.setdefault(dep, []).append(dataset)
         if san_locations.total > 0:
             # put the range down if we are within the time range
             t1 = max(time_range.start, san_locations.start_time)
@@ -792,12 +799,22 @@ class StreamDataset(object):
             t2 += .1
             cass_times = TimeRange(t1, t2)
             if limit:
-                datasets.append(fetch_nth_data(self.stream_key, cass_times, num_points=int(limit * cass_percent),
-                                               location_metadata=cass_locations, request_id=request_id))
+                dep_datasets = fetch_nth_data(self.stream_key, cass_times, num_points=int(limit * cass_percent),
+                                              location_metadata=cass_locations, request_id=request_id)
+                if dep_datasets:
+                    for dep, dataset in dep_datasets.iteritems():
+                        deployment_datasets.setdefault(dep, []).append(dataset)
             else:
-                datasets.append(get_full_cass_dataset(self.stream_key, cass_times,
-                                                      location_metadata=cass_locations, request_id=request_id))
-        return compile_datasets(datasets)
+                dep_datasets = get_full_cass_dataset(self.stream_key, cass_times,
+                                                     location_metadata=cass_locations, request_id=request_id)
+                if dep_datasets:
+                    for dep, dataset in dep_datasets.iteritems():
+                        deployment_datasets.setdefault(dep, []).append(dataset)
+
+        for dep, datasets in deployment_datasets.iteritems():
+            deployment_datasets[dep] = compile_datasets(datasets)
+
+        return deployment_datasets
 
     @log_timing(log)
     def get_lookback_dataset(self, key, request_time_range, deployment_start_time, request_id=None):
