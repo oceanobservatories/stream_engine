@@ -420,7 +420,11 @@ class StreamRequest(object):
         :return: found parameters as dict(StreamKey, Parameter), unfulfilled parameters as set(Parameter)
         """
         log.debug('<%s> _locate_externals: %r', self.request_id, parameters)
-        external_to_process = set(parameters)
+        # A set of tuples of the dependant stream and the required parameters that it depends on.
+        # Initially, it is just the requested stream and external parameters that it needs.
+        external_to_process = set()
+        for param in parameters:
+            external_to_process.add((self.stream_key, param))
         found = {}
         external_unfulfilled = set()
         stream_parameters = {}
@@ -443,19 +447,19 @@ class StreamRequest(object):
             # Add externals not yet processed to the to_process set
             for sub_need in sk_needs_external:
                 if sub_need not in external_unfulfilled:
-                    external_to_process.add(sub_need)
+                    external_to_process.add((stream_key, sub_need))
             # Add internal parameters to the corresponding stream set
             stream_parameters.setdefault(stream_key, set()).update(sk_needs_internal)
 
         while external_to_process:
             # Pop an external from the list of externals to process
-            external = external_to_process.pop()
+            stream_key, external = external_to_process.pop()
             stream, poss_params = external
             # all non-virtual streams define PD7, skip
             if poss_params[0].id == 7:
                 continue
             log.debug('<%s> _locate_externals: STREAM: %r POSS_PARAMS: %r', self.request_id, stream, poss_params)
-            found_sk, found_param = self.find_stream(self.stream_key, poss_params, stream=stream)
+            found_sk, found_param = self.find_stream(stream_key, poss_params, stream=stream)
             if found_sk:
                 process_found_stream(found_sk, found_param)
             else:
