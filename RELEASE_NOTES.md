@@ -1,5 +1,13 @@
 # Stream Engine
 
+# Release 1.20.4 2022-12-07
+
+Issue #14861 - Find velpt for metbk when requesting CO2 flux
+
+# Release 1.20.3 2022-09-14
+
+Issue #15362 - Pad 2D arrays on a per-deployment basis
+
 # Release 1.20.2 2022-07-14
 
 Issue #15323 - Enhance derived parameter dependency resolution
