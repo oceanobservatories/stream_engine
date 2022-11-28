@@ -1,5 +1,9 @@
 # Stream Engine
 
+# Release 1.20.5 2022-12-07
+
+Issue #15486 - Address Unintended Consequences of Preload and QARTOD Changes in the September 2022 Release
+
 # Release 1.20.4 2022-12-07
 
 Issue #14861 - Find velpt for metbk when requesting CO2 flux
