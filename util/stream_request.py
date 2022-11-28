@@ -387,7 +387,8 @@ class StreamRequest(object):
                 long_parameter_name = external_stream_key.stream_name + "-" + parameter.name
                 # netcdf_generator.py is expecting the long naming scheme
                 parameter_name_map[long_parameter_name] = external_stream_key.stream_name + "-" + parameter.netcdf_name
-
+                #make sure netcdf_name parameter is used for co-located CTD's (15486)
+                parameter_name_map[parameter.name] = parameter.netcdf_name
         # pass the parameter mapping to the annotation store for renaming there
         if self.include_annotations:
             self.annotation_store.rename_parameters(parameter_name_map)
