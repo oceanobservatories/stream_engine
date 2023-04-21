@@ -150,7 +150,7 @@ class NetcdfGenerator(object):
                                                                               stream_key.as_dashed_refdes(), start, end)
                     prov_json = os.path.join(base_path, prov_fname)
                     file_paths.append(prov_json)
-                    stream_dataset.provenance_metadata.dump_json(prov_json)
+                    stream_dataset.provenance_metadata.dump_json(prov_json, deployment)
 
                 file_name = 'deployment%04d_%s_%s-%s.nc' % (deployment, stream_key.as_dashed_refdes(), start, end)
                 file_path = os.path.join(base_path, file_name)
