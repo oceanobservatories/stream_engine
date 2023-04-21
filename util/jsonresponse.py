@@ -41,7 +41,7 @@ class JsonResponse(object):
 
         prov = anno = None
         if self.stream_request.include_provenance:
-            prov = self._provenance(stream_dataset.provenance_metadata)
+            prov = self._provenance(stream_dataset.provenance_metadata, stream_dataset.datasets.keys())
         if self.stream_request.include_annotations:
             anno = self._annotations(self.stream_request.annotation_store)
 
@@ -91,7 +91,7 @@ class JsonResponse(object):
                                                                           stream_key.as_dashed_refdes(), start, end)
                 prov_json = os.path.join(base_path, prov_fname)
                 file_paths.append(prov_json)
-                stream_dataset.provenance_metadata.dump_json(prov_json)
+                stream_dataset.provenance_metadata.dump_json(prov_json, deployment)
 
             filename = 'deployment%04d_%s_%s-%s.json' % (deployment, stream_key.as_dashed_refdes(), start, end)
             file_path = os.path.join(base_path, filename)
@@ -211,9 +211,9 @@ class JsonResponse(object):
         return particles
 
     @staticmethod
-    def _provenance(prov_metadata):
+    def _provenance(prov_metadata, deployments):
         if prov_metadata is not None:
-            return prov_metadata.get_json()
+            return prov_metadata.get_json(deployments)
 
     @staticmethod
     def _annotations(anno_store):
