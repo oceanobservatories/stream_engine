@@ -105,7 +105,7 @@ def _init():
             engine.app.config['CASSANDRA_CONTACT_POINTS'],
             control_connection_timeout=engine.app.config['CASSANDRA_CONNECT_TIMEOUT'],
             compression=True,
-            protocol_version=3)
+            protocol_version=4)
     SessionManager.create_pool(cluster,
                                engine.app.config['CASSANDRA_KEYSPACE'],
                                consistency_level=consistency,
