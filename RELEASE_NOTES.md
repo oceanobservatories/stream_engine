@@ -1,5 +1,11 @@
 # Stream Engine
 
+# Release 1.20.6 2023-05-03
+
+Issue #15592 - Fix Problems with provenance.json files
+
+Issue #15594 - Stream Engine should use Cassandra binary message protocol V4
+
 # Release 1.20.5 2022-12-07
 
 Issue #15486 - Address Unintended Consequences of Preload and QARTOD Changes in the September 2022 Release
