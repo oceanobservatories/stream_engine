@@ -222,6 +222,11 @@ class StreamRequest(object):
         for sk in sorted_stream_keys:
             if not sk.is_virtual:
                 self.datasets[sk].interpolate_needed(self.datasets, interpolate_virtual=False)
+                self.datasets[sk].calculate_all(ignore_missing_optional_params=False)
+
+        # Calculate params where there is a missing arg and there is a default for that arg in the ion-function
+        for sk in sorted_stream_keys:
+            if not sk.is_virtual:
                 self.datasets[sk].calculate_all(ignore_missing_optional_params=True)
 
         for sk in self.datasets:
