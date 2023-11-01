@@ -331,6 +331,9 @@ class StreamRequest(object):
                 return True
         return False
 
+    def is_parameter_valid(self, param, stream_key):
+        return param.id != PRESSURE_DEPTH_PARAM_ID or self._is_pressure_depth_valid(stream_key)
+
     def import_extra_externals(self):
         # import any other required "externals" into all datasets
         for source_sk in self.external_includes:
@@ -596,26 +599,30 @@ class StreamRequest(object):
                 param_streams.append((p, [stream.name]))
 
         # First, try to find the stream on the same sensor
-        for param, search_streams in param_streams:
-            sk = self._find_stream_same_sensor(stream_key, search_streams, stream_dictionary)
-            if sk:
-                return sk, param
+        sk, param = self.find_stream_with_function(param_streams, fn=self._find_stream_same_sensor,
+                                                   fn_kwargs={"stream_key": stream_key,
+                                                              "stream_dictionary": stream_dictionary})
+        if sk:
+            return sk, param
 
         # Attempt to find an instrument at the same depth (if not mobile)
         if not stream_key.is_mobile:
             nominal_depth = NominalDepth.get_nominal_depth(subsite, node, sensor)
             if nominal_depth is not None:
                 co_located = nominal_depth.get_colocated_subsite()
-                for param, search_streams in param_streams:
-                    sk = self._find_stream_from_list(stream_key, search_streams, co_located, stream_dictionary)
-                    if sk:
-                        return sk, param
+                sk, param = self.find_stream_with_function(param_streams, fn=self._find_stream_from_list,
+                                                           fn_kwargs={"stream_key": stream_key,
+                                                                      "stream_dictionary": stream_dictionary,
+                                                                      "sensors": co_located})
+                if sk:
+                    return sk, param
 
         # Attempt to find an instrument on the same node
-        for param, search_streams in param_streams:
-            sk = self._find_stream_same_node(stream_key, search_streams, stream_dictionary)
-            if sk:
-                return sk, param
+        sk, param = self.find_stream_with_function(param_streams, fn=self._find_stream_same_node,
+                                                   fn_kwargs={"stream_key": stream_key,
+                                                              "stream_dictionary": stream_dictionary})
+        if sk:
+            return sk, param
 
         # Not found at same depth, attempt to find nearby (if not mobile)
         if not stream_key.is_mobile:
@@ -623,11 +630,26 @@ class StreamRequest(object):
             if nominal_depth is not None:
                 max_depth_var = MAX_DEPTH_VARIANCE_METBK if 'METBK' in sensor else MAX_DEPTH_VARIANCE
                 nearby = nominal_depth.get_depth_within(max_depth_var)
-                for param, search_streams in param_streams:
-                    sk = self._find_stream_from_list(stream_key, search_streams, nearby, stream_dictionary)
-                    if sk:
-                        return sk, param
+                sk, param = self.find_stream_with_function(param_streams, fn=self._find_stream_from_list,
+                                                           fn_kwargs={"stream_key": stream_key,
+                                                                      "stream_dictionary": stream_dictionary,
+                                                                      "sensors": nearby})
+                if sk:
+                    return sk, param
 
+        return None, None
+
+    def find_stream_with_function(self, param_streams, fn, fn_kwargs):
+        for param, search_streams in param_streams:
+            while search_streams:
+                fn_kwargs["streams"] = search_streams
+                sk = fn(**fn_kwargs)
+                if not sk:
+                    break
+                if self.is_parameter_valid(param, sk):
+                    return sk, param
+                # Continue searching from where we left off
+                search_streams = search_streams[search_streams.index(sk.stream.name)+1:]
         return None, None
 
     @staticmethod
