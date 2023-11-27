@@ -1,5 +1,9 @@
 # Stream Engine
 
+# Release 1.20.7 2023-12-07
+
+Issue #13111 - Stream engine should call ion_function if missing arg has default
+
 # Release 1.20.6 2023-05-03
 
 Issue #15592 - Fix Problems with provenance.json files

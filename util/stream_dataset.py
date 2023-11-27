@@ -3,6 +3,7 @@ import json
 import logging
 import datetime
 import sys
+import inspect
 
 import ion_functions
 import numexpr
@@ -328,6 +329,52 @@ class StreamDataset(object):
                 return False
         return True
 
+    @staticmethod
+    def is_missing_arg_defaulted(missing_arg_map, param):
+        if not (param.is_function and
+                param.parameter_function.function_type == 'PythonFunction' and
+                param.parameter_function.owner != '__builtin__'):
+            return False
+
+        # Ensure the module exists
+        try:
+            module = importlib.import_module(param.parameter_function.owner)
+        except ImportError as ie:
+            log.error('ImportError: Could not import module %s: %s' % (param.parameter_function.owner, ie))
+            return False
+
+        # Ensure the function exists in the module
+        if not hasattr(module, param.parameter_function.function):
+            log.error('%r: function %s not found in module %s' % (
+                       param, param.parameter_function.function, param.parameter_function.owner))
+            return False
+
+        # Get the argument specification for the actual function
+        arg_spec = inspect.getargspec(getattr(module, param.parameter_function.function))
+
+        for arg_name in missing_arg_map.keys():
+            # Ensure the parameter is named as an argument in the actual function
+            if arg_name not in arg_spec.args:
+                log.error('%r: Named parameter %s not found in function %s' % (
+                           param, arg_name, param.parameter_function.function))
+                return False
+
+            # Ensure the function has defaults
+            if not arg_spec.defaults:
+                log.debug('%r: Function %s does not have any defaults' % (
+                           param, param.parameter_function.function))
+                return False
+
+            # Ensure the argument has a default specified in the function definition
+            if arg_spec.args.index(arg_name) < len(arg_spec.args) - len(arg_spec.defaults):
+                log.debug('%r: Argument %s in function %s does not have a default value' % (
+                           param, arg_name, param.parameter_function.function))
+                return False
+
+            log.debug('%r: Missing argument %s in function %s has a default value' % (
+                param, arg_name, param.parameter_function.function))
+        return True
+
     @log_timing(log)
     def _try_create_derived_product(self, dataset, stream_key, param, deployment, source_dataset=None,
                                     ignore_missing_optional_params=False):
@@ -349,7 +396,7 @@ class StreamDataset(object):
         # optional arguments in this pass or if the missing args are not specified as optional.
         # An arg missing at this point would be a dpi where a stream exposing that dpi parameter
         # could not be found and that dpi was not specified as optional arg to this param function.
-        if missing and not (ignore_missing_optional_params and self.is_missing_arg_optional(missing, param)):
+        if missing and not (ignore_missing_optional_params and self.is_missing_arg_defaulted(missing, param)):
             return missing
 
         kwargs, arg_metadata = self._build_function_arguments(dataset, stream_key, function_map,
@@ -361,7 +408,7 @@ class StreamDataset(object):
         # a case, the dataset would have not been added (or even removed) from StreamRequest.datasets map
         # (see StreamRequest.fetch_raw_data()) so the param in that dataset is considered missing. Continue
         # processing only if that missing param is considered to be an optional argument to this function.
-        if missing and not (ignore_missing_optional_params and self.is_missing_arg_optional(missing, param)):
+        if missing and not (ignore_missing_optional_params and self.is_missing_arg_defaulted(missing, param)):
             return missing
 
         result, version = self._execute_algorithm(param, kwargs)
@@ -507,7 +554,7 @@ class StreamDataset(object):
         log.debug('<%s> _interpolate_and_import_needed for: %r %r', self.request_id, self.stream_key.as_refdes(), param)
         streams = {sk.stream: sk for sk in external_datasets}
         funcmap, missing = self.stream_key.stream.create_function_map(param, streams.keys())
-        if not missing or self.is_missing_arg_optional(missing, param):
+        if not missing or self.is_missing_arg_defaulted(missing, param):
             for name in funcmap:
                 source, value = funcmap[name]
                 if source not in ['CAL', self.stream_key.stream]:
