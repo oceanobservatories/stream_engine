@@ -1,5 +1,9 @@
 # Stream Engine
 
+# Release 1.20.8 2023-12-20
+
+Issue #15669 Add support for external parameters and improve error handling in QARTOD tests
+
 # Release 1.20.7 2023-12-07
 
 Issue #13111 - Stream engine should call ion_function if missing arg has default

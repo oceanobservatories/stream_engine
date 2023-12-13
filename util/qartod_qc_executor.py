@@ -24,16 +24,16 @@ class QartodQcExecutor(object):
         self.request_id = stream_request.request_id
 
     def execute_qartod_tests(self):
+        external_includes = self.stream_request.external_includes
         for stream_key, stream_dataset in self.stream_request.datasets.iteritems():
             subsite, node, sensor, _, stream = stream_key.as_tuple()
             parameters = [parameter.name for parameter in stream_key.stream.parameters]
             qartod_tests = qartodTestServiceAPI.find_qartod_tests(subsite, node, sensor, stream, parameters)
-
             for dataset in stream_dataset.datasets.itervalues():
                 for qartod_test_record in qartod_tests:
-                    self.execute_qartod_test(qartod_test_record, dataset)
+                    self.execute_qartod_test(qartod_test_record, dataset, external_includes)
 
-    def execute_qartod_test(self, qartod_test_record, dataset):
+    def execute_qartod_test(self, qartod_test_record, dataset, external_includes):
         """
         Run a single QARTOD test against the given dataset and record the results in the dataset.
         :param qartod_test_record: QartodTestRecord indicating a test to execute
@@ -44,6 +44,7 @@ class QartodQcExecutor(object):
         params = qartod_test_record.parameters
         # single quoted strings in parameters (i.e. from the database field) will mess up the json.loads call
         params = params.replace("'", "\"")
+      
         try:
             param_dict = json.loads(params)
         except ValueError:
@@ -66,22 +67,40 @@ class QartodQcExecutor(object):
                       config, parameter_under_test)
             return
 
+        # need to account for external parameters (i.e. depth) for some qartod tests
+        external_params = {}
+        for external_stream_key in external_includes:
+            for parameter in external_includes[external_stream_key]:
+                long_parameter_name = external_stream_key.stream_name + "-" + parameter.name
+                external_params[parameter.name] = long_parameter_name
+
         # replace parameter names with the actual numpy arrays from the dataset for each entry in param_dict
         # caste keys to list instead of iterating dict directly because we may delete keys in this loop 
-        for input_name in list(param_dict.keys()):
-            param_name = param_dict[input_name]
-            if param_name and param_name != 'null' and param_name != 'None':
-                param_dict[input_name] = dataset[param_name].values
-            else:
-                # optional parameter set to None/null - remove it
-                del param_dict[input_name]
+        try:
+            for input_name in list(param_dict.keys()):
+                param_name = param_dict[input_name]
+                if param_name and param_name != 'null' and param_name != 'None':
+                    #use param name from external parameters if qartod parameter not found in dataset
+                    if param_name not in list(dataset.variables):
+                        if param_name in external_params:
+                            param_name = external_params[param_name]
+                    
+                    param_dict[input_name] = dataset[param_name].values
+                else:
+                    # optional parameter set to None/null - remove it
+                    del param_dict[input_name]
+        except KeyError:
+            log.error('<%s> Failure reading QARTOD test parameter %r. Skipping test.', self.request_id,
+                      param_name)
+            return
+               
         if 'tinp' in param_dict.keys():
             # Seconds from NTP epoch to UNIX epoch           
             NTP_OFFSET_SECS = 2208988800
             #convert NTP times to UNIX time before sending to Qartod for Climatology test
             if np.all(param_dict['tinp'] > NTP_OFFSET_SECS):
                 param_dict['tinp'] = param_dict['tinp'] - NTP_OFFSET_SECS
-
+   
         # call QARTOD test in a separate process to deal with crashes, e.g. segfaults
         read_fd, write_fd = os.pipe()
         processid = os.fork()
