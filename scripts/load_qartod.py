@@ -26,6 +26,8 @@ def parse_qartod_dict(qartod_dict):
     subsite = qartod_dict.get('subsite')
     refdes = qartod_dict.get('Reference Designator')
     if subsite:
+        if subsite.startswith('#'):
+            return
         # Climatology Test Inputs
         node = qartod_dict.get('node')
         sensor = qartod_dict.get('sensor')
@@ -141,14 +143,17 @@ def insert_qartod_records(qartod_list):
     try:
         connection = psycopg2.connect(user=username, password=password, host=host, port='5432', database='metadata')
         for parsed_qartod_dict in qartod_list:
-            with connection:
-                with connection.cursor() as cursor:
-                    cursor.execute("SELECT nextval('qartod_test_sequence')")
-                    qartod_id = cursor.fetchone()
-                    parsed_qartod_dict['id'] = qartod_id
-                    fields = sql.SQL(', ').join(map(sql.Identifier, parsed_qartod_dict.keys()))
-                    values = sql.SQL(', ').join(map(sql.Placeholder, parsed_qartod_dict.keys()))
-                    cursor.execute(sql.SQL("INSERT INTO qartod_tests ({}) VALUES ({})").format(fields, values), parsed_qartod_dict)
+            if parsed_qartod_dict:
+
+                with connection:
+                    with connection.cursor() as cursor:
+                        cursor.execute("SELECT nextval('qartod_test_sequence')")
+                        qartod_id = cursor.fetchone()
+                        parsed_qartod_dict['id'] = qartod_id
+                
+                        fields = sql.SQL(', ').join(map(sql.Identifier, parsed_qartod_dict.keys()))
+                        values = sql.SQL(', ').join(map(sql.Placeholder, parsed_qartod_dict.keys()))
+                        cursor.execute(sql.SQL("INSERT INTO qartod_tests ({}) VALUES ({})").format(fields, values), parsed_qartod_dict)
     finally:
         if connection:
             connection.close()
