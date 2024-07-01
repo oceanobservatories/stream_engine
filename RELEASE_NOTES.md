@@ -1,5 +1,9 @@
 # Stream Engine
 
+# Release 1.20.9 2024-07-17
+
+Issue #15668 - Flag to return raw data only to help diagnose data issues
+
 # Release 1.20.8 2023-12-20
 
 Issue #15669 Add support for external parameters and improve error handling in QARTOD tests

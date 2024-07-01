@@ -28,7 +28,7 @@ log = logging.getLogger(__name__)
 RequestParameters = namedtuple('RequestParameters', ['id', 'streams', 'coefficients', 'uflags', 'start', 'stop',
                                                      'limit', 'include_provenance', 'include_annotations',
                                                      'qc_parameters', 'strict_range', 'location_information',
-                                                     'execute_dpa', 'require_deployment'])
+                                                     'execute_dpa', 'require_deployment', 'raw_data_only'])
 
 
 def execute_stream_request(request_parameters, needs_only=False, base_path=None):
@@ -50,13 +50,16 @@ def execute_stream_request(request_parameters, needs_only=False, base_path=None)
             request_id=request_parameters.id,
             collapse_times=collapse_times,
             execute_dpa=request_parameters.execute_dpa,
-            require_deployment=request_parameters.require_deployment))
+            require_deployment=request_parameters.require_deployment,
+            raw_data_only=request_parameters.raw_data_only))
 
         if not needs_only:
             # compute annotations before fetching data so they are available if a MissingDataException is thrown
             stream_request[index].insert_annotations()
             try:
                 stream_request[index].fetch_raw_data()
+                if request_parameters.raw_data_only:
+                    continue
             except MissingDataException:
                 _write_annotations(stream_request[index], base_path)
                 # reraise the MissingDataException for handling elsewhere (e.g. reporting to user)
@@ -186,9 +189,13 @@ def validate(input_data):
     locs = input_data.get('locations', {})
     execute_dpa = input_data.get('execute_dpa', True)
     require_deployment = input_data.get('require_deployment', app.config["REQUIRE_DEPLOYMENT"])
+    raw_data_only = input_data.get('raw_data_only', False)
+    if raw_data_only:
+        execute_dpa = False
 
     return RequestParameters(request_id, streams, coefficients, user_flags, start,
-                             stop, limit, prov, annotate, qc, strict, locs, execute_dpa, require_deployment)
+                             stop, limit, prov, annotate, qc, strict, locs, execute_dpa,
+                             require_deployment, raw_data_only)
 
 
 def _validate_coefficients(input_data):

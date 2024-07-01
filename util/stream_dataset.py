@@ -34,12 +34,13 @@ INSTRUMENT_ATTRIBUTE_MAP = app.config.get('INSTRUMENT_ATTRIBUTE_MAP')
 
 
 class StreamDataset(object):
-    def __init__(self, stream_key, uflags, external_streams, request_id):
+    def __init__(self, stream_key, uflags, external_streams, request_id, raw_data_only):
         self.stream_key = stream_key
         self.provenance_metadata = ProvenanceMetadataStore(request_id)
         self.uflags = uflags
         self.external_streams = external_streams
         self.request_id = request_id
+        self.raw_data_only = raw_data_only
         self.datasets = {}
         self.events = None
 
@@ -55,8 +56,11 @@ class StreamDataset(object):
     def fetch_raw_data(self, time_range, limit, should_pad):
         deployment_datasets = self.get_dataset(time_range, limit, self.provenance_metadata,
                                                should_pad, self.request_id)
-        for dataset in deployment_datasets.values():
-            self._insert_dataset(dataset)
+        for deployment, dataset in deployment_datasets.items():
+            if self.raw_data_only:
+                self.datasets[deployment] = dataset
+            else:
+                self._insert_dataset(dataset)
 
     def _insert_dataset(self, dataset):
         """
