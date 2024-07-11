@@ -28,7 +28,7 @@ log = logging.getLogger(__name__)
 RequestParameters = namedtuple('RequestParameters', ['id', 'streams', 'coefficients', 'uflags', 'start', 'stop',
                                                      'limit', 'include_provenance', 'include_annotations',
                                                      'qc_parameters', 'strict_range', 'location_information',
-                                                     'execute_dpa', 'require_deployment', 'raw_data_only'])
+                                                     'execute_dpa', 'require_deployment', 'raw_data_only','run_qartod'])
 
 
 def execute_stream_request(request_parameters, needs_only=False, base_path=None):
@@ -51,7 +51,8 @@ def execute_stream_request(request_parameters, needs_only=False, base_path=None)
             collapse_times=collapse_times,
             execute_dpa=request_parameters.execute_dpa,
             require_deployment=request_parameters.require_deployment,
-            raw_data_only=request_parameters.raw_data_only))
+            raw_data_only=request_parameters.raw_data_only,
+            run_qartod=request_parameters.run_qartod))
 
         if not needs_only:
             # compute annotations before fetching data so they are available if a MissingDataException is thrown
@@ -68,7 +69,8 @@ def execute_stream_request(request_parameters, needs_only=False, base_path=None)
                 stream_request[index].calculate_derived_products()
                 stream_request[index].import_extra_externals()
             stream_request[index].execute_qc()
-            stream_request[index].execute_qartod_qc()
+            if stream_request[index].run_qartod:
+                stream_request[index].execute_qartod_qc()
             stream_request[index].insert_provenance()
         else:
             # If needs_only is true we only want to process the first stream, for now
@@ -192,10 +194,10 @@ def validate(input_data):
     raw_data_only = input_data.get('raw_data_only', False)
     if raw_data_only:
         execute_dpa = False
-
+    run_qartod=input_data.get('run_qartod', True)
     return RequestParameters(request_id, streams, coefficients, user_flags, start,
                              stop, limit, prov, annotate, qc, strict, locs, execute_dpa,
-                             require_deployment, raw_data_only)
+                             require_deployment, raw_data_only, run_qartod)
 
 
 def _validate_coefficients(input_data):

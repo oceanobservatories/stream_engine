@@ -50,7 +50,7 @@ class StreamRequest(object):
     def __init__(self, stream_key, parameters, time_range, uflags, qc_parameters=None,
                  limit=None, include_provenance=False, include_annotations=False, strict_range=False,
                  request_id='', collapse_times=False, execute_dpa=True,
-                 require_deployment=True, raw_data_only=False):
+                 require_deployment=True, raw_data_only=False, run_qartod=True):
 
         if not isinstance(stream_key, StreamKey):
             raise StreamEngineException('Received no stream key', status_code=400)
@@ -70,6 +70,7 @@ class StreamRequest(object):
         self.execute_dpa = execute_dpa
         self.require_deployment = require_deployment
         self.raw_data_only = raw_data_only
+        self.run_qartod = run_qartod
 
         # Internals
         self.asset_management = AssetManagement(ASSET_HOST, request_id=self.request_id)
