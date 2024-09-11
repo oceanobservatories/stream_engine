@@ -1,5 +1,9 @@
 # Stream Engine
 
+# Release 1.20.11 2024-09-25
+
+Issue #15843 - Stream engine should ignore deployment boundaries if raw_data_only flag is set
+
 # Release 1.20.10 2024-07-17
 
 Issue #15668 - Flag to return raw data only to help diagnose data issues

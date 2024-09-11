@@ -151,21 +151,17 @@ class StreamRequest(object):
                 sd.events = am_events[stream_key]
                 self.datasets[stream_key] = sd
 
-        self._exclude_flagged_data()
-        self._exclude_nondeployed_data()
+        # If we want the raw data only, don't do the subsequent filtering or data modifications
+        if self.raw_data_only:
+            return
 
-        # Verify data still exists after masking virtual
-        message = 'Query returned no results for %s stream (due to deployment or annotation mask)'
-        if self.stream_key.is_virtual:
-            found_streams = [stream.stream for stream in self.datasets
-                             if self.datasets[stream]]
-            if not any(stream in self.stream_key.stream.source_streams for stream in found_streams):
-                raise MissingDataException(message % 'source')
-        # real
-        else:
-            primary_stream_dataset = self.datasets[self.stream_key]
-            if not primary_stream_dataset.datasets:
-                raise MissingDataException(message % 'primary')
+        self._exclude_flagged_data()
+        if not self.primary_dataset_still_contains_data():
+            raise MissingDataException("All data removed by annotation mask")
+
+        self._exclude_nondeployed_data()
+        if not self.primary_dataset_still_contains_data():
+            raise MissingDataException("All data removed by deployment mask")
 
         # Remove any empty, non-virtual supporting datasets
         for stream_key in list(self.datasets):
@@ -181,6 +177,19 @@ class StreamRequest(object):
                     pressure_depth = Parameter.query.get(PRESSURE_DEPTH_PARAM_ID)
                     if pressure_depth.name in ds:
                         del ds[pressure_depth.name]
+
+    def primary_dataset_still_contains_data(self):
+        if self.stream_key.is_virtual:
+            found_streams = [stream.stream for stream in self.datasets
+                             if self.datasets[stream]]
+            if not any(stream in self.stream_key.stream.source_streams for stream in found_streams):
+                return False
+        # real
+        else:
+            primary_stream_dataset = self.datasets[self.stream_key]
+            if not primary_stream_dataset.datasets:
+                return False
+        return True
 
     @staticmethod
     def missing_params_of_dataset_depend_on_another(dataset, another):
