@@ -214,16 +214,16 @@ def query_full_bin(stream_key, bins_and_limit, cols):
 
 
 @log_timing(log)
-def fetch_l0_provenance(stream_key, provenance_values, deployment):
+def fetch_l0_provenance(stream_key, provenance_values, deployment, allow_deployment_change=True):
     """
     Fetch the l0_provenance entry for the passed information.
     All of the necessary information should be stored as a tuple in the
     provenance metadata store.
     """
-    # UUIDs are cast to strings so remove all 'None' values
-    if stream_key.method.startswith('streamed'):
+    if allow_deployment_change and stream_key.method.startswith('streamed'):
         deployment = 0
 
+    # UUIDs are cast to strings so remove all 'None' values
     prov_ids = []
     for each in set(provenance_values):
         try:
@@ -240,7 +240,8 @@ def fetch_l0_provenance(stream_key, provenance_values, deployment):
     records = [ProvTuple(*rows[0]) for success, rows in results if success and rows]
 
     if len(provenance_arguments) != len(records):
-        log.warn("Could not find %d provenance entries", len(provenance_arguments) - len(records))
+        log.warn("Could not find %d provenance entries for %s deployment %d",
+                 len(provenance_arguments) - len(records), stream_key.as_refdes(), deployment)
 
     prov_dict = {
         str(row.id): {'file_name': row.file_name,
@@ -248,6 +249,21 @@ def fetch_l0_provenance(stream_key, provenance_values, deployment):
                       'parser_version': row.parser_version}
         for row in records}
     return prov_dict
+
+
+def insert_provenance(stream_key, deployment, provenance_dict):
+    prov_insert = "insert into dataset_l0_provenance (subsite, sensor, node, method, deployment, id, filename, " \
+            + "parsername, parserversion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    prov_insert = SessionManager.prepare(prov_insert)
+
+    prov_ins_args = [(stream_key.subsite, stream_key.sensor, stream_key.node, stream_key.method, deployment,
+                      uuid.UUID(prov_id), prov['file_name'], prov['parser_name'], prov['parser_version'])
+                     for prov_id, prov in provenance_dict.items()]
+
+    prov_ins_results = execute_concurrent_with_args(SessionManager.session(), prov_insert, prov_ins_args)
+    prov_insertions = list(filter(lambda r: r[0], prov_ins_results))
+    mesg = 'Provenance row insertions: {:d} of {:d} succeeded'.format(len(prov_insertions), len(prov_ins_args))
+    log.info(mesg)
 
 
 @log_timing(log)
@@ -471,7 +487,7 @@ def insert_san_dataset(stream_key, dataset):
     # All of the bins on SAN data will be the same in the netcdf file take the first entry
     data_bin = dataset['bin'].values[0]
     data_lists = {}
-    size = dataset['index'].size
+    size = dataset['time'].size
     # get the metadata partition
     bin_meta = metadata_service_api.get_partition_metadata_record(
         *(stream_key.as_tuple() + (data_bin, CASS_LOCATION_NAME))
@@ -565,13 +581,17 @@ def insert_san_dataset(stream_key, dataset):
         log.warn("Failed to update %d rows within Cassandra bin %d for %s!", fails, data_bin, stream_key.as_refdes())
     update_count = len(to_insert) - fails - insert_count
 
-    # Index the new data into the metadata record
-    first = dataset['time'].min()
-    last = dataset['time'].max()
-    bin_meta = metadata_service_api.build_partition_metadata_record(
-        *(stream_key.as_tuple() + (data_bin, CASS_LOCATION_NAME, first, last, insert_count))
-    )
-    metadata_service_api.index_partition_metadata_record(bin_meta)
+    if insert_count > 0:
+        # Index the new data into the metadata record
+        first = dataset['time'].min()
+        last = dataset['time'].max()
+        bin_meta = metadata_service_api.build_partition_metadata_record(
+            *(stream_key.as_tuple() + (data_bin, CASS_LOCATION_NAME, first, last, insert_count)))
+        metadata_service_api.index_partition_metadata_record(bin_meta)
+
+        stream_meta = metadata_service_api.build_stream_metadata_record(
+            *(stream_key.as_tuple() + (first, last, insert_count)))
+        metadata_service_api.index_stream_metadata_record(stream_meta)
 
     ret_val = 'Inserted {:d} and updated {:d} particles within Cassandra bin {:d} for {:s}.'.format(insert_count, update_count, data_bin, stream_key.as_refdes())
     log.info(ret_val)

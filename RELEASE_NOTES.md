@@ -1,8 +1,10 @@
 # Stream Engine
 
-# Release 1.20.11 2024-09-25
+# Release 1.20.11 2024-09-30
 
 Issue #15843 - Stream engine should ignore deployment boundaries if raw_data_only flag is set
+
+Issue #15854 - Process to copy data in Cassandra and change deployment number
 
 # Release 1.20.10 2024-07-17
 
