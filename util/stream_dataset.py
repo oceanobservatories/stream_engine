@@ -34,7 +34,7 @@ INSTRUMENT_ATTRIBUTE_MAP = app.config.get('INSTRUMENT_ATTRIBUTE_MAP')
 
 
 class StreamDataset(object):
-    def __init__(self, stream_key, uflags, external_streams, request_id, raw_data_only):
+    def __init__(self, stream_key, uflags, external_streams, request_id, raw_data_only=False):
         self.stream_key = stream_key
         self.provenance_metadata = ProvenanceMetadataStore(request_id)
         self.uflags = uflags
