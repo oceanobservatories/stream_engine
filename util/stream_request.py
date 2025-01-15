@@ -11,8 +11,9 @@ from ooi_data.postgres.model import Parameter, Stream, NominalDepth
 from util.asset_management import AssetManagement
 from util.cass import fetch_l0_provenance
 from util.common import log_timing, StreamEngineException, StreamKey, MissingDataException, read_size_config, \
-    isfillvalue, QC_SUFFIXES
-from util.metadata_service import build_stream_dictionary, get_available_time_range
+    isfillvalue, QC_SUFFIXES, TimeRange
+from util.metadata_service import build_stream_dictionary, get_available_time_range, get_location_metadata, \
+    get_location_metadata_by_store, CASS_LOCATION_NAME
 from util.qc_executor import QcExecutor
 from util.qartod_qc_executor import QartodQcExecutor
 from util.stream_dataset import StreamDataset
@@ -652,9 +653,30 @@ class StreamRequest(object):
         return None, None
 
     def find_stream_with_function(self, param_streams, fn, fn_kwargs):
+        def deployments_within_request_time_range_contain_data(stream_key):
+            """
+            :return: True if the supporting stream contains ANY data in the deployments within the request time range.
+            """
+            am_events = self.asset_management.get_events(stream_key.as_three_part_refdes())
+            deployment_time_range = StreamDataset.get_deployment_time_range(am_events.deps, self.time_range)
+            cass_location_metadata = get_location_metadata_by_store(stream_key,
+                                                                    TimeRange(deployment_time_range["start"],
+                                                                              deployment_time_range["stop"]),
+                                                                    CASS_LOCATION_NAME)
+            return len(cass_location_metadata.bin_list) > 0
+
+        # Note: We could easily change the is_data_available_fn to a function something like:
+        #     partitions_within_request_time_range_contain_data(stream_key)
+        # but this would effectively disable the look back and look forward functionality if those look forward
+        # and backward data points were not found within the partitions relevant to the request time range. That is why
+        # we are searching within the entire deployment. Also, if we evaluated by partition, some stream engine sub-jobs
+        # might use one data source but other subjobs from the same request might evaluate to a different data source
+        # based on the data availability within those partitions (each subjob uses 2 partitions).
+
         for param, search_streams in param_streams:
             while search_streams:
                 fn_kwargs["streams"] = search_streams
+                fn_kwargs["is_data_available_fn"] = deployments_within_request_time_range_contain_data
                 sk = fn(**fn_kwargs)
                 if not sk:
                     break
@@ -665,7 +687,7 @@ class StreamRequest(object):
         return None, None
 
     @staticmethod
-    def _find_stream_same_sensor(stream_key, streams, stream_dictionary):
+    def _find_stream_same_sensor(stream_key, streams, stream_dictionary, is_data_available_fn):
         """
         Given a primary source, attempt to find one of the supplied streams from the same instrument
         :param stream_key:
@@ -682,38 +704,42 @@ class StreamRequest(object):
         for stream in streams:
             sensors = stream_dictionary.get(stream, {}).get(method, {}).get(subsite, {}).get(node, [])
             if sensor in sensors:
-                return StreamKey.from_dict({
+                sk = StreamKey.from_dict({
                     "subsite": subsite,
                     "node": node,
                     "sensor": sensor,
                     "method": method,
                     "stream": stream
                 })
+                if is_data_available_fn(sk):
+                    return sk
 
     @staticmethod
-    def _find_stream_from_list(stream_key, streams, sensors, stream_dictionary):
+    def _find_stream_from_list(stream_key, streams, sensors, stream_dictionary, is_data_available_fn):
         log.debug('_find_stream_from_list(%r, %r, %r, STREAM_DICTIONARY)', stream_key, streams, sensors)
         method = stream_key.method
         subsite = stream_key.subsite
         designators = [(c.subsite, c.node, c.sensor) for c in sensors]
 
-        for stream in streams:
-            for method in StreamRequest._get_potential_methods(method, stream_dictionary):
-                subsite_dict = stream_dictionary.get(stream, {}).get(method, {}).get(subsite, {})
+        for meth in StreamRequest._get_potential_methods(method, streams, stream_dictionary):
+            for stream in streams:
+                subsite_dict = stream_dictionary.get(stream, {}).get(meth, {}).get(subsite, {})
                 for _node in subsite_dict:
                     for _sensor in subsite_dict[_node]:
                         des = (subsite, _node, _sensor)
                         if des in designators:
-                            return StreamKey.from_dict({
+                            sk = StreamKey.from_dict({
                                 "subsite": subsite,
                                 "node": _node,
                                 "sensor": _sensor,
-                                "method": method,
+                                "method": meth,
                                 "stream": stream
                             })
+                            if is_data_available_fn(sk):
+                                return sk
 
     @staticmethod
-    def _find_stream_same_node(stream_key, streams, stream_dictionary):
+    def _find_stream_same_node(stream_key, streams, stream_dictionary, is_data_available_fn):
         """
         Given a primary source, attempt to find one of the supplied streams from the same instrument,
         same node or same subsite
@@ -726,20 +752,22 @@ class StreamRequest(object):
         subsite = stream_key.subsite
         node = stream_key.node
 
-        for stream in streams:
-            for method in StreamRequest._get_potential_methods(method, stream_dictionary):
-                sensors = stream_dictionary.get(stream, {}).get(method, {}).get(subsite, {}).get(node, [])
+        for meth in StreamRequest._get_potential_methods(method, streams, stream_dictionary):
+            for stream in streams:
+                sensors = stream_dictionary.get(stream, {}).get(meth, {}).get(subsite, {}).get(node, [])
                 if sensors:
-                    return StreamKey.from_dict({
+                    sk = StreamKey.from_dict({
                         "subsite": subsite,
                         "node": node,
                         "sensor": sensors[0],
-                        "method": method,
+                        "method": meth,
                         "stream": stream
                     })
+                    if is_data_available_fn(sk):
+                        return sk
 
     @staticmethod
-    def _get_potential_methods(method, stream_dictionary):
+    def _get_potential_methods(method, streams, stream_dictionary):
         """
         When trying to resolve streams, an applicable stream may have a subtlely different method
         (e.g. 'recovered_host' vs. 'recovered_inst'). This function is used to identify all related methods
@@ -758,12 +786,12 @@ class StreamRequest(object):
                      " Only resolving streams whose methods match exactly.", method)
             return method
 
-        valid_methods = []
-        for stream in stream_dictionary:
-            for method in stream_dictionary[stream]:
-                if method_category in method and "bad" not in method:
-                    valid_methods.append(method)
-        return valid_methods
+        valid_methods = set()
+        for stream in streams:
+            for meth in stream_dictionary.get(stream, {}).keys():
+                if method_category in meth and "bad" not in meth:
+                    valid_methods.add(meth)
+        return sorted(valid_methods, key=lambda x: -1 if x == method else 0)
 
     def interpolate_from_stream_request(self, stream_request):
         source_sk = stream_request.stream_key

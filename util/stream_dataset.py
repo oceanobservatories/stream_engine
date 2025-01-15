@@ -817,7 +817,7 @@ class StreamDataset(object):
         if pad_dataset and app.config['LOOKBACK_QUERY_LIMIT'] > 0:
             # Get the start time of the first and stop time of the last deployments
             # within the requested time range.
-            deployment_time_range = self.get_deployment_time_range(time_range)
+            deployment_time_range = self.get_deployment_time_range(self.events.deps, time_range)
             if deployment_time_range.get("start", None):
                 dep_datasets = self.get_lookback_dataset(self.stream_key, time_range,
                                                          deployment_time_range["start"], request_id)
@@ -910,27 +910,27 @@ class StreamDataset(object):
         else:
             return None
 
-    @log_timing(log)
-    def get_deployment_time_range(self, request_time_range):
+    @staticmethod
+    def get_deployment_time_range(dep_dict, request_time_range):
         # The expected deployments are the intersection of those that:
         # end after the start of the requested time range and
         # start before the end of the requested time range
         expected_deployment_numbers = []
-        for dep_no in sorted(self.events.deps):
+        for dep_no in sorted(dep_dict):
             if (request_time_range.start is None or
-                    self.events.deps[dep_no].ntp_stop is None or
-                    self.events.deps[dep_no].ntp_stop >= request_time_range.start) and \
+                    dep_dict[dep_no].ntp_stop is None or
+                    dep_dict[dep_no].ntp_stop >= request_time_range.start) and \
                (request_time_range.stop is None or
-                    self.events.deps[dep_no].ntp_start is None or
-                    self.events.deps[dep_no].ntp_start < request_time_range.stop):
+                    dep_dict[dep_no].ntp_start is None or
+                    dep_dict[dep_no].ntp_start < request_time_range.stop):
                 expected_deployment_numbers.append(dep_no)
 
         # The deployment time range is the start time of the first
         # deployment and the stop time of the last deployment
         deployment_time_range = {"start": None, "stop": None}
         if expected_deployment_numbers:
-            deployment_time_range["start"] = self.events.deps[expected_deployment_numbers[0]].ntp_start
-            deployment_time_range["stop"] = self.events.deps[expected_deployment_numbers[-1]].ntp_stop
+            deployment_time_range["start"] = dep_dict[expected_deployment_numbers[0]].ntp_start
+            deployment_time_range["stop"] = dep_dict[expected_deployment_numbers[-1]].ntp_stop
             if deployment_time_range["stop"] is None:
                 deployment_time_range["stop"] = ntplib.system_to_ntp_time(time.time())
 

@@ -1,5 +1,9 @@
 # Stream Engine
 
+# Release 1.20.14 2025-02-25
+
+Issue #15947 - Stream engine should use colocated data having same delivery method if possible
+
 # Release 1.20.13 2024-09-30
 
 Issue #15843 - Stream engine should ignore deployment boundaries if raw_data_only flag is set
