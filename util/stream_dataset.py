@@ -147,9 +147,8 @@ class StreamDataset(object):
         calculated, the system will be attempting to interpolate on a dataset that is not yet populated.
         :return:
         """
-        if not self.time_param:
-            for param in self.external:
-                self._interpolate_and_import_needed(param, external_datasets, interpolate_virtual)
+        for param in self.external:
+            self._interpolate_and_import_needed(param, external_datasets, interpolate_virtual)
 
     def add_location(self):
         log.debug('<%s> Inserting location data for %s datasets',
@@ -160,9 +159,9 @@ class StreamDataset(object):
                 add_location_data(self.datasets[deployment], lat, lon)
 
     @log_timing(log)
-    def calculate_virtual(self, source_stream_dataset):
-        # Calculate virtual streams
-        log.info('<%s> Compute virtual stream', self.request_id)
+    def initialize_virtual(self, source_stream_dataset):
+        # initialize virtual streams
+        log.info('<%s> initialize virtual stream', self.request_id)
 
         if self.time_param:
             for deployment, source_dataset in source_stream_dataset.datasets.iteritems():
@@ -180,7 +179,6 @@ class StreamDataset(object):
                 deployments[:] = deployment
                 dataset['deployment'] = ('obs', deployments, {'name': 'deployment'})
                 self.params[deployment] = [p for p in self.stream_key.stream.derived if not p == self.time_param]
-        self.calculate_all(source_datasets=source_stream_dataset.datasets)
 
     def _mask_datasets(self, masks):
         deployments = list(self.datasets)
