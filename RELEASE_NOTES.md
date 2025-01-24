@@ -2,6 +2,8 @@
 
 # Release 1.20.14 2025-02-25
 
+Issue #15165 - Use new botpt predicted tide tables
+
 Issue #15947 - Stream engine should use colocated data having same delivery method if possible
 
 # Release 1.20.13 2024-09-30

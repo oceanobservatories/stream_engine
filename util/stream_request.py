@@ -128,7 +128,7 @@ class StreamRequest(object):
 
             # Pull a data point on either side of the requested time range only for supporting streams
             # to improve interpolation
-            should_pad = stream_key != self.stream_key
+            should_pad = stream_key != self.stream_key and not self.stream_key.is_virtual
 
             if not stream_key.is_virtual:
                 log.debug('<%s> Fetching raw data for %s', self.request_id, stream_key.as_refdes())
@@ -242,13 +242,26 @@ class StreamRequest(object):
             if not sk.is_virtual:
                 self.datasets[sk].calculate_all(ignore_missing_optional_params=True)
 
-        for sk in self.datasets:
-            if sk.is_virtual:
+        # Calculate any supporting virtual streams
+        for sk in sorted_stream_keys:
+            if sk.is_virtual and not sk == self.stream_key:
                 for poss_source in self.datasets:
                     if poss_source.stream in sk.stream.source_streams:
-                        self.datasets[sk].calculate_virtual(self.datasets[poss_source])
+                        self.datasets[sk].initialize_virtual(self.datasets[poss_source])
+                        self.datasets[sk].interpolate_needed(self.datasets, interpolate_virtual=False)
+                        self.datasets[sk].calculate_all(source_datasets=self.datasets[poss_source].datasets)
                         break
- 
+
+        # Calculate the requested virtual stream
+        for sk in sorted_stream_keys:
+            if sk.is_virtual and sk == self.stream_key:
+                for poss_source in self.datasets:
+                    if poss_source.stream in sk.stream.source_streams:
+                        self.datasets[sk].initialize_virtual(self.datasets[poss_source])
+                        self.datasets[sk].interpolate_needed(self.datasets, interpolate_virtual=False)
+                        self.datasets[sk].calculate_all(source_datasets=self.datasets[poss_source].datasets)
+                        break
+
         # Allow each StreamDataset to interpolate any needed virtual parameters from the other datasets
         # Then calculate any data products which required virtual external input.
         for sk in self.datasets:
