@@ -264,7 +264,7 @@ def main():
     script_name = os.path.splitext(os.path.basename(__file__))[0]
     print("%s pid: %d" % (script_name, os.getpid()))
 
-    parser = argparse.ArgumentParser(description="Parse a CSV indicating QARTOD test records.")
+    parser = argparse.ArgumentParser(description="Query cassandra to find time ranges of streamed data with non-zero deployment numbers.")
     parser.add_argument("--array_prefix", type=str, help="array_prefix")
     parser.add_argument("--subsite", type=str, help="subsite")
     parser.add_argument("--node", type=str, help="node")
@@ -404,8 +404,8 @@ def main():
                     if p_data[idx][dep_col_idx] == 0:
                         threshold = 10
 
-                    cnt_rec_next_dep = cnt_rec_next_dep + cnt_working_dep
-                    if cnt_rec_next_dep >= threshold:
+                    if cnt_rec_next_dep + cnt_working_dep >= threshold:
+                        total_cnt_next_dep = total_cnt_next_dep - cnt_rec_next_dep
                         s_data.append(first_rec_curr_dep + additional_columns_data(first_rec_curr_dep[time_col_idx],
                                                                                    last_rec_curr_dep[time_col_idx],
                                                                                    last_rec_curr_dep[bin_col_idx],
@@ -430,6 +430,7 @@ def main():
                             dupe_cnt_curr_dep = 0
                     else:
                         total_cnt_next_dep = total_cnt_next_dep + cnt_working_dep
+                        cnt_rec_next_dep = cnt_rec_next_dep + cnt_working_dep
 
             if bin_idx == len(bin_list)-1:
                 log.debug("appending last record")

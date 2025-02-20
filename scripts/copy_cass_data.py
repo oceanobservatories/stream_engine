@@ -6,6 +6,10 @@ import os
 from util.cass import get_full_cass_dataset, insert_san_dataset, initialize_worker, \
     fetch_l0_provenance, insert_provenance
 from util.common import StreamKey, TimeRange, zulu_timestamp_to_ntp_time
+from util.metadata_service import (CASS_LOCATION_NAME, get_location_metadata_by_store, get_location_metadata,
+                                   metadata_service_api)
+from util.metadata_service.partition import _query_partition_metadata
+from util.location_metadata import LocationMetadata
 from ooi_data.postgres.model import *
 from preload_database.database import create_engine_from_url, create_scoped_session
 engine = create_engine_from_url(None)
@@ -107,7 +111,7 @@ def get_time_range(time_stamps):
               time_stamp_values[1] + ")")
         return None
 
-    print str(begin_time_stamp), str(end_time_stamp)
+    log.info("time_range: %s %s" % (str(begin_time_stamp), str(end_time_stamp)))
     return TimeRange(begin_time_stamp, end_time_stamp)
 
 def split_refdes(old_or_new, refdes):
@@ -200,35 +204,39 @@ def main():
         return
 
     initialize_worker()
-    dep_datasets = get_full_cass_dataset(old_stream_key, time_range, keep_exclusions=True)
 
-    if dep_datasets:
+    # Do inserts one bin at a time
+    results = _query_partition_metadata(old_stream_key, time_range)
+    for bin, store, count, first, last in results:
+        if store != CASS_LOCATION_NAME:
+            continue
+        bin_dict = {bin: (count, first, last)}
+
+        # get the existing deployment datasets for the old stream key. Set keep_exclusions to False
+        # so that the "bin" variable is removed from the dataset so that it does not conflict with
+        # the "bin" dimension of adcp streams (adcp_velocity_beam)
+        dep_datasets = get_full_cass_dataset(old_stream_key, time_range, LocationMetadata(bin_dict),
+                                             keep_exclusions=False)
+
         for dep, dataset in dep_datasets.iteritems():
+            log.info("Existing dataset for deployment %d bin %d is size %d."
+                     % (dep, bin, dataset.variables['time'].size))
             if old_dep is None or int(old_dep) == dep:
                 if new_dep is not None and int(new_dep) != dep:
                     log.info("Changing deployment number from %d to %d" % (dep, int(new_dep)))
                     dataset.variables['deployment'].values[:] = int(new_dep)
 
-                # Do inserts one bin at a time
-                for bin_val in np.unique(dataset['bin'].values).tolist():
-                    mask = np.where(dataset.variables['bin'].values == bin_val)[0]
-                    single_bin_dataset = dataset.isel(obs=mask)
-                    single_bin_dataset['obs'] = np.arange(single_bin_dataset.obs.size)
+                insert_san_dataset(new_stream_key, dataset, bin)
 
-                    # if single_bin_dataset.variables['obs'].size != dataset.variables['obs'].size:
-                    log.info("Dataset for bin %d is size %d, extracted from dataset total size %d."
-                             % (bin_val, single_bin_dataset.variables['time'].size, dataset.variables['time'].size))
-
-                    insert_san_dataset(new_stream_key, single_bin_dataset)
-
-                    if 'provenance' in single_bin_dataset:
-                        provenance = np.unique(single_bin_dataset.provenance.values).astype('str')
-                        existing_old_prov = fetch_l0_provenance(old_stream_key, provenance, dep,
-                                                                allow_deployment_change=False)
-                        existing_new_prov = fetch_l0_provenance(new_stream_key, provenance,
-                                                                int(new_dep) if new_dep is not None else dep,
-                                                                allow_deployment_change=False)
-                        new_prov_ids = set(existing_old_prov.keys()) - set(existing_new_prov.keys())
+                if 'provenance' in dataset:
+                    provenance = np.unique(dataset.provenance.values).astype('str')
+                    existing_old_prov = fetch_l0_provenance(old_stream_key, provenance, dep,
+                                                            allow_deployment_change=False)
+                    existing_new_prov = fetch_l0_provenance(new_stream_key, provenance,
+                                                            int(new_dep) if new_dep is not None else dep,
+                                                            allow_deployment_change=False)
+                    new_prov_ids = set(existing_old_prov.keys()) - set(existing_new_prov.keys())
+                    if len(new_prov_ids) > 0:
                         new_prov_dict = {prov_id: existing_old_prov[prov_id] for prov_id in new_prov_ids}
                         insert_provenance(new_stream_key, int(new_dep) if new_dep is not None else dep, new_prov_dict)
             else:
