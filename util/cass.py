@@ -475,7 +475,7 @@ def _get_stream_row_count(stream_key, data_bin):
 
 
 @log_timing(log)
-def insert_san_dataset(stream_key, dataset):
+def insert_san_dataset(stream_key, dataset, data_bin=None):
     """
     Insert an xray dataset back into CASSANDRA.
     First we check to see if there is data in the bin, if there is we either overwrite and update
@@ -485,7 +485,9 @@ def insert_san_dataset(stream_key, dataset):
     :return:
     """
     # All of the bins on SAN data will be the same in the netcdf file take the first entry
-    data_bin = dataset['bin'].values[0]
+    if not data_bin:
+        data_bin = dataset['bin'].values[0]
+
     data_lists = {}
     size = dataset['time'].size
     # get the metadata partition
@@ -500,7 +502,8 @@ def insert_san_dataset(stream_key, dataset):
         return error_message
     # get the data in the correct format
     cols = SessionManager.get_query_columns(stream_key.stream.name)
-    dynamic_cols = cols[1:]
+    # remove variables (bin, quality_flag) that are excluded in stream engine generated dataset
+    dynamic_cols = [c for c in cols if c not in engine.app.config['INTERNAL_OUTPUT_EXCLUDE_LIST']]
     key_cols = ['subsite', 'node', 'sensor', 'bin', 'method']
     cols = key_cols + dynamic_cols
     arrays = {p.name for p in stream_key.stream.parameters
@@ -523,7 +526,7 @@ def insert_san_dataset(stream_key, dataset):
 
     # if we don't have metadata for the bin or we want to overwrite the values from cassandra continue
     if bin_meta is not None:
-        log.warn("Data present in Cassandra bin %s for %s.  Overwriting old and adding new data.", data_bin,
+        log.info("Data present in Cassandra bin %s for %s.  Overwriting old and adding new data.", data_bin,
                  stream_key.as_refdes())
 
     # get the query to insert information
@@ -544,42 +547,23 @@ def insert_san_dataset(stream_key, dataset):
         row = [data_lists[col][i] for col in data_names]
         to_insert.append(row)
 
-    ###############################################################
-    # Build & execute query to create rows and count the new rows #
-    ###############################################################
-    primary_key_columns = ['subsite', 'node', 'sensor', 'bin', 'method', 'time', 'deployment', 'id']
-    create_rows_columns = ', '.join(primary_key_columns)
-    # Fill in (subsite, node, sensor, method) leaving (bin, time, deployment, id) to be bound
-    create_rows_values = "'{:s}', '{:s}', '{:s}', ?, '{:s}', ?, ?, ?".format(
-        stream_key.subsite, stream_key.node, stream_key.sensor, stream_key.method
-    )
-    create_rows_query = 'INSERT INTO {:s} ({:s}) VALUES ({:s}) IF NOT EXISTS'.format(
-        stream_key.stream.name, create_rows_columns, create_rows_values
-    )
-    create_rows_query = SessionManager.prepare(create_rows_query)
-    # We only want (bin, time, deployment, id)
-    create_rows_data = numpy.array(to_insert)[:, :4]
-    # Execute query
-    insert_count = 0
-    fails = 0
-    for success, result in execute_concurrent_with_args(SessionManager.session(), \
-                            create_rows_query, create_rows_data, concurrency=50, raise_on_first_error=False):
-        if not success:
-            fails += 1
-        elif result[0][0]:
-            insert_count += 1
-    if fails > 0:
-        log.warn("Failed to create %d rows within Cassandra bin %d for %s!", fails, data_bin, stream_key.as_refdes())
+    # Get the number of records in the bin already
+    initial_count = _get_stream_row_count(stream_key, data_bin)
 
-    # Update previously existing rows and new mostly empty rows
+    # Run insert query. Cassandra will handle already existing records as updates
     fails = 0
-    for success, _ in execute_concurrent_with_args(SessionManager.session(), \
-                        query, to_insert, concurrency=50, raise_on_first_error=False):
+    for success, _ in execute_concurrent_with_args(SessionManager.session(), query, to_insert, concurrency=50,
+                                                   raise_on_first_error=False):
         if not success:
             fails += 1
     if fails > 0:
-        log.warn("Failed to update %d rows within Cassandra bin %d for %s!", fails, data_bin, stream_key.as_refdes())
-    update_count = len(to_insert) - fails - insert_count
+        log.warn("Failed to insert/update %d rows within Cassandra bin %d for %s!", fails, data_bin, stream_key.as_refdes())
+
+    # Get the number of records in the bin after inserts
+    final_count = _get_stream_row_count(stream_key, data_bin)
+
+    insert_count = max(final_count - initial_count, 0)
+    update_count = len(to_insert) - insert_count
 
     if insert_count > 0:
         # Index the new data into the metadata record
@@ -593,7 +577,8 @@ def insert_san_dataset(stream_key, dataset):
             *(stream_key.as_tuple() + (first, last, insert_count)))
         metadata_service_api.index_stream_metadata_record(stream_meta)
 
-    ret_val = 'Inserted {:d} and updated {:d} particles within Cassandra bin {:d} for {:s}.'.format(insert_count, update_count, data_bin, stream_key.as_refdes())
+    ret_val = 'Inserted {:d} and updated {:d} particles within Cassandra bin {:d} for {:s}.'\
+        .format(insert_count, update_count, data_bin, stream_key.as_refdes())
     log.info(ret_val)
     return ret_val
 
