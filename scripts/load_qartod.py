@@ -135,10 +135,10 @@ def parse_climatology_table(filepath, param_dict):
     return '%s%s%s' % (prefix, ', '.join(configs), suffix)
 
 
-def insert_qartod_records(qartod_list):
-    host = raw_input('Connecting to PostgreSQL to insert QARTOD records...\nhost: ')
-    username = raw_input('Connecting to PostgreSQL to insert QARTOD records...\nusername: ')
-    password = getpass.getpass('password: ')
+def insert_qartod_records(qartod_list, hostname = None, username = None, password = None):
+    host = hostname or raw_input('Connecting to PostgreSQL to insert QARTOD records...\nhost: ')
+    username = username or raw_input('Connecting to PostgreSQL to insert QARTOD records...\nusername: ')
+    password = password or getpass.getpass('password: ')
     connection = None
     try:
         connection = psycopg2.connect(user=username, password=password, host=host, port='5432', database='metadata')
@@ -164,7 +164,23 @@ def main():
     parser.add_argument("file", type=str, help="filepath for the QARTOD test CSV file to parse")
     args = parser.parse_args()
     data = parse_qartod_file(args.file)
-    insert_qartod_records(data)
+    # Try to pick up database credentials from environment
+    import os
+
+    try:
+        hostname = os.environ['POSTGRES_HOSTNAME']
+    except KeyError:
+        hostname = None
+    try:
+        username = os.environ['POSTGRES_USERNAME']
+    except KeyError:
+        username = None
+    try:
+        password = os.environ['POSTGRES_PASSWORD']
+    except KeyError:
+        password = None
+    
+    insert_qartod_records(data, hostname=hostname, username=username, password=password)
 
 
 if __name__ == '__main__':
