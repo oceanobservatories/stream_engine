@@ -1,10 +1,14 @@
 # Stream Engine
 
-# Release 1.20.14 2025-02-25
+# Release 1.20.14 2025-03-05
 
 Issue #15165 - Use new botpt predicted tide tables
 
+Issue #15792 - Add support for runing QARTOD tests on multidimensional arrays
+
 Issue #15947 - Stream engine should use colocated data having same delivery method if possible
+
+Update load qartod script to run better in a scripted environment
 
 # Release 1.20.13 2024-09-30
 
