@@ -101,7 +101,9 @@ class QartodQcExecutor(object):
             results = OrderedDict()
             suspect_values = []
             fail_values = []
-            if is_2d_array:      
+            if is_2d_array:    
+                # make sure tests are properly structured for multi-dimensional data  
+                # single single-value qartod tests (lists) need to be into multi-dimensional configurations (if they aren't already)
                 for modu, tests in json_config.items():
                     results[modu] = OrderedDict()
                     for testname, kwargs in tests.items():
