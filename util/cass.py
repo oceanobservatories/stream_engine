@@ -467,11 +467,23 @@ def execute_unlimited_query(stream_key, cols, time_bin, time_range):
 
 
 def _get_stream_row_count(stream_key, data_bin):
+    """
+    This should probably be removed since aggregate queries get sent back to the coordinator node only after the
+    aggregation has completed. This can result in timeouts. Regular (non-aggregate) queries start streaming the results
+    back to the coordinator node before the entire result set is generated, so they are less likely to timeout.
+    """
     COUNT_QUERY = "SELECT COUNT(*) FROM {:s} WHERE subsite = ? and node = ? and sensor = ? and bin = ? and method = ?"
     count_query = SessionManager.prepare(COUNT_QUERY.format(stream_key.stream.name))
     return SessionManager.execute(
         count_query, (stream_key.subsite, stream_key.node, stream_key.sensor, data_bin, stream_key.method)
     )[0][0]
+
+
+def _get_partition_row_count(stream_key, data_bin):
+    COUNT_QUERY = "SELECT bin FROM {:s} WHERE subsite = ? and node = ? and sensor = ? and bin = ?"
+    count_query = SessionManager.prepare(COUNT_QUERY.format(stream_key.stream.name))
+    return len(list(SessionManager.execute(
+        count_query, (stream_key.subsite, stream_key.node, stream_key.sensor, data_bin))))
 
 
 @log_timing(log)
@@ -548,7 +560,8 @@ def insert_san_dataset(stream_key, dataset, data_bin=None):
         to_insert.append(row)
 
     # Get the number of records in the bin already
-    initial_count = _get_stream_row_count(stream_key, data_bin)
+    initial_count = _get_partition_row_count(stream_key, data_bin)
+    log.info("initial_count: %d" % initial_count)
 
     # Run insert query. Cassandra will handle already existing records as updates
     fails = 0
@@ -560,7 +573,8 @@ def insert_san_dataset(stream_key, dataset, data_bin=None):
         log.warn("Failed to insert/update %d rows within Cassandra bin %d for %s!", fails, data_bin, stream_key.as_refdes())
 
     # Get the number of records in the bin after inserts
-    final_count = _get_stream_row_count(stream_key, data_bin)
+    final_count = _get_partition_row_count(stream_key, data_bin)
+    log.info("final_count: %d" % final_count)
 
     insert_count = max(final_count - initial_count, 0)
     update_count = len(to_insert) - insert_count
