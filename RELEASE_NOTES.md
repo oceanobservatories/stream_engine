@@ -1,5 +1,9 @@
 # Stream Engine
 
+# Release 1.20.16 2025-06-04
+
+Issue #15879 - Adds support for new IFCB streams
+
 # Release 1.20.14 2025-03-05
 
 Issue #15165 - Use new botpt predicted tide tables
