@@ -1,5 +1,9 @@
 # Stream Engine
 
+# Release 1.20.17 2025-08-06
+
+Issue #15668 - Enhancements to process that copies data in Cassandra and changes deployment number
+
 # Release 1.20.14 2025-03-05
 
 Issue #15165 - Use new botpt predicted tide tables
