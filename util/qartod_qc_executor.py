@@ -276,6 +276,7 @@ class QartodQcExecutor(object):
             else:
                 dataset[parameter].attrs['ancillary_variables'] = qartod_primary_flag_name
 
+            results = np.atleast_1d(results)
             dataset[qartod_primary_flag_name] = (qc_obs_dimension, results, {})
             # add attribute info for QC flag interpretation
             dataset[qartod_primary_flag_name].attrs['flag_values'] = np.array(
