@@ -4,6 +4,10 @@
 
 Issue #15668 - Enhancements to process that copies data in Cassandra and changes deployment number
 
+# Release 1.20.16 2025-06-04
+
+Issue #15879 - Adds support for new IFCB streams
+
 # Release 1.20.14 2025-03-05
 
 Issue #15165 - Use new botpt predicted tide tables
