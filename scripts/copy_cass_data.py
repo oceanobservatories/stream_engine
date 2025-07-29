@@ -2,9 +2,11 @@
 
 import argparse
 import os
+import pandas as pd
 
-from util.cass import get_full_cass_dataset, insert_san_dataset, initialize_worker, \
-    fetch_l0_provenance, insert_provenance
+from util.cass import initialize_worker, \
+    fetch_l0_provenance, insert_provenance, fetch_all_data, SessionManager, _get_partition_row_count
+from cassandra.concurrent import execute_concurrent_with_args
 from util.common import StreamKey, TimeRange, zulu_timestamp_to_ntp_time
 from util.metadata_service import (CASS_LOCATION_NAME, get_location_metadata_by_store, get_location_metadata,
                                    metadata_service_api)
@@ -139,18 +141,118 @@ def split_sk_vals(old_or_new, skentry):
 
 
 def usage(mesg):
-    log.error("BAD INPUT: " + str(mesg))
-    log.error("USAGE: copy_cass_data.py '<oldsk>' '<newsk>' '<timestamp_range>'")
-    log.error("<oldsk>,<newsk> as <subsite>-<node>-<sensor>:<method>:<stream>")
-    log.error("<stream> as <stream_nbr> or <stream_name>")
-    log.error("<timestamp_range> as <beg_ntp>|<end_ntp> or <beg_zulu>|<end_zulu>")
+    print("BAD INPUT: " + str(mesg))
+    print("USAGE: copy_cass_data.py '<oldsk>' '<newsk>' '<timestamp_range>'")
+    print("<oldsk>,<newsk> as <subsite>-<node>-<sensor>:<method>:<stream>")
+    print("<stream> as <stream_nbr> or <stream_name>")
+    print("<timestamp_range> as <beg_ntp>|<end_ntp> or <beg_zulu>|<end_zulu>")
+
+
+def insert_dataframe(stream_key, dataframe, data_bin=None):
+    """
+    Insert a dataframe back into CASSANDRA.
+    First we check to see if there is data in the bin, if there is we either overwrite and update
+    the values or fail and let the user known why
+    :param stream_key: Stream that we are updating
+    :param dataframe: xray dataset we are updating
+    :param data_bin: dataframe contains one bin
+    :return:
+    """
+    # All of the bins on SAN data will be the same in the netcdf file take the first entry
+    if not data_bin:
+        data_bin = dataframe['bin'].values[0]
+
+    data_lists = {}
+    size = dataframe['time'].size
+
+    # get the data in the correct format
+    cols = SessionManager.get_query_columns(stream_key.stream.name)
+    # remove bin since it is used as a key col below
+    dynamic_cols = [c for c in cols if c not in ['bin']]
+
+    key_cols = ['subsite', 'node', 'sensor', 'bin', 'method']
+
+    data_lists['bin'] = [data_bin] * size
+
+    data_notnull = {'bin': [True] * size}
+
+    # Iterate over a copy of the list so that removal of element from original list is safe
+    for dc in list(dynamic_cols):
+        data_lists[dc] = dataframe[dc].values
+        data_notnull[dc] = dataframe[dc].notnull().values
+
+    to_insert = {}
+    for i in range(size):
+        notnull_dynamic_cols = [col for col in dynamic_cols if data_notnull[col][i]]
+        if notnull_dynamic_cols:
+            row = [data_lists['bin'][i]] + [data_lists[col][i] for col in notnull_dynamic_cols]
+            to_insert.setdefault(tuple(notnull_dynamic_cols), []).append(row)
+
+    total_size = 0
+    for k, v in to_insert.items():
+        total_size += len(v)
+        # log.info("num insert columns: %d, num rows: %d, insert columns: %s" % (len(k), len(v), str(k)))
+        log.info("num insert columns: %d, num rows: %d" % (len(k), len(v)))
+    log.info("num unique insert statements: %d, total num rows: %d" % (len(to_insert.keys()), total_size))
+
+    # Get the number of records in the bin already
+    initial_count = _get_partition_row_count(stream_key, data_bin)
+    log.info("initial_count: %d" % initial_count)
+
+    for notnull_dynamic_cols_tup in to_insert.keys():
+        #cols = key_cols + dynamic_cols
+        cols = key_cols + list(notnull_dynamic_cols_tup)
+        # get the query to insert information
+        col_names = ', '.join(cols)
+        # Take subsite, node, sensor, ?, and method
+        key_str = "'{:s}', '{:s}', '{:s}', ?, '{:s}'".format(stream_key.subsite, stream_key.node, stream_key.sensor,
+                                                             stream_key.method)
+        # and the rest as ? for thingskey_cols[:3] +['?'] + key_cols[4:] + ['?' for _ in cols]
+        data_str = ', '.join(['?' for _ in notnull_dynamic_cols_tup])
+        full_str = '{:s}, {:s}'.format(key_str, data_str)
+        query = 'INSERT INTO {:s} ({:s}) VALUES ({:s})'.format(stream_key.stream.name, col_names, full_str)
+        # log.info("sql_stmnt: %s" % query)
+        query = SessionManager.prepare(query)
+
+        data_rows = to_insert[notnull_dynamic_cols_tup]
+
+        # Run insert query. Cassandra will handle already existing records as updates
+        fails = 0
+        for success, _ in execute_concurrent_with_args(SessionManager.session(), query, data_rows, concurrency=50,
+                                                       raise_on_first_error=False):
+            if not success:
+                fails += 1
+        if fails > 0:
+            log.warn("Failed to insert/update %d out of %d rows within Cassandra bin %d for %s. Columns: %s.",
+                     fails, len(data_rows), data_bin, stream_key.as_refdes(), str(cols))
+
+    # Get the number of records in the bin after inserts
+    final_count = _get_partition_row_count(stream_key, data_bin)
+    log.info("final_count: %d" % final_count)
+
+    insert_count = max(final_count - initial_count, 0)
+    update_count = total_size - insert_count
+
+    if insert_count > 0:
+        # Index the new data into the metadata record
+        first = dataframe['time'].min()
+        last = dataframe['time'].max()
+        bin_meta = metadata_service_api.build_partition_metadata_record(
+            *(stream_key.as_tuple() + (data_bin, CASS_LOCATION_NAME, first, last, insert_count)))
+        metadata_service_api.index_partition_metadata_record(bin_meta)
+
+        stream_meta = metadata_service_api.build_stream_metadata_record(
+            *(stream_key.as_tuple() + (first, last, insert_count)))
+        metadata_service_api.index_stream_metadata_record(stream_meta)
+
+    ret_val = 'Inserted {:d} and updated {:d} particles within Cassandra bin {:d} for {:s}.'\
+        .format(insert_count, update_count, data_bin, stream_key.as_refdes())
+    log.info(ret_val)
+    return ret_val
 
 
 def main():
     script_name = os.path.splitext(os.path.basename(__file__))[0]
-
-    configure_logger(script_name + '.log')
-    log.info("starting %s pid: %d" % (script_name, os.getpid()))
 
     parser = argparse.ArgumentParser(description="Copy cassandra data from one stream key and deployment to another.")
     parser.add_argument("--src_stream_key", type=str,
@@ -163,18 +265,26 @@ def main():
                         help="--dest_dep=<destination_deployment_number>")
     parser.add_argument("--time_range", type=str,
                         help="--time_range=<beg_ntp>|<end_ntp> or <beg_zulu>|<end_zulu>")
+    parser.add_argument("--check_existing", type=bool,
+                        help="--check_existing=<True|False>")
 
     args = parser.parse_args()
 
     # Extract the arguments
     old_sk_vals = args.src_stream_key
     new_sk_vals = args.dest_stream_key
+
+    configure_logger("%s_%s.log" % (split_sk_vals("old", old_sk_vals)[0], script_name))
+    log.info("starting %s pid: %d" % (script_name, os.getpid()))
+
     if not new_sk_vals:
         log.info("Setting dest_stream_key to same as src_stream_key since it was not specified.")
         new_sk_vals = old_sk_vals
     old_dep = args.src_dep
     new_dep = args.dest_dep
     time_stamps = args.time_range
+    check_existing = False if args.check_existing is None else args.check_existing
+    log.info("Check existing records: %s" % check_existing)
 
     if new_sk_vals == old_sk_vals and new_dep == old_dep:
         log.error("New stream_key or deployment must be different from old")
@@ -212,24 +322,39 @@ def main():
             continue
         bin_dict = {bin: (count, first, last)}
 
-        # get the existing deployment datasets for the old stream key. Set keep_exclusions to False
-        # so that the "bin" variable is removed from the dataset so that it does not conflict with
-        # the "bin" dimension of adcp streams (adcp_velocity_beam)
-        dep_datasets = get_full_cass_dataset(old_stream_key, time_range, LocationMetadata(bin_dict),
-                                             keep_exclusions=False)
+        # get the existing deployment dataframes for the old stream key.
+        cols, rows = fetch_all_data(old_stream_key, time_range, LocationMetadata(bin_dict))
 
-        for dep, dataset in dep_datasets.iteritems():
+        dataframe = pd.DataFrame(data=rows, columns=cols)
+
+        dep_dataframe_dict = {}
+        for dep, dataframe_group in dataframe.groupby('deployment'):
+            dep_dataframe_dict[dep] = dataframe_group
+
+        for dep, dataframe_group in dataframe.groupby('deployment'):
             log.info("Existing dataset for deployment %d bin %d is size %d."
-                     % (dep, bin, dataset.variables['time'].size))
+                     % (dep, bin, dataframe_group.time.size))
             if old_dep is None or int(old_dep) == dep:
                 if new_dep is not None and int(new_dep) != dep:
                     log.info("Changing deployment number from %d to %d" % (dep, int(new_dep)))
-                    dataset.variables['deployment'].values[:] = int(new_dep)
+                    dataframe_group['deployment'].values[:] = int(new_dep)
 
-                insert_san_dataset(new_stream_key, dataset, bin)
+                    existing_df = dep_dataframe_dict.get(int(new_dep))
+                    if existing_df is not None and check_existing:
+                        orig_size = dataframe_group.time.size
+                        dataframe_group = dataframe_group[np.isin(dataframe_group['time'], existing_df['time'], invert=True)]
+                        new_size = dataframe_group.time.size
+                        if new_size != orig_size:
+                            log.info("%d records were excluded since they already exist for deployment %d bin %d. New size of dataframe: %d."
+                                     % (orig_size-new_size, int(new_dep), bin, new_size))
+                        if new_size == 0:
+                            log.info("Nothing left to insert, continuing.")
+                            continue
 
-                if 'provenance' in dataset:
-                    provenance = np.unique(dataset.provenance.values).astype('str')
+                insert_dataframe(new_stream_key, dataframe_group, bin)
+
+                if 'provenance' in dataframe_group:
+                    provenance = np.unique(dataframe_group.provenance.values).astype('str')
                     existing_old_prov = fetch_l0_provenance(old_stream_key, provenance, dep,
                                                             allow_deployment_change=False)
                     existing_new_prov = fetch_l0_provenance(new_stream_key, provenance,

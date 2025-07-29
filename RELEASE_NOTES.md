@@ -1,5 +1,9 @@
 # Stream Engine
 
+# Release 1.20.17 2025-08-06
+
+Issue #15668 - Enhancements to process that copies data in Cassandra and changes deployment number
+
 # Release 1.20.16 2025-06-04
 
 Issue #15879 - Adds support for new IFCB streams

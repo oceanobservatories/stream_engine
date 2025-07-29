@@ -247,17 +247,17 @@ def get_base_output_filename(ref_des, start_ntp, end_ntp):
 
 def additional_columns_header():
     return 'time_utc', 'end_time_utc', 'end_time', 'end_bin', 'end_id', 'stream',\
-        'count_all_dep', 'count_curr_dep', 'count_other_dep', 'dupe_count'
+        'count_all_dep', 'count_curr_dep', 'count_other_dep', 'dupe_count', 'other_dep'
 
 
 def additional_columns_data(ntp_time, end_ntp_time, end_bin, end_id, stream,
-                            total_count, count_curr_dep, count_next_dep, dupe_count):
+                            total_count, count_curr_dep, count_next_dep, dupe_count, other_dep):
     ts = ntplib.ntp_to_system_time(ntp_time)
     # python3 return datetime.fromtimestamp(ts, tz=timezone.utc).strftime(date_str_format), stream
     end_ts = ntplib.ntp_to_system_time(end_ntp_time)
     return datetime.utcfromtimestamp(ts).strftime(date_str_format),\
         datetime.utcfromtimestamp(end_ts).strftime(date_str_format),\
-        end_ntp_time, end_bin, end_id, stream, total_count, count_curr_dep, count_next_dep, dupe_count
+        end_ntp_time, end_bin, end_id, stream, total_count, count_curr_dep, count_next_dep, dupe_count, other_dep
 
 
 def main():
@@ -271,6 +271,9 @@ def main():
     parser.add_argument("--sensor", type=str, help="sensor")
     parser.add_argument("--start_date", type=str, help="start of time range. format: 2000-01-01T00:00:00.000Z")
     parser.add_argument("--end_date", type=str, help="end of time range. format: 2000-01-01T00:00:00.000Z")
+    parser.add_argument("--trim_time_ranges", type=bool, help="strict trimming of time ranges")
+    parser.add_argument("--first_ref_des", type=str, help="start processing at this instrument")
+    parser.add_argument("--last_ref_des", type=str, help="stop processing after this instrument")
 
     args = parser.parse_args()
 
@@ -280,6 +283,9 @@ def main():
     sensor = args.sensor
     start_date_str = args.start_date
     end_date_str = args.end_date
+    trim_time_ranges = args.trim_time_ranges
+    first_ref_des = args.first_ref_des
+    last_ref_des = args.last_ref_des
 
     if not (array_prefix or subsite) or not start_date_str or not end_date_str:
         print("Must specify at least (array_prefix or subsite) and start_date and end_date")
@@ -303,6 +309,8 @@ def main():
     log.info("Searching for deployments for %s from %s (%d) to %s (%d)" %
              (ref_des, start_date_str, start_ntp, end_date_str, end_ntp))
 
+    log.info("trim_time_ranges: %s" % str(trim_time_ranges))
+
     stream_metadata_service_url, partition_metadata_service_url = get_metadata_service_urls()
 
     stream_metadata_record_list = get_stream_metadata_record_list(stream_metadata_service_url,
@@ -322,25 +330,30 @@ def main():
     bin_col_idx = query_cols.index('bin')
     id_col_idx = query_cols.index('id')
 
-    excluded_stream_list = ['metbk_hourly', 'botpt_nano_sample_15s', 'botpt_nano_sample_24hr']
+    excluded_stream_list = ['metbk_hourly', 'botpt_nano_sample_15s', 'botpt_nano_sample_24hr',
+                            'botpt_nano_sample_15sec', 'botpt_nano_sample_24hour']
 
+    first_ref_des_found = True if not first_ref_des else False
+    last_ref_des_found = False
     write_header_output_file = True
     for stream_metadata_record in stream_metadata_record_list:
         if stream_metadata_record.stream in excluded_stream_list:
             continue
 
-        s_data = []
+        rd = '-'.join((stream_metadata_record.subsite, stream_metadata_record.node, stream_metadata_record.sensor))
+        if not first_ref_des_found:
+            if rd == first_ref_des:
+                first_ref_des_found = True
+                log.info("Starting at first_ref_des: %s" % rd)
+            else:
+                continue
 
-        first_rec_curr_dep = None
-        last_rec_curr_dep = None
-        first_rec_next_dep = None
-        last_rec_prev_bin = None
-        cnt_rec_next_dep = 0
-
-        total_cnt_curr_dep = 0
-        dupe_cnt_curr_dep = 0
-
-        total_cnt_next_dep = 0
+        if last_ref_des_found and not rd == last_ref_des:
+            break
+        elif last_ref_des is not None:
+            if rd == last_ref_des:
+                last_ref_des_found = True
+                log.info("Ending after last_ref_des: %s" % rd)
 
         bin_list = get_bin_list(partition_metadata_service_url, stream_metadata_record, start_ntp, end_ntp)
 
@@ -351,100 +364,15 @@ def main():
         #     do_stable_sample (bin size minutes 1440), 1256 partitions took 64 minutes
         log_interval = 50
 
-        len_bin_list = len(bin_list)
-        for bin_idx in range(len_bin_list):
-            if bin_idx % log_interval == 0 or bin_idx == len_bin_list-1:
-                log.info("Processing bin_idx %d of %d" % (bin_idx, len_bin_list))
-
-            bins_and_limit = [(bin_list[bin_idx], start_ntp, end_ntp)]
-            p_data = query_full_bin(cassandra_session, stream_metadata_record, bins_and_limit, query_cols)
-
-            deployments = [row_tup[dep_col_idx] for row_tup in p_data]
-            dep_change_idx = np.where(np.diff(deployments, prepend=np.nan))[0]
-            if len(dep_change_idx) > 1:
-                log.info("Number of changes of deployment number in bin %d of %s: %d" %
-                          (bin_list[bin_idx], stream_metadata_record, len(dep_change_idx)-1))
-                log.debug("Indexes in data where deployment has changed for bin %d of %s: %s" %
-                          (bin_list[bin_idx], stream_metadata_record, dep_change_idx))
-
-            for i in range(len(dep_change_idx)):
-                idx = dep_change_idx[i]
-
-                if i < len(dep_change_idx)-1:
-                    cnt_working_dep = dep_change_idx[i+1] - idx
-                else:
-                    cnt_working_dep = len(p_data) - idx
-
-                if idx == 0:
-                    prev_rec = last_rec_prev_bin
-                else:
-                    prev_rec = p_data[idx-1]
-
-                is_dupe = False
-                if prev_rec and p_data[idx][dep_col_idx] != prev_rec[dep_col_idx] \
-                        and p_data[idx][time_col_idx] - prev_rec[time_col_idx] < 0.001:
-                    is_dupe = True
-
-                if not first_rec_curr_dep:
-                    first_rec_curr_dep = p_data[idx]
-
-                if p_data[idx][dep_col_idx] == first_rec_curr_dep[dep_col_idx]:
-                    if is_dupe:
-                        dupe_cnt_curr_dep = dupe_cnt_curr_dep + 1
-                    total_cnt_curr_dep = total_cnt_curr_dep + cnt_working_dep
-
-                    last_rec_curr_dep = p_data[idx+cnt_working_dep-1]
-                    first_rec_next_dep = None
-                    cnt_rec_next_dep = 0
-                else:
-                    if not first_rec_next_dep:
-                        first_rec_next_dep = p_data[idx]
-
-                    threshold = 1
-                    if p_data[idx][dep_col_idx] == 0:
-                        threshold = 10
-
-                    if cnt_rec_next_dep + cnt_working_dep >= threshold:
-                        total_cnt_next_dep = total_cnt_next_dep - cnt_rec_next_dep
-                        s_data.append(first_rec_curr_dep + additional_columns_data(first_rec_curr_dep[time_col_idx],
-                                                                                   last_rec_curr_dep[time_col_idx],
-                                                                                   last_rec_curr_dep[bin_col_idx],
-                                                                                   last_rec_curr_dep[id_col_idx],
-                                                                                   stream_metadata_record.stream,
-                                                                                   total_cnt_curr_dep + total_cnt_next_dep,
-                                                                                   total_cnt_curr_dep,
-                                                                                   total_cnt_next_dep,
-                                                                                   dupe_cnt_curr_dep))
-
-                        cnt_rec_next_dep = 0
-                        first_rec_curr_dep = first_rec_next_dep
-                        last_rec_curr_dep = p_data[idx+cnt_working_dep-1]
-                        first_rec_next_dep = None
-
-                        total_cnt_curr_dep = cnt_working_dep
-                        total_cnt_next_dep = 0
-
-                        if is_dupe:
-                            dupe_cnt_curr_dep = 1
-                        else:
-                            dupe_cnt_curr_dep = 0
-                    else:
-                        total_cnt_next_dep = total_cnt_next_dep + cnt_working_dep
-                        cnt_rec_next_dep = cnt_rec_next_dep + cnt_working_dep
-
-            if bin_idx == len(bin_list)-1:
-                log.debug("appending last record")
-                s_data.append(first_rec_curr_dep + additional_columns_data(first_rec_curr_dep[time_col_idx],
-                                                                           last_rec_curr_dep[time_col_idx],
-                                                                           last_rec_curr_dep[bin_col_idx],
-                                                                           last_rec_curr_dep[id_col_idx],
-                                                                           stream_metadata_record.stream,
-                                                                           total_cnt_curr_dep + total_cnt_next_dep,
-                                                                           total_cnt_curr_dep,
-                                                                           total_cnt_next_dep,
-                                                                           dupe_cnt_curr_dep))
-
-            last_rec_prev_bin = p_data[-1]
+        if not trim_time_ranges:
+            s_data = find_time_ranges(stream_metadata_record, bin_list, start_ntp, end_ntp,
+                                      query_cols, dep_col_idx, time_col_idx, bin_col_idx, id_col_idx,
+                                      cassandra_session, log_interval)
+        else:
+            log.info("Processing with trim_time_ranges")
+            s_data = find_time_ranges_trim(stream_metadata_record, bin_list, start_ntp, end_ntp,
+                                           query_cols, dep_col_idx, time_col_idx, bin_col_idx, id_col_idx,
+                                           cassandra_session, log_interval)
 
         log.debug("s_data: ")
         for record in s_data:
@@ -457,6 +385,306 @@ def main():
 
     log.info("Exiting main for pid %d" % os.getpid())
     print("Exiting main pid: %d" % os.getpid())
+
+
+def find_time_ranges(stream_metadata_record, bin_list, start_ntp, end_ntp,
+                     query_cols, dep_col_idx, time_col_idx, bin_col_idx, id_col_idx,
+                     cassandra_session, log_interval):
+    s_data = []
+
+    first_rec_curr_dep = None
+    last_rec_curr_dep = None
+    first_rec_next_dep = None
+    last_rec_prev_bin = None
+
+    cnt_rec_next_dep = 0
+
+    total_cnt_curr_dep = 0
+    dupe_cnt_curr_dep = 0
+
+    total_cnt_next_dep = 0
+
+    len_bin_list = len(bin_list)
+    for bin_idx in range(len_bin_list):
+        if bin_idx % log_interval == 0 or bin_idx == len_bin_list - 1:
+            log.info("Processing bin_idx %d of %d" % (bin_idx, len_bin_list))
+
+        bins_and_limit = [(bin_list[bin_idx], start_ntp, end_ntp)]
+        p_data = query_full_bin(cassandra_session, stream_metadata_record, bins_and_limit, query_cols)
+
+        deployments = [row_tup[dep_col_idx] for row_tup in p_data]
+        dep_change_idx = np.where(np.diff(deployments, prepend=np.nan))[0]
+        if len(dep_change_idx) > 1:
+            log.info("Number of changes of deployment number in bin %d of %s: %d" %
+                     (bin_list[bin_idx], stream_metadata_record, len(dep_change_idx) - 1))
+            log.debug("Indexes in data where deployment has changed for bin %d of %s: %s" %
+                      (bin_list[bin_idx], stream_metadata_record, dep_change_idx))
+
+        for i in range(len(dep_change_idx)):
+            idx = dep_change_idx[i]
+
+            if i < len(dep_change_idx) - 1:
+                cnt_working_dep = dep_change_idx[i + 1] - idx
+            else:
+                cnt_working_dep = len(p_data) - idx
+
+            if idx == 0:
+                prev_rec = last_rec_prev_bin
+            else:
+                prev_rec = p_data[idx - 1]
+
+            is_dupe = False
+            if prev_rec and p_data[idx][dep_col_idx] != prev_rec[dep_col_idx] \
+                    and p_data[idx][time_col_idx] - prev_rec[time_col_idx] < 0.001:
+                is_dupe = True
+
+            if not first_rec_curr_dep:
+                first_rec_curr_dep = p_data[idx]
+
+            if p_data[idx][dep_col_idx] == first_rec_curr_dep[dep_col_idx]:
+                if is_dupe:
+                    dupe_cnt_curr_dep = dupe_cnt_curr_dep + 1
+                total_cnt_curr_dep = total_cnt_curr_dep + cnt_working_dep
+
+                last_rec_curr_dep = p_data[idx + cnt_working_dep - 1]
+                first_rec_next_dep = None
+                cnt_rec_next_dep = 0
+            else:
+                if not first_rec_next_dep:
+                    first_rec_next_dep = p_data[idx]
+
+                # threshold = 1
+                # if p_data[idx][dep_col_idx] == 0:
+                #    threshold = 10
+
+                threshold = 10
+                if (cnt_rec_next_dep + cnt_working_dep >= threshold) \
+                        or (total_cnt_curr_dep >= threshold and total_cnt_next_dep == 0):
+                    total_cnt_next_dep = total_cnt_next_dep - cnt_rec_next_dep
+                    other_dep = None
+                    if first_rec_next_dep and total_cnt_next_dep:
+                        other_dep = int(first_rec_next_dep[dep_col_idx])
+                    s_data.append(first_rec_curr_dep + additional_columns_data(first_rec_curr_dep[time_col_idx],
+                                                                               last_rec_curr_dep[time_col_idx],
+                                                                               last_rec_curr_dep[bin_col_idx],
+                                                                               last_rec_curr_dep[id_col_idx],
+                                                                               stream_metadata_record.stream,
+                                                                               total_cnt_curr_dep + total_cnt_next_dep,
+                                                                               total_cnt_curr_dep,
+                                                                               total_cnt_next_dep,
+                                                                               dupe_cnt_curr_dep,
+                                                                               other_dep))
+
+                    cnt_rec_next_dep = 0
+                    first_rec_curr_dep = first_rec_next_dep
+                    last_rec_curr_dep = p_data[idx + cnt_working_dep - 1]
+                    first_rec_next_dep = None
+
+                    total_cnt_curr_dep = cnt_working_dep
+                    total_cnt_next_dep = 0
+
+                    if is_dupe:
+                        dupe_cnt_curr_dep = 1
+                    else:
+                        dupe_cnt_curr_dep = 0
+                else:
+                    total_cnt_next_dep = total_cnt_next_dep + cnt_working_dep
+                    cnt_rec_next_dep = cnt_rec_next_dep + cnt_working_dep
+
+        if bin_idx == len(bin_list) - 1:
+            log.debug("appending last record")
+            other_dep = None
+            if first_rec_next_dep and total_cnt_next_dep:
+                other_dep = int(first_rec_next_dep[dep_col_idx])
+            s_data.append(first_rec_curr_dep + additional_columns_data(first_rec_curr_dep[time_col_idx],
+                                                                       last_rec_curr_dep[time_col_idx],
+                                                                       last_rec_curr_dep[bin_col_idx],
+                                                                       last_rec_curr_dep[id_col_idx],
+                                                                       stream_metadata_record.stream,
+                                                                       total_cnt_curr_dep + total_cnt_next_dep,
+                                                                       total_cnt_curr_dep,
+                                                                       total_cnt_next_dep,
+                                                                       dupe_cnt_curr_dep,
+                                                                       other_dep))
+
+        last_rec_prev_bin = p_data[-1]
+
+    return s_data
+
+
+def find_time_ranges_trim(stream_metadata_record, bin_list, start_ntp, end_ntp,
+                          query_cols, dep_col_idx, time_col_idx, bin_col_idx, id_col_idx,
+                          cassandra_session, log_interval):
+    s_data = []
+
+    threshold = 10
+
+    prev_window_frst_rec = None
+    prev_window_last_rec = None
+    prev_window_cnt_first_rec_dep = 0
+    prev_window_cnt_other_rec_dep = 0
+    prev_window_cnt_dupes = 0
+    prev_window_other_dep = {}
+
+    curr_window_frst_rec = None
+    curr_window_last_rec = None
+    curr_window_cnt_first_rec_dep = 0
+
+    working_window_frst_rec = None
+    working_window_last_rec = None
+    working_window_cnt = 0
+
+    len_bin_list = len(bin_list)
+    for bin_idx in range(len_bin_list):
+        if bin_idx % log_interval == 0 or bin_idx == len_bin_list-1:
+            log.info("Processing bin_idx %d of %d" % (bin_idx, len_bin_list))
+
+        bins_and_limit = [(bin_list[bin_idx], start_ntp, end_ntp)]
+        p_data = query_full_bin(cassandra_session, stream_metadata_record, bins_and_limit, query_cols)
+
+        deployments = [row_tup[dep_col_idx] for row_tup in p_data]
+        dep_change_idx = np.where(np.diff(deployments, prepend=np.nan))[0]
+        if len(dep_change_idx) > 1:
+            log.info("Number of changes of deployment number in bin %d of %s: %d" %
+                      (bin_list[bin_idx], stream_metadata_record, len(dep_change_idx)-1))
+            log.debug("Indexes in data where deployment has changed for bin %d of %s: %s" %
+                      (bin_list[bin_idx], stream_metadata_record, dep_change_idx))
+
+        for i in range(len(dep_change_idx)):
+            idx = dep_change_idx[i]
+
+            working_window_frst_rec = p_data[idx]
+            if i < len(dep_change_idx)-1:
+                working_window_last_rec = p_data[dep_change_idx[i+1]]
+                working_window_cnt = dep_change_idx[i+1] - idx
+            else:
+                working_window_cnt = len(p_data) - idx
+                # working_window_last_rec = p_data[dep_change_idx[len(p_data)-1]]
+                working_window_last_rec = p_data[-1]
+
+            # is_dupe = False
+            # if prev_window_last_rec and working_window_frst_rec[dep_col_idx] != prev_window_last_rec[dep_col_idx] \
+            #         and abs(working_window_frst_rec[time_col_idx] - prev_window_last_rec[time_col_idx]) < 0.001:
+            #      is_dupe = True
+
+            if curr_window_frst_rec is None:
+                # Initialize curr
+                curr_window_frst_rec = working_window_frst_rec
+                curr_window_last_rec = working_window_last_rec
+                curr_window_cnt_first_rec_dep = working_window_cnt
+                curr_window_cnt_other_rec_dep = 0
+            elif curr_window_frst_rec[dep_col_idx] == working_window_frst_rec[dep_col_idx]:
+                # Accumulate in curr
+                curr_window_last_rec = working_window_last_rec
+                curr_window_cnt_first_rec_dep += working_window_cnt
+            else:
+                # Working and curr are different dep, push curr to prev
+
+                #if abs(working_window_frst_rec[time_col_idx] - curr_window_last_rec[time_col_idx]) < 0.001:
+                #    prev_window_cnt_dupes += 1
+
+                if curr_window_cnt_first_rec_dep >= threshold:
+                    # write prev to file
+                    if prev_window_frst_rec:
+                        if curr_window_frst_rec[dep_col_idx] != prev_window_last_rec[dep_col_idx] and \
+                                abs(prev_window_last_rec[time_col_idx] - curr_window_frst_rec[time_col_idx]) < 0.001:
+                            prev_window_cnt_dupes += 1
+
+                        s_data.append(prev_window_frst_rec + additional_columns_data(prev_window_frst_rec[time_col_idx],
+                                                                               prev_window_last_rec[time_col_idx],
+                                                                               prev_window_last_rec[bin_col_idx],
+                                                                               prev_window_last_rec[id_col_idx],
+                                                                               stream_metadata_record.stream,
+                                                                               prev_window_cnt_first_rec_dep +prev_window_cnt_other_rec_dep,
+                                                                               prev_window_cnt_first_rec_dep,
+                                                                               prev_window_cnt_other_rec_dep,
+                                                                               prev_window_cnt_dupes,
+                                                                               prev_window_other_dep))
+
+                        prev_window_frst_rec = None
+                        prev_window_last_rec = None
+                        prev_window_cnt_first_rec_dep = 0
+                        prev_window_cnt_other_rec_dep = 0
+                        prev_window_cnt_dupes = 0
+                        prev_window_other_dep = {}
+
+                    # write curr to file
+                    s_data.append(curr_window_frst_rec + additional_columns_data(curr_window_frst_rec[time_col_idx],
+                                                                                 curr_window_last_rec[time_col_idx],
+                                                                                 curr_window_last_rec[bin_col_idx],
+                                                                                 curr_window_last_rec[id_col_idx],
+                                                                                 stream_metadata_record.stream,
+                                                                                 curr_window_cnt_first_rec_dep,
+                                                                                 curr_window_cnt_first_rec_dep,
+                                                                                 0,
+                                                                                 0,
+                                                                                 None))
+
+                    curr_window_frst_rec = None
+                    curr_window_last_rec = None
+                    curr_window_cnt_first_rec_dep = 0
+                else:
+                    # set prev to curr
+                    if prev_window_frst_rec is None:
+                        # Initialize prev
+                        if abs(curr_window_last_rec[time_col_idx] - working_window_frst_rec[time_col_idx]) < 0.001:
+                            prev_window_cnt_dupes = 1
+                        else:
+                            prev_window_cnt_dupes = 0
+
+                        prev_window_frst_rec = curr_window_frst_rec
+                        prev_window_last_rec = curr_window_last_rec
+                        prev_window_cnt_first_rec_dep = curr_window_cnt_first_rec_dep
+                        prev_window_cnt_other_rec_dep = 0
+                        # prev_window_cnt_dupes = 0
+                        prev_window_other_dep = {}
+                    else:
+                        # Accumulate in prev
+                        is_dupe = False
+                        if abs(prev_window_last_rec[time_col_idx] - curr_window_frst_rec[time_col_idx]) < 0.001:
+                            is_dupe = True
+
+                        prev_window_last_rec = curr_window_last_rec
+                        if curr_window_frst_rec[dep_col_idx] == prev_window_frst_rec[dep_col_idx]:
+                            prev_window_cnt_first_rec_dep += curr_window_cnt_first_rec_dep
+                        else:
+                            prev_window_cnt_other_rec_dep += curr_window_cnt_first_rec_dep
+                            # prev_window_other_dep.add(int(curr_window_frst_rec[dep_col_idx]))
+                            k = int(curr_window_frst_rec[dep_col_idx])
+                            prev_window_other_dep[k] = prev_window_other_dep.setdefault(k, 0) + curr_window_cnt_first_rec_dep
+                            if is_dupe:
+                                prev_window_cnt_dupes += 1
+
+                # set curr to working
+                curr_window_frst_rec = working_window_frst_rec
+                curr_window_last_rec = working_window_last_rec
+                curr_window_cnt_first_rec_dep = working_window_cnt
+
+    if prev_window_frst_rec:
+        s_data.append(prev_window_frst_rec + additional_columns_data(prev_window_frst_rec[time_col_idx],
+                                                                     prev_window_last_rec[time_col_idx],
+                                                                     prev_window_last_rec[bin_col_idx],
+                                                                     prev_window_last_rec[id_col_idx],
+                                                                     stream_metadata_record.stream,
+                                                                     prev_window_cnt_first_rec_dep + prev_window_cnt_other_rec_dep,
+                                                                     prev_window_cnt_first_rec_dep,
+                                                                     prev_window_cnt_other_rec_dep,
+                                                                     prev_window_cnt_dupes,
+                                                                     prev_window_other_dep))
+
+    if curr_window_frst_rec:
+        s_data.append(curr_window_frst_rec + additional_columns_data(curr_window_frst_rec[time_col_idx],
+                                                                     curr_window_last_rec[time_col_idx],
+                                                                     curr_window_last_rec[bin_col_idx],
+                                                                     curr_window_last_rec[id_col_idx],
+                                                                     stream_metadata_record.stream,
+                                                                     curr_window_cnt_first_rec_dep,
+                                                                     curr_window_cnt_first_rec_dep,
+                                                                     0,
+                                                                     0,
+                                                                     None))
+
+    return s_data
 
 
 if __name__ == '__main__':
