@@ -6,6 +6,10 @@ Issue #15668 - Enhancements to process that copies data in Cassandra and changes
 
 Issue #16069 - Fix empty qartod_executed values and correct 255 fill values in qartod results
 
+Issue #15983 - Supports new seapHOX stream
+
+Issue #16077 - Glider and AUV CDOM bias corrections
+
 # Release 1.20.16 2025-06-04
 
 Issue #15879 - Adds support for new IFCB streams
