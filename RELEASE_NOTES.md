@@ -4,6 +4,8 @@
 
 Issue #15668 - Enhancements to process that copies data in Cassandra and changes deployment number
 
+Issue #16069 - Fix empty qartod_executed values and correct 255 fill values in qartod results
+
 # Release 1.20.16 2025-06-04
 
 Issue #15879 - Adds support for new IFCB streams
