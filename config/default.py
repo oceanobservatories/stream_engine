@@ -1,6 +1,7 @@
 import os
-from util.releasenotes import ReleaseNotes
 from collections import OrderedDict
+
+from util.releasenotes import ReleaseNotes
 
 ############################
 # General Settings         #
@@ -223,6 +224,12 @@ FILL_VALUES = {
     "string": "",
     "boolean": -9
 }
+
+STREAM_DEDUPLICATION_MAP = {
+    # Streams for which duplicates should be pruned based on more than time
+    'plims_a_hdr_instrument': {'time': None, 'sample_adc_file_row_number': int},
+}
+
 
 # Used for fill values when location data is missing
 LAT_FILL = 90.0
