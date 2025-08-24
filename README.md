@@ -12,18 +12,19 @@ asynchronously as NetCDF4, CSV or TSV.
 ## Prerequisites
 
 1. Clone the repository
-2. Clone all submodules (git submodule update --init)
-3. Create a conda virtual environment with the necessary packages:
+2. Clone all submodules (`git submodule update --init`)
+3. Clone the [ooi-config](https://github.com/oceanobservatories/ooi-config/tree/master) repository (the documentation below assumes it is cloned to the same directory as the `stream-engine` repository clone)
+3. Create a `conda` virtual environment with the necessary packages using the `ooi-config/anaconda_env/engine.yml` file:
 
 ```shell
-conda env create -f conda_env.yml
+conda env create -f ../ooi-config/anaconda_env/engine.yml
 ```
 
 ## Configuration
 
-The default Stream Engine configuration can be found in config/default.py.
-Overrides can be entered into config/local.py. Gunicorn-specific
-configuration parameters are set in gunicorn_config.py.
+The default Stream Engine configuration can be found in `config/default.py`.
+Overrides can be entered into `config/local.py`. Gunicorn-specific
+configuration parameters are set in `gunicorn_config.py`.
 
 ## Running
 
@@ -50,38 +51,38 @@ generally be avoided unless necessary.
 
 ### Running on Test Server
 
-Our current test server is `uframe-3-test` under user `asadev`. Source the 
-Stream Engine conda environment `engine` and start the service. Run Stream 
-Engine in the logs directory as they are written to the current working directory:
+To run on a test server, follow the Prerequisites steps above on that test machine. Then, source the Stream Engine conda environment `engine` and start the service with the `manage-streamng` tool. Run Stream Engine in the `logs` directory as logs are written to the current working directory:
 
 ```shell
-source activate engine
-cd ~/miniconda/envs/engine/stream_engine/logs
+conda activate engine
+cd logs
 ../manage-streamng start
 ```
 
 ## Logs
 
-The following logs are generated in the logs folder:
+The following logs are generated in the `logs` folder:
 
-* stream_engine.error.log - General data retrieval, product creation logs
-* stream_engine.access.log - Gunicorn access logs
+* `stream_engine.error.log` - General data retrieval, product creation logs
+* `stream_engine.access.log` - Gunicorn access logs
 
 ## Updating a Stream Engine installation to a newer release
 
 Updating to a new release of Stream Engine is simple, just grab the update,
-update your conda environment and the preload database submodule then
+update your conda environment and the `preload-database` submodule then
 reload Stream Engine.
 
 ```shell
 git pull # or git fetch / git checkout <tag>
 git submodule update
-conda env update -f conda_env.yml
+conda env update -f ../ooi-config/anaconda_env/engine.yml
 ./manage-streamng reload
 ```
 
 
 ## Creating a new Stream Engine release
+
+__Note: this is out of date: the new procedure involves creating an updated ooi conda-forge package from the ooi-config repository.__
 
 1. Update preload database submodule (if needed)
 2. Update conda_env.yml with any desired library updates
