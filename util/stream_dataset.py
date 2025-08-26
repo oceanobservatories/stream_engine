@@ -96,9 +96,9 @@ class StreamDataset(object):
                     dataset.deployment.values[mask] = deployment_number
 
             for deployment, group in dataset.groupby('deployment'):
-                if self.stream_key in STREAM_DEDUPLICATION_MAP:
+                if self.stream_key.stream.name in STREAM_DEDUPLICATION_MAP:
                     # If the stream key is in the deduplication map, prune duplicates
-                    self.datasets[deployment] = self._prune_duplicates(group, STREAM_DEDUPLICATION_MAP[self.stream_key])
+                    self.datasets[deployment] = self._prune_duplicates(group, STREAM_DEDUPLICATION_MAP[self.stream_key.stream.name])
                 else:
                     self.datasets[deployment] = self._prune_duplicate_times(group)
                 self.params[deployment] = [p for p in self.stream_key.stream.derived]
@@ -131,9 +131,8 @@ class StreamDataset(object):
                 values = dataset[var].values
                 if var_type:
                     values = values.astype(var_type)
-                var_mask = np.diff(dataset[var].values) != 0
-                # unique, indices = np.unique(values, return_index=True)
-                mask = mask & var_mask
+                var_mask = np.diff(values, prepend=0.0) != 0
+                mask = mask | var_mask
             
         if not mask.all():
             dataset = dataset.isel(obs=mask)
