@@ -227,7 +227,7 @@ FILL_VALUES = {
 
 STREAM_DEDUPLICATION_MAP = {
     # Streams for which duplicates should be pruned based on more than time
-    'plims_a_hdr_instrument': {'time': None, 'sample_adc_file_row_number': int},
+    'plims_a_adc_instrument': {'time': None, 'sample_adc_file_row_number': int},
 }
 
 
