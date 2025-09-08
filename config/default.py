@@ -225,9 +225,14 @@ FILL_VALUES = {
     "boolean": -9
 }
 
+# Streams for which duplicates should be pruned based on more than time
+# Note that order matters; use OrderedDict to ensure it is preserved
+
+plims_a_adc_dict = OrderedDict()
+plims_a_adc_dict['time'] = None
+plims_a_adc_dict['sample_adc_file_row_number'] = int
 STREAM_DEDUPLICATION_MAP = {
-    # Streams for which duplicates should be pruned based on more than time
-    'plims_a_adc_instrument': {'time': None, 'sample_adc_file_row_number': int},
+    'plims_a_adc_instrument': plims_a_adc_dict,
 }
 
 

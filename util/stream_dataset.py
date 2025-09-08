@@ -10,6 +10,7 @@ import ion_functions
 import ntplib
 import numexpr
 import numpy as np
+import pandas as pd
 from engine import app
 from ooi_data.postgres.model import Parameter, Stream
 from util.advlogging import ParameterReport
@@ -121,21 +122,27 @@ class StreamDataset(object):
         :param filter_variable_type_map: A dictionary with variables to check for duplicates as keys with their types as values
         :return: The pruned dataset
         """ 
-        mask = np.ones(dataset.obs.size, dtype='bool')
+        mask = np.zeros(dataset.obs.size, dtype='bool')
         if not filter_variable_type_map:
+            # Mask by time only
             mask = np.diff(dataset.time.values, prepend=0.0) != 0
-            
-        for var, var_type in filter_variable_type_map.items():
-            if var in dataset:
-                # need to handle data type as well
-                values = dataset[var].values
-                if var_type:
-                    values = values.astype(var_type)
-                var_mask = np.diff(values, prepend=0.0) != 0
-                mask = mask | var_mask
+        else:
+            # Sort first, then mask by specified variables
+            vars = filter_variable_type_map.keys()
+            df = pd.DataFrame({var: dataset[var].values.astype(var_type) if var_type else dataset[var].values for var, var_type in filter_variable_type_map.items()})
+            sorted_df = df.sort_values(by=vars, ascending=np.ones(len(vars), dtype='bool'))
+
+            for var in vars:
+                mask = mask | np.diff(sorted_df[var], prepend=0.0) != 0
             
         if not mask.all():
-            dataset = dataset.isel(obs=mask)
+            # Get indices of masked values in the original dataset
+            ind = sorted_df.index[mask]
+            # Sort indices to maintain original order
+            ind = np.sort(ind)
+            # Subselect the dataset
+            dataset = dataset.isel(obs=ind)
+            # Reindex the obs dimension
             dataset['obs'] = np.arange(dataset.obs.size)
         return dataset  
 
