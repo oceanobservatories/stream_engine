@@ -133,13 +133,12 @@ class StreamDataset(object):
             sorted_df = df.sort_values(by=vars, ascending=np.ones(len(vars), dtype='bool'))
 
             for var in vars:
-                mask = mask | np.diff(sorted_df[var], prepend=0.0) != 0
+                var_mask = np.diff(sorted_df[var], prepend=0.0) != 0
+                mask = mask | var_mask
             
         if not mask.all():
             # Get indices of masked values in the original dataset
             ind = sorted_df.index[mask]
-            # Sort indices to maintain original order
-            ind = np.sort(ind)
             # Subselect the dataset
             dataset = dataset.isel(obs=ind)
             # Reindex the obs dimension
