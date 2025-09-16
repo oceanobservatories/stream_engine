@@ -306,9 +306,9 @@ def compile_datasets(datasets, filter_variable_type_map=None):
         dataset = dataset.reindex({'obs': sorted_idx})
     else:
         # sort the dataset by the configured variables
-        vars = filter_variable_type_map.keys()
+        filter_vars = filter_variable_type_map.keys()
         df = pd.DataFrame({var: dataset[var].values.astype(var_type) if var_type else dataset[var].values for var, var_type in filter_variable_type_map.items()})
-        sorted_df = df.sort_values(by=vars, ascending=np.ones(len(vars), dtype='bool'))
+        sorted_df = df.sort_values(by=filter_vars, ascending=np.ones(len(filter_vars), dtype='bool'))
         ind = sorted_df.index
         dataset = dataset.reindex({'obs': ind})
 

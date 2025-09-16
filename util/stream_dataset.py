@@ -124,25 +124,26 @@ class StreamDataset(object):
         """ 
         mask = np.zeros(dataset.obs.size, dtype='bool')
         if not filter_variable_type_map:
-            # Mask by time only
-            mask = np.diff(dataset.time.values, prepend=0.0) != 0
-        else:
-            # Sort first, then mask by specified variables
-            vars = filter_variable_type_map.keys()
-            df = pd.DataFrame({var: dataset[var].values.astype(var_type) if var_type else dataset[var].values for var, var_type in filter_variable_type_map.items()})
-            sorted_df = df.sort_values(by=vars, ascending=np.ones(len(vars), dtype='bool'))
+            # Return default time-only deduplication
+            return self._prune_duplicate_times(dataset)
+        
 
-            for var in vars:
-                var_mask = np.diff(sorted_df[var], prepend=0.0) != 0
-                mask = mask | var_mask
+        # Sort first, then mask by specified variables
+        filter_vars = filter_variable_type_map.keys()
+        df = pd.DataFrame({var: dataset[var].values.astype(var_type) if var_type else dataset[var].values for var, var_type in filter_variable_type_map.items()})
+        sorted_df = df.sort_values(by=filter_vars, ascending=np.ones(len(filter_vars), dtype='bool'))
+
+        for var in filter_vars:
+            var_mask = np.diff(sorted_df[var], prepend=0.0) != 0
+            mask = mask | var_mask
             
-        if not mask.all():
-            # Get indices of masked values in the original dataset
-            ind = sorted_df.index[mask]
-            # Subselect the dataset
-            dataset = dataset.isel(obs=ind)
-            # Reindex the obs dimension
-            dataset['obs'] = np.arange(dataset.obs.size)
+        # Re-sort masked dataset subset
+        # Get indices of masked values in the original dataset
+        ind = sorted_df.index[mask]
+        # Subselect the dataset
+        dataset = dataset.isel(obs=ind)
+        # Reindex the obs dimension
+        dataset['obs'] = np.arange(dataset.obs.size)
         return dataset  
 
     def calculate_all(self, source_datasets=None, ignore_missing_optional_params=False):
