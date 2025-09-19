@@ -9,10 +9,9 @@ import msgpack
 import numpy as np
 import pandas as pd
 import xarray as xr
-
 from common import StreamEngineException
-from multi_concat import multi_concat
 from engine import app
+from multi_concat import multi_concat
 
 __author__ = 'Stephen Zakrewsky'
 
@@ -273,7 +272,7 @@ def _fix_data_arrays(data, unpacked):
                 _fix_data_arrays(data_sub, unpacked_sub)
 
 
-def compile_datasets(datasets):
+def compile_datasets(datasets, filter_variable_type_map=None):
     """
     Given a list of datasets. Possibly containing None. Return a single
     dataset with unique indexes and sorted by the 'time' parameter
@@ -300,9 +299,19 @@ def compile_datasets(datasets):
 
     # recreate the obs dimension
     dataset['obs'] = np.arange(dataset.obs.size)
-    # sort the dataset by time
-    sorted_idx = dataset.time.argsort()
-    dataset = dataset.reindex({'obs': sorted_idx})
+
+    if filter_variable_type_map is None:
+        # sort the dataset by time
+        sorted_idx = dataset.time.argsort()
+        dataset = dataset.reindex({'obs': sorted_idx})
+    else:
+        # sort the dataset by the configured variables
+        filter_vars = filter_variable_type_map.keys()
+        df = pd.DataFrame({var: dataset[var].values.astype(var_type) if var_type else dataset[var].values for var, var_type in filter_variable_type_map.items()})
+        sorted_df = df.sort_values(by=filter_vars, ascending=np.ones(len(filter_vars), dtype='bool'))
+        ind = sorted_df.index
+        dataset = dataset.reindex({'obs': ind})
+
     # recreate the obs dimension again to ensure it is sequential
     dataset['obs'] = np.arange(dataset.obs.size)
     return dataset

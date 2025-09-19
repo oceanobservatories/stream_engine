@@ -5,21 +5,19 @@ import json
 import logging
 import os
 import re
-import time
-import signal
 import shutil
-from collections import defaultdict, OrderedDict
+import signal
+import time
+from collections import OrderedDict, defaultdict
 
 import jinja2
 import numpy as np
-
 from engine import app
-from util.common import log_timing, sort_dict, PROVENANCE_KEYORDER, TimedOutException
+from util.common import PROVENANCE_KEYORDER, TimedOutException, log_timing, sort_dict
 from util.datamodel import compile_datasets
 from util.gather import gather_files
-from util.netcdf_utils import write_netcdf, add_dynamic_attributes, analyze_datasets
+from util.netcdf_utils import add_dynamic_attributes, analyze_datasets, write_netcdf
 from util.xarray_overrides import xr
-
 
 log = logging.getLogger(__name__)
 
@@ -293,8 +291,12 @@ def concatenate_and_write(datasets, out_dir, group_name, request_id=None):
     for ds in datasets:
         non_obs_data = [var for var in ds.data_vars if 'obs' not in ds[var].dims]
 
+    # Look for alternate filtering based on stream name
+    stream_name = group_name.split('-')[-1]
+    filter_variable_type_map = app.config['STREAM_DEDUPLICATION_MAP'].get(stream_name, None)
+
     # compiled data sets will compile all data along the obs dimension
-    ds = compile_datasets(datasets)
+    ds = compile_datasets(datasets, filter_variable_type_map=filter_variable_type_map)
 
     # remove obs dimension from non_obs data (13025 AC2)
     for non_obs in non_obs_data:
