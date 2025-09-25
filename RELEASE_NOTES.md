@@ -1,5 +1,11 @@
 # Stream Engine
 
+# Release 1.20.18 2025-09-30
+
+Issue #16068 - Adds new parameters to IFCB streams
+
+Issue #16104 - PCO2W pressure calibration changes
+
 # Release 1.20.17 2025-08-06
 
 Issue #15668 - Enhancements to process that copies data in Cassandra and changes deployment number

@@ -1,10 +1,17 @@
 #!/usr/bin/env python
 
 import sys
-from util.cass import get_full_cass_dataset, insert_dataset, initialize_worker
-from util.common import StreamKey, TimeRange, ZULU_TIMESTAMP_FORMAT, zulu_timestamp_to_ntp_time
+
 from ooi_data.postgres.model import *
 from preload_database.database import create_engine_from_url, create_scoped_session
+from util.cass import get_full_cass_dataset, initialize_worker, insert_dataset
+from util.common import (
+    ZULU_TIMESTAMP_FORMAT,
+    StreamKey,
+    TimeRange,
+    zulu_timestamp_to_ntp_time,
+)
+
 engine = create_engine_from_url(None)
 session = create_scoped_session(engine)
 MetadataBase.query = session.query_property()
@@ -65,7 +72,7 @@ def get_time_range(time_stamps):
               time_stamp_values[1] + ")")
         return None
 
-    print str(begin_time_stamp), str(end_time_stamp)
+    print(str(begin_time_stamp), str(end_time_stamp))
     return TimeRange(begin_time_stamp, end_time_stamp)
 
 def split_refdes(old_or_new, refdes):
