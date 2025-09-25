@@ -1,36 +1,57 @@
+import datetime
 import importlib
+import inspect
 import json
 import logging
-import datetime
 import sys
-import inspect
+import time
 
 import ion_functions
+import ntplib
 import numexpr
 import numpy as np
-import time
-import ntplib
-
+import pandas as pd
+from engine import app
 from ooi_data.postgres.model import Parameter, Stream
 from util.advlogging import ParameterReport
-from util.cass import fetch_nth_data, get_full_cass_dataset, get_cass_lookback_dataset, get_cass_lookforward_dataset
-from util.common import (log_timing, ntp_to_datestring, ntp_to_datetime, UnknownFunctionTypeException,
-                         StreamEngineException, TimeRange, MissingDataException)
-from util.datamodel import create_empty_dataset, compile_datasets, add_location_data, _get_fill_value
-from util.metadata_service import (SAN_LOCATION_NAME, CASS_LOCATION_NAME,
-                                   get_first_before_metadata, get_first_after_metadata,
-                                   get_location_metadata)
-
+from util.cass import (
+    fetch_nth_data,
+    get_cass_lookback_dataset,
+    get_cass_lookforward_dataset,
+    get_full_cass_dataset,
+)
+from util.common import (
+    MissingDataException,
+    StreamEngineException,
+    TimeRange,
+    UnknownFunctionTypeException,
+    log_timing,
+    ntp_to_datestring,
+    ntp_to_datetime,
+)
+from util.datamodel import (
+    _get_fill_value,
+    add_location_data,
+    compile_datasets,
+    create_empty_dataset,
+)
+from util.metadata_service import (
+    CASS_LOCATION_NAME,
+    SAN_LOCATION_NAME,
+    get_first_after_metadata,
+    get_first_before_metadata,
+    get_location_metadata,
+)
 from util.provenance_metadata_store import ProvenanceMetadataStore
-from util.san import fetch_nsan_data, fetch_full_san_data, get_san_lookback_dataset
+from util.san import fetch_full_san_data, fetch_nsan_data, get_san_lookback_dataset
 from util.xray_interpolation import interp1d_data_array
-from engine import app
 
 log = logging.getLogger(__name__)
 
 PYTHON_VERSION = '.'.join(map(str, (sys.version_info[0:3])))
 ION_VERSION = getattr(ion_functions, '__version__', 'unversioned')
 INSTRUMENT_ATTRIBUTE_MAP = app.config.get('INSTRUMENT_ATTRIBUTE_MAP')
+STREAM_DEDUPLICATION_MAP = app.config.get('STREAM_DEDUPLICATION_MAP', None)
 
 
 class StreamDataset(object):
@@ -76,7 +97,11 @@ class StreamDataset(object):
                     dataset.deployment.values[mask] = deployment_number
 
             for deployment, group in dataset.groupby('deployment'):
-                self.datasets[deployment] = self._prune_duplicate_times(group)
+                if self.stream_key.stream.name in STREAM_DEDUPLICATION_MAP:
+                    # If the stream key is in the deduplication map, prune duplicates
+                    self.datasets[deployment] = self._prune_duplicates(group, STREAM_DEDUPLICATION_MAP[self.stream_key.stream.name])
+                else:
+                    self.datasets[deployment] = self._prune_duplicate_times(group)
                 self.params[deployment] = [p for p in self.stream_key.stream.derived]
 
         else:
@@ -89,6 +114,37 @@ class StreamDataset(object):
             dataset = dataset.isel(obs=mask)
             dataset['obs'] = np.arange(dataset.obs.size)
         return dataset
+
+    def _prune_duplicates(self, dataset, filter_variable_type_map = {}):
+        """
+        Prune duplicate values from the dataset based on the specified variables.
+        :param dataset: The dataset to prune
+        :param filter_variable_type_map: A dictionary with variables to check for duplicates as keys with their types as values
+        :return: The pruned dataset
+        """ 
+        mask = np.zeros(dataset.obs.size, dtype='bool')
+        if not filter_variable_type_map:
+            # Return default time-only deduplication
+            return self._prune_duplicate_times(dataset)
+        
+
+        # Sort first, then mask by specified variables
+        filter_vars = filter_variable_type_map.keys()
+        df = pd.DataFrame({var: dataset[var].values.astype(var_type) if var_type else dataset[var].values for var, var_type in filter_variable_type_map.items()})
+        sorted_df = df.sort_values(by=filter_vars, ascending=np.ones(len(filter_vars), dtype='bool'))
+
+        for var in filter_vars:
+            var_mask = np.diff(sorted_df[var], prepend=0.0) != 0
+            mask = mask | var_mask
+            
+        # Re-sort masked dataset subset
+        # Get indices of masked values in the original dataset
+        ind = sorted_df.index[mask]
+        # Subselect the dataset
+        dataset = dataset.isel(obs=ind)
+        # Reindex the obs dimension
+        dataset['obs'] = np.arange(dataset.obs.size)
+        return dataset  
 
     def calculate_all(self, source_datasets=None, ignore_missing_optional_params=False):
         """
