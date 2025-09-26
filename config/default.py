@@ -225,17 +225,6 @@ FILL_VALUES = {
     "boolean": -9
 }
 
-# Streams for which duplicates should be pruned based on more than time
-# Note that order matters; use OrderedDict to ensure it is preserved
-
-plims_a_adc_dict = OrderedDict()
-plims_a_adc_dict['time'] = None
-plims_a_adc_dict['sample_adc_file_row_number'] = int
-STREAM_DEDUPLICATION_MAP = {
-    'plims_a_adc_instrument': plims_a_adc_dict,
-}
-
-
 # Used for fill values when location data is missing
 LAT_FILL = 90.0
 LON_FILL = -180.0
