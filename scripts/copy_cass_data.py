@@ -142,10 +142,11 @@ def split_sk_vals(old_or_new, skentry):
 
 def usage(mesg):
     print("BAD INPUT: " + str(mesg))
-    print("USAGE: copy_cass_data.py '<oldsk>' '<newsk>' '<timestamp_range>'")
+    print("USAGE: copy_cass_data.py '<oldsk>' '<newsk>' '<time_range>' '<src_dep>' '<dest_dep>' '<check_existing>'")
     print("<oldsk>,<newsk> as <subsite>-<node>-<sensor>:<method>:<stream>")
     print("<stream> as <stream_nbr> or <stream_name>")
-    print("<timestamp_range> as <beg_ntp>|<end_ntp> or <beg_zulu>|<end_zulu>")
+    print("<time_range> as <beg_ntp>|<end_ntp> or <beg_zulu>|<end_zulu>")
+    print("<check_existing> as <'time,hpies_eindex'>")
 
 
 def insert_dataframe(stream_key, dataframe, data_bin=None):
@@ -265,7 +266,7 @@ def main():
                         help="--dest_dep=<destination_deployment_number>")
     parser.add_argument("--time_range", type=str,
                         help="--time_range=<beg_ntp>|<end_ntp> or <beg_zulu>|<end_zulu>")
-    parser.add_argument("--check_existing", type=bool,
+    parser.add_argument("--check_existing", type=str,
                         help="--check_existing=<True|False>")
 
     args = parser.parse_args()
@@ -283,7 +284,7 @@ def main():
     old_dep = args.src_dep
     new_dep = args.dest_dep
     time_stamps = args.time_range
-    check_existing = False if args.check_existing is None else args.check_existing
+    check_existing = [] if args.check_existing is None else args.check_existing.split(',')
     log.info("Check existing records: %s" % check_existing)
 
     if new_sk_vals == old_sk_vals and new_dep == old_dep:
@@ -329,9 +330,10 @@ def main():
 
         dep_dataframe_dict = {}
         for dep, dataframe_group in dataframe.groupby('deployment'):
+            dataframe_group.index = np.arange(len(dataframe_group))
             dep_dataframe_dict[dep] = dataframe_group
 
-        for dep, dataframe_group in dataframe.groupby('deployment'):
+        for dep, dataframe_group in dep_dataframe_dict.items():
             log.info("Existing dataset for deployment %d bin %d is size %d."
                      % (dep, bin, dataframe_group.time.size))
             if old_dep is None or int(old_dep) == dep:
@@ -342,7 +344,16 @@ def main():
                     existing_df = dep_dataframe_dict.get(int(new_dep))
                     if existing_df is not None and check_existing:
                         orig_size = dataframe_group.time.size
-                        dataframe_group = dataframe_group[np.isin(dataframe_group['time'], existing_df['time'], invert=True)]
+                        if len(check_existing) == 1:
+                            c = check_existing[0]
+                            log.info("Checking for existing records by %s" % c)
+                            dataframe_group = dataframe_group[np.isin(dataframe_group[c], existing_df[c], invert=True)]
+                        else:
+                            log.info("Checking for existing records by list of tuples %s" % str(tuple(check_existing)))
+                            dfg_tups = pd.Series([tuple(dataframe_group[c].iloc[i] for c in check_existing) for i in range(dataframe_group.time.size)])
+                            dfe_tups = pd.Series([tuple(existing_df[c].iloc[i] for c in check_existing) for i in range(existing_df.time.size)])
+                            dataframe_group = dataframe_group[~dfg_tups.isin(dfe_tups)]
+
                         new_size = dataframe_group.time.size
                         if new_size != orig_size:
                             log.info("%d records were excluded since they already exist for deployment %d bin %d. New size of dataframe: %d."
