@@ -1,5 +1,13 @@
 # Stream Engine
 
+# Release 1.20.20 2026-01-28
+
+Issue #16201 - Enable purge of metbk_hourly virtual stream
+
+Issue #16079 - New ion_function for Cabled PHSEN-H
+
+Issue #16168 - METBK Wind Speed Under-Reporting
+
 # Release 1.20.19 2025-09-30
 
 Issue #16068 - Adds new parameters to IFCB streams
