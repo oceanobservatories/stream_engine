@@ -88,7 +88,8 @@ def time_prefix_filename(ntp_start, ntp_stop, suffix):
     sdate = ntp_to_datestring(ntp_start)
     edate = ntp_to_datestring(ntp_stop)
     s = "-"
-    status_filename = s.join((sdate.translate(None, '-:'), edate.translate(None, '-:'), suffix))
+    remove_char_map = str.maketrans('', '', '-:')
+    status_filename = s.join((sdate.translate(remove_char_map), edate.translate(remove_char_map), suffix))
     return status_filename
 
 
@@ -486,7 +487,7 @@ def needs():
 def output_async_error(input_data, e, filename="failure.json"):
     output = {
         "code": 500,
-        "message": "Request for particles failed for the following reason: %s" % e.message,
+        "message": "Request for particles failed for the following reason: %s" % str(e),
         'requestUUID': input_data.get('requestUUID', '')
     }
 

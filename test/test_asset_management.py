@@ -183,6 +183,6 @@ class AssetManagementTest(unittest.TestCase):
 
     def test_multiple_cals(self):
         events = self.test_get_events_async_presf()
-        for cals in events.cals.itervalues():
-            for name, entries in cals.iteritems():
+        for cals in events.cals.values():
+            for name, entries in cals.items():
                 self.assertEqual(len(entries), 1, msg='Found multiple calibrations for %s' % name)

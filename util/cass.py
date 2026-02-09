@@ -2,7 +2,7 @@ import logging
 import time
 import uuid
 from collections import deque, namedtuple
-from itertools import izip
+
 from multiprocessing import BoundedSemaphore
 
 import msgpack
@@ -76,8 +76,8 @@ class SessionManager(object):
     @classmethod
     def get_query_columns(cls, table):
         # grab the column names from our metadata
-        cols = cls.cluster.metadata.keyspaces[cls.__session.keyspace].tables[table].columns.keys()
-        cols = map(_clean_column_name, cols)
+        cols = list(cls.cluster.metadata.keyspaces[cls.__session.keyspace].tables[table].columns.keys())
+        cols = list(map(_clean_column_name, cols))
         unneeded = ['subsite', 'node', 'sensor', 'method']
         cols = [c for c in cols if c not in unneeded]
         return cols
@@ -261,7 +261,7 @@ def insert_provenance(stream_key, deployment, provenance_dict):
                      for prov_id, prov in provenance_dict.items()]
 
     prov_ins_results = execute_concurrent_with_args(SessionManager.session(), prov_insert, prov_ins_args)
-    prov_insertions = list(filter(lambda r: r[0], prov_ins_results))
+    prov_insertions = list([r for r in prov_ins_results if r[0]])
     mesg = 'Provenance row insertions: {:d} of {:d} succeeded'.format(len(prov_insertions), len(prov_ins_args))
     log.info(mesg)
 
@@ -876,7 +876,7 @@ def insert_dataset(stream_key, dataset):
     prov_ins_args = [(row.subsite, row.sensor, row.node, row.method, row.deployment, row.id,
                       row.file_name, row.parser_name, row.parser_version) for row in prov_modified]
     prov_ins_results = execute_concurrent_with_args(SessionManager.session(), prov_insert, prov_ins_args)
-    prov_insertions = list(filter(lambda r: r[0], prov_ins_results))
+    prov_insertions = [r for r in prov_ins_results if r[0]]
     mesg = 'Provenance row insertions: {:d} of {:d} succeeded'.format(len(prov_insertions), len(prov_modified))
     log.info(mesg)
 
@@ -910,7 +910,7 @@ def store_qc_results(qc_results_values, pk, particle_ids, particle_bins, particl
                 "values (?, ?, ?, ?, ?, ?, ?, ?, ?)")
 
         batch = BatchStatement()
-        for (qc_results, particle_id, particle_bin, particle_deploy) in izip(qc_results_values, particle_ids,
+        for (qc_results, particle_id, particle_bin, particle_deploy) in zip(qc_results_values, particle_ids,
                                                                              particle_bins, particle_deploys):
             batch.add(insert_results, (pk.get('subsite'), pk.get('node'), pk.get('sensor'),
                                        particle_bin, particle_deploy, pk.get('stream'),
@@ -921,7 +921,7 @@ def store_qc_results(qc_results_values, pk, particle_ids, particle_bins, particl
         log.info('Writing QC results to log file.')
         qc_log = logging.getLogger('qc.results')
         qc_log_string = ""
-        for (qc_results, particle_id, particle_bin, particle_deploy) in izip(qc_results_values, particle_ids,
+        for (qc_results, particle_id, particle_bin, particle_deploy) in zip(qc_results_values, particle_ids,
                                                                              particle_bins, particle_deploys):
             qc_log_string += "refdes:{0}-{1}-{2}, bin:{3}, stream:{4}, deployment:{5}, id:{6}, parameter:{7}, qc results:{8}\n" \
                 .format(pk.get('subsite'), pk.get('node'), pk.get('sensor'), particle_bin,

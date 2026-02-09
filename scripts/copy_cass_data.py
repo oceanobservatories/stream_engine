@@ -141,7 +141,7 @@ def split_sk_vals(old_or_new, skentry):
 
 
 def usage(mesg):
-    print("BAD INPUT: " + str(mesg))
+    print(("BAD INPUT: " + str(mesg)))
     print("USAGE: copy_cass_data.py '<oldsk>' '<newsk>' '<time_range>' '<src_dep>' '<dest_dep>' '<check_existing>'")
     print("<oldsk>,<newsk> as <subsite>-<node>-<sensor>:<method>:<stream>")
     print("<stream> as <stream_nbr> or <stream_name>")
@@ -190,17 +190,17 @@ def insert_dataframe(stream_key, dataframe, data_bin=None):
             to_insert.setdefault(tuple(notnull_dynamic_cols), []).append(row)
 
     total_size = 0
-    for k, v in to_insert.items():
+    for k, v in list(to_insert.items()):
         total_size += len(v)
         # log.info("num insert columns: %d, num rows: %d, insert columns: %s" % (len(k), len(v), str(k)))
         log.info("num insert columns: %d, num rows: %d" % (len(k), len(v)))
-    log.info("num unique insert statements: %d, total num rows: %d" % (len(to_insert.keys()), total_size))
+    log.info("num unique insert statements: %d, total num rows: %d" % (len(list(to_insert.keys())), total_size))
 
     # Get the number of records in the bin already
     initial_count = _get_partition_row_count(stream_key, data_bin)
     log.info("initial_count: %d" % initial_count)
 
-    for notnull_dynamic_cols_tup in to_insert.keys():
+    for notnull_dynamic_cols_tup in list(to_insert.keys()):
         #cols = key_cols + dynamic_cols
         cols = key_cols + list(notnull_dynamic_cols_tup)
         # get the query to insert information
@@ -333,7 +333,7 @@ def main():
             dataframe_group.index = np.arange(len(dataframe_group))
             dep_dataframe_dict[dep] = dataframe_group
 
-        for dep, dataframe_group in dep_dataframe_dict.items():
+        for dep, dataframe_group in list(dep_dataframe_dict.items()):
             log.info("Existing dataset for deployment %d bin %d is size %d."
                      % (dep, bin, dataframe_group.time.size))
             if old_dep is None or int(old_dep) == dep:

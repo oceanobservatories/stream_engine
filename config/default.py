@@ -201,7 +201,7 @@ HDF5_COMP_LEVEL = 1
 
 INTERNAL_OUTPUT_MAPPING = {
     'deployment': 'int32',
-    'id': 'str',
+    'id': 'S',
     'lat': 'float64',
     'lon': 'float64'
 }
@@ -222,6 +222,7 @@ FILL_VALUES = {
     "uint32": 0xffffffff,
     "uint64": 0xffffffffffffffff,
     "string": "",
+    "S": "",
     "boolean": -9
 }
 
@@ -229,6 +230,14 @@ FILL_VALUES = {
 LAT_FILL = 90.0
 LON_FILL = -180.0
 DEPTH_FILL = 0.0
+
+# Do not set a _FillValue attribute for these variables to mimic py2 xarray which does not set a _FillValue
+# for 'S' encoded empty string '' during netcdf generation with ds.to_netcdf().
+NO_FILL_VALUE = [
+    'id',
+    'provenance',
+    'deployment'
+]
 
 # NetCDF Instrument Attribute Map
 INSTRUMENT_ATTRIBUTE_MAP = OrderedDict()

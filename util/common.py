@@ -124,7 +124,7 @@ def get_annotation_filename(stream_request):
 def log_timing(logger):
     def _log_timing(func):
         request_id = 'request_id'
-        if logger.isEnabledFor('debug'):
+        if logger.isEnabledFor(logging.DEBUG):
             @wraps(func)
             def inner(*args, **kwargs):
                 reqid = kwargs.get(request_id)
@@ -252,7 +252,7 @@ class StreamKey(object):
         self.node = node
         self.sensor = sensor
         self.method = method
-        if isinstance(stream, basestring):
+        if isinstance(stream, str):
             if stream.isdigit():  # the stream number
                 self.stream = Stream.query.get(int(stream))
                 self.stream_name = self.stream.name
@@ -497,7 +497,7 @@ def read_size_config(config):
     :return:  dictionary with size estimates
     """
     sizes = {}
-    with open(config, 'rb') as csvfile:
+    with open(config, 'rt') as csvfile:
         reader = csv.reader(csvfile)
         next(reader)
         for row in reader:
@@ -608,6 +608,6 @@ def sort_dict(data_dict, key_order, sorted_first=False, alphabetize=True, key_st
 
     # use the default in order_dict.get() to control whether unsorted key-value pairs come before or after the sorted
     # pairs
-    default = len(order_dict) if sorted_first else None
+    default = len(order_dict) if sorted_first else -1
     result = OrderedDict(sorted(result.items(), key=lambda j: order_dict.get(j[0], default)))
     return result

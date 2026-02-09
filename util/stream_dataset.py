@@ -97,7 +97,7 @@ class StreamDataset(object):
                     dataset.deployment.values[mask] = deployment_number
 
             for deployment, group in dataset.groupby('deployment'):
-                if self.stream_key.stream.name in STREAM_DEDUPLICATION_MAP:
+                if STREAM_DEDUPLICATION_MAP and self.stream_key.stream.name in STREAM_DEDUPLICATION_MAP:
                     # If the stream key is in the deduplication map, prune duplicates
                     self.datasets[deployment] = self._prune_duplicates(group, STREAM_DEDUPLICATION_MAP[self.stream_key.stream.name])
                 else:
@@ -151,7 +151,7 @@ class StreamDataset(object):
         Brute force resolution of parameters - continue to loop as long as we can progress
         """
         source_datasets = source_datasets if source_datasets else {}
-        for deployment, dataset in self.datasets.iteritems():
+        for deployment, dataset in self.datasets.items():
             source_dataset = source_datasets.get(deployment)
             while self.params[deployment]:
                 remaining = []
@@ -220,7 +220,7 @@ class StreamDataset(object):
         log.info('<%s> initialize virtual stream', self.request_id)
 
         if self.time_param:
-            for deployment, source_dataset in source_stream_dataset.datasets.iteritems():
+            for deployment, source_dataset in source_stream_dataset.datasets.items():
                 dataset = create_empty_dataset(self.stream_key, self.request_id)
                 self.datasets[deployment] = dataset
                 # compute the time parameter
@@ -312,7 +312,7 @@ class StreamDataset(object):
             }}
 
         # Step through each item in the function map
-        for name, (source, value) in funcmap.iteritems():
+        for name, (source, value) in funcmap.items():
             param_meta = None
             # Calibration Value
             if source == 'CAL':
@@ -359,7 +359,7 @@ class StreamDataset(object):
         return calc_meta
 
     def fill_missing(self):
-        for deployment, dataset in self.datasets.iteritems():
+        for deployment, dataset in self.datasets.items():
             for param in self.params[deployment]:
                 missing = self.missing.get(deployment, {}).get(param, {})
                 self._insert_missing(dataset, param, missing)
@@ -634,7 +634,7 @@ class StreamDataset(object):
                       self.request_id, self.stream_key, source_key, parameter)
             only_same_deployment = self.interpolate_only_from_same_deployment(source_key, parameter)
             new_name = '-'.join((source_key.stream.name, parameter.name))
-            for deployment, ds in self.datasets.iteritems():
+            for deployment, ds in self.datasets.items():
                 if new_name in ds:
                     continue
                 try:
@@ -789,7 +789,7 @@ class StreamDataset(object):
             )
             report = ParameterReport(user, log_dir, log_name)
             report.set_calculated_parameter(parameter.id, parameter.name, parameter.parameter_function.function)
-            for key, value in kwargs.iteritems():
+            for key, value in kwargs.items():
                 report.add_parameter_argument(parameter.id, key, value.tolist())
             if 'time' not in kwargs:
                 report.add_parameter_argument(parameter.id, 'time', dataset.time.values.tolist())
@@ -876,13 +876,13 @@ class StreamDataset(object):
                 dep_datasets = self.get_lookback_dataset(self.stream_key, time_range,
                                                          deployment_time_range["start"], request_id)
                 if dep_datasets:
-                    for dep, dataset in dep_datasets.iteritems():
+                    for dep, dataset in dep_datasets.items():
                         deployment_datasets.setdefault(dep, []).append(dataset)
             if deployment_time_range.get("stop", None):
                 dep_datasets = self.get_lookforward_dataset(self.stream_key, time_range,
                                                             deployment_time_range["stop"], request_id)
                 if dep_datasets:
-                    for dep, dataset in dep_datasets.iteritems():
+                    for dep, dataset in dep_datasets.items():
                         deployment_datasets.setdefault(dep, []).append(dataset)
         if san_locations.total > 0:
             # put the range down if we are within the time range
@@ -907,16 +907,16 @@ class StreamDataset(object):
                 dep_datasets = fetch_nth_data(self.stream_key, cass_times, num_points=int(limit * cass_percent),
                                               location_metadata=cass_locations, request_id=request_id)
                 if dep_datasets:
-                    for dep, dataset in dep_datasets.iteritems():
+                    for dep, dataset in dep_datasets.items():
                         deployment_datasets.setdefault(dep, []).append(dataset)
             else:
                 dep_datasets = get_full_cass_dataset(self.stream_key, cass_times,
                                                      location_metadata=cass_locations, request_id=request_id)
                 if dep_datasets:
-                    for dep, dataset in dep_datasets.iteritems():
+                    for dep, dataset in dep_datasets.items():
                         deployment_datasets.setdefault(dep, []).append(dataset)
 
-        for dep, datasets in deployment_datasets.iteritems():
+        for dep, datasets in deployment_datasets.items():
             deployment_datasets[dep] = compile_datasets(datasets)
 
         return deployment_datasets

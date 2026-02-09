@@ -137,12 +137,14 @@ class NetcdfGenerator(object):
             file_paths.append(anno_json)
             self.stream_request.annotation_store.dump_json(anno_json)
 
-        for stream_key, stream_dataset in self.stream_request.datasets.iteritems():
-            for deployment, ds in stream_dataset.datasets.iteritems():
+        remove_char_map = str.maketrans('', '', '-:')
+        for stream_key, stream_dataset in self.stream_request.datasets.items():
+            for deployment, ds in stream_dataset.datasets.items():
                 add_dynamic_attributes(ds)
                 ds = replace_fixed_lat_lon(ds, stream_key)
-                start = ds.attrs['time_coverage_start'].translate(None, '-:')
-                end = ds.attrs['time_coverage_end'].translate(None, '-:')
+
+                start = ds.attrs['time_coverage_start'].translate(remove_char_map)
+                end = ds.attrs['time_coverage_end'].translate(remove_char_map)
  
                 # provenance types will be written to JSON files
                 if self.stream_request.include_provenance:

@@ -4,19 +4,19 @@
         <values start="0" increment="1"/>
     </variable>
     <aggregation type="joinExisting" dimName="obs" >
-    {% for fname, info in coord_dict.iteritems() %}
+    {% for fname, info in coord_dict.items() %}
         <netcdf location="{{ fname }}" ncoords="{{ info['size']}}"/>
     {% endfor %}
     </aggregation>
     <attribute name="NC_GLOBAL" type="Structure">
-    {% for attr, info in attr_dict.iteritems() %}
+    {% for attr, info in attr_dict.items() %}
         <attribute name="{{ attr }}" type="{{ info['type'] }}" value="{{ info['value'] }}" />
     {% endfor %}
     </attribute>
-    {% for var_name, info in var_dict.iteritems() %}
+    {% for var_name, info in var_dict.items() %}
     <remove name="{{ var_name }}" type="variable" />
     {% endfor %}
-    {% for var_name, info in var_dict.iteritems() %}
+    {% for var_name, info in var_dict.items() %}
     <variable name="{{ var_name }}" type="{{ info['type'] }}" shape="{{ info['size'] }}">
         {% if  info['separator'] is not none %}
         <values separator="{{ info['separator'] }}">

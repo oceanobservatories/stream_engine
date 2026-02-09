@@ -9,7 +9,7 @@ import time
 import ntplib
 
 import util.stream_request
-from jsonresponse import JsonResponse
+from .jsonresponse import JsonResponse
 from ooi_data.postgres.model import Stream, Parameter
 from util.common import (get_annotation_filename, StreamKey, TimeRange, MalformedRequestException, 
                          InvalidStreamException, InvalidParameterException, UIHardLimitExceededException, 
@@ -173,7 +173,7 @@ def validate(input_data):
 
     if limit <= 0:
         limit = None
-    if limit > app.config['UI_HARD_LIMIT']:
+    elif limit > app.config['UI_HARD_LIMIT']:
         message = '<{:s}> Requested number of particles ({:,d}) larger than maximum allowed limit ({:,d})'
         message = message.format(request_id, limit, app.config['UI_HARD_LIMIT'])
         raise UIHardLimitExceededException(message=message)

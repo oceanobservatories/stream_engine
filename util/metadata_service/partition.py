@@ -17,12 +17,12 @@ _RecordInfo = namedtuple('_RecordInfo', ['bin', 'store', 'count', 'first', 'last
 
 def _get_first_possible_bin(t, stream):
     # TODO: Do something with 'stream' parameter.
-    return long(t - (engine.app.config['MAX_BIN_SIZE_MIN'] * 60))
+    return int(t - (engine.app.config['MAX_BIN_SIZE_MIN'] * 60))
 
 
 def _time_in_bin_units(t, stream):
     # TODO: Do something with 'stream' parameter.
-    return long(t)
+    return int(t)
 
 
 def _get_bin(t, stream_key):
@@ -151,18 +151,18 @@ def get_first_before_metadata(stream_key, start_time):
     """
     res = _query_partition_metadata_before(stream_key, start_time)
     # filter to ensure first time in bin < time_range_start
-    res = filter(lambda x: x.first < start_time, res)
+    res = [x for x in res if x.first < start_time]
     if not res:
         return {}
     first_bin = res[0].bin
-    res = filter(lambda x: x.bin == first_bin, res)
+    res = [x for x in res if x.bin == first_bin]
     if len(res) == 1:
         to_use = res[0]
     else:
         # Check same size
         if res[0].count == res[1].count:
             # take the chosen one
-            res = filter(lambda x: x.store == engine.app.config['PREFERRED_DATA_LOCATION'], res)
+            res = [x for x in res if x.store == engine.app.config['PREFERRED_DATA_LOCATION']]
             to_use = res[0]
         # otherwise take the larger of the two
         else:
@@ -184,18 +184,18 @@ def get_first_after_metadata(stream_key, end_time):
     """
     res = _query_partition_metadata_after(stream_key, end_time)
     # filter to ensure last time in bin > time_range_end
-    res = filter(lambda x: x.last > end_time, res)
+    res = [x for x in res if x.last > end_time]
     if not res:
         return {}
     first_bin = res[0].bin
-    res = filter(lambda x: x.bin == first_bin, res)
+    res = [x for x in res if x.bin == first_bin]
     if len(res) == 1:
         to_use = res[0]
     else:
         # Check same size
         if res[0].count == res[1].count:
             # take the chosen one
-            res = filter(lambda x: x.store == engine.app.config['PREFERRED_DATA_LOCATION'], res)
+            res = [x for x in res if x.store == engine.app.config['PREFERRED_DATA_LOCATION']]
             to_use = res[0]
         # otherwise take the larger of the two
         else:

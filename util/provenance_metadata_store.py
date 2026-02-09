@@ -50,7 +50,7 @@ class ProvenanceMetadataStore(object):
 
     def get_instrument_provenance(self, deployments):
         ret_dict = {}
-        for ref_des, deployment_events in self._instrument_provenance.iteritems():
+        for ref_des, deployment_events in self._instrument_provenance.items():
             # There is one ProvenanceMetadataStore per StreamDataset, which can contain multiple deployments
             # of one logical instrument (one reference designator).
             # Select only the deployments that are specified by the caller.

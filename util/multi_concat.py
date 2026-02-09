@@ -9,7 +9,7 @@ import xarray as xr
 from xarray.core.dataset import Dataset
 from xarray.core.dataarray import DataArray
 from xarray.core import utils
-from xarray.core.pycompat import iteritems, OrderedDict
+from collections import OrderedDict
 from xarray.core.variable import Variable, IndexVariable, as_variable, concat as concat_vars
 from xarray.core.alignment import align
 
@@ -94,7 +94,7 @@ def _calc_concat_dims_coords(dims):
     coordinates = []
     
     for dim in dims:
-        if isinstance(dim, basestring):
+        if isinstance(dim, str):
             coord = None
         elif not hasattr(dim, 'dims'):
             # dim is not a DataArray or IndexVariable
@@ -258,7 +258,7 @@ def _find_concat_dims(datasets, dim):
     where the preferred dimension is absent, whatever dimensions are present will be added to the alternatives list.
     """ 
     dims = set()
-    for name, var in datasets[0].variables.iteritems():
+    for name, var in datasets[0].variables.items():
         # Do NOT add dims from variables that already have the preferred dim available - we are only interested in 
         # alternate dims to concatenate on when the preferred dim is absent
         # Do NOT add a dim for concatenation over when the only variables that would be concatenated on it are dimensions!
@@ -406,7 +406,7 @@ def _dataset_multi_concat(
 
     #result = result.drop(unlabeled_dims, errors='ignore')
     drop = set(unlabeled_dims)
-    variables = OrderedDict((k, v) for k, v in iteritems(result._variables) if k not in drop)
+    variables = OrderedDict((k, v) for k, v in result._variables.items() if k not in drop)
     coord_names = set(k for k in result._coord_names if k in variables)
     result._replace_vars_and_dims(variables, coord_names)
 

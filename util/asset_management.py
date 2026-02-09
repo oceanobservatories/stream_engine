@@ -72,7 +72,7 @@ class Deployment(object):
                 cals.setdefault(name, []).append((cstart, None, val))
 
         # close all open calibrations which aren't the latest calibrations
-        for name, calibrations in cals.iteritems():
+        for name, calibrations in cals.items():
             calibrations.sort()
             calibrations.reverse()
 
@@ -145,7 +145,7 @@ class AssetEvents(object):
 
         # close all open deployments which aren't the latest deployment
         deps = []
-        for n, deployment in self.deps.iteritems():
+        for n, deployment in self.deps.items():
             deps.append((deployment._start, deployment._stop, n))
 
         deps.sort()
