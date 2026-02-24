@@ -46,7 +46,7 @@ def make_encoding(ds):
 
             if values.dtype.kind == 'S':
                 size = values.dtype.itemsize
-                if size > 1:
+                if size > 0:
                     shape = shape + (size,)
 
             dim0 = min(shape[0], chunksize)

@@ -347,6 +347,9 @@ class StreamEngineException(Exception):
         rv['message'] = self.message
         return rv
 
+    def __str__(self):
+        return self.message
+
 
 class StreamUnavailableException(StreamEngineException):
     """
