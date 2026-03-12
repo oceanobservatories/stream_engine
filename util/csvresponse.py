@@ -119,21 +119,21 @@ class CsvGenerator(object):
         """
         # for a glider, get the lat lon
         if self.stream_request.stream_key.is_glider:
-            if GLIDER_GPS_BASED_LAT in dataset.data_vars.keys() and GLIDER_GPS_BASED_LON in dataset.data_vars.keys():
+            if GLIDER_GPS_BASED_LAT in list(dataset.data_vars.keys()) and GLIDER_GPS_BASED_LON in list(dataset.data_vars.keys()):
                 lat_data = dataset.data_vars[GLIDER_GPS_BASED_LAT]
                 dataset = dataset.drop(GLIDER_GPS_BASED_LAT)
                 dataset['m_gps_lat'] = lat_data
                 lon_data = dataset.data_vars[GLIDER_GPS_BASED_LON]
                 dataset = dataset.drop(GLIDER_GPS_BASED_LON)
                 dataset['m_gps_lon'] = lon_data
-            if GLIDER_DR_LAT in dataset.data_vars.keys() and GLIDER_DR_LON in dataset.data_vars.keys():
+            if GLIDER_DR_LAT in list(dataset.data_vars.keys()) and GLIDER_DR_LON in list(dataset.data_vars.keys()):
                 lat_data = dataset.data_vars[GLIDER_DR_LAT]
                 dataset = dataset.drop(GLIDER_DR_LAT)
                 dataset['m_lat'] = lat_data
                 lon_data = dataset.data_vars[GLIDER_DR_LON]
                 dataset = dataset.drop(GLIDER_DR_LON)
                 dataset['m_lon'] = lon_data
-            if GLIDER_INTERP_LAT in dataset.data_vars.keys() and GLIDER_INTERP_LON in dataset.data_vars.keys():
+            if GLIDER_INTERP_LAT in list(dataset.data_vars.keys()) and GLIDER_INTERP_LON in list(dataset.data_vars.keys()):
                 lat_data = dataset.data_vars[GLIDER_INTERP_LAT]
                 dataset = dataset.drop(GLIDER_INTERP_LAT)
                 dataset['lat'] = lat_data
@@ -162,7 +162,7 @@ class CsvGenerator(object):
  
         stream_key = self.stream_request.stream_key
         stream_dataset = self.stream_request.datasets[stream_key]
-        for deployment, ds in stream_dataset.datasets.iteritems():
+        for deployment, ds in stream_dataset.datasets.items():
             times = ds.time.values
             start = ntp_to_short_iso_datestring(times[0])
             end = ntp_to_short_iso_datestring(times[-1])

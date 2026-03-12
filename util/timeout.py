@@ -86,7 +86,7 @@ def set_inactivity_timeout(is_active=lambda _: False, poll_period=None, max_runt
                 result = func(*args, **kwargs)
                 # use pickle to serialize the return object and send it to the parent over a pipe
                 result_string = pickle.dumps(result)
-                with os.fdopen(write_fd, 'w') as w:
+                with os.fdopen(write_fd, 'wb') as w:
                     w.write(result_string)
                 # the child is done - don't keep the extra process around
                 os._exit(0)
@@ -112,7 +112,7 @@ def set_inactivity_timeout(is_active=lambda _: False, poll_period=None, max_runt
                     # set a timeout for the poll_period - this will trigger a TimedOutException
                     signal.alarm(poll_period)
                     
-                    with os.fdopen(read_fd) as r:
+                    with os.fdopen(read_fd, 'rb') as r:
                         # Wrap the try-except block in a loop so that the contents of the try clause are retried until
                         # one of the following conditions is met:
                         # 1. The results are read from pipe and the child waited for successfully

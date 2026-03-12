@@ -1,6 +1,6 @@
 import msgpack
 
-import global_test_setup
+from . import global_test_setup
 
 import logging
 import os
@@ -51,7 +51,7 @@ class DataModelTest(TestCase):
         self.assertNotEqual(found, set())
 
         # second, verify there are no 64-bit vars in the output dataset
-        for ds in dep_ds.values():
+        for ds in list(dep_ds.values()):
             found = self.find_int64_vars(ds)
             self.assertEqual(found, set())
 
@@ -82,7 +82,7 @@ class DataModelTest(TestCase):
 
         # create the dataset
         dep_ds = to_xray_dataset(params, rows, adcp_sk, None)
-        for ds in dep_ds.values():
+        for ds in list(dep_ds.values()):
             # verify only two dimensions exists, bin and obs
             self.assertEqual(set(ds.dims), {'bin', 'obs'})
 
@@ -90,7 +90,7 @@ class DataModelTest(TestCase):
         for param in Parameter.query:
             fill = _get_fill_value(param)
             self.assertIsNotNone(fill)
-            if isinstance(fill, basestring):
+            if isinstance(fill, str):
                 self.assertEqual(fill, '')
 
     def test_replace_values_string_array(self):

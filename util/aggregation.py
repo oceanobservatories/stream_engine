@@ -74,11 +74,11 @@ def output_ncml(mapping, request_id=None):
     loader = jinja2.FileSystemLoader(searchpath='templates')
     env = jinja2.Environment(loader=loader, trim_blocks=True, lstrip_blocks=True)
     ncml_template = env.get_template('ncml.jinja')
-    for combined_file, info_dict in mapping.iteritems():
+    for combined_file, info_dict in mapping.items():
         attr_dict = {}
         for i in ATTRIBUTE_CARRYOVER_MAP:
             try:
-                vals = ATTRIBUTE_CARRYOVER_MAP[i]['func']([x[i] for x in info_dict.itervalues()])
+                vals = ATTRIBUTE_CARRYOVER_MAP[i]['func']([x[i] for x in info_dict.values()])
                 attr_dict[i] = {'value': vals,
                                 'type': ATTRIBUTE_CARRYOVER_MAP[i]['type']}
             except KeyError:
@@ -86,7 +86,7 @@ def output_ncml(mapping, request_id=None):
                 pass
 
         # do something with provenance...
-        file_start_time = [x['file_start_time'] for x in info_dict.itervalues()]
+        file_start_time = [x['file_start_time'] for x in info_dict.values()]
         variable_dict = {
             'combined_file_start_time': {'value': file_start_time, 'type': 'float', 'size': len(file_start_time),
                                          'separator': None}
@@ -98,7 +98,7 @@ def output_ncml(mapping, request_id=None):
 
 def generate_combination_map(out_dir, subjob_info):
     mapping = defaultdict(dict)
-    for fname, info in subjob_info.iteritems():
+    for fname, info in subjob_info.items():
         match = dre.search(fname)
         if match is not None:
             file_base = match.groups()[0]
@@ -109,7 +109,7 @@ def generate_combination_map(out_dir, subjob_info):
             mapping[ncml_name][fname] = info
     # sort the map so the time in the file increases along with obs
     sorted_map = {}
-    for fname, sji in mapping.iteritems():
+    for fname, sji in mapping.items():
         sorted_subjobs = OrderedDict()
         for subjob in sorted(sji):
             sorted_subjobs[subjob] = sji[subjob]
@@ -188,8 +188,9 @@ def aggregate_annotations(job_dir, output_dir, request_id=None):
 
 
 def get_name(ds, group_name):
-    start = ds.attrs['time_coverage_start'].translate(None, '-:')
-    end = ds.attrs['time_coverage_end'].translate(None, '-:')
+    remove_char_map = str.maketrans('', '', '-:')
+    start = ds.attrs['time_coverage_start'].translate(remove_char_map)
+    end = ds.attrs['time_coverage_end'].translate(remove_char_map)
 
     return '%s_%s-%s.nc' % (group_name, start, end)
 
@@ -221,6 +222,10 @@ def shape_up(dataset, parameters, request_id=None):
                 dataset[var] = (dims, fv, {'_FillValue': fill})
 
             else:
+                # If dtype is binary string, encode the fill value attribute to binary string as well
+                if dtype.kind == 'S' and dataset[var].attrs.get('_FillValue'):
+                    dataset[var].attrs['_FillValue'] = np.array(dataset[var].attrs.get('_FillValue')).astype('S')
+
                 # support data without an observation dimension (13025 AC2)
                 if 'obs' not in dataset[var].dims:
                     dims = parameters[var]['dims']
@@ -293,7 +298,7 @@ def concatenate_and_write(datasets, out_dir, group_name, request_id=None):
 
     # Look for alternate filtering based on stream name
     stream_name = group_name.split('-')[-1]
-    filter_variable_type_map = app.config['STREAM_DEDUPLICATION_MAP'].get(stream_name, None)
+    filter_variable_type_map = app.config.get('STREAM_DEDUPLICATION_MAP', {}).get(stream_name, None)
 
     # compiled data sets will compile all data along the obs dimension
     ds = compile_datasets(datasets, filter_variable_type_map=filter_variable_type_map)

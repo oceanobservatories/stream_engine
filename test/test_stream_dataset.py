@@ -1,6 +1,6 @@
 import ntplib
 
-import global_test_setup
+from . import global_test_setup
 
 import copy
 import json
@@ -59,7 +59,7 @@ class StreamDatasetTest(unittest.TestCase):
 
     # make sure the datasets were added and are not fill values
     def assert_parameters_in_datasets(self, datasets, parameters, expect_fill=False):
-        for dataset in datasets.itervalues():
+        for dataset in datasets.values():
             for parameter in parameters:
                 self.assertIn(parameter, dataset)
                 values = dataset[parameter].values
@@ -403,7 +403,7 @@ class StreamDatasetTest(unittest.TestCase):
         ctd_stream_dataset.events = self.ctd_events
         ctd_stream_dataset._insert_dataset(ctd_ds)
         ctd_stream_dataset.insert_instrument_attributes()
-        for ds in ctd_stream_dataset.datasets.itervalues():
+        for ds in ctd_stream_dataset.datasets.values():
             self.assertIn('Manufacturer', ds.attrs)
             self.assertIn('ModelNumber', ds.attrs)
             self.assertIn('SerialNumber', ds.attrs)

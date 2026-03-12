@@ -17,7 +17,7 @@ MAX_RETRY_COUNT = app.config.get('MAX_RETRY_COUNT', 1)
 log = logging.getLogger(__name__)
 executor = ThreadPoolExecutor(max_workers=MAX_RSYNC_WORKERS)
 
-total_size_re = re.compile(r'total size is (\d+)')
+total_size_re = re.compile(rb'total size is (\d+)')
 prefixes = ('', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y')
 
 
@@ -74,12 +74,12 @@ def rsync(remote_host, remote_folder, target_folder, retry_count=MAX_RETRY_COUNT
             match = total_size_re.search(stdout)
             total = 0
             if match:
-                total = int(match.group(1))
+                total = int(match.group(1).decode())
 
             log.info('%r returned success (0), transferred %sbytes', ident, human_readable(total))
             return p.returncode
 
-        if p.returncode == 23 and 'No such file or directory' in stderr:
+        if p.returncode == 23 and 'No such file or directory'.encode() in stderr:
             log.info('%s returned (23) no files found on remote', ident)
             return 0
 
@@ -97,9 +97,13 @@ def rmdir(remote_host, remote_folder, retry_count=MAX_RETRY_COUNT):
             log.info('%r returned success (0)', ident)
             return p.returncode
 
+        if p.returncode == 1 and 'No such file or directory'.encode() in stderr:
+            log.info('%s returned (1), dir to remove not found on remote', ident)
+            return 0
+
         log.warn('%s returned failure: %d', ident, p.returncode)
         log.warn('%s captured STDERR: %r', ident, stderr)
-    log.error('Failed to rsync files (%r %r)', remote_host, remote_folder)
+    log.error('Failed to remove directory (%r %r)', remote_host, remote_folder)
 
 
 def gather_files(host_list, folder_name):

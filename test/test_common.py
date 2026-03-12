@@ -1,4 +1,4 @@
-import global_test_setup
+from . import global_test_setup
 
 import os
 import unittest

@@ -29,10 +29,10 @@ class QartodQcExecutor(object):
         #only run QARTOD on requested parameters, no need to run on parameters that won't be in returned data
         
         parameters = [parameter.name for parameter in self.stream_request.requested_parameters] 
-        for stream_key, stream_dataset in self.stream_request.datasets.iteritems():
+        for stream_key, stream_dataset in self.stream_request.datasets.items():
             subsite, node, sensor, _, stream = stream_key.as_tuple()
             qartod_tests = qartodTestServiceAPI.find_qartod_tests(subsite, node, sensor, stream, parameters)
-            for dataset in stream_dataset.datasets.itervalues():
+            for dataset in stream_dataset.datasets.values():
                 for qartod_test_record in qartod_tests:
                     self.execute_qartod_test(qartod_test_record, dataset, external_includes)
 

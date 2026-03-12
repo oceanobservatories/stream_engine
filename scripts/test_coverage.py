@@ -21,13 +21,13 @@ import sys
 sensor_inventory_url = "http://localhost:12576"
 
 def print_good(s):
-    print '\033[92m' + str(s) + '\033[0m'
+    print('\033[92m' + str(s) + '\033[0m')
 
 def print_bad(s):
-    print '\033[91m' + str(s) + '\033[0m'
+    print('\033[91m' + str(s) + '\033[0m')
 
 def print_warn(s):
-    print '\033[93m' + str(s) + '\033[0m'
+    print('\033[93m' + str(s) + '\033[0m')
 
 limit = '50'
 if len(sys.argv) > 1:
@@ -52,7 +52,7 @@ start_time = time.time()
 num_errors = 0
 for url in urls:
     stime = time.time()
-    print "URL: ", url
+    print("URL: ", url)
 
     stream_page = requests.get(url, proxies={'no': 'pass'})
 
@@ -66,15 +66,15 @@ for url in urls:
             len_output = len(stream_page.json())
         except Exception as e:
             print_bad("Code: {}".format(stream_page.status_code))
-            print "Exception: {}".format(e)
+            print("Exception: {}".format(e))
             num_errors += 1
             continue
             
         print_good("{} particles".format(len_output))
         total_particles += len_output
-    print "Request took {}s".format(time.time()-stime)
-    print ""
+    print("Request took {}s".format(time.time()-stime))
+    print("")
 
 message = "\n\n\nNum errors: {}/{}".format(num_errors, num_streams)
 print_good(message) if num_errors == 0 else print_bad(message)
-print "Took {:.2f} seconds for {} particles".format(time.time()-start_time, total_particles)
+print("Took {:.2f} seconds for {} particles".format(time.time()-start_time, total_particles))

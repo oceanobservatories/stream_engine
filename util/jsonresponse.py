@@ -41,7 +41,7 @@ class JsonResponse(object):
 
         prov = anno = None
         if self.stream_request.include_provenance:
-            prov = self._provenance(stream_dataset.provenance_metadata, stream_dataset.datasets.keys())
+            prov = self._provenance(stream_dataset.provenance_metadata, list(stream_dataset.datasets.keys()))
         if self.stream_request.include_annotations:
             anno = self._annotations(self.stream_request.annotation_store)
 
@@ -80,7 +80,7 @@ class JsonResponse(object):
         stream_dataset = self.stream_request.datasets[stream_key]
         parameters = self.stream_request.requested_parameters
         external_includes = self.stream_request.external_includes
-        for deployment, ds in stream_dataset.datasets.iteritems():
+        for deployment, ds in stream_dataset.datasets.items():
             times = ds.time.values
             start = ntp_to_short_iso_datestring(times[0])
             end = ntp_to_short_iso_datestring(times[-1])
@@ -179,7 +179,7 @@ class JsonResponse(object):
 
         params = [p for p in params if p in data]
 
-        for index in xrange(len(ds.time)):
+        for index in range(len(ds.time)):
             # Create our particle from the list of parameters
             particle = {}
             for p in params:
@@ -246,5 +246,7 @@ class NumpyJSONEncoder(json.JSONEncoder):
             return repr(o)
         elif isinstance(o, datetime):
             return str(o)
+        elif isinstance(o, bytes):
+            return o.decode()
         else:
             return json.JSONEncoder.default(self, o)

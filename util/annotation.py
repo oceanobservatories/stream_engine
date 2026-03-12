@@ -70,7 +70,7 @@ class AnnotationRecord(object):
         self.stop = datetime.datetime.utcfromtimestamp(self._stop_millis / 1000.0) if self._stop_millis else None
 
     def as_dict(self):
-        return {k: v for k, v in self.__dict__.iteritems() if not k.startswith('_')}
+        return {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
 
     def __eq__(self, item):
         return isinstance(item, AnnotationRecord) and item.id == self.id

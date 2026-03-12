@@ -1,6 +1,7 @@
 import logging
 import math
 import numpy as np
+from functools import cmp_to_key
 
 import util.annotation
 import util.metadata_service
@@ -122,7 +123,7 @@ class StreamRequest(object):
             am_events[stream_key] = events
 
         # Start fetching instrument data
-        for stream_key, stream_parameters in self.stream_parameters.iteritems():
+        for stream_key, stream_parameters in self.stream_parameters.items():
             other_streams = set(self.stream_parameters)
             other_streams.remove(stream_key)
 
@@ -174,7 +175,7 @@ class StreamRequest(object):
         # pressure_depth data when pressure should be interpolated from the CTD stream
         for stream_key in list(self.datasets):
             if not self._is_pressure_depth_valid(stream_key) and self.datasets[stream_key].datasets:
-                for _, ds in self.datasets[stream_key].datasets.iteritems():
+                for _, ds in self.datasets[stream_key].datasets.items():
                     pressure_depth = Parameter.query.get(PRESSURE_DEPTH_PARAM_ID)
                     if pressure_depth.name in ds:
                         del ds[pressure_depth.name]
@@ -227,7 +228,7 @@ class StreamRequest(object):
                 self.datasets[sk].calculate_all(ignore_missing_optional_params=False)
 
         # Sort the datasets in case a derived parameter requires an another external parameter to be calculated first
-        sorted_datasets = sorted(self.datasets.values(), cmp=StreamRequest.compare_datasets_by_missing)
+        sorted_datasets = sorted(self.datasets.values(), key=cmp_to_key(StreamRequest.compare_datasets_by_missing))
         sorted_stream_keys = [ds.stream_key for ds in sorted_datasets]
 
         # Allow each StreamDataset to interpolate any needed non-virtual parameters from the other datasets
@@ -285,9 +286,9 @@ class StreamRequest(object):
     @log_timing(log)
     def _run_qc(self):
         # execute any QC
-        for sk, stream_dataset in self.datasets.iteritems():
+        for sk, stream_dataset in self.datasets.items():
             for param in sk.stream.parameters:
-                for dataset in stream_dataset.datasets.itervalues():
+                for dataset in stream_dataset.datasets.values():
                     self.qc_executor.qc_check(param, dataset)
 
     @log_timing(log)
@@ -310,7 +311,7 @@ class StreamRequest(object):
                         stream_key,
                         [deployment_event for deployment_event in self.datasets[stream_key].events.events
                             if deployment_event["deploymentNumber"] in self.datasets[stream_key].datasets.keys()])
-                    for deployment, dataset in self.datasets[stream_key].datasets.iteritems():
+                    for deployment, dataset in self.datasets[stream_key].datasets.items():
                         if 'provenance' in dataset:
                             provenance = dataset.provenance.values.astype('str')
                             prov = fetch_l0_provenance(stream_key, provenance, deployment)
@@ -329,7 +330,7 @@ class StreamRequest(object):
         TODO: Future optimization, avoid querying excluded data when possible
         :return:
         """
-        for stream_key, stream_dataset in self.datasets.iteritems():
+        for stream_key, stream_dataset in self.datasets.items():
             stream_dataset.exclude_flagged_data(self.annotation_store)
 
     def _exclude_nondeployed_data(self):
@@ -337,7 +338,7 @@ class StreamRequest(object):
         Exclude data from datasets that are outside of deployment dates
         :return:
         """
-        for stream_key, stream_dataset in self.datasets.iteritems():
+        for stream_key, stream_dataset in self.datasets.items():
             stream_dataset.exclude_nondeployed_data(self.require_deployment)
 
     def _is_pressure_depth_valid(self, stream_key):
@@ -434,21 +435,24 @@ class StreamRequest(object):
         qartod_name_map = {}
         for suffix in ['_qc_executed', '_qc_results', '_qartod_executed', '_qartod_results']:
             qartod_name_map.update({name + suffix: netcdf_name + suffix for name, netcdf_name in
-                                       parameter_name_map.iteritems()})
+                                       parameter_name_map.items()})
         parameter_name_map.update(qartod_name_map)
 
         # update parameter names
-        for stream_key, stream_dataset in self.datasets.iteritems():
-            for deployment, ds in stream_dataset.datasets.iteritems():
+        for stream_key, stream_dataset in self.datasets.items():
+            for deployment, ds in stream_dataset.datasets.items():
+                rename_map = {}
                 for key in [x for x in parameter_name_map.keys() if x in ds]:
                     # add an attribute to help users associate the renamed variable with its original name
                     ds[key].attrs['alternate_parameter_name'] = key
-                    # rename
-                    ds.rename({key: parameter_name_map[key]}, inplace=True)
+                    rename_map[key] = parameter_name_map[key]
+                # rename
+                if rename_map:
+                    stream_dataset.datasets[deployment] = ds.rename(rename_map)
 
     def _add_location(self):
         log.debug('<%s> Inserting location data for all datasets', self.request_id)
-        for stream_dataset in self.datasets.itervalues():
+        for stream_dataset in self.datasets.values():
             stream_dataset.add_location()
 
     def _locate_externals(self, parameters):

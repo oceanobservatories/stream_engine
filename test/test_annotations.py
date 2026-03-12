@@ -39,7 +39,7 @@ class AnnotationTest(unittest.TestCase):
         key = StreamKey('CE04OSPS', 'SF01B', '2A-CTDPFA107', 'test', 'test')
         time_range = TimeRange(3684009000, 3685000000)
         for anno in anno_interface.find_annotations(key, time_range):
-            print anno._tuple
+            print(anno._tuple)
 
     def _create_anno(self, streamKey=StreamKey('CP01CNSM', 'MFD37', '04-DOSTAD000', 'telemetered', 'dosta_abcdjm_dcl_instrument'),
                      annotation='test', exclusionFlag=False, source=None, qcFlag=None, parameters=set(), start=1000, stop=2000):

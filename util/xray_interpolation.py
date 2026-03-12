@@ -23,7 +23,7 @@ def _numeric_interpolation(x, y, new_x, axis=0, fill=None):
     # Note that the returned dtype will be float.  If axis < ndim - 1 then
     # multidimensional data after axis will be element-wise interpolated.
     if fill is not None:
-        if isinstance(fill, basestring):
+        if isinstance(fill, str):
             try:
                 fill = float(fill)
                 fill = int(fill)
@@ -60,7 +60,7 @@ def interp1d_data_array(old_index, data, method=None, **indexers):
     Example
     xinterp.interp1d_DataArray(da, time=[2,4,6])
     """
-    dim_name = indexers.iterkeys().next()
+    dim_name = next(iter(indexers.keys()))
     axis = data.dims.index('obs')
     new_x = indexers[dim_name]
 

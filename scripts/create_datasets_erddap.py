@@ -12,7 +12,7 @@ if __name__ == '__main__':
     for directory, _, files in os.walk(ASYNC_BASE_DIR):
         for f in files:
             if f.endswith('_erddap.xml'):
-                print directory
+                print(directory)
                 with open(os.path.join(directory, f)) as dataset_file:
                     datasets_string.extend(dataset_file.readlines())
                     datasets_string.append('\n')

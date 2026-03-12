@@ -1,6 +1,6 @@
 from ooi_data.postgres.model import MetadataBase
 
-import global_test_setup
+from . import global_test_setup
 
 import json
 import unittest

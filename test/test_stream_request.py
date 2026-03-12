@@ -1,11 +1,11 @@
 
-import global_test_setup
+from . import global_test_setup
 
 import json
 import logging
 import os
 import unittest
-import httplib
+import http.client
 import ast
 
 import mock
@@ -86,7 +86,7 @@ class StreamRequestTest(unittest.TestCase):
                                      json.load(open(os.path.join(DATA_DIR, 'GI01SUMO-RID16-04-VELPTA000_events.json'))))
 
     def assert_parameters_in_datasets(self, datasets, parameters):
-        for dataset in datasets.itervalues():
+        for dataset in datasets.values():
             for parameter in parameters:
                 self.assertIn(parameter, dataset)
 
@@ -217,8 +217,8 @@ class StreamRequestTest(unittest.TestCase):
         self.assertIn('code', json_decoded)
         self.assertIn('message', json_decoded)
         self.assertIsInstance(json_decoded['code'], int)
-        self.assertIsInstance(json_decoded['message'], unicode)
-        self.assertEqual(json_decoded['code'], httplib.OK)
+        self.assertIsInstance(json_decoded['message'], str)
+        self.assertEqual(json_decoded['code'], http.client.OK)
         file_paths = ast.literal_eval(json_decoded['message'])
         for file_path in file_paths:
             self.assertTrue(os.path.isfile(file_path))
@@ -540,7 +540,7 @@ class StreamRequestTest(unittest.TestCase):
 
         expected_name = 'echo_sounding-hpies_temperature'
 
-        for dataset in nut_sr.datasets[self.nut_sk].datasets.itervalues():
+        for dataset in nut_sr.datasets[self.nut_sk].datasets.values():
             self.assertIn(expected_name, dataset)
 
         data = json.loads(JsonResponse(nut_sr).json())
