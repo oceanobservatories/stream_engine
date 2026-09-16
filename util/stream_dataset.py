@@ -1,6 +1,6 @@
 import datetime
 import importlib
-import inspect
+from inspect import signature
 import json
 import logging
 import sys
@@ -407,24 +407,19 @@ class StreamDataset(object):
                        param, param.parameter_function.function, param.parameter_function.owner))
             return False
 
-        # Get the argument specification for the actual function
-        arg_spec = inspect.getargspec(getattr(module, param.parameter_function.function))
+        # Get the signature of the actual function
+        sig = signature(getattr(module, param.parameter_function.function))
 
         for arg_name in missing_arg_map.keys():
             # Ensure the parameter is named as an argument in the actual function
-            if arg_name not in arg_spec.args:
-                log.error('%r: Named parameter %s not found in function %s' % (
+            p = sig.parameters.get(arg_name, None)
+            if not p:
+                log.error('%r: Named parameter %s not found in signature of function %s' % (
                            param, arg_name, param.parameter_function.function))
                 return False
 
-            # Ensure the function has defaults
-            if not arg_spec.defaults:
-                log.debug('%r: Function %s does not have any defaults' % (
-                           param, param.parameter_function.function))
-                return False
-
             # Ensure the argument has a default specified in the function definition
-            if arg_spec.args.index(arg_name) < len(arg_spec.args) - len(arg_spec.defaults):
+            if p.default is p.empty:
                 log.debug('%r: Argument %s in function %s does not have a default value' % (
                            param, arg_name, param.parameter_function.function))
                 return False
