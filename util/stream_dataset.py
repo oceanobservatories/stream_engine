@@ -44,7 +44,10 @@ from util.metadata_service import (
 )
 from util.provenance_metadata_store import ProvenanceMetadataStore
 from util.san import fetch_full_san_data, fetch_nsan_data, get_san_lookback_dataset
-from util.xray_interpolation import interp1d_data_array
+from util.xray_interpolation import (
+    interp1d_data_array,
+    interp2d_data_array,
+)
 
 log = logging.getLogger(__name__)
 
@@ -677,8 +680,8 @@ class StreamDataset(object):
                     and (required_deployment is None or deployment == required_deployment)]
         if datasets:
             shape = datasets[0][name].shape
-            if len(shape) != 1:
-                raise StreamEngineException('<%s> Attempted to interpolate >1d data (%s): %s' %
+            if len(shape) > 2:
+                raise StreamEngineException('<%s> Attempted to interpolate >2d data (%s): %s' %
                                             (self.request_id, name, shape))
 
             # Two possible choices here.
@@ -689,16 +692,28 @@ class StreamDataset(object):
             for dataset in datasets:
                 ds_start, ds_end = dataset.time.values[0], dataset.time.values[-1]
                 if len(datasets) == 1 or (ds_start <= start and ds_end >= end):
-                    return interp1d_data_array(dataset.time.values,
+                    if len(shape) == 1:
+                        return interp1d_data_array(dataset.time.values,
+                                               dataset[name],
+                                               time=target_times)
+                    elif len(shape) == 2:
+                        dim2_name = dataset[name].dims[1]
+                        return interp2d_data_array((dataset.time.values, dataset[dim2_name].values),
                                                dataset[name],
                                                time=target_times)
 
             # No single deployment contains this data. Create a temporary dataset containing all
             # deployments which contain data for the target parameter, then interpolate
             ds = compile_datasets(datasets)
-            return interp1d_data_array(ds.time.values,
-                                       ds[name],
-                                       time=target_times)
+            if len(shape) == 1:
+                return interp1d_data_array(ds.time.values,
+                                           ds[name],
+                                           time=target_times)
+            elif len(shape) == 2:
+                dim2_name = ds[name].dims[1]
+                return interp2d_data_array((ds.time.values, ds[dim2_name].values),
+                                           ds[name],
+                                           time=target_times)
 
     def _get_external_stream_key(self, external_stream_name):
         """

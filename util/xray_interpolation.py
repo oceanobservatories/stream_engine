@@ -127,3 +127,59 @@ def interp1d_dataset(data, method=None, **kw_indexers):
     # Add in the new index that we are interpolating by
     ds['time'] = ('obs', kw_indexers['time'], old_index_attrs)
     return ds
+
+def interp2d_data_array(d1_d2_grid_points_tuple, data, **indexers):
+    """
+    Linearly interpolate this 2d-array onto a new set of indexes. Note that that returned dtype will be float. Attributes are copied.
+    If the special attribute _FillValue is set, Fill values in the original data will be converted to NaN
+    before being interpolated.
+
+    :param d1_d2_grid_points_tuple: Tuple of 1d arrays of grid points for each dimension
+    :param data: 2-d DataArray
+    :param indexers: Keyword arguments.  Dictionary with keys given by
+    dimension names and values given by arrays of coordinates tick labels.  Only
+    one is supported right now.  If more than one is given, a random one will be
+    choosen.
+    :return: new interpolated 2-d DataArray with dimensions and attributes
+    copied from data.
+    """
+    dim_name = next(iter(indexers.keys()))
+    axis = data.dims.index('obs')
+    new_d1_pts = indexers[dim_name]
+
+    data_values = data.values
+    if data_values.dtype.kind not in ['i', 'u', 'f', 'c']:
+        raise ValueError('Non-numeric 2d data can\'t be linearly interpolated')
+
+    d1_pts = d1_d2_grid_points_tuple[0]
+    d2_pts = d1_d2_grid_points_tuple[1]
+
+    d1_pts, data_values = _fit(d1_pts, data_values, new_d1_pts, axis)
+
+    interp_attrs = dict(data.attrs)
+    if '_FillValue' in interp_attrs:
+        fill_value = interp_attrs.get('_FillValue')
+        # Replace fill_value with np.NaN
+        data_values = np.where(data_values == fill_value, np.NaN, data_values)
+        interp_attrs['_FillValue'] = np.NaN
+
+    #  Setting bounds_error=False, fill_value=None should result in interpolation if any
+    #  target times lie outsde times boundaries. Although this should never happen because
+    #  1. we call _fit above and 2. even before that we pad co-located data sets in get_data.
+    interp = interpolate.RegularGridInterpolator(d1_d2_grid_points_tuple, data_values,
+                                                 bounds_error=False, fill_value=None)
+
+    # Transform the grid into a 1d array of individual (x, y) points.
+    # Assume that the shape of the output data in second dimension is the same as second dim of
+    # the input data and only the shape of the first dimension (time) can be different.
+    # So n=N for input_data shape (m, n) and output_data shape (M, N).
+    X, Y = np.meshgrid(new_d1_pts, d2_pts, indexing='ij')
+    pts = np.c_[X.ravel(), Y.ravel()]
+
+    # Interpolate the pts. Returns a 1d array of results
+    result_1d = interp(pts)
+
+    # Reshape the 1D result back to the original 2d shape
+    interp_data = result_1d.reshape(new_d1_pts.shape[0], d1_d2_grid_points_tuple[1].shape[0])
+
+    return data.dims, interp_data, interp_attrs
