@@ -80,6 +80,9 @@ class StreamDataset(object):
     def fetch_raw_data(self, time_range, limit, should_pad):
         deployment_datasets = self.get_dataset(time_range, limit, self.provenance_metadata,
                                                should_pad, self.request_id)
+        if not deployment_datasets:
+            raise MissingDataException("Query returned no results for stream %s" % self.stream_key)
+
         for deployment, dataset in deployment_datasets.items():
             if self.raw_data_only:
                 self.datasets[deployment] = dataset
@@ -91,24 +94,20 @@ class StreamDataset(object):
         Insert the supplied dataset into this StreamDataset
         This method should not be called twice, it will replace existing data if called again.
         """
-        if dataset:
-            # RSN data shall obtain deployment information from asset management.
-            # Replace these values prior to grouping with the actual deployment number
-            if self.events and self.stream_key.method.startswith('streamed'):
-                for deployment_number in sorted(self.events.deps):
-                    mask = dataset.time.values > self.events.deps[deployment_number].ntp_start
-                    dataset.deployment.values[mask] = deployment_number
+        # RSN data shall obtain deployment information from asset management.
+        # Replace these values prior to grouping with the actual deployment number
+        if self.events and self.stream_key.method.startswith('streamed'):
+            for deployment_number in sorted(self.events.deps):
+                mask = dataset.time.values > self.events.deps[deployment_number].ntp_start
+                dataset.deployment.values[mask] = deployment_number
 
-            for deployment, group in dataset.groupby('deployment'):
-                if STREAM_DEDUPLICATION_MAP and self.stream_key.stream.name in STREAM_DEDUPLICATION_MAP:
-                    # If the stream key is in the deduplication map, prune duplicates
-                    self.datasets[deployment] = self._prune_duplicates(group, STREAM_DEDUPLICATION_MAP[self.stream_key.stream.name])
-                else:
-                    self.datasets[deployment] = self._prune_duplicate_times(group)
-                self.params[deployment] = [p for p in self.stream_key.stream.derived]
-
-        else:
-            raise MissingDataException("Query returned no results for stream %s" % self.stream_key)
+        for deployment, group in dataset.groupby('deployment'):
+            if STREAM_DEDUPLICATION_MAP and self.stream_key.stream.name in STREAM_DEDUPLICATION_MAP:
+                # If the stream key is in the deduplication map, prune duplicates
+                self.datasets[deployment] = self._prune_duplicates(group, STREAM_DEDUPLICATION_MAP[self.stream_key.stream.name])
+            else:
+                self.datasets[deployment] = self._prune_duplicate_times(group)
+            self.params[deployment] = [p for p in self.stream_key.stream.derived]
 
     @staticmethod
     def _prune_duplicate_times(dataset):
