@@ -180,6 +180,21 @@ class NetcdfGenerator(object):
                             # if parameter.netcdf_name does not already exist in the dataset (14535) ...
                             if parameter.netcdf_name not in ds:
                                 # rename the parameter without the stream_name prefix (12544 AC1)
+                                # make sure to rename qartod tests as well so they don't get filtered from the dataset
+                                anc_vars = ds[long_parameter_name].attrs.get('ancillary_variables')
+                                if anc_vars:
+                                    for anc_var in anc_vars.split():
+      
+                                        alt_var = ds.get(long_parameter_name, {}).attrs.get("alternate_parameter_name")
+                                        if alt_var and "_qartod_" in anc_var and alt_var in anc_var:
+                                            current_qartod_var = anc_var.replace(alt_var, long_parameter_name, 1)
+                                            final_qartod_var = anc_var.replace(alt_var, parameter.netcdf_name, 1)
+                                            ds = ds.rename({current_qartod_var: final_qartod_var})
+                                            params_to_include.append(final_qartod_var)
+                                          
+                                    ds[long_parameter_name].attrs['ancillary_variables'] = anc_vars.replace(
+                                        long_parameter_name, parameter.netcdf_name
+                                    )
                                 ds = ds.rename({long_parameter_name: parameter.netcdf_name})
                                 final_parameter_name = parameter.netcdf_name
 

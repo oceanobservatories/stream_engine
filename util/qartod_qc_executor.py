@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 
 EXCEPTION_MESSAGE = 'Logged Exception'
 DEFAULT_QARTOD_TEST_MODULE = engine.app.config['DEFAULT_QARTOD_TEST_MODULE']
-
+INT_PRESSURE_NAME = engine.app.config.get('INT_PRESSURE_NAME')
 
 class QartodQcExecutor(object):
     """
@@ -26,15 +26,20 @@ class QartodQcExecutor(object):
 
     def execute_qartod_tests(self):
         external_includes = self.stream_request.external_includes
-        #only run QARTOD on requested parameters, no need to run on parameters that won't be in returned data
-        
-        parameters = [parameter.name for parameter in self.stream_request.requested_parameters] 
+        qartod_tests = []
+        qartod_tests_all = []
+        datasets = []
         for stream_key, stream_dataset in self.stream_request.datasets.items():
             subsite, node, sensor, _, stream = stream_key.as_tuple()
-            qartod_tests = qartodTestServiceAPI.find_qartod_tests(subsite, node, sensor, stream, parameters)
+            parameters = [parameter.name for parameter in stream_key.stream.parameters]
+            qartod_tests = qartodTestServiceAPI.find_qartod_tests(subsite, node, sensor, stream, parameters) 
+            qartod_tests_all = list(set(qartod_tests_all) | set(qartod_tests))
             for dataset in stream_dataset.datasets.values():
-                for qartod_test_record in qartod_tests:
-                    self.execute_qartod_test(qartod_test_record, dataset, external_includes)
+                datasets.append(dataset)
+
+        for dataset in datasets:   
+            for qartod_test_record in qartod_tests_all:
+                self.execute_qartod_test(qartod_test_record, dataset, external_includes)            
 
     def execute_qartod_test(self, qartod_test_record, dataset, external_includes):
         """
@@ -56,9 +61,14 @@ class QartodQcExecutor(object):
             return
 
         parameter_under_test = param_dict['inp']
+        stream_under_test = qartod_test_record.stream
+        
         # can't run test on data that's not there
-        if parameter_under_test not in dataset:
-            return
+        if parameter_under_test not in dataset: 
+            parameter_under_test = stream_under_test+"-"+parameter_under_test   
+        # check if parameter is from a co-located instrument       
+        if parameter_under_test not in dataset: 
+            return     
 
         # need to account for external parameters (i.e. depth) for some qartod tests
         external_params = {}
@@ -66,6 +76,12 @@ class QartodQcExecutor(object):
             for parameter in external_includes[external_stream_key]:
                 long_parameter_name = external_stream_key.stream_name + "-" + parameter.name
                 external_params[parameter.name] = long_parameter_name
+
+        #only run QARTOD on requested parameters, no need to run on parameters that won't be in returned data    
+        requested_parameters = [parameter.name for parameter in self.stream_request.requested_parameters] 
+        if parameter_under_test not in requested_parameters and parameter_under_test not in external_params and parameter_under_test not in external_params.values():
+            log.info("Skipping qartod test, not a requested parameter: %s", parameter_under_test)    
+            return  
         # replace parameter names with the actual numpy arrays from the dataset for each entry in param_dict
         # cast keys to list instead of iterating dict directly because we may delete keys in this loop 
         try:
@@ -75,8 +91,11 @@ class QartodQcExecutor(object):
                     #use param name from external parameters if qartod parameter not found in dataset
                     if param_name not in list(dataset.variables):
                         if param_name in external_params:
-                            param_name = external_params[param_name]
-                    
+                            if 'pressure' in param_name:
+                                param_name = INT_PRESSURE_NAME
+                            else:    
+                                param_name = external_params[param_name]   
+
                     param_dict[input_name] = dataset[param_name].values
                 else:
                     # optional parameter set to None/null - remove it
@@ -225,9 +244,6 @@ class QartodQcExecutor(object):
                             # Use the "high interest" (SUSPECT) flag to draw attention to the failure
                             test_results[mask] = QartodFlags.SUSPECT
                         all_test_results.append(test_results)
-    
-                        # add results to dataset
-                        #QartodQcExecutor.insert_qc_results(parameter_under_test, test, all_test_results, dataset)
                     
             all_test_results = np.array(all_test_results)
             all_test_results = np.squeeze(all_test_results)
