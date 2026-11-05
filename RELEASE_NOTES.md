@@ -1,5 +1,19 @@
 # Stream Engine
 
+# Release 1.20.22 2026-11-04
+
+Issue #16348 - Declination Error for Cabled ADCPs
+
+Issue #16178 - Update Nitrate temperature-salinity correction algorithm in ion-function
+
+Issue #16237 - Correction to PLIMS flow rate ion function and parameter definitions
+
+Issue #16324 - Generation of salinity_corrected_nitrate occasionally fails
+
+Issue #16325 - Stream engine occasionally incorrectly reports data removal by annotation mask
+
+Issue #16017 - Missing QARTOD tests in CTD stream
+
 # Release 1.20.21 2026-03-25
 
 Issue #15645 - Convert stream_engine from Python2 to Python3
