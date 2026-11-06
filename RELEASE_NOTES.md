@@ -8,7 +8,7 @@ Issue #16178 - Update Nitrate temperature-salinity correction algorithm in ion-f
 
 Issue #16237 - Correction to PLIMS flow rate ion function and parameter definitions
 
-Issue #16324 - Generation of salinity_corrected_nitrate occasionally fails
+Issue #16252 - Allowing interpolation for 2d arrays
 
 Issue #16325 - Stream engine occasionally incorrectly reports data removal by annotation mask
 
