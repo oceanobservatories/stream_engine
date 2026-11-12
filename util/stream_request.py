@@ -670,8 +670,41 @@ class StreamRequest(object):
         return None, None
 
     def find_stream_with_function(self, param_streams, fn, fn_kwargs):
+        """
+        For each tuple of (parameter, [list of preload streams providing parameter]), call the given function
+        that returns a list of the appropriate stream_keys with actual data (for ANY deployment) in our system
+        and append it to a list. Then choose and return the best matching (stream_key, parameter) from the list.
+        :param param_streams: A list of (parameter, list of streams providing parameter) tuples
+        :param fn: function that finds a list of stream_keys that provide each parameter
+        :param fn_kwargs:
+        :return: The best (stream_key, parameter) that was found
+        """
+        sk_param_tup_list = []
+        for param, search_streams in param_streams:
+            fn_kwargs["streams"] = search_streams
+            sk_param_tup_list.extend([(sk, param) for sk in fn(**fn_kwargs)])
+        return self.choose_best_stream_key(self.stream_key.method, sk_param_tup_list)
+
+    def choose_best_stream_key(self, requested_method, sk_param_tup_list):
+        """
+        Choose the best stream key based on the requested method and the available data in that stream.
+        :param requested_method: The method specified in the users request
+        :param sk_param_tup_list: A list of tuples containing the stream keys and parameters of collated streams.
+        :return: The stream key and parameter that is the best match for the requested method where:
+                 1). The method of the stream_key is identical or at least similar to the requested method
+                 2). The parameter is valid per the config file
+                 3). The stream_key contains data within the requested time range
+        """
         def deployments_within_request_time_range_contain_data(stream_key):
             """
+            Checks if ANY data is available for each deployment within the requested time range for the given stream key.
+            Note: We could easily change this "data availability" function to one something like:
+                partitions_within_request_time_range_contain_data(stream_key)
+            but this would effectively disable the look back and look forward functionality if those look forward
+            and backward data points were not found within the partitions relevant to the request time range. That is why
+            we are searching within the entire deployment. Also, if we evaluated by partition, some stream engine sub-jobs
+            might use one data source but other sub-jobs from the same request might evaluate to a different data source
+            based on the data availability within those partitions (each sub-job uses 2 partitions).
             :return: True if the supporting stream contains ANY data in the deployments within the request time range.
             """
             am_events = self.asset_management.get_events(stream_key.as_three_part_refdes())
@@ -682,34 +715,19 @@ class StreamRequest(object):
                                                                     CASS_LOCATION_NAME)
             return len(cass_location_metadata.bin_list) > 0
 
-        # Note: We could easily change the is_data_available_fn to a function something like:
-        #     partitions_within_request_time_range_contain_data(stream_key)
-        # but this would effectively disable the look back and look forward functionality if those look forward
-        # and backward data points were not found within the partitions relevant to the request time range. That is why
-        # we are searching within the entire deployment. Also, if we evaluated by partition, some stream engine sub-jobs
-        # might use one data source but other subjobs from the same request might evaluate to a different data source
-        # based on the data availability within those partitions (each subjob uses 2 partitions).
-
-        for param, search_streams in param_streams:
-            while search_streams:
-                fn_kwargs["streams"] = search_streams
-                fn_kwargs["is_data_available_fn"] = deployments_within_request_time_range_contain_data
-                sk = fn(**fn_kwargs)
-                if not sk:
-                    break
-                if self.is_parameter_valid(param, sk):
-                    return sk, param
-                # Continue searching from where we left off
-                search_streams = search_streams[search_streams.index(sk.stream.name)+1:]
+        sk_param_tup_list = self._filter_and_sort_stream_keys_by_method(requested_method, sk_param_tup_list)
+        for sk, param in sk_param_tup_list:
+            if self.is_parameter_valid(param, sk) and deployments_within_request_time_range_contain_data(sk):
+                return sk, param
         return None, None
 
     @staticmethod
-    def _find_stream_same_sensor(stream_key, streams, stream_dictionary, is_data_available_fn):
+    def _find_stream_same_sensor(stream_key, streams, stream_dictionary):
         """
         Given a primary source, attempt to find one of the supplied streams from the same instrument
         :param stream_key:
         :param streams:
-        :return:
+        :return: A list of the found stream keys
         """
         log.debug('_find_stream_same_sensor(%r, %r, STREAM_DICTIONARY)', stream_key, streams)
         method = stream_key.method
@@ -717,6 +735,7 @@ class StreamRequest(object):
         node = stream_key.node
         sensor = stream_key.sensor
 
+        stream_keys = []
         # Search the same reference designator
         for stream in streams:
             sensors = stream_dictionary.get(stream, {}).get(method, {}).get(subsite, {}).get(node, [])
@@ -728,18 +747,19 @@ class StreamRequest(object):
                     "method": method,
                     "stream": stream
                 })
-                if is_data_available_fn(sk):
-                    return sk
+                stream_keys.append(sk)
+        return stream_keys
 
     @staticmethod
-    def _find_stream_from_list(stream_key, streams, sensors, stream_dictionary, is_data_available_fn):
+    def _find_stream_from_list(stream_key, streams, sensors, stream_dictionary):
         log.debug('_find_stream_from_list(%r, %r, %r, STREAM_DICTIONARY)', stream_key, streams, sensors)
         method = stream_key.method
         subsite = stream_key.subsite
         designators = [(c.subsite, c.node, c.sensor) for c in sensors]
 
-        for meth in StreamRequest._get_potential_methods(method, streams, stream_dictionary):
-            for stream in streams:
+        stream_keys = []
+        for stream in streams:
+            for meth in stream_dictionary.get(stream, {}).keys():
                 subsite_dict = stream_dictionary.get(stream, {}).get(meth, {}).get(subsite, {})
                 for _node in subsite_dict:
                     for _sensor in subsite_dict[_node]:
@@ -752,25 +772,26 @@ class StreamRequest(object):
                                 "method": meth,
                                 "stream": stream
                             })
-                            if is_data_available_fn(sk):
-                                return sk
+                            stream_keys.append(sk)
+        return stream_keys
 
     @staticmethod
-    def _find_stream_same_node(stream_key, streams, stream_dictionary, is_data_available_fn):
+    def _find_stream_same_node(stream_key, streams, stream_dictionary):
         """
         Given a primary source, attempt to find one of the supplied streams from the same instrument,
         same node or same subsite
         :param stream_key: StreamKey - defines the source of the primary stream
         :param streams: List - list of target streams
-        :return: StreamKey if found, otherwise None
+        :return: A list of the found stream keys
         """
         log.debug('_find_stream_same_node(%r, %r, STREAM_DICTIONARY)', stream_key, streams)
         method = stream_key.method
         subsite = stream_key.subsite
         node = stream_key.node
 
-        for meth in StreamRequest._get_potential_methods(method, streams, stream_dictionary):
-            for stream in streams:
+        stream_keys = []
+        for stream in streams:
+            for meth in stream_dictionary.get(stream, {}).keys():
                 sensors = stream_dictionary.get(stream, {}).get(meth, {}).get(subsite, {}).get(node, [])
                 if sensors:
                     sk = StreamKey.from_dict({
@@ -780,15 +801,14 @@ class StreamRequest(object):
                         "method": meth,
                         "stream": stream
                     })
-                    if is_data_available_fn(sk):
-                        return sk
+                    stream_keys.append(sk)
+        return stream_keys
 
     @staticmethod
-    def _get_potential_methods(method, streams, stream_dictionary):
+    def _filter_and_sort_stream_keys_by_method(method, sk_param_tup_list):
         """
-        When trying to resolve streams, an applicable stream may have a subtlely different method
-        (e.g. 'recovered_host' vs. 'recovered_inst'). This function is used to identify all related methods
-        within a stream dictionary so that streams can be resolved properly despite these minor differences.
+        Filter the list of (stream_key, param) tuples to only include those having a method in the same general category
+        as the requested stream_key. Then sort the list so that the requested method is first.
         """
         method_category = None
         if "streamed" in method:
@@ -801,14 +821,16 @@ class StreamRequest(object):
         if not method_category:
             log.warn("<%s> Unexpected method, %s, encountered during stream resolution."
                      " Only resolving streams whose methods match exactly.", method)
-            return method
+            method_category = method
 
-        valid_methods = set()
-        for stream in streams:
-            for meth in stream_dictionary.get(stream, {}).keys():
-                if method_category in meth and "bad" not in meth:
-                    valid_methods.add(meth)
-        return sorted(valid_methods, key=lambda x: -1 if x == method else 0)
+        # Only consider elements with a method in the same general category as the requested method
+        # and having data that is not bad
+        filtered_list = [sk_param_tup for sk_param_tup in sk_param_tup_list
+                         if method_category in sk_param_tup[0].method and "bad" not in sk_param_tup[0].method]
+        # Completely sort the list so that the results will be reproducible
+        filtered_list.sort(key=lambda x: (x[0], x[1].id))
+        # Move elements to the front of the list if they match the requested method exactly
+        return sorted(filtered_list, key=lambda x: -1 if x[0].method == method else 0)
 
     def interpolate_from_stream_request(self, stream_request):
         source_sk = stream_request.stream_key
